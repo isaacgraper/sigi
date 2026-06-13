@@ -62,8 +62,4 @@ Contribuições são bem-vindas! Siga os passos abaixo:
 4. Faça o push para a branch (`git push origin feature/minha-feature`)
 5. Abra um Pull Request
 
----
-
-## Autor
-
 **Isaac Kleimmann Graper** · 2026
