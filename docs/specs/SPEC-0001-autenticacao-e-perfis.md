@@ -38,7 +38,7 @@ timeline and the auditor's screens. This spec only writes rows.
 ## 3. Domain model touched
 
 `USUARIO` (created, read, anonymised), `CONVITE` (created, redeemed),
-`HISTORICO_MOVIMENTACAO` (append).
+`SESSAO` (created, rotated, revoked), `HISTORICO_MOVIMENTACAO` (append).
 
 Invariants this spec owns:
 
