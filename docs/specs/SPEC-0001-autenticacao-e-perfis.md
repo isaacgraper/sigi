@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.3
+version: 0.4
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -72,17 +72,46 @@ When  local login is requested for "ana@sc.gov.br" with the wrong password
 Then  the response is 401 with error code "CREDENCIAIS_INVALIDAS"
 When  local login is requested for "naoexiste@sc.gov.br" with any password
 Then  the response is 401 with the same code and byte-identical message
+And   the same holds at the lockout threshold: a sixth attempt returns 429 for
+      both addresses, so counting attempts never reveals which one exists
 ```
+*(v0.4)* The last line was added because it was **false** as v0.3 specified it.
+The lockout was keyed on the account, so an unknown address had no counter and
+answered 401 forever while a known one switched to 429 — six requests
+distinguished them. That is why the counter is keyed on the submitted address
+rather than on the usuario (AC-0001-03).
 
-**AC-0001-03** — Repeated failures lock the account and are audited
+**AC-0001-03** — Repeated failures lock the address and are audited
 ```gherkin
-Given 5 failed local login attempts for one account within 15 minutes
+Given 5 failed local login attempts for one e-mail address, each within 15
+      minutes of the previous one
 When  a sixth attempt is made, even with the correct password
 Then  the response is 429 with error code "TENTATIVAS_EXCEDIDAS"
-And   the message states when the account may try again
-And   an audit row records the lockout with the account and the attempt count
-And   15 minutes after the last attempt the correct password authenticates normally
+And   the message states when the address may try again
+And   an audit row records the lockout with the attempt count
+And   15 minutes after the last attempt, the correct password authenticates normally
+Given 4 failed attempts whose last one was more than 15 minutes ago
+When  a fifth attempt fails
+Then  it counts as the first, not the fifth, and no lockout occurs
+Given a locked-out address belonging to an "ativo" usuario
+When  that usuario authenticates through institutional OIDC
+Then  the response is 200 and a session is issued
 ```
+*(v0.4)* Three things this now pins that v0.3 left ambiguous or wrong:
+
+- **The counter is keyed on the submitted address, not on the usuario.** Keying
+  it on the account made AC-0001-02 false, and an unknown address unlockable.
+- **The window decays by inactivity.** "Five within fifteen minutes" and
+  "unlocked fifteen minutes after the last attempt" are not the same rule; the
+  decay is the one implemented, and the fourth `Given` above is what proves it.
+  A stored counter with no timestamp expresses only "five failures ever", which
+  would lock an account over failures spread across days.
+- **The lockout does not reach institutional OIDC.** Otherwise anyone who knows
+  the last gestor's e-mail could deny member management in fifteen-minute
+  blocks, indefinitely and anonymously — the outcome AC-0001-29 exists to
+  prevent, reached by a route it does not guard. With OIDC as the primary
+  mechanism (ADR-0010) the gestor still gets in; with local login disabled in
+  production the attack surface does not exist at all.
 
 **AC-0001-04** — Only allowlisted institutional domains may authenticate locally
 ```gherkin
@@ -219,14 +248,26 @@ And   the message names the allowed domains
 Given exactly one usuario with perfil "gestor" and status "ativo"
 When  a gestor blocks or deactivates that usuario, including themselves
 Then  the response is 409 with error code "ULTIMO_GESTOR"
-And   the usuario remains "ativo"
+And   the usuario remains "ativo" with perfil "gestor"
+When  that usuario's perfil is changed to "servidor" or "auditor"
+Then  the response is 409 with the same code
 Given two "ativo" gestores
 When  one is deactivated
 Then  the operation succeeds
+Given two gestores being deactivated concurrently, one per request
+Then  exactly one succeeds and at least one "ativo" gestor remains
 ```
 Without this, one sequence of two permitted actions leaves the entity with no
 one able to manage members — and because there is no self-registration
 (AC-0001-21), there is no way back in without database access.
+
+*(v0.4)* Two additions. **Demotion is the same hole**: changing the last
+gestor's perfil empties the role exactly as blocking it does, and no endpoint
+exposes that today, which is the cheapest moment to close it. And the
+**concurrency criterion** is there because this is a cross-row condition, so two
+simultaneous requests can each observe two active gestores and both commit —
+write skew, which snapshot isolation does not prevent. A test that runs the race
+once proves nothing; it has to run many times.
 
 **AC-0001-14** — Deactivation anonymises the person and preserves the history
 ```gherkin
@@ -444,10 +485,10 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Action | `entidade_tipo` | `acao` | `dados_anteriores` |
 | --- | --- | --- | --- |
 | Successful login | `usuario` | `auth.login` | `{mecanismo, claim_asserido}` |
-| Failed login | `usuario` | `auth.falha` | `{motivo}` |
+| Failed login | `usuario` | `auth.falha` | `{motivo, email_hmac, dominio}` |
 | Lockout | `usuario` | `auth.bloqueio_tentativas` | `{tentativas}` |
 | Refresh replay | `usuario` | `auth.refresh_replay` | `{token_id}` |
-| OIDC rejection | `usuario` | `auth.oidc_recusada` | `{motivo, email_asserido}` |
+| OIDC rejection | `usuario` | `auth.oidc_recusada` | `{motivo, email_hmac, dominio}` |
 | Invite | `usuario` | `usuario.convidado` | `null` |
 | Activation | `usuario` | `usuario.ativado` | `{status}` |
 | Block | `usuario` | `usuario.bloqueado` | `{status}` |
@@ -457,6 +498,21 @@ listed them at the root while `api-conventions.md` states the prefix is
 
 No row carries a password, a token value, or a `nome` in `dados_anteriores` —
 `lgpd.md`'s resolution of the erasure/immutability tension depends on it.
+
+**And no row carries an e-mail address.** *(v0.4, correcting v0.3.)* v0.3 wrote
+`{email_asserido}` into `auth.oidc_recusada`, for a caller who by definition has
+**no** `USUARIO` row (AC-0001-21). An institutional e-mail is personal data; the
+audit table can never be corrected (AC-0001-27); and there is no account to
+anonymise later — so that address would have been permanent, in the one table
+`lgpd.md` promises never carries personal data. Replaced by a **peppered HMAC of
+the address plus the bare domain**: repeated attempts against one address stay
+correlatable for an investigation, and the address itself is not recoverable
+from the row. The pepper lives in application configuration, never in the
+database, so a leaked dump does not let an attacker confirm a guessed address.
+
+An audit row therefore may have **no actor at all**: `usuario_id` is nullable,
+because AC-0001-20 and AC-0001-21 both produce rows for callers with no account.
+Invariant I4 still holds — a row that *does* name a `usuario_id` never loses it.
 
 ## 9. Open questions
 
@@ -514,6 +570,29 @@ fixed here:
 8. **"Change own password" was a permission with no specification.** Removed
    from the matrix and recorded as out of scope, with the reason.
 
+**v0.4 (2026-09-10)** — `/plan`'s persistence review found four defects in v0.3,
+three of them in criteria I had just approved. Recorded here rather than fixed
+quietly, because a spec that resolves its own contradiction without saying so has
+made a decision nobody agreed to.
+
+1. **AC-0001-02 was false.** The lockout was keyed on the account, so an unknown
+   e-mail had no counter: six attempts told an attacker which addresses exist.
+   The counter moved to the submitted address.
+2. **AC-0001-03 stated two different rules** — "five within fifteen minutes" and
+   "unlocked fifteen minutes after the last attempt" — and a stored counter with
+   no timestamp expresses neither. Now explicitly an inactivity decay, with a
+   criterion that proves it.
+3. **The lockout was a denial-of-service against member management.** Anyone who
+   knew the last gestor's address could deny it in fifteen-minute blocks. The
+   lockout now applies to local login only; institutional OIDC is unaffected.
+4. **§8 wrote an e-mail address into the audit table**, permanently, for a
+   caller with no account to anonymise — contradicting `lgpd.md` outright.
+   Replaced by a peppered HMAC plus the bare domain.
+
+AC-0001-29 also grew to cover demotion of the last gestor and to state the
+concurrency requirement, since it is a cross-row condition and therefore subject
+to write skew.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -521,3 +600,4 @@ fixed here:
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF01–RF02, §6.2, mockup 9.2.3 |
 | 0.2 | 2026-09-02 | OQ-09 reframed from the 17/08 meeting: Entra ID, not Gov.br. Candidate axes for RN07 scoping recorded from the data (unidade, grupo de materiais) |
 | 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice, with AC-0001-27 proving RN06/RNF08. `/spec-review` added AC-0001-25/26 (invitation single-use, password policy), AC-0001-28 (duplicate and off-domain invites) and AC-0001-29 (the last active gestor cannot be locked out); "change own password" left the permission matrix as unspecified |
+| 0.4 | 2026-09-10 | `/plan`'s persistence review corrected four defects: the lockout is keyed on the submitted address, not the account (AC-0001-02 was false as written); AC-0001-03 states an inactivity decay rather than two conflicting rules; the lockout no longer reaches institutional OIDC, closing a DoS on member management; and §8 stops writing e-mail addresses into the immutable audit table, using a peppered HMAC plus domain. AC-0001-29 extended to demotion and to the concurrency requirement |
