@@ -51,7 +51,7 @@ jobs:
         # `migrations` is included on purpose: it is where the hand-written DDL
         # lives, which is the code least covered by tests and most able to
         # destroy data.
-        run: uv run mypy app migrations
+        run: uv run mypy app migrations tests
 
       # Minimum 70% coverage (RNF10). Tests use a real PostgreSQL via
       # testcontainers — the ubuntu-latest runner already provides Docker.
