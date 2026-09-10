@@ -48,7 +48,10 @@ jobs:
       # definition-of-done requires a clean mypy run. It was in the checklist
       # before it was in the pipeline, which is how a checklist stops being one.
       - name: mypy
-        run: uv run mypy app
+        # `migrations` is included on purpose: it is where the hand-written DDL
+        # lives, which is the code least covered by tests and most able to
+        # destroy data.
+        run: uv run mypy app migrations
 
       # Minimum 70% coverage (RNF10). Tests use a real PostgreSQL via
       # testcontainers — the ubuntu-latest runner already provides Docker.
