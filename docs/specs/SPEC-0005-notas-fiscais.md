@@ -2,7 +2,7 @@
 id: SPEC-0005
 title: Notas Fiscais e conferência
 status: Draft
-version: 0.1
+version: 0.2
 owner: Isaac Kleimann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
@@ -63,8 +63,35 @@ The RFC's data model gives `NOTA_FISCAL` no status column, while Tela 7 shows
 four statuses. This spec adds `status` and `justificativa_devolucao` to the
 entity. Recorded as OQ-12.
 
+## Revision 2026-09-02 — validated against operational data
+
+**RN02 is confirmed by real data.** `ENTRADAS NFS (CSV)` links each
+`numeroDocumento` to an `empenho`, and `Controle CAME 2026 › EMPENHOS` carries
+`NF 1` … `NF 4` columns per empenho. One NE, many NFs, and the NF reaches the
+ATA only through the NE — exactly as specified. No change needed.
+
+**One consequence of ADR-0007.** RN12 (`Σ NF.valor` per NE may not exceed the NE
+value) now compares against `Σ ITEM_NOTA_EMPENHO.valor`, since the NE header no
+longer carries a value of its own. `DB6` is updated in the data model; the AC
+wording here should follow when this spec moves to `Review`.
+
+**An atesto workflow exists that this spec does not model.** The source carries
+`dataHoraPrazoFinalAtesto`, `situacaoAtesto` ∈ {`Atestado e recebido no prazo`,
+`Atestado e recebido fora do prazo`, `Sem atesto`} and
+`prioridadeAtesto` = `Normal 48H` — a receipt-attestation SLA with a deadline
+and a breach state. The four-status model here (`aguardando`, `em_conferencia`,
+`aprovada`, `devolvida`) is not that. Out of MVP scope, consistent with the
+decision not to ingest `ENTRADAS NFS` at all, but recorded so the status model
+is not mistaken for complete. See OQ-22.
+
+**`ENTRADAS NFS` is not ingested in the MVP.** Two reasons, both sufficient: the
+entity states it has no use for it (*"já temos um controle interno nosso"*), and
+it carries `pacienteNome` alongside `judicial` — identified health data. See
+OQ-24 and `data-sources.md` §13.
+
 ## 4. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF05, §2.5 RN02/RN05, Tela 7 |
+| 0.2 | 2026-09-02 | RN02 confirmed from real data; RN12 now aggregates over ITEM_NOTA_EMPENHO (ADR-0007); atesto SLA recorded as unmodelled (OQ-22); ENTRADAS NFS excluded on privacy and data-quality grounds (OQ-24) |

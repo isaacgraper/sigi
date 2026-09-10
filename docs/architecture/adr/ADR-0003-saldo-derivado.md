@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-22
-- **Related:** RF14, RN10, SPEC-0006
+- **Related:** RF14, RN10, SPEC-0006, ADR-0007
 
 ## Context
 
@@ -46,3 +46,27 @@ proposal is caught in review rather than in a migration.
 **Follow-up** — AC-0006-06 asserts derivation by mutating NE rows directly and
 reading saldo with no refresh step. If that test is ever weakened, this decision
 has been silently reversed.
+
+## Empirical support (added 2026-09-02)
+
+The stakeholders' own workbook contains the experiment this ADR describes in the
+abstract. `Controle CAME 2026 › Controle de ITENS` keeps two columns side by
+side: `SALDO`, maintained by hand, and `SALDO CALCULADO`, derived.
+
+| Rows carrying both | Divergent | Share |
+| --- | --- | --- |
+| 951 | **309** | **32,5%** |
+
+A third of the stored balances disagree with the derived ones, in the very
+spreadsheet SIGI is meant to replace. The "Negative" consequence above — that
+developers will repeatedly propose a stored balance column — now has a number
+attached to what that costs. Reproduce with `scripts/analise-planilhas.py`.
+
+Note also that the operation tracks saldo **per item, in quantity**
+(`TOTAL DA ATA` / `COMPRADO` / `SALDO`), while this ADR defines it **per ATA, in
+value**. Both are real and only one is modelled; see OQ-20 and
+`docs/architecture/data-sources.md` §10.
+
+Aggregation moves down one level as a result of ADR-0007: saldo is computed over
+`ITEM_NOTA_EMPENHO`, not `NOTA_EMPENHO`. The decision itself is unchanged.
+

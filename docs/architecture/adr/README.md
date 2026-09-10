@@ -16,3 +16,6 @@ Create one with `/adr-new <title>`.
 | 0004 | Audit immutability enforced in the database | Accepted |
 | 0005 | NE state machine as an explicit transition table | Accepted |
 | 0006 | Language split: English code/API envelope, Portuguese domain, pt-BR user text | Accepted |
+| 0007 | The Nota de Empenho carries multiple insumos | Accepted |
+| 0008 | Ingesting stock signals from DOMS without becoming an inventory system | Accepted |
+| 0009 | Operational data supersedes the RFC as the source of truth | Accepted |

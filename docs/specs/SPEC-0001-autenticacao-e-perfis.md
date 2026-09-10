@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Draft
-version: 0.1
+version: 0.2
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN07]
 depends_on: []
@@ -110,8 +110,33 @@ the actor and the timestamp (RFC §3.2).
 - The mockup shows CPF and SIAPE on the profile screen; neither is in the data
   model, and CPF is personal data under LGPD requiring a legal basis entry. See OQ-10.
 
+## Revision 2026-09-02 — the authentication question was the wrong one
+
+OQ-09 asked *when* the entity would register with Gov.br. The 17/08 meeting
+shows the premise is wrong: **Gov.br was never mentioned**. Servidores already
+hold credentials provisioned by the entity's own TI, and the discussion was
+about **Microsoft Entra ID** — *"É uma Entra, né?"*, answered *"Dá pra colocar.
+É possível."*
+
+This matters beyond a vendor name. Gov.br is citizen-to-state federation; SIGI's
+users are internal servidores who already have an institutional identity. Keeping
+Gov.br in the spec promises an integration nobody asked for while omitting the
+one actually discussed, and its M4 lead-time risk is imaginary.
+
+Proposal, pending confirmation with the entity's TI: **OIDC against Entra ID as
+the primary mechanism**, local credentials retained only as contingency, Gov.br
+dropped from scope. RF01's text ("institutional credentials or Gov.br") is
+frozen RFC wording and is not edited; the divergence is recorded in
+`functional.md`'s notes column and in OQ-09.
+
+Note also that RN07's "área de competência" (OQ-04, still open) now has a
+candidate shape from the data: every stock and fulfilment row is keyed by
+`unidadeId`, and compradores are organised by **grupo de materiais**. Those are
+the two axes the operation actually uses. See OQ-26.
+
 ## 7. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF01–RF02, §6.2, mockup 9.2.3 |
+| 0.2 | 2026-09-02 | OQ-09 reframed from the 17/08 meeting: Entra ID, not Gov.br. Candidate axes for RN07 scoping recorded from the data (unidade, grupo de materiais) |

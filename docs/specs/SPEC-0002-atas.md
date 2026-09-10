@@ -2,7 +2,7 @@
 id: SPEC-0002
 title: ATAs de Registro de Preços
 status: Draft
-version: 0.1
+version: 0.2
 owner: Isaac Kleimann Graper
 satisfies: [RF04, RF08, RF11, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
@@ -93,8 +93,39 @@ OQ-02 (import is CSV, not lookup by process number — confirm with the entity),
 OQ-08 (reajuste policy undefined, so RF16 is unspecified), OQ-11 (does the
 entity ever run an ATA with multiple fornecedores? The model assumes one).
 
+## Revision 2026-09-02 — validated against operational data
+
+Three assumptions in this spec were checked against the stakeholders' workbooks
+(`docs/architecture/data-sources.md`) and two did not survive.
+
+**There is no ATA import.** OQ-02 asked whether e-Publica import is a lookup or
+a CSV upload. It is neither: the entity's export contract contains **no ATA
+report at all**. ATAs are maintained by hand in a spreadsheet, and some arrive
+through **Cincatarina**, a shared-purchase channel producing ATAs the entity did
+not run itself. AC-0002-* covering import must be re-scoped to: manual ATA
+registration, plus CSV import of the ATA's *items*. See OQ-19.
+
+**`fornecedor_id` is not always singular.** 29 of 456 ATAs (6,4%) carry more
+than one fornecedor, up to three. §2's model of one supplier per ATA is wrong
+for those. The likely fix is to move fornecedor to `ITEM_ATA`, which also
+matches how the source records it. Not applied here — it changes AC-0002-01 and
+the data model, and belongs in a revision that can be reviewed on its own.
+
+**A third status axis exists.** §2 separates stored `status` from derived
+`situacao_vigencia`. The source's `STATUS DA ATA` holds 17 values, and 12 of
+them describe neither: they describe the **acquisition process** — `SAP`,
+`FRACASSADO`, `CONSTRUÇÃO EDITAL`, `EM LICITAÇÃO`, `PGM`, `DESERTO`,
+`TERMO DE REFERÊNCIA`. A `VENCIDA` ATA whose replacement pregão is `DESERTO` is
+operationally different from one `EM LICITAÇÃO`, and neither axis in this spec
+can express the difference. See OQ-21.
+
+**Reajuste, partially answered.** `Controle de ITENS` carries
+`DATA LIMITE REAJUSTE` per item, so the window is per-item and already tracked.
+Index and approver remain unknown, so RF16 stays unspecified (OQ-08).
+
 ## 5. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF04/RF08, Tela 4, mockup 9.2.2.1 |
+| 0.2 | 2026-09-02 | Validated against operational data: no ATA export exists (OQ-02 resolved); multi-fornecedor ATAs confirmed (OQ-11); third status axis recorded (OQ-21) |

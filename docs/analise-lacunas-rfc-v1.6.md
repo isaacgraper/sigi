@@ -1,9 +1,21 @@
 # Análise de Lacunas — RFC SIGI v1.6 × Reunião de Stakeholders (17/08/2026)
 
-> **Status: endereçada.** Os achados deste documento foram incorporados em
-> [`rfc-sigi-v1.7.md`](./rfc-sigi-v1.7.md). Esta análise permanece como registro do
-> raciocínio e das evidências — a rastreabilidade de *por que* cada mudança foi feita.
-> O resumo do que mudou está no [changelog da v1.7](./rfc-sigi-v1.7.md#10-changelog-v16--v17).
+> **Status: histórico.** *(Atualizado em 2026-09-03.)* Esta análise foi escrita
+> antes de as planilhas do Eduardo chegarem e antes de a branch `dev` ser
+> conhecida. Seus achados foram, depois, verificados contra os dados reais e
+> incorporados ao repositório da forma que o processo exige — não no
+> `rfc-sigi-v1.7.md`, que está **superado**, mas em:
+>
+> - `ADR-0007` — a NE é multi-item (achado que esta análise não tinha)
+> - `ADR-0008` — ingestão de sinais de estoque do DOMS
+> - `ADR-0009` — dados operacionais como fonte de verdade
+> - `docs/architecture/data-sources.md` — o de-para campo a campo
+> - `docs/open-questions.md` — as questões resolvidas por dado
+>
+> Vários pontos daqui foram **corrigidos** pela evidência: a cadência é mensal e
+> não diária, o estoque mínimo vem pronto do DOMS, e a "decisão D1" sobre o
+> aditivo de 25% era redundante — `RF15`/`RN15` já fixavam isso.
+> Permanece como registro do raciocínio, não como fonte.
 
 > Documento de trabalho. Confronta o **RFC_SIGI_v1_6.docx** (última versão; a cópia de
 > 21/08 é byte-idêntica, portanto a reunião ainda **não** foi incorporada a nenhum
@@ -242,7 +254,7 @@ levantar o número, esta é a origem.
 
 ---
 
-## 4. Divergências a confirmar com os stakeholders
+## 5. Divergências a confirmar com os stakeholders
 
 | # | Questão | Evidência conflitante |
 | :-- | :-- | :-- |
@@ -253,7 +265,7 @@ levantar o número, esta é a origem.
 
 ---
 
-## 5. Lista de alterações proposta para a v1.7
+## 6. Lista de alterações proposta para a v1.7
 
 **Estruturais**
 - [ ] Reposicionar `Estoque` como capacidade de primeira classe (reverter a demoção da v1.6): RF03, RF14, §1.3, §4.1.
@@ -281,7 +293,7 @@ levantar o número, esta é a origem.
 
 ---
 
-## 6. O que o RFC v1.6 já acerta
+## 7. O que o RFC v1.6 já acerta
 
 Para não perder o que está bom:
 

@@ -11,6 +11,35 @@ Source: RFC §6.4. This document is the register a DPO would ask for.
 | Audit and traceability | usuario_id, timestamp, ação, dados anteriores | Art. 7, II — legal obligation, public transparency | ≥ 5 years (RNF08) |
 | Operational | ATA, NE, NF, insumo data | Art. 7, V — contract execution. **Not personal data.** | Indefinite |
 
+## Health data in the source exports *(2026-09-02)*
+
+This register was written from the RFC, which places `fórmulas e suplementos`
+(150–200 administrative and judicial cases) **out of scope** and therefore
+records no health data. The entity's export contract contradicts that
+assumption: `ENTRADAS NFS (CSV)` carries **`pacienteNome`** alongside a
+`judicial` flag and a `processo` number.
+
+A named individual receiving a judicially mandated supply is health data about
+an identified person — the most sensitive category this project could touch, and
+one requiring a legal basis this register does not have.
+
+Controls, in force now:
+
+1. **`ENTRADAS NFS` is not ingested.** Independently decided on data-quality
+   grounds (the entity has no use for it), and now also a privacy control.
+2. If it is ever ingested, `pacienteNome` is dropped **at the importer**, before
+   any persistence, and never written to a log, an error report or a validation
+   message.
+3. The workbooks themselves must not be committed to this repository. The
+   analysis script reads them from a path outside the repo and emits only
+   aggregates and column names.
+4. Should the entity ever ask for the judicial flow to be in scope, this
+   register needs a new row with an explicit legal basis under art. 11 (dados
+   sensíveis) — not art. 7. That is a different conversation from the one the
+   RFC had.
+
+Tracked as OQ-24.
+
 ## Minimisation issues to resolve
 
 The profile mockup (9.2.1) shows **CPF** and **matrícula SIAPE**. Neither appears

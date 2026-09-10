@@ -24,3 +24,8 @@ test-results/
 
 # Claude
 .claude/settings.local.json
+
+# Stakeholder data — carries CNPJ, e-mail, operator names and patient names.
+# Never commit. See docs/architecture/data-sources.md.
+*.xlsx
+*.xls

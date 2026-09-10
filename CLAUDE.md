@@ -6,11 +6,21 @@
 ## What this system is
 
 SIGI tracks the **administrative supply cycle** of a Brazilian state government
-entity end to end: `ATA → NE → NF → conclusão`. It is a **traceability and
-governance** platform, **not** an inventory-control system and **not** a
-financial/accounting system.
+entity end to end: `ATA → NE → NF → conclusão`, and gives the team the
+**coverage view** that drives the decision to buy. It is a traceability,
+governance and decision-support platform. It is **not** the system of record for
+physical stock, and **not** a financial/accounting system.
 
-Source of truth for scope: `docs/product/vision.md` (derived from RFC v1.6).
+**Source of truth for scope, in descending authority (ADR-0009):**
+
+1. Operational data the entity supplies — mapped in `docs/architecture/data-sources.md`.
+2. Direct stakeholder statements — meeting transcripts, Eduardo's `HUB` annotations.
+3. This repository's specs and ADRs.
+4. RFC v1.6 — historical context, and the artifact submitted to the evaluation
+   panel. No longer the arbiter of scope.
+
+A conflict between the data and a spec is a **defect in the spec**: fix it, cite
+the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
@@ -19,10 +29,15 @@ Source of truth for scope: `docs/product/vision.md` (derived from RFC v1.6).
 The root `README.md` already documents `.env.example`, `docker-compose.yml` and
 Alembic; none of those files exist yet either.
 
-All specs are `Draft`, and **a spec at `Draft` may not be implemented**. Before
-any code, `docs/GETTING-STARTED.md` requires: revoke the prototype JWT published
-in RFC Appendix 9.1 (OQ-17), and answer OQ-05 (can one NE cover multiple
-insumos? — changes the data model at its core), OQ-04 and OQ-07.
+All specs are `Draft`, and **a spec at `Draft` may not be implemented**.
+
+*(2026-09-02)* Of the four gates `docs/GETTING-STARTED.md` sets before any code,
+the data closed two: **OQ-05** (an NE covers many insumos — 27,8%, up to 37;
+ADR-0007) and **OQ-04** (the "área de competência" is unidade + grupo de
+materiais). **OQ-07** is `Assumed` and implemented as AC-0004-16. Still open and
+blocking: **OQ-17**, the live prototype JWT published in RFC Appendix 9.1, which
+must be revoked. **OQ-28** joins it — two definitions of `RF05` and `RN11` now
+exist in `docs/`, and that must be settled before the first test is written.
 
 ## Non-negotiable domain rules
 
@@ -39,7 +54,18 @@ These are invariants. If a task appears to require breaking one, **stop and ask*
 4. **Reversal requires a justification and the `gestor` role.** It is recorded,
    never silent. (RN03)
 5. **`saldo` is derived, never stored as a mutable column.** It is computed from
-   the ATA value minus committed NEs. There is no manual stock entry. (RF14)
+   the NE ledger — `valor_contratado − valor_reservado − valor_empenhado` —
+   aggregated over `ITEM_NOTA_EMPENHO` (ADR-0003, ADR-0007). There is no
+   writable saldo anywhere.
+   **`estoque` is imported, never computed.** SIGI may hold a dated stock
+   snapshot from DOMS (`estoque_atual`, `dias_estoque`, `curva_abc`,
+   `estoque_minimo`, `ponto_pedido`) because the entity's loop is
+   coverage-driven and DOMS already computes those figures. The importer is the
+   only writer: no endpoint, service or UI mutates a snapshot, and there is no
+   `entrada de estoque` operation. Every surface shows the snapshot's
+   `data_referencia`. (ADR-0008)
+   **`saldo` and `estoque` are different things.** Never summed, never shown as
+   one number, never used as synonyms.
 6. **The audit trail is append-only.** `HISTORICO_MOVIMENTACAO` rows are never
    updated or deleted, at the database level, not just in application code. (RN06, RNF08)
 7. **There is no live API integration with DOMS or e-Publica.** Consistency is
@@ -110,8 +136,11 @@ Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
 Full version: `docs/process/sdd-workflow.md`.
 
 ```
-RFC → SPEC → PLAN → IMPLEMENT → VERIFY
+EVIDENCE → SPEC → PLAN → IMPLEMENT → VERIFY
 ```
+
+`EVIDENCE` is operational data › stakeholder statements › repo docs › RFC v1.6,
+per ADR-0009. The loop no longer starts from a frozen document.
 
 **No production code is written without a spec that has a stable ID.**
 
@@ -161,18 +190,27 @@ Useful commands: `/spec-new`, `/spec-review`, `/plan`, `/implement`, `/trace`, `
 ## Testing expectations
 
 - Minimum 70% coverage (RNF10), but coverage is a floor, not a goal.
-- Every business rule `RN01`–`RN10` has at least one test named after it.
+- Every business rule in `docs/requirements/business-rules.md` — `RN01`–`RN16`,
+  not only the ten the RFC stated — has at least one test named after it.
 - Every state-machine transition, valid and invalid, has a test (SPEC-0004).
 - Tests hit a real PostgreSQL via testcontainers, not SQLite. The audit
   triggers and `NUMERIC` semantics do not exist in SQLite.
 
 ## Things Claude should not do in this repo
 
-- Do not invent requirements. If the RFC and specs are silent, add an entry to
+- Do not invent requirements. Ground every one in the operational data or a
+  stakeholder statement, and cite it. If neither shows it, add an entry to
   `docs/open-questions.md` and ask.
-- Do not "fix" an inconsistency between the RFC and a spec silently. Flag it.
-- Do not add ML, mobile apps, a public transparency portal, a financial module,
-  or integrations beyond DOMS and e-Publica. These are explicitly out of scope.
+- Do not "fix" an inconsistency between two specs silently. Flag it. A
+  contradiction against the **data**, however, is fixed in the spec with a
+  changelog line citing file, sheet and column (ADR-0009).
+- The RFC's silence is not a prohibition, and its text is not an argument. What
+  the entity demonstrably does is in scope, subject to milestone prioritisation.
+- Still out of scope regardless of the data: ML forecasting, mobile apps, a
+  public transparency portal, a financial/accounting module, payment execution,
+  and live API integrations (ADR-0002 — CSV import only).
+- Do not make SIGI the system of record for physical stock. Importing a dated
+  snapshot is allowed; computing, adjusting or recounting stock is not.
 - Do not commit real CPF, SIAPE numbers, e-mails or tokens. The RFC appendix
   contains a live prototype JWT: it must not be copied into this repository.
 - Do not run destructive commands (`drop`, `truncate`, `rm -rf`) without asking.

@@ -13,16 +13,32 @@ a defect regardless of whether the code works.
 
 ```
    ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌────────────┐   ┌────────┐
-   │   RFC    │──▶│   SPEC   │──▶│   PLAN   │──▶│ IMPLEMENT  │──▶│ VERIFY │
+   │ EVIDENCE │──▶│   SPEC   │──▶│   PLAN   │──▶│ IMPLEMENT  │──▶│ VERIFY │
    └──────────┘   └──────────┘   └──────────┘   └────────────┘   └────────┘
         ▲              │                                             │
         └──────────────┴─────────────  feedback  ─────────────────────┘
+
+   EVIDENCE = operational data › stakeholder statements › repo docs › RFC v1.6
 ```
 
-### 1. RFC (done)
+### 1. Evidence (continuous)
 
-`RFC_SIGI` v1.6 is the frozen problem statement. It is not edited during
-implementation. Contradictions found in it go to `docs/open-questions.md`.
+*(Revised 2026-09-02 — ADR-0009.)* The loop no longer starts from a frozen
+document. It starts from **what the entity does**, in this order of authority:
+operational data (`docs/architecture/data-sources.md`), then direct stakeholder
+statements, then this repository, then RFC v1.6 as historical context.
+
+`RFC_SIGI` v1.6 is not edited — it is a dated artifact with an evaluation panel
+attached, and rewriting it would destroy the record of what was known in May
+2026. But it no longer arbitrates scope.
+
+When evidence contradicts a spec, that is a **defect in the spec**: amend the
+spec, bump its version, cite file/sheet/column in the changelog. Only what the
+evidence genuinely does not answer goes to `docs/open-questions.md`.
+
+Evidence must be checkable. Figures cited in any document are reproducible with
+`scripts/analise-planilhas.py`; re-anchoring to data is only an improvement if
+someone can verify the data.
 
 ### 2. SPEC — *what* the system does
 
@@ -72,7 +88,10 @@ least one passing test, and `docs/process/definition-of-done.md` is satisfied.
 
 ## Handling drift
 
-When implementation reveals the spec is wrong — which it will, often —
+Drift now has two sources: implementation revealing a spec is wrong, and **new
+evidence** revealing it. Both are handled the same way.
+
+When implementation or evidence reveals the spec is wrong — which it will, often —
 
 1. Stop coding.
 2. Amend the spec, bump its version, add a line to its changelog explaining what

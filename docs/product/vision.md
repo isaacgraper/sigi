@@ -1,6 +1,9 @@
 # Product Vision
 
-Status: Approved · Source: RFC SIGI v1.6 (22/05/2026) · Author: Isaac Kleimann Graper
+Status: Approved · Author: Isaac Kleimann Graper
+Source: the entity's operational data and stakeholder statements (ADR-0009).
+RFC SIGI v1.6 (22/05/2026) is retained as historical context.
+Revised 2026-09-02.
 
 ## Problem
 
@@ -14,8 +17,14 @@ anticipate an ATA running out of saldo or vigência before it happens.
 ## Solution in one sentence
 
 A web platform that makes the full administrative cycle — `ATA → NE → NF →
-conclusão` — traceable, auditable and observable in real time for internal
-public servants.
+conclusão` — traceable and auditable, and that surfaces the **coverage** figure
+the team already uses to decide what to buy, before an item runs out.
+
+*(2026-09-02)* The second half was added after observing the operation. The
+entity's daily decision is not "what is the state of this process" but "this
+item's coverage fell below three months — do I have an ATA with saldo to buy
+against?". A platform that answers only the first question would be adopted
+alongside the spreadsheet rather than instead of it.
 
 ## What SIGI is not
 
@@ -28,14 +37,29 @@ creep and route it to the post-MVP backlog:
 - Native mobile application.
 - Any integration beyond DOMS and e-Publica.
 - Public transparency portal.
-- **Physical inventory control.** The saldo view is a *consequence* of the
-  empenho cycle, not an independent stock module. This distinction is load-bearing:
-  it is why there is no "entrada de estoque" operation anywhere in the system.
+- **Being the system of record for physical stock.** DOMS owns stock. SIGI
+  imports a **dated snapshot** of what DOMS already computes (`estoque_atual`,
+  `dias_estoque`, `curva_abc`, `estoque_minimo`, `ponto_pedido`) and never
+  computes, adjusts or recounts it. There is still no "entrada de estoque"
+  operation, and the importer is the only writer. *(2026-09-02: revised under
+  ADR-0008/ADR-0009. The earlier wording forbade SIGI from reading what the
+  entity measures, which would have left the coverage decision outside the
+  product.)*
+- **Payment execution.** Liquidação is modelled as NF conference; paying is not.
 
 ## Users
 
 Internal public servants with basic IT literacy, comfortable with spreadsheets
-and corporate web systems. Three roles, mapped 1:1 to RBAC profiles.
+and corporate web systems.
+
+*(2026-09-02)* The three personas below were written from the RFC. The
+operational data shows two further roles the model does not carry, both visible
+in every export: the **comprador**, who owns a grupo de materiais and works a
+purchase list, and the **gestor de unidade**, who raises requests within a
+cronograma window and has no visibility of central stock. Both entered the data
+model under OQ-26, and between them they answer what RN07 called "área de
+competência" (OQ-04): the two axes are **unidade** and **grupo de materiais**.
+SPEC-0001 still has to adopt them as roles.
 
 ### Mariana — Gestora de Aquisições (`gestor`)
 
