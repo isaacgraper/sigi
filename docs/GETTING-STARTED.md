@@ -16,16 +16,33 @@ configuration, not personal preference. Add `.claude/settings.local.json` to
 
 ## 2. Before writing any code
 
-Four things, in this order:
+*(Updated 2026-09-10. Three of the original four gates are closed; keeping the
+list as written would have sent you to ask questions the data already answered.)*
+
+**Still open, and the only one left here:**
 
 1. **Revoke the prototype JWT** published in RFC Appendix 9.1. It is a live token
-   in a distributed document (OQ-17).
-2. **Answer OQ-05** — can one NE cover multiple insumos? If real empenhos are
-   multi-item, the data model changes at its core. This costs an e-mail now and
-   a rewrite in week 12.
-3. **Answer OQ-04** — what is an "área de competência"? Without it, RN07 cannot
-   be implemented and the system cannot claim least-privilege access.
-4. **Answer OQ-07** — is cancelling an NE administratively permitted?
+   in a distributed document (OQ-17). Nothing in the build depends on it, which
+   is exactly why it keeps getting deferred.
+
+**Closed, and how:**
+
+2. ~~OQ-05 — can one NE cover multiple insumos?~~ **Yes, measured: 27,8% of 482
+   real empenhos, the largest covering 37.** ADR-0007 splits `NOTA_EMPENHO` into
+   header and `ITEM_NOTA_EMPENHO`. The risk this gate existed to catch landed,
+   and was absorbed before a line of code existed.
+3. ~~OQ-04 — what is an "área de competência"?~~ **Two axes the data does carry:
+   unidade and grupo de materiais.** Adopted in SPEC-0003, not SPEC-0001 — RN07
+   restricts which *insumos* a servidor sees, so it needs a scoped resource to
+   be observable.
+4. ~~OQ-07 — is cancelling an NE administratively permitted?~~ `Assumed` and
+   implemented as AC-0004-16. If the entity says otherwise, that is the
+   criterion to revisit.
+
+**Added since:** OQ-09 and OQ-10 are `Assumed` under ADR-0010 — institutional
+OIDC as primary, local credentials as a switchable contingency, Gov.br cut, CPF
+not collected. OQ-09 leaves one ask for the entity's TI: tenant ID, client ID
+and redirect URI. It blocks the first real login, not the build.
 
 ## 3. First session with Claude Code
 
@@ -36,7 +53,8 @@ claude
 > docs/specs/SPEC-0004-notas-de-empenho.md with /spec-review SPEC-0004
 ```
 
-Then, once SPEC-0001 and SPEC-0004 are Approved:
+`SPEC-0001` reached `Approved` at v0.3 on 2026-09-10 and is the spec being
+implemented. `SPEC-0004` is still `Draft`. Once a spec is `Approved`:
 
 ```
 > /plan SPEC-0001
