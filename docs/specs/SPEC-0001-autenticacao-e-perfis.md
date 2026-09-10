@@ -1,10 +1,10 @@
 ---
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
-status: Review
+status: Approved
 version: 0.3
 owner: Isaac Kleimann Graper
-satisfies: [RF01, RF02, RF18, RN01, RN04, RN16]
+satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
 milestone: M2
 ---
@@ -156,16 +156,34 @@ And   an audit row records the invite with the gestor as actor and the perfil gr
 **AC-0001-11** — An invited user activates and sets a password
 ```gherkin
 Given a usuario with status "pendente" and an unredeemed invitation token
-When  the token is redeemed with a password of at least 12 characters
-Then  the usuario's status becomes "ativo" and a session is issued
+When  the token is redeemed with a password meeting the policy
+Then  the usuario's status becomes "ativo"
+And   a session is issued, so activation and first login are one step
 And   an audit row records the activation
-When  the same token is redeemed again
-Then  the response is 409 with error code "CONVITE_JA_UTILIZADO"
-When  a token issued more than 72 hours earlier is redeemed
-Then  the response is 409 with error code "CONVITE_EXPIRADO"
-When  the password is shorter than 12 characters
-Then  the response is 422 with error code "SENHA_FRACA" naming the length rule
 ```
+
+**AC-0001-25** — An invitation is single-use and time-boxed
+```gherkin
+Given an invitation token that has already been redeemed
+When  it is redeemed again
+Then  the response is 409 with error code "CONVITE_JA_UTILIZADO"
+And   the usuario's credential is unchanged
+Given an invitation token issued more than 72 hours earlier
+When  it is redeemed
+Then  the response is 409 with error code "CONVITE_EXPIRADO"
+And   the usuario's status remains "pendente"
+```
+
+**AC-0001-26** — The password policy is enforced on activation
+```gherkin
+Given a usuario with status "pendente" and a valid invitation token
+When  the token is redeemed with a password shorter than 12 characters
+Then  the response is 422 with error code "SENHA_FRACA"
+And   the message states the length rule
+And   the token remains unredeemed, so a second attempt with a valid password succeeds
+```
+The token surviving a rejected password is the point: a typo must not burn the
+invitation and force the gestor to issue another.
 
 **AC-0001-12** — A gestor blocks an account
 ```gherkin
@@ -184,6 +202,31 @@ Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 And   no usuario row is created or changed
 And   the denial produces the audit row AC-0001-18 requires
 ```
+
+**AC-0001-28** — An invitation is refused for a duplicate or off-domain e-mail
+```gherkin
+Given a usuario already exists for "ana@sc.gov.br", in any status
+When  a gestor invites "ana@sc.gov.br"
+Then  the response is 409 with error code "EMAIL_JA_CADASTRADO"
+And   no second usuario row and no second invitation is created
+When  a gestor invites "alguem@gmail.com", which is not on the institutional allowlist
+Then  the response is 422 with error code "DOMINIO_NAO_INSTITUCIONAL"
+And   the message names the allowed domains
+```
+
+**AC-0001-29** — The last active gestor cannot be locked out
+```gherkin
+Given exactly one usuario with perfil "gestor" and status "ativo"
+When  a gestor blocks or deactivates that usuario, including themselves
+Then  the response is 409 with error code "ULTIMO_GESTOR"
+And   the usuario remains "ativo"
+Given two "ativo" gestores
+When  one is deactivated
+Then  the operation succeeds
+```
+Without this, one sequence of two permitted actions leaves the entity with no
+one able to manage members — and because there is no self-registration
+(AC-0001-21), there is no way back in without database access.
 
 **AC-0001-14** — Deactivation anonymises the person and preserves the history
 ```gherkin
@@ -225,6 +268,15 @@ And   read routes the matrix permits are not refused for reasons of perfil
 ```
 The auditor is read-only by construction, which is why the criterion is stated
 as "every write route" rather than as a list that could fall out of date.
+
+**On RN04.** RN04 — "only `gestor` may issue and close ATAs" — names endpoints
+that do not exist in this slice. This spec satisfies it by **owning the
+mechanism**: the server-side authorisation dependency, the permission matrix, and
+AC-0001-23's guarantee that no write route escapes it. Each spec that adds
+routes proves RN04 for its own, with the per-role test its own criteria demand.
+Contrast RN07, which this spec does *not* claim: RN07 constrains which *insumos*
+a servidor may see, and that is a resource-level rule with no mechanism to own
+here (see §9).
 
 **AC-0001-18** — Every refusal by profile is audited
 ```gherkin
@@ -289,15 +341,17 @@ whole purpose is an auditable trail (I2).
 
 ### 4.5 Mechanism selection and route-table completeness
 
-**AC-0001-23** — A write route with no permission entry fails the build
+**AC-0001-23** — Every write route carries a permission decision
 ```gherkin
-Given the application's route table and the permission matrix
-When  the test suite runs
-Then  it fails if any write route has no entry in the matrix
-And   the failure names the offending route
+Given the application's route table, as the running application reports it
+When  it is compared against the permission matrix
+Then  every route that mutates state has an entry in the matrix
+And   a route without one is reported by name
 ```
-This is what keeps AC-0001-15/-16/-17 honest as the system grows: an endpoint
-added without a permission decision is a hole nobody chose to open.
+This is a property of the assembled application, so it is assertable the moment
+the app is constructed — which is what keeps AC-0001-15/-16/-17 honest as the
+system grows. An endpoint added without a permission decision is a hole nobody
+chose to open, and the default for a missing entry is refusal, never permission.
 
 **AC-0001-24** — Local login can be switched off
 ```gherkin
@@ -310,6 +364,22 @@ Then  the same request authenticates normally
 ```
 404 rather than 403: a mechanism that is switched off should be
 indistinguishable from one that was never built.
+
+### 4.6 The audit substrate *(new in v0.3)*
+
+**AC-0001-27** — The history table refuses to be rewritten
+```gherkin
+Given an audit row written by any of the criteria above
+When  an UPDATE is issued against it as the application's database role
+Then  the statement fails
+When  a DELETE is issued against it as the application's database role
+Then  the statement fails
+And   both failures originate in the database, not in application code
+And   the row is unchanged afterwards
+```
+Enforced twice on purpose (ADR-0004): the privilege stops the application, and
+the trigger stops whatever the privilege does not — a superuser session, or a
+`GRANT` someone adds later. RN06 and RNF08.
 
 ## 5. Errors and edge cases
 
@@ -327,6 +397,8 @@ indistinguishable from one that was never built.
 | Invitation older than 72 h | 409 | `CONVITE_EXPIRADO` | "Este convite expirou. Peça um novo ao gestor." |
 | Password below the minimum | 422 | `SENHA_FRACA` | "A senha precisa ter ao menos 12 caracteres." |
 | E-mail already invited or registered | 409 | `EMAIL_JA_CADASTRADO` | "Já existe uma conta para este e-mail." |
+| Invited e-mail outside the institutional domains | 422 | `DOMINIO_NAO_INSTITUCIONAL` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
+| Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
 Every `message` is addressed to a servidor, not to a developer, and says what to
 do next — which for an access problem is naming who can fix it.
@@ -337,8 +409,16 @@ do next — which for an access problem is naming who can fix it.
 | --- | --- | --- | --- |
 | Invite / activate / block / deactivate members | ✅ | ❌ | ❌ |
 | View member list | ✅ | ❌ | ✅ read-only |
-| Change own password | ✅ | ✅ | ✅ |
 | Authenticate, refresh, log out | ✅ | ✅ | ✅ |
+
+*(2026-09-10)* **"Change own password" left this matrix.** v0.2 granted it to all
+three profiles while specifying no criterion and no endpoint for it — a matrix
+entry that permits something the spec never defined. It is now explicitly out of
+scope: institutional OIDC is the primary mechanism and the honest production
+default is local login disabled (ADR-0010), so a self-service password change
+serves only the break-glass path. A servidor who needs a new local credential
+gets a fresh invitation from a gestor, which is auditable and already specified
+(AC-0001-10/11). Revisit if local login is ever the primary mechanism.
 
 ## 7. API surface
 
@@ -350,10 +430,10 @@ do next — which for an access problem is naming who can fix it.
 | GET | `/api/v1/auth/me` | The caller's identity, perfil and scope | 08, 22 |
 | GET | `/api/v1/auth/oidc/authorize` | Start institutional login | 19 |
 | GET | `/api/v1/auth/oidc/callback` | Complete institutional login | 19–22 |
-| GET\|POST | `/api/v1/usuarios` | List members; invite a member | 10, 13, 15–17 |
-| POST | `/api/v1/usuarios/{id}/bloquear` | Block | 12, 13 |
-| POST | `/api/v1/usuarios/{id}/desativar` | Deactivate and anonymise | 13, 14 |
-| POST | `/api/v1/convites/{token}/ativar` | Redeem an invitation | 11 |
+| GET\|POST | `/api/v1/usuarios` | List members; invite a member | 10, 13, 15–17, 28 |
+| POST | `/api/v1/usuarios/{id}/bloquear` | Block | 12, 13, 29 |
+| POST | `/api/v1/usuarios/{id}/desativar` | Deactivate and anonymise | 13, 14, 29 |
+| POST | `/api/v1/convites/{token}/ativar` | Redeem an invitation | 11, 25, 26 |
 
 All auth routes live under `/api/v1`, resolving a divergence in v0.2, which
 listed them at the root while `api-conventions.md` states the prefix is
@@ -373,6 +453,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Block | `usuario` | `usuario.bloqueado` | `{status}` |
 | Deactivation | `usuario` | `usuario.desativado` | `{status}` |
 | Refusal by profile | `usuario` | `auth.negada` | `{rota, metodo, perfil}` |
+| Blocked attempt to remove the last gestor | `usuario` | `usuario.ultimo_gestor` | `{alvo_id}` |
 
 No row carries a password, a token value, or a `nome` in `dados_anteriores` —
 `lgpd.md`'s resolution of the erasure/immutability tension depends on it.
@@ -402,8 +483,9 @@ _Filled by `/plan SPEC-0001`._
 
 ## Revision history
 
-**v0.3 (2026-09-10)** — the spec becomes implementable. Three changes beyond the
-new criteria:
+**v0.3 (2026-09-10)** — the spec becomes implementable.
+
+Changes beyond the new OIDC criteria:
 
 1. **Every criterion is now Given/When/Then.** v0.2 stated them as prose
    sentences, which `spec-format` does not accept and from which tests cannot be
@@ -414,10 +496,28 @@ new criteria:
 3. **AC-0001-14 lost `cpf`.** It anonymised a field that exists in no entity and
    that `lgpd.md` recommends never collecting.
 
+`/spec-review` then refused the first draft of v0.3 and found five more, all
+fixed here:
+
+4. **AC-0001-11 was four criteria in one ID** — activation, replay, expiry and
+   weak password, with three different status codes. Split into -11, -25 and -26.
+5. **The audit substrate had no criterion.** This slice builds the `REVOKE` and
+   the trigger, so RN06 and RNF08 are proven here, not in SPEC-0007. Now
+   AC-0001-27, and RN06 joins `satisfies`.
+6. **`EMAIL_JA_CADASTRADO` sat in the error table with no criterion.** Inviting
+   the same e-mail twice, or an off-domain address, had no specified behaviour.
+   Now AC-0001-28.
+7. **Nothing stopped the last gestor being locked out.** Two permitted actions
+   in sequence could leave the entity with nobody able to manage members, and
+   no way back without database access, because there is no self-registration.
+   Now AC-0001-29.
+8. **"Change own password" was a permission with no specification.** Removed
+   from the matrix and recorded as out of scope, with the reason.
+
 ## 11. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF01–RF02, §6.2, mockup 9.2.3 |
 | 0.2 | 2026-09-02 | OQ-09 reframed from the 17/08 meeting: Entra ID, not Gov.br. Candidate axes for RN07 scoping recorded from the data (unidade, grupo de materiais) |
-| 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice |
+| 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice, with AC-0001-27 proving RN06/RNF08. `/spec-review` added AC-0001-25/26 (invitation single-use, password policy), AC-0001-28 (duplicate and off-domain invites) and AC-0001-29 (the last active gestor cannot be locked out); "change own password" left the permission matrix as unspecified |

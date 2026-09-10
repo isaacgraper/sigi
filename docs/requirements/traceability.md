@@ -8,17 +8,18 @@ on an `Approved` spec is a merge blocker.
 
 | RF/RN | Spec | Acceptance criteria | Tests | Status |
 | --- | --- | --- | --- | --- |
-| RF01, RN01 | SPEC-0001 v0.3 | AC-0001-01..09 | _pending_ | Review |
-| RF01 (OIDC) | SPEC-0001 v0.3 | AC-0001-19..22, AC-0001-24 | _pending_ | Review |
-| RF02, RF18, RN16 | SPEC-0001 v0.3 | AC-0001-10..14 | _pending_ | Review |
-| RN04 | SPEC-0001 v0.3 | AC-0001-15..18, AC-0001-23 | _pending_ | Review |
+| RF01, RN01 | SPEC-0001 v0.3 | AC-0001-01..09 | _pending_ | **Approved** |
+| RF01 (OIDC) | SPEC-0001 v0.3 | AC-0001-19..22, AC-0001-24 | _pending_ | **Approved** |
+| RF02, RF18, RN16 | SPEC-0001 v0.3 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | _pending_ | **Approved** |
+| RN04 | SPEC-0001 v0.3 | AC-0001-15..18, AC-0001-23 | _pending_ | **Approved** |
+| RN06 (enforcement) | SPEC-0001 v0.3 | AC-0001-27 | _pending_ | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v0.2 | AC-0002-01..12 | _pending_ | Draft |
 | RN11, RN13, RN15 | SPEC-0002 v0.2 | AC-0002-13..17 | _pending_ | Draft |
 | RF03, RF07, RN14 | SPEC-0003 v0.2 | AC-0003-01..10 | _pending_ | Draft |
 | RF13, RN03, RN08, RN09 | SPEC-0004 v0.3 | AC-0004-01..24 | _pending_ | Draft |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.2 | AC-0005-01..11 | _pending_ | Draft |
 | RF14, RN10, RN15 | SPEC-0006 v0.3 | AC-0006-01..12 | _pending_ | Draft |
-| RF06, RF10, RN06 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
+| RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
 
@@ -79,6 +80,17 @@ version bump and a changelog line; additions take the next free number.
 | AC-0001-22 | **New** — `perfil` comes from the usuario record, never from a provider claim | ADR-0010, 17/08 meeting |
 | AC-0001-23 | **New** — a write route with no permission entry fails the build | RN04 |
 | AC-0001-24 | **New** — local login is switchable; disabled returns 404, not 403 | ADR-0010 |
+| AC-0001-25 | **New** — an invitation is single-use and expires in 72 h | `/spec-review` |
+| AC-0001-26 | **New** — the password policy is enforced on activation, and a rejection does not burn the token | `/spec-review` |
+| AC-0001-27 | **New** — the history table refuses UPDATE and DELETE at the database level | RN06, RNF08, ADR-0004 |
+| AC-0001-28 | **New** — a duplicate or off-domain invitation is refused | `/spec-review` |
+| AC-0001-29 | **New** — the last active gestor cannot be blocked or deactivated | `/spec-review` |
+
+**On RN06.** Its *enforcement* — the privilege revocation and the trigger — is
+built and proven in SPEC-0001 (AC-0001-27), because four of that spec's criteria
+need an audit row and the substrate could not wait. SPEC-0007 keeps what it
+always owned: the history queries, the per-entity timeline and the auditor's
+screens. The rule is not split, only its proof arrives earlier than its reader.
 
 ### Still pending
 
