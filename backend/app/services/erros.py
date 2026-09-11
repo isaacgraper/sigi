@@ -20,10 +20,19 @@ class ErroDominio(Exception):
     codigo: str = "ERRO_DOMINIO"
     http: int = 422
 
-    def __init__(self, mensagem: str, *, campos: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        mensagem: str,
+        *,
+        campos: dict[str, str] | None = None,
+        retry_after: int | None = None,
+    ) -> None:
         super().__init__(mensagem)
         self.mensagem = mensagem
         self.campos = campos or {}
+        # Seconds for a `Retry-After` header. A 429 whose only statement of
+        # "when" is inside a pt-BR sentence is a 429 no client can obey.
+        self.retry_after = retry_after
 
 
 class CredenciaisInvalidas(ErroDominio):
@@ -68,3 +77,20 @@ class RotaIndisponivel(ErroDominio):
 
     def __init__(self) -> None:
         super().__init__("Recurso não encontrado.")
+
+
+class TentativasExcedidas(ErroDominio):
+    """The address is locked after repeated failures (AC-0001-03).
+
+    429 rather than 401: the caller is not being told their credential is
+    wrong — this attempt was never evaluated.
+    """
+
+    codigo = "TENTATIVAS_EXCEDIDAS"
+    http = 429
+
+    def __init__(self, *, minutos: int) -> None:
+        super().__init__(
+            f"Muitas tentativas. Tente novamente em {minutos} minutos.",
+            retry_after=minutos * 60,
+        )

@@ -9,6 +9,7 @@ record is written outside the request's transaction.
 
 from __future__ import annotations
 
+import datetime
 import secrets
 import uuid
 
@@ -19,7 +20,8 @@ from app.core.segredos import digerir
 from app.core.senhas import conferir, gerar_hash
 from app.models.usuario import Usuario
 from app.repositories import usuario as repo
-from app.services.auditoria import Evento, registrar_avulso
+from app.services import bloqueio
+from app.services.auditoria import Evento, registrar, registrar_avulso, transacao_avulsa
 from app.services.erros import CredenciaisInvalidas, RotaIndisponivel, UsuarioInativo
 
 # Verified against when no account matches, so that "unknown address" costs the
@@ -37,6 +39,12 @@ def autenticar_local(
         # from one that was never built (AC-0001-24).
         raise RotaIndisponivel()
 
+    agora = datetime.datetime.now(datetime.UTC)
+    # Before the password is looked at, not after: AC-0001-03 refuses the sixth
+    # attempt "even with the correct password", and a lockout a correct guess
+    # walks through announces the moment the attacker got it right.
+    bloqueio.verificar(sessao, email=email, agora=agora)
+
     usuario = (
         repo.por_email(sessao, email)
         if _dominio_institucional(email, cfg.dominios_institucionais)
@@ -46,11 +54,12 @@ def autenticar_local(
     senha_confere = conferir(senha, armazenado)
 
     if usuario is None or not senha_confere:
-        _auditar_falha(
+        _contabilizar_falha(
             email,
             motivo="credenciais_invalidas",
             usuario_id=usuario.id if usuario else None,
             correlation_id=correlation_id,
+            agora=agora,
         )
         raise CredenciaisInvalidas()
 
@@ -58,6 +67,9 @@ def autenticar_local(
         # The password was right, so this is a legitimate person whose account
         # was blocked or never activated — telling them so is a kindness, and it
         # reveals nothing to anyone who does not already hold the credential.
+        # Deliberately **not** counted as a failed attempt: nobody is guessing,
+        # and counting it would lock out the very person about to ask the gestor
+        # to unblock them.
         _auditar_falha(
             email,
             motivo=f"status_{usuario.status}",
@@ -66,6 +78,8 @@ def autenticar_local(
         )
         raise UsuarioInativo()
 
+    # In the request's transaction, so it lands with the login it belongs to.
+    bloqueio.limpar(sessao, email=email)
     return usuario
 
 
@@ -76,10 +90,37 @@ def _dominio_institucional(email: str, permitidos: list[str]) -> bool:
     )
 
 
+def _contabilizar_falha(
+    email: str,
+    *,
+    motivo: str,
+    usuario_id: uuid.UUID | None,
+    correlation_id: uuid.UUID,
+    agora: datetime.datetime,
+) -> None:
+    """Count the attempt and record it, together, in one committed transaction.
+
+    Together because a counter that reached five and an audit trail that does
+    not say so are worse than either alone — the lockout then looks, to whoever
+    investigates it later, like the system malfunctioning.
+    """
+    with transacao_avulsa() as propria:
+        bloqueio.contabilizar_falha(
+            propria,
+            email=email,
+            agora=agora,
+            usuario_id=usuario_id,
+            correlation_id=correlation_id,
+        )
+        registrar(
+            propria, _evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id
+        )
+
+
 def _auditar_falha(
     email: str, *, motivo: str, usuario_id: uuid.UUID | None, correlation_id: uuid.UUID
 ) -> None:
-    """Record the failure in its own committed transaction.
+    """Record the failure in its own committed transaction, without counting it.
 
     The request is about to raise, and the request's session will roll back —
     an audit row written in it would vanish along with the failure it records,
@@ -88,18 +129,19 @@ def _auditar_falha(
     Never the address itself: `lgpd.md` promises this table carries no personal
     data, and it can never be corrected (SPEC-0001 §8).
     """
+    registrar_avulso(_evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id)
+
+
+def _evento_de_falha(email: str, motivo: str, usuario_id: uuid.UUID | None) -> Evento:
     _, _, dominio = email.strip().lower().rpartition("@")
-    registrar_avulso(
-        Evento(
-            entidade_tipo="usuario",
-            entidade_id=usuario_id or uuid.UUID(int=0),
-            acao="auth.falha",
-            usuario_id=usuario_id,
-            dados_anteriores={
-                "motivo": motivo,
-                "email_hmac": digerir(email).hex(),
-                "dominio": dominio,
-            },
-        ),
-        correlation_id=correlation_id,
+    return Evento(
+        entidade_tipo="usuario",
+        entidade_id=usuario_id or uuid.UUID(int=0),
+        acao="auth.falha",
+        usuario_id=usuario_id,
+        dados_anteriores={
+            "motivo": motivo,
+            "email_hmac": digerir(email).hex(),
+            "dominio": dominio,
+        },
     )

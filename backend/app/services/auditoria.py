@@ -13,7 +13,8 @@ from __future__ import annotations
 import datetime
 import re
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -98,16 +99,14 @@ def _percorrer(valor: Any, caminho: str = "") -> list[tuple[str, Any]]:
     return [(caminho, valor)]
 
 
-def registrar_avulso(evento: Evento, *, correlation_id: uuid.UUID) -> None:
-    """Write an audit row in a transaction of its own, and commit it.
+@contextmanager
+def transacao_avulsa() -> Iterator[Session]:
+    """A session that commits, independent of the request's.
 
     For the failure path, which is the path that rolls back. A failed login
-    raises, the request's session is rolled back, and an audit row written in it
-    would vanish with the failure it was recording — leaving the trail with only
-    successes in it, which is the opposite of useful.
-
-    The same applies to the lockout counter of AC-0001-03: five failures that
-    all roll back never reach five.
+    raises, the request's session is rolled back, and anything written in it
+    goes with the failure it was recording — the audit trail left with only
+    successes in it, and the lockout counter of AC-0001-03 never reaching five.
 
     Deliberately **not** the default: everything that accompanies a mutation
     must share that mutation's transaction, and a writer that commits on its own
@@ -117,8 +116,22 @@ def registrar_avulso(evento: Evento, *, correlation_id: uuid.UUID) -> None:
 
     with fabrica_de_sessoes()() as propria:
         try:
-            registrar(propria, evento, correlation_id=correlation_id)
+            yield propria
             propria.commit()
         except Exception:
             propria.rollback()
             raise
+
+
+def registrar_avulso(evento: Evento, *, correlation_id: uuid.UUID) -> None:
+    """Write a single audit row in a transaction of its own, and commit it.
+
+    For the failure path, which is the path that rolls back. A failed login
+    raises, the request's session is rolled back, and an audit row written in it
+    would vanish with the failure it was recording — leaving the trail with only
+    successes in it, which is the opposite of useful.
+
+    Use `transacao_avulsa` directly when more than one row has to land together.
+    """
+    with transacao_avulsa() as propria:
+        registrar(propria, evento, correlation_id=correlation_id)

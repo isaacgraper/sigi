@@ -27,7 +27,8 @@ def registrar_tratadores(app: FastAPI) -> None:
         # is omitted rather than sent empty so the client can branch on presence.
         if exc.campos:
             corpo["fields"] = exc.campos
-        return JSONResponse(status_code=exc.http, content={"error": corpo})
+        cabecalhos = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
+        return JSONResponse(status_code=exc.http, content={"error": corpo}, headers=cabecalhos)
 
     @app.exception_handler(RequestValidationError)
     async def _tratar_validacao(request: Request, exc: RequestValidationError) -> JSONResponse:

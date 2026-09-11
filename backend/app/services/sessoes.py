@@ -17,7 +17,7 @@ from app.core.config import get_settings
 from app.core.segredos import digerir
 from app.core.seguranca import emitir_access_token, gerar_refresh_token
 from app.repositories import sessao as repo
-from app.services.auditoria import Evento, registrar
+from app.services.auditoria import Evento, registrar, transacao_avulsa
 from app.services.erros import RefreshInvalido
 
 
@@ -161,29 +161,22 @@ def _derrubar_familia_apos_replay(
     family alive and the theft unrecorded — the detection reduced to a 401 that
     looks identical to a typo.
     """
-    from app.core.db import fabrica_de_sessoes
-
-    with fabrica_de_sessoes()() as propria:
-        try:
-            derrubadas = repo.revogar_familia(propria, familia, motivo="replay", momento=momento)
-            registrar(
-                propria,
-                Evento(
-                    entidade_tipo="usuario",
-                    entidade_id=usuario_id,
-                    acao="auth.refresh_replay",
-                    usuario_id=usuario_id,
-                    dados_anteriores={
-                        "sessao_id": str(sessao_id),
-                        "sessoes_derrubadas": derrubadas,
-                    },
-                ),
-                correlation_id=correlation_id,
-            )
-            propria.commit()
-        except Exception:
-            propria.rollback()
-            raise
+    with transacao_avulsa() as propria:
+        derrubadas = repo.revogar_familia(propria, familia, motivo="replay", momento=momento)
+        registrar(
+            propria,
+            Evento(
+                entidade_tipo="usuario",
+                entidade_id=usuario_id,
+                acao="auth.refresh_replay",
+                usuario_id=usuario_id,
+                dados_anteriores={
+                    "sessao_id": str(sessao_id),
+                    "sessoes_derrubadas": derrubadas,
+                },
+            ),
+            correlation_id=correlation_id,
+        )
 
 
 class PerfilResolver:
