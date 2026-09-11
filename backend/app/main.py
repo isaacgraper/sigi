@@ -3,11 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health
 from app.core.config import get_settings
+from app.core.correlacao import CorrelacaoMiddleware
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="SIGI", version="0.1.0")
+
+    # Outermost, so every response carries it — including the ones produced by
+    # error handlers, which are exactly the responses somebody will be trying to
+    # trace back to an audit row.
+    app.add_middleware(CorrelacaoMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
