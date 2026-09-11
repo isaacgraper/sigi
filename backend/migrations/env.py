@@ -4,7 +4,11 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
-from app.models.base import Base
+
+# Import the package, not just `base`: it is the package's __init__ that
+# registers every model on `Base.metadata`. With an empty registry, autogenerate
+# sees the existing tables as unknown and proposes dropping them.
+from app.models import Base
 
 config = context.config
 # Alembic runs as the owner, not as the application role. The application role

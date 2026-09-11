@@ -360,9 +360,12 @@ def _historico() -> None:
           CONSTRAINT ck_hist_entidade_forma   CHECK (entidade_tipo ~ '^[a-z_]+$')
         ) PARTITION BY RANGE (ocorrido_em)
     """)
+    # No `DESC` on `ocorrido_em`: with equality on the leading columns a btree
+    # scans backwards just as well, so it bought nothing and only made the
+    # models diverge from the schema — which `alembic check` caught.
     for cols in (
-        "(entidade_tipo, entidade_id, ocorrido_em DESC)",
-        "(usuario_id, ocorrido_em DESC)",
+        "(entidade_tipo, entidade_id, ocorrido_em)",
+        "(usuario_id, ocorrido_em)",
         "(correlation_id)",
     ):
         nome = "ix_hist_" + cols.strip("()").split(",")[0].replace(" ", "")

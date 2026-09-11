@@ -27,19 +27,34 @@ the evidence in the changelog. Do not file it as an open question.
 *(Rewritten 2026-09-10. The previous text claimed there was no code, which had
 stopped being true.)*
 
-**A scaffold exists; the domain does not.** `backend/` runs a FastAPI app
-factory with `/health`, a `Settings` object, and Alembic configured against
-**zero migrations**. `app/models/base.py` is an empty `DeclarativeBase`: no
-entity is modelled in code. `frontend/` is a Next.js App Router skeleton with a
-placeholder page. `docker-compose.yml`, `.env.example` and two CI workflows are
-real and green.
+*(This section went stale within one session on 2026-09-10, which is what a
+"current state" section does. If you are about to trust a sentence here, check
+it.)*
 
-So the layout under "Repository layout" describes something that partly exists.
-What does not exist yet: any table, any domain rule, any authentication.
+**The substrate exists; the behaviour does not.** `backend/` runs a FastAPI app
+factory with `/health`, a `Settings` object carrying **two database URLs**, and
+migration `0001_baseline`, which creates `usuario`, `token_credencial`,
+`tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
+`historico_movimentacao` with seven yearly partitions. Every table has a
+SQLAlchemy model, and `alembic check` is asserted by a test — so a divergence
+between models and schema fails the suite rather than producing a migration
+that drops tables.
 
-**Specs:** `SPEC-0001` is at v0.3 and is the one being implemented — auth,
-profiles, invitations. Everything else is `Draft`, and **a spec at `Draft` may
-not be implemented**.
+`frontend/` is still a Next.js App Router skeleton with a placeholder page.
+
+**What does not exist yet:** any endpoint beyond `/health`, any service, any
+authentication. No `app/services/` content, no `app/api/auth.py`.
+
+**Two database roles are not optional.** The application connects as a
+restricted role; migrations run as the owner. ADR-0004's append-only guarantee
+is void with a single role, because an owner can `ALTER TABLE ... DISABLE
+TRIGGER`. `infra/postgres/init/01-papeis.sh` provisions the app role and the
+migration refuses to run without it.
+
+**Specs:** `SPEC-0001` is at **v0.5**, `Approved`, and is the one being
+implemented — 33 acceptance criteria covering local and OIDC authentication,
+invitations, password reset, the permission matrix and rate limiting. Everything
+else is `Draft`, and **a spec at `Draft` may not be implemented**.
 
 *(2026-09-10)* Of the gates `docs/GETTING-STARTED.md` sets before code, the data
 closed **OQ-05** (an NE covers many insumos — 27,8%, up to 37; ADR-0007) and
@@ -144,9 +159,16 @@ When the real tooling lands, update both this table and `settings.json`.
 | Frontend dev | `npm run dev` |
 | Frontend tests | `npm run test` (Vitest) · `npm run test:e2e` (Playwright) |
 
-Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
-"Testing expectations". `git push`, `psql`, `alembic downgrade` and
-`docker compose down -v` are denied in `.claude/settings.json` by design.
+Backend tests need a real PostgreSQL, not SQLite — see "Testing expectations".
+The harness takes one of two routes: set `TEST_DATABASE_URL_ADMIN` to a libpq
+connection string for a running server, or leave it unset and `testcontainers`
+starts `postgres:16`. **Check for local PostgreSQL binaries before concluding
+you need Docker** — `/usr/lib/postgresql/16/bin` exists in some sandboxes, and
+assuming otherwise means writing migrations blind.
+
+`git push`, `psql`, `alembic downgrade` and `docker compose down -v` are denied
+in `.claude/settings.json` by design. That rules out `psql` for ad-hoc queries;
+use `psycopg` from `uv run python`, which is what the tests do anyway.
 
 ## Spec-driven workflow (short version)
 
