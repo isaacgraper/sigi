@@ -57,6 +57,21 @@ class UsuarioInativo(ErroDominio):
         super().__init__("Esta conta não está ativa. Procure o gestor da sua unidade.")
 
 
+class PerfilNaoAutorizado(ErroDominio):
+    """Authenticated, and the profile does not permit it (RN04, A01).
+
+    403 rather than 404 on purpose: the caller is a known servidor of the
+    entity, and hiding that the action exists would only make them ask a
+    colleague to try it too.
+    """
+
+    codigo = "PERFIL_NAO_AUTORIZADO"
+    http = 403
+
+    def __init__(self) -> None:
+        super().__init__("Seu perfil não permite esta ação.")
+
+
 class RefreshInvalido(ErroDominio):
     codigo = "REFRESH_INVALIDO"
     http = 401

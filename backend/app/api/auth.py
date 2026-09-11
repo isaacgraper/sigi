@@ -14,7 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.autorizacao import UsuarioAtual
+from app.core.autorizacao import Publica, UsuarioAtual
 from app.core.config import get_settings
 from app.core.correlacao import atual
 from app.core.db import obter_sessao
@@ -33,6 +33,11 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 CAMINHO_COOKIE = "/api/v1/auth"
 
 SessaoDb = Annotated[Session, Depends(obter_sessao)]
+
+# Estas três são abertas por definição — quem chama ainda não tem sessão, ou
+# está devolvendo a que tem. Declarado, e não omitido: o AC-0001-23 recusa uma
+# rota de escrita sem decisão, e "esqueceram" não pode parecer "decidiram".
+ABERTA = [Depends(Publica())]
 
 
 def _correlation_id(request: Request) -> uuid.UUID:
@@ -60,7 +65,7 @@ def _ler_cookie(request: Request) -> str:
     return valor
 
 
-@router.post("/login", response_model=SessaoSaida)
+@router.post("/login", response_model=SessaoSaida, dependencies=ABERTA)
 def login(
     corpo: LoginEntrada, request: Request, response: Response, sessao: SessaoDb
 ) -> SessaoSaida:
@@ -80,7 +85,7 @@ def login(
     return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
 
 
-@router.post("/refresh", response_model=SessaoSaida)
+@router.post("/refresh", response_model=SessaoSaida, dependencies=ABERTA)
 def refresh(request: Request, response: Response, sessao: SessaoDb) -> SessaoSaida:
     """Rotate the pair without asking for credentials. [SPEC-0001 AC-0001-06, -07]"""
     par = sessoes.rotacionar(
@@ -93,7 +98,7 @@ def refresh(request: Request, response: Response, sessao: SessaoDb) -> SessaoSai
     return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=ABERTA)
 def logout(request: Request, response: Response, sessao: SessaoDb) -> None:
     """Invalidate the whole refresh family. [SPEC-0001 AC-0001-07]"""
     sessoes.encerrar(

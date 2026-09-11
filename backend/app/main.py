@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, health
 from app.api.erros import registrar_tratadores
+from app.core.autorizacao import verificar_cobertura
 from app.core.config import get_settings
 from app.core.correlacao import CorrelacaoMiddleware
 
@@ -28,6 +29,10 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+
+    # AC-0001-23, na montagem: uma rota de escrita sem decisão de acesso quebra
+    # aqui — no build e nos testes — em vez de servir a requisição.
+    verificar_cobertura(app)
     return app
 
 
