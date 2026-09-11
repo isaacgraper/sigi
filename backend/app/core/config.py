@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     jwt_issuer: str = "sigi"
     access_token_ttl_minutos: int = 15
     refresh_token_ttl_dias: int = 7
+    # AC-0001-01 requires the refresh cookie to be Secure. Configurable only so
+    # that a developer serving over plain http can flip it; leaving it False in
+    # production ships the refresh token over the wire in clear.
+    cookie_secure: bool = True
+    cookie_refresh_nome: str = "sigi_refresh"
 
     # ── Credenciais locais (ADR-0010) ───────────────────────────────────────
     # Desligável: o default honesto de produção é `False`, com OIDC como

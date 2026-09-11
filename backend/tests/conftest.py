@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 import psycopg
@@ -33,7 +33,9 @@ from psycopg import sql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.senhas import gerar_hash
 from app.main import create_app
+from app.models.usuario import Usuario
 
 PAPEL_APP = "sigi_app_test"
 SENHA_APP = "sigi_app_test"
@@ -194,3 +196,87 @@ def sessao(banco: tuple[str, str]) -> Iterator[Session]:
             yield s
     finally:
         motor.dispose()
+
+
+@pytest.fixture
+def aplicacao(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """A `TestClient` whose application really talks to the test database.
+
+    The engine is pointed at the restricted role rather than the dependency
+    being overridden, because two writers bypass any override: the failure-path
+    audit (`registrar_avulso`) and the replay revocation each open a session of
+    their own, by design — an override would leave them pointing at whatever
+    `DATABASE_URL` happens to say, which in CI is a database that does not exist.
+    """
+    from app.core.config import get_settings
+    from app.core.db import reiniciar_engine
+    from app.core.seguranca import reiniciar_chaves
+
+    monkeypatch.setenv("DATABASE_URL", _para_sqlalchemy(banco[1]))
+    monkeypatch.setenv("DB_APP_ROLE", PAPEL_APP)
+    get_settings.cache_clear()
+    reiniciar_engine()
+    reiniciar_chaves()
+    try:
+        with TestClient(create_app()) as c:
+            yield c
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()
+        reiniciar_engine()
+        reiniciar_chaves()
+
+
+@pytest.fixture
+def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
+    """Insert a usuario directly.
+
+    Member management is a later step (AC-0001-10 onwards); until it exists the
+    only honest way to arrange "given an ativo usuario" is to write the row.
+    """
+
+    def criar(
+        *,
+        email: str | None = None,
+        senha: str | None = "SenhaCorreta-12345",
+        perfil: str = "servidor",
+        status: str = "ativo",
+        nome: str = "Pessoa de Teste",
+    ) -> Usuario:
+        usuario = Usuario(
+            nome=nome,
+            email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
+            senha_hash=gerar_hash(senha) if senha else None,
+            perfil=perfil,
+            status=status,
+        )
+        sessao.add(usuario)
+        sessao.commit()
+        sessao.refresh(usuario)
+        return usuario
+
+    return criar
+
+
+def cookie_de(resposta: object, nome: str) -> str | None:
+    """Read a Set-Cookie value from the raw headers.
+
+    Not `resposta.cookies`: the refresh cookie is `Secure` (AC-0001-01) and the
+    test client speaks plain http, so the cookie jar discards it — the flag
+    under test would make the test that checks it unable to see it.
+    """
+    for bruto in resposta.headers.get_list("set-cookie"):  # type: ignore[attr-defined]
+        atributo, _, resto = bruto.partition("=")
+        if atributo.strip() == nome:
+            return resto.split(";")[0]
+    return None
+
+
+def usar_refresh(cliente: TestClient, valor: str) -> None:
+    """Put a refresh token in the client's jar.
+
+    Necessary because the cookie the application sets is `Secure` and the test
+    client speaks plain http, so the jar drops it on arrival — the flag under
+    test would otherwise make every flow that uses the cookie untestable.
+    """
+    cliente.cookies.set("sigi_refresh", valor)

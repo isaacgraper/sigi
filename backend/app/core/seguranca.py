@@ -102,6 +102,13 @@ def emitir_access_token(
     expira = agora + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
     return jwt.encode(
         {
+            # RS256 é determinístico: sem um claim único, dois tokens emitidos
+            # no mesmo segundo para o mesmo usuário saem **byte a byte iguais**,
+            # porque `iat` e `exp` são segundos inteiros. O `jti` é o que dá a
+            # cada token emitido uma identidade própria — que é o que um log,
+            # uma correlação de auditoria ou uma futura lista de revogação
+            # precisam ter para significar alguma coisa.
+            "jti": str(uuid.uuid4()),
             "sub": str(usuario_id),
             "perfil": perfil,
             "typ": TIPO_ACESSO,
