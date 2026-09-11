@@ -29,6 +29,36 @@ class Settings(BaseSettings):
     # a fresh clone run; a deployment that keeps it has no pepper at all.
     hmac_pepper: str = "troque-este-valor-em-producao"
 
+    # ── Sessão (RNF03, ADR-0010) ────────────────────────────────────────────
+    # PEM, por configuração e nunca no repositório. Vazias em `development`
+    # fazem o app gerar um par efêmero no arranque; fora de `development` isso
+    # é erro de inicialização, porque um par efêmero em produção invalida toda
+    # sessão a cada restart e ninguém liga os dois fatos.
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+    jwt_issuer: str = "sigi"
+    access_token_ttl_minutos: int = 15
+    refresh_token_ttl_dias: int = 7
+
+    # ── Credenciais locais (ADR-0010) ───────────────────────────────────────
+    # Desligável: o default honesto de produção é `False`, com OIDC como
+    # caminho primário. Ligado aqui para que um clone novo funcione.
+    local_login_enabled: bool = True
+    dominios_institucionais: list[str] = ["sc.gov.br"]
+    bcrypt_cost: int = 12
+    senha_tamanho_minimo: int = 12
+
+    # ── Bloqueio por tentativas (AC-0001-03) ────────────────────────────────
+    max_tentativas_login: int = 5
+    janela_tentativas_minutos: int = 15
+    bloqueio_minutos: int = 15
+
+    # ── Convites e redefinições (AC-0001-11, -25, -31) ──────────────────────
+    convite_ttl_horas: int = 72
+    # Uma hora contra as 72 do convite: convite espera alguém arrumar tempo de
+    # entrar, redefinição é pedida por quem está na frente da tela.
+    redefinicao_ttl_horas: int = 1
+
 
 @lru_cache
 def get_settings() -> Settings:
