@@ -14,10 +14,20 @@ Domain vocabulary stays in Portuguese everywhere — `ATA`, `Nota de Empenho` (N
 | ----------- | --------------------------------------------------------------- |
 | `main`      | Release only. Protected. Advances exclusively via a release PR.  |
 | `dev`       | Integration branch. All work merges here first.                  |
-| `feature/*` | New functionality. Branched from `dev`.                          |
+| `add/*`     | New functionality. Branched from `dev`.                          |
 | `fix/*`     | Bug fix. Branched from `dev`.                                    |
 | `chore/*`   | Tooling, docs, CI, dependencies. Branched from `dev`.            |
 | `hotfix/*`  | Urgent production fix. Branched from `main`.                     |
+
+Name the branch after **the work**, and reference the spec when there is one:
+`add/authentication-spec-0001`, `fix/nf-orfa-spec-0005`, `chore/poetry-pre-commit-sop`.
+
+**A branch never carries the name of a person or of a tool.** Not `claude/…`,
+not `isaac/…`. A branch is a unit of work, and whoever picks it up next should
+be able to tell what it does from its name — a repository where branches are
+named after who happened to open them stops being readable the moment two people
+work on the same area, and it reads as authorship in an accountability record
+where the authorship that counts is the commit trailer and the PR.
 
 **Never push directly to `main` or `dev`.** Both are protected and require a PR.
 
@@ -56,13 +66,13 @@ git checkout dev
 git pull origin dev
 
 # 2. Create your branch
-git checkout -b feature/cadastro-de-ata
+git checkout -b add/cadastro-de-ata-spec-0002
 
 # 3. Work and commit
 git commit -m "feat(ata): add registration endpoint [SPEC-0002]"
 
 # 4. Publish and open the PR
-git push -u origin feature/cadastro-de-ata
+git push -u origin add/cadastro-de-ata-spec-0002
 ```
 
 The Pull Request **always** targets `dev` — never `main`.
