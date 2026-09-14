@@ -67,7 +67,7 @@ name one: `use the security-reviewer to check this diff`.
 
 These files are a starting position, not scripture. In particular:
 
-- `.claude/settings.json` permissions assume `uv` and `npm`; adjust to your tooling.
+- `.claude/settings.json` permissions assume `poetry` and `npm`; adjust to your tooling.
 - The specs are `Draft` for a reason — they contain assumptions marked in
   `docs/open-questions.md` that only your stakeholder can confirm.
 - If a rule in `CLAUDE.md` keeps getting in your way, change it deliberately

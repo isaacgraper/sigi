@@ -110,22 +110,34 @@ frontend/
 
 ## Commands
 
-The tooling below is what the scaffold assumes — it matches the allow-list in
-`.claude/settings.json` and the stack table above, but nothing has been run yet.
-When the real tooling lands, update both this table and `settings.json`.
+Backend dependencies are managed with **Poetry**, and the commands below run
+from `backend/`. This table matches the allow-list in `.claude/settings.json`;
+change one and change the other.
 
 | Task | Command |
 | --- | --- |
 | Run everything | `docker compose up --build` |
+| Install / re-sync deps | `poetry sync --all-groups` |
 | Apply migrations | `docker compose exec backend alembic upgrade head` |
 | New migration | `docker compose exec backend alembic revision --autogenerate -m "..."` |
-| Backend tests | `uv run pytest` |
-| A single test | `uv run pytest tests/path/to/test_file.py::test_name` |
-| Tests for one AC | `uv run pytest -k AC_0004_07` |
-| Coverage gate (RNF10) | `uv run pytest --cov=app --cov-fail-under=70` |
-| Lint / format | `uv run ruff check .` · `uv run ruff format .` |
+| Backend tests | `poetry run pytest` |
+| A single test | `poetry run pytest tests/path/to/test_file.py::test_name` |
+| Tests for one AC | `poetry run pytest -k AC_0004_07` |
+| Coverage gate (RNF10) | `poetry run pytest --cov=app --cov-fail-under=70` |
+| Lint / format | `poetry run ruff check .` · `poetry run ruff format .` |
+| Every gate at once | `poetry run pre-commit run --all-files` |
 | Frontend dev | `npm run dev` |
 | Frontend tests | `npm run test` (Vitest) · `npm run test:e2e` (Playwright) |
+
+From the repository root, `poetry -C backend run …` changes into `backend/`
+first, while `poetry -P backend run …` finds the project without changing
+directory — which is what the pre-commit hooks use, so that the paths pre-commit
+appends still resolve.
+
+**The gates run before the commit, not only in CI.** `pre-commit` enforces ruff,
+ruff format, mypy, the commit-message convention and the ban on committing
+personal data; `pytest` runs at push. `docs/process/sop-qualidade.md` says which
+rule is checked where, and names the two that nothing checks.
 
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
 "Testing expectations". `git push`, `psql`, `alembic downgrade` and
