@@ -23,21 +23,36 @@ the wiring diagram.
 | No CPF, SIAPE, token or real e-mail | CLAUDE.md · `security/lgpd.md` | `scripts/check_personal_data.py` · `gitleaks` | commit · PR |
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
 | Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` | push · PR |
-| Tests run on real PostgreSQL | CLAUDE.md | `tests/conftest.py` — testcontainers, never SQLite | push · PR |
-| Models and schema agree | definition-of-done | `alembic check`, asserted as a test | push · PR |
-| Audit trail is append-only (RN06) | CLAUDE.md · ADR-0004 | database privileges + trigger, asserted as a test | push · PR |
 | Frontend lint, tests and build | — | `frontend-ci` | PR |
+| **Tests run on real PostgreSQL** | CLAUDE.md | — **no database test exists yet** | never |
+| **Models and schema agree (`alembic check`)** | definition-of-done | — **no migration exists yet** | never |
+| **Audit trail is append-only (RN06)** | CLAUDE.md · ADR-0004 | — **the table does not exist yet** | never |
 | **Every AC has a test that names it** | `requirements/traceability.md` | `/trace` — **run by a person** | never, unasked |
 | **Spec is `Approved` before code** | CLAUDE.md | — **a reviewer, reading** | never |
 | **A new dependency is justified in the spec's plan** | CLAUDE.md | — **a reviewer, reading** | never |
 | **p95 under 300 ms (RNF01)** | `requirements/non-functional.md` | — **the k6 job does not exist yet** | never |
 
-The last four rows are the reason this document exists. They are real rules that
+The rows in bold are the reason this document exists. They are real rules that
 nothing executes, and writing them next to the ones that do is the only honest
-way to describe the state of the project. Two of them should stay human — a
-reviewer deciding whether a spec is ready is not automatable, and should not be.
-Two of them are debt: `/trace` could run in CI, and RNF01's performance job is
-named in `traceability.md` against a file nobody has written.
+way to describe the state of the project.
+
+They are not all the same kind of nothing:
+
+- **Two should stay human.** A reviewer deciding whether a spec is ready, or
+  whether a new dependency is justified, is not automatable and should not be.
+- **Two are debt with no excuse.** `/trace` exists and could run in CI; RNF01's
+  performance job is named in `traceability.md` against a file nobody has
+  written.
+- **Three are waiting on code that does not exist yet.** There is no migration,
+  no audit table and no database-backed test on this branch, so there is nothing
+  for `alembic check`, the append-only trigger or testcontainers to be asserted
+  against. They arrive with SPEC-0001, and the commit that brings them moves
+  these rows up into the enforced half of the table.
+
+The first draft of this file listed those last three as enforced, because they
+are enforced on the branch the author had open. That is exactly the failure this
+document is written against, caught by reading the table against the repository
+instead of against memory — which is the check the closing section asks for.
 
 ## What runs when, and why there
 
