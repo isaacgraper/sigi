@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.5
+version: 0.6
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -189,10 +189,39 @@ And   neither attempt is treated as authenticated
 Given a gestor
 When  a member is invited with an institutional e-mail and a perfil
 Then  a usuario is created with status "pendente" and no credential
-And   a single-use invitation token valid 72 hours is sent to that e-mail
-And   the token value does not appear in the response body
+And   a single-use activation link valid 72 hours is returned to the inviting gestor
+And   the link is returned exactly once, in that response, and no endpoint can recover it afterwards
 And   an audit row records the invite with the gestor as actor and the perfil granted
+And   the audit row does not carry the token
 ```
+*(v0.6)* **The gestor delivers the link; the system does not send it.** Until
+v0.5 this criterion said the token was *sent to that e-mail* and must not appear
+in the response body. There is no mail transport in this project, and the entity
+has never supplied SMTP — and because there is no self-registration and no
+just-in-time provisioning (AC-0001-21), **every account in the system is born
+from an invitation**. A criterion that cannot be satisfied does not block only
+itself; it blocks anyone from ever logging in. So the gestor now receives the
+link and passes it on through whatever channel the entity already trusts, which
+is what an organisation with locked-down mail does in practice.
+
+Three properties keep this from being a hole rather than a decision:
+
+- **Once.** The link is in the creation response and nowhere else. Only the
+  token's HMAC reaches the database, so "not recoverable afterwards" is a fact
+  about the schema, not a promise about the code.
+- **To the inviter.** The response goes to the gestor who is already permitted
+  to create the account and choose its perfil. It grants them nothing they did
+  not already have.
+- **Never in the trail.** The audit row records that an invitation happened, not
+  the grant itself. `lgpd.md` depends on that table carrying no credential.
+
+What this does **not** change: the gestor never sets the other person's
+password. Activation still belongs to whoever holds the link (AC-0001-11). In a
+system whose purpose is traceability, a gestor who knows a servidor's credential
+makes the history lie about who acted.
+
+E-mail delivery stays desirable and is recorded as **OQ-30**; it becomes a
+second delivery channel behind the same link, not a precondition for launch.
 
 **AC-0001-11** — An invited user activates and sets a password
 ```gherkin
@@ -601,7 +630,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Lockout | `usuario` | `auth.bloqueio_tentativas` | `{tentativas}` |
 | Refresh replay | `usuario` | `auth.refresh_replay` | `{token_id}` |
 | OIDC rejection | `usuario` | `auth.oidc_recusada` | `{motivo, email_hmac, dominio}` |
-| Invite | `usuario` | `usuario.convidado` | `null` |
+| Invite | `usuario` | `usuario.convidado` | `{perfil}` |
 | Activation | `usuario` | `usuario.ativado` | `{status}` |
 | Block | `usuario` | `usuario.bloqueado` | `{status}` |
 | Deactivation | `usuario` | `usuario.desativado` | `{status}` |
@@ -722,7 +751,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
-| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
+| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` + the activation link, once | 10, 13, 28 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
 | POST | `/api/v1/convites/{token}/ativar` | `{senha}` → session | 11, 25, 26 |
@@ -907,3 +936,4 @@ figure before M5's load tests close.
 | 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice, with AC-0001-27 proving RN06/RNF08. `/spec-review` added AC-0001-25/26 (invitation single-use, password policy), AC-0001-28 (duplicate and off-domain invites) and AC-0001-29 (the last active gestor cannot be locked out); "change own password" left the permission matrix as unspecified |
 | 0.4 | 2026-09-10 | `/plan`'s persistence review corrected four defects: the lockout is keyed on the submitted address, not the account (AC-0001-02 was false as written); AC-0001-03 states an inactivity decay rather than two conflicting rules; the lockout no longer reaches institutional OIDC, closing a DoS on member management; and §8 stops writing e-mail addresses into the immutable audit table, using a peppered HMAC plus domain. AC-0001-29 extended to demotion and to the concurrency requirement |
 | 0.5 | 2026-09-10 | Password reset specified at last (AC-0001-30/-31/-32): a forgotten local credential had no recovery path, because the scope line promised the flow without a criterion while AC-0001-28 blocked the only workaround. Rate limiting added across every auth route (AC-0001-33, ADR-0012), keyed on the source and independent of the per-address lockout, with a higher ceiling for institutional ranges because whole unidades share one NAT address. RNF01's conflict with AC-0001-05 settled by ADR-0011 instead of by lowering the bcrypt cost |
+| 0.6 | 2026-09-14 | **AC-0001-10 revised: the gestor delivers the activation link; the system does not send it.** The criterion required the token to be e-mailed and kept out of the response body, and there is no mail transport in the project nor SMTP from the entity — while AC-0001-21 means every account is born from an invitation, so an unsatisfiable criterion blocked all onboarding, not just itself. The link is now returned once to the inviting gestor, is not recoverable afterwards (only its HMAC is stored), and never reaches the audit trail. The gestor still never sets another person's password. §8 corrected alongside: `usuario.convidado` recorded `null` while AC-0001-10 required the granted perfil, so it now records `{perfil}`. E-mail delivery becomes OQ-30, a second channel rather than a precondition |
