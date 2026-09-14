@@ -1,0 +1,16 @@
+# The environment lives at `backend/.venv`, not in Poetry's global cache.
+#
+# Left unset, Poetry puts it under ~/.cache/pypoetry/virtualenvs — except when a
+# `.venv` directory happens to exist already, which it silently adopts instead.
+# Two behaviours, chosen by whatever the filesystem looks like, is not a thing to
+# debug later. Three things depend on the answer being the same everywhere:
+#
+#   * `.pre-commit-config.yaml`, whose hooks shell out to `poetry -P backend run`;
+#   * `actions/setup-python`'s `cache: poetry`, which reads this very setting to
+#     decide whether `backend/.venv` is what it should be caching;
+#   * every editor that picks an interpreter by looking for `./.venv`.
+#
+# `POETRY_VIRTUALENVS_CREATE=false` in the environment still wins over this file,
+# which is what lets the Dockerfile install into the image's own prefix.
+[virtualenvs]
+in-project = true

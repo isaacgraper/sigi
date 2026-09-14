@@ -20,14 +20,36 @@ dev = [
     "httpx>=0.28",
     "testcontainers[postgres]>=4.9",
     "ruff>=0.8",
+    # The definition of done has required a clean mypy run since before there
+    # was a pipeline to run it in. A checklist item nobody executes stops being
+    # a checklist item, so it lands here, in the hook and in CI together.
+    "mypy>=1.13",
+    "pre-commit>=4.3",
 ]
+
+# This is an application, never a distribution. `package-mode = false` is how
+# Poetry is told that: it installs the dependencies and nothing else, which is
+# the same thing `uv sync --no-install-project` did. `app` is imported from the
+# working directory — pytest's `pythonpath`, the image's `WORKDIR` — never from
+# site-packages, so there is no wheel to build and no build backend to declare.
+[tool.poetry]
+package-mode = false
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "W", "F", "I", "D", "UP", "B", "SIM"]
+
+# `google` rather than `pep257`, and the reason is not taste. Measured across
+# the three conventions, it is the only one that disables D401
+# (non-imperative-mood), whose heuristic reads the docstring's first word
+# against a list of English verb forms. Docstrings here are English prose with
+# Portuguese domain vocabulary, and comments in the services are written in
+# Portuguese outright — D401 flags those as style errors they are not.
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -35,10 +57,3 @@ pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["app"]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
