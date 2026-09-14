@@ -109,3 +109,101 @@ class TentativasExcedidas(ErroDominio):
             f"Muitas tentativas. Tente novamente em {minutos} minutos.",
             retry_after=minutos * 60,
         )
+
+
+class UsuarioNaoEncontrado(ErroDominio):
+    """No usuario with that id, or none this caller may see.
+
+    404 rather than 403 on the second case: telling an auditor that an id exists
+    but is out of their scope leaks the existence of accounts by enumeration.
+    """
+
+    codigo = "NAO_ENCONTRADO"
+    http = 404
+
+    def __init__(self) -> None:
+        super().__init__("Usuário não encontrado.")
+
+
+class EmailJaCadastrado(ErroDominio):
+    """The address already has an account, in any status (AC-0001-28).
+
+    A second account for one person would split their audit trail in two, and
+    neither half would answer "what did this person do".
+    """
+
+    codigo = "EMAIL_JA_CADASTRADO"
+    http = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, "
+            "use 'redefinir senha' em vez de convidar de novo.",
+            campos={"email": "Este e-mail já tem conta."},
+        )
+
+
+class DominioNaoInstitucional(ErroDominio):
+    """The invited address is not on the institutional allowlist (AC-0001-28)."""
+
+    codigo = "DOMINIO_NAO_INSTITUCIONAL"
+    http = 422
+
+    def __init__(self, dominios: list[str]) -> None:
+        aceitos = ", ".join(dominios)
+        super().__init__(
+            f"Use um e-mail institucional. Domínios aceitos: {aceitos}.",
+            campos={"email": f"Domínios aceitos: {aceitos}."},
+        )
+
+
+class ConviteJaUtilizado(ErroDominio):
+    codigo = "CONVITE_JA_UTILIZADO"
+    http = 409
+
+    def __init__(self) -> None:
+        super().__init__("Este convite já foi utilizado. Peça um novo ao gestor.")
+
+
+class ConviteExpirado(ErroDominio):
+    codigo = "CONVITE_EXPIRADO"
+    http = 409
+
+    def __init__(self) -> None:
+        super().__init__("Este convite expirou. Peça um novo ao gestor.")
+
+
+class SenhaFraca(ErroDominio):
+    """The password is below the policy (AC-0001-26).
+
+    422 and not 409: the request is well formed, the value is wrong, and the
+    caller can fix it by typing a different one. The token survives — a typo
+    must not burn an invitation and force the gestor to issue another.
+    """
+
+    codigo = "SENHA_FRACA"
+    http = 422
+
+    def __init__(self, minimo: int) -> None:
+        super().__init__(
+            f"A senha precisa ter ao menos {minimo} caracteres.",
+            campos={"senha": f"Mínimo de {minimo} caracteres."},
+        )
+
+
+class UltimoGestor(ErroDominio):
+    """The operation would leave the entity with no active gestor (AC-0001-29).
+
+    Without this, two individually permitted actions leave nobody able to manage
+    members — and since there is no self-registration (AC-0001-21), there is no
+    way back in short of database access.
+    """
+
+    codigo = "ULTIMO_GESTOR"
+    http = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Esta é a única conta de gestor ativa. Promova outro gestor antes de "
+            "bloquear ou desativar esta."
+        )

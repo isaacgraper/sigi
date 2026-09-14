@@ -45,7 +45,7 @@ def _correlation_id(request: Request) -> uuid.UUID:
     return bruto if isinstance(bruto, uuid.UUID) else atual()
 
 
-def _definir_cookie(response: Response, valor: str) -> None:
+def definir_cookie(response: Response, valor: str) -> None:
     cfg = get_settings()
     response.set_cookie(
         cfg.cookie_refresh_nome,
@@ -81,7 +81,7 @@ def login(
         correlation_id=correlation_id,
         mecanismo="local",
     )
-    _definir_cookie(response, par.refresh_token)
+    definir_cookie(response, par.refresh_token)
     return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
 
 
@@ -94,7 +94,7 @@ def refresh(request: Request, response: Response, sessao: SessaoDb) -> SessaoSai
         perfil_de=_PerfilDoRegistro(sessao),
         correlation_id=_correlation_id(request),
     )
-    _definir_cookie(response, par.refresh_token)
+    definir_cookie(response, par.refresh_token)
     return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
 
 

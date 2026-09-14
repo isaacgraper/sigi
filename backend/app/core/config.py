@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     bloqueio_minutos: int = 15
 
     # ── Convites e redefinições (AC-0001-11, -25, -31) ──────────────────────
+    # Base do link que o gestor copia e entrega (AC-0001-10, v0.6). O backend
+    # monta o link porque é ele que conhece o token — que existe por um instante
+    # só, na resposta da criação, e depois some: o banco guarda apenas o HMAC.
+    url_base_frontend: str = "http://localhost:3000"
     convite_ttl_horas: int = 72
     # Uma hora contra as 72 do convite: convite espera alguém arrumar tempo de
     # entrar, redefinição é pedida por quem está na frente da tela.

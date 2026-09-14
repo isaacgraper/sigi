@@ -280,3 +280,37 @@ def usar_refresh(cliente: TestClient, valor: str) -> None:
     test would otherwise make every flow that uses the cookie untestable.
     """
     cliente.cookies.set("sigi_refresh", valor)
+
+
+@pytest.fixture
+def criar_usuario_em() -> Callable[..., Usuario]:
+    """Insert a usuario into a session the caller owns.
+
+    The `criar_usuario` fixture writes through the shared-database `sessao`
+    fixture, which is exactly what the last-gestor tests must not use: their
+    invariant is global, so they run against `banco_isolado` and open their own
+    engine. Same construction, caller-supplied session.
+    """
+
+    def criar(
+        sessao: Session,
+        *,
+        email: str | None = None,
+        senha: str | None = "SenhaCorreta-12345",
+        perfil: str = "servidor",
+        status: str = "ativo",
+        nome: str = "Pessoa de Teste",
+    ) -> Usuario:
+        usuario = Usuario(
+            nome=nome,
+            email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
+            senha_hash=gerar_hash(senha) if senha else None,
+            perfil=perfil,
+            status=status,
+        )
+        sessao.add(usuario)
+        sessao.commit()
+        sessao.refresh(usuario)
+        return usuario
+
+    return criar
