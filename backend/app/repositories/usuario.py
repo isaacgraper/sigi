@@ -85,3 +85,7 @@ def contar_gestores_ativos(sessao: Session, *, exceto: uuid.UUID | None = None) 
     if exceto is not None:
         consulta = consulta.where(Usuario.id != exceto)
     return int(sessao.scalar(consulta) or 0)
+
+
+def por_oidc_subject(sessao: Session, subject: str) -> Usuario | None:
+    return sessao.scalars(select(Usuario).where(Usuario.oidc_subject == subject)).one_or_none()

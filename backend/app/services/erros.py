@@ -207,3 +207,38 @@ class UltimoGestor(ErroDominio):
             "Esta é a única conta de gestor ativa. Promova outro gestor antes de "
             "bloquear ou desativar esta."
         )
+
+
+class EstadoInvalido(ErroDominio):
+    """The OIDC callback carries a state that was never issued, or has expired."""
+
+    codigo = "ESTADO_INVALIDO"
+    http = 401
+
+    def __init__(self) -> None:
+        super().__init__("A tentativa de entrada expirou. Comece novamente.")
+
+
+class AssercaoInvalida(ErroDominio):
+    """The provider's identity token did not verify (AC-0001-20)."""
+
+    codigo = "ASSERCAO_INVALIDA"
+    http = 401
+
+    def __init__(self) -> None:
+        super().__init__("Não foi possível validar a resposta do provedor.")
+
+
+class UsuarioNaoProvisionado(ErroDominio):
+    """The assertion verified, and no usuario matches it (AC-0001-21).
+
+    403 and not 404: the caller authenticated against the tenant, so they exist
+    as a person. What they lack is an account here, and saying so is what tells
+    them to ask the gestor rather than retry.
+    """
+
+    codigo = "USUARIO_NAO_PROVISIONADO"
+    http = 403
+
+    def __init__(self) -> None:
+        super().__init__("Seu acesso ainda não foi liberado. Procure o gestor da sua unidade.")

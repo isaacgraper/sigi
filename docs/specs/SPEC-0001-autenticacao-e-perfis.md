@@ -566,6 +566,7 @@ the trigger stops whatever the privilege does not — a superuser session, or a
 | Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa. Procure o gestor da sua unidade." |
 | Profile does not permit | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
 | OIDC state absent or expired | 401 | `ESTADO_INVALIDO` | "A tentativa de entrada expirou. Comece novamente." |
+| OIDC identity token fails verification | 401 | `ASSERCAO_INVALIDA` | "Não foi possível validar a resposta do provedor." |
 | OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade." |
 | Invitation already redeemed | 409 | `CONVITE_JA_UTILIZADO` | "Este convite já foi utilizado. Peça um novo ao gestor." |
 | Invitation older than 72 h | 409 | `CONVITE_EXPIRADO` | "Este convite expirou. Peça um novo ao gestor." |

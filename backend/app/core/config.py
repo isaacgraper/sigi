@@ -53,6 +53,20 @@ class Settings(BaseSettings):
     bcrypt_cost: int = 12
     senha_tamanho_minimo: int = 12
 
+    # ── OIDC institucional (ADR-0010, AC-0001-19..22) ───────────────────────
+    # Entra ID. A entidade ainda não entregou tenant, client e redirect (OQ-09),
+    # então os defaults vazios desligam o caminho e os testes injetam os seus.
+    oidc_enabled: bool = False
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_uri: str = "http://localhost:3000/auth/callback"
+    # Claim de grupo que o provedor assere. Registrada na auditoria do login e
+    # nunca consultada por decisão de autorização (AC-0001-22).
+    oidc_claim_grupo: str = "groups"
+    # Janela entre iniciar o login e voltar do provedor.
+    oidc_estado_ttl_minutos: int = 10
+
     # ── Bloqueio por tentativas (AC-0001-03) ────────────────────────────────
     max_tentativas_login: int = 5
     janela_tentativas_minutos: int = 15
