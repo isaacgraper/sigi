@@ -96,14 +96,14 @@ def reject(header: str, problema: str) -> int:
     Returns:
         ``1``, so a caller can ``return reject(...)``.
     """
-    print(f"\nMensagem de commit recusada:\n\n    {header}\n", file=sys.stderr)
+    print(f"\nCommit message refused:\n\n    {header}\n", file=sys.stderr)
     print(f"  {problema}.\n", file=sys.stderr)
-    print("  Formato:  <type>(<escopo>): <assunto> [SPEC-XXXX]", file=sys.stderr)
-    print(f"  Tipos:    {', '.join(TYPES)}", file=sys.stderr)
-    print(f"  Sem [SPEC-XXXX]: {', '.join(sorted(SPEC_OPTIONAL))}", file=sys.stderr)
+    print("  Shape:  <type>(<scope>): <subject> [SPEC-XXXX]", file=sys.stderr)
+    print(f"  Types:  {', '.join(TYPES)}", file=sys.stderr)
+    print(f"  No [SPEC-XXXX] needed: {', '.join(sorted(SPEC_OPTIONAL))}", file=sys.stderr)
     print("\n  feat(ne): validate saldo before pré-empenho [SPEC-0004]", file=sys.stderr)
     print("  chore(ci): add frontend lint workflow", file=sys.stderr)
-    print("\n  Ver CONTRIBUTING.md, 'Commit convention'.\n", file=sys.stderr)
+    print("\n  See CONTRIBUTING.md, 'Commit convention'.\n", file=sys.stderr)
     return 1
 
 
@@ -118,7 +118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 1:
-        print("uso: check_commit_msg.py <arquivo-da-mensagem>", file=sys.stderr)
+        print("usage: check_commit_msg.py <commit-msg-file>", file=sys.stderr)
         return 2
 
     header = read_header(Path(args[0]))
@@ -132,23 +132,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     encontrado = HEADER.match(header)
     if encontrado is None:
-        return reject(header, "não casa com `<type>(<escopo>): <assunto>`")
+        return reject(header, "does not match `<type>(<scope>): <subject>`")
 
     tipo = encontrado.group("type")
     if tipo not in TYPES:
-        return reject(header, f"`{tipo}` não é um tipo aceito")
+        return reject(header, f"`{tipo}` is not an accepted type")
 
     if len(header) > MAX_HEADER:
         return reject(
             header,
-            f"o cabeçalho tem {len(header)} caracteres e o limite é {MAX_HEADER}",
+            f"the header is {len(header)} characters and the limit is {MAX_HEADER}",
         )
 
     if tipo not in SPEC_OPTIONAL and not SPEC_TAG.search(header):
         return reject(
             header,
-            f"um commit `{tipo}` muda ou afirma comportamento, então precisa "
-            "referenciar a sua spec como [SPEC-XXXX]",
+            f"a `{tipo}` commit changes or asserts behaviour, so it must "
+            "reference its spec as [SPEC-XXXX]",
         )
 
     return 0

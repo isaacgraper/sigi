@@ -68,14 +68,14 @@ ENDERECO_INSTITUCIONAL = re.compile(
 )
 
 REGRAS: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    ("CPF", CPF, "CLAUDE.md proíbe CPF no repositório; a OQ-10 decidiu não coletá-lo"),
-    ("SIAPE", SIAPE, "matrícula SIAPE identifica um servidor"),
-    ("JWT", JWT, "token no repositório; ver OQ-17, o JWT de protótipo do RFC"),
+    ("CPF", CPF, "CLAUDE.md forbids a CPF in the repository; OQ-10 chose not to collect one"),
+    ("SIAPE", SIAPE, "a SIAPE registration identifies a servidor"),
+    ("JWT", JWT, "a token in the repository; see OQ-17, the RFC's prototype JWT"),
     (
-        "e-mail institucional",
+        "institutional e-mail",
         ENDERECO_INSTITUCIONAL,
-        "endereço com nome.sobrenome parece de uma pessoa real; "
-        "fixtures usam um token só, como ana@sc.gov.br",
+        "a nome.sobrenome address looks like a real person; "
+        "fixtures use a single token, like ana@sc.gov.br",
     ),
 )
 
@@ -135,15 +135,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not encontrados:
         return 0
 
-    print("\nDado pessoal aparente nos arquivos em stage:\n", file=sys.stderr)
+    print("\nApparent personal data in the staged files:\n", file=sys.stderr)
     for linha in encontrados:
         print(f"  {linha}", file=sys.stderr)
     print(
-        "\n  O git guarda o que recebe: depois do commit o valor está no"
-        "\n  histórico de todo clone. Troque por um valor sintético, ou use o"
-        f"\n  HMAC de app/core/segredos.py se o que você quer é correlacionar."
-        f"\n\n  Se este achado estiver errado, escreva `{ESCAPE}` na linha."
-        "\n  Ver CLAUDE.md e docs/security/lgpd.md.\n",
+        "\n  git keeps what it is given: after the commit the value is in the"
+        "\n  history of every clone. Replace it with a synthetic one, or use the"
+        "\n  HMAC in app/core/segredos.py if what you want is correlation."
+        f"\n\n  If this finding is wrong, put `{ESCAPE}` on that line."
+        "\n  See CLAUDE.md and docs/security/lgpd.md.\n",
         file=sys.stderr,
     )
     return 1

@@ -85,7 +85,7 @@ repos:
         files: ^backend/
 
       - id: dados-pessoais
-        name: sem CPF, SIAPE, token ou e-mail de pessoa real
+        name: no CPF, SIAPE, token or real person's e-mail
         # Not a replacement for gitleaks, which runs in CI and is better at API
         # keys. What gitleaks does not know is what a CPF is, what a SIAPE
         # number is, or which domain belongs to the entity — and those are what
@@ -109,7 +109,7 @@ repos:
         # filter would exclude it and stop the hook from ever running.
 
       - id: pytest
-        name: pytest com cobertura (backend, no push)
+        name: pytest with coverage (backend, at push)
         # RNF10's 70% floor, mirrored from backend-ci.yml so a red pipeline is
         # found before the push and not after. At `pre-commit` this would add
         # ~30s and a PostgreSQL requirement to every commit, and a hook that
