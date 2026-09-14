@@ -1,0 +1,124 @@
+# Quality gates, run before the commit rather than after the push.
+#
+# Every hook is `repo: local` with `language: system`, on purpose:
+#
+#   * A remote `repo:` pins a SECOND version of ruff and mypy here, independent
+#     of backend/poetry.lock. The two drift the first time someone runs
+#     `poetry update` without `pre-commit autoupdate`, and the symptom is "clean
+#     locally, red in CI" with no visible cause. A local hook runs the binaries
+#     the lock pins — the same ones CI installs.
+#   * mypy could not be a remote hook here anyway. An isolated environment would
+#     need sqlalchemy, pydantic, fastapi, alembic and psycopg restated in
+#     `additional_dependencies`, which is a second dependency manifest that
+#     nothing locks, and a mypy that cannot see SQLAlchemy's plugin does not
+#     check what CI checks.
+#   * `language: system` builds no environment, so `pre-commit install` needs no
+#     network. On a restricted government network that is the difference between
+#     onboarding working and not.
+#
+# The price, stated plainly: these hooks assume `poetry` on PATH and
+# backend/.venv populated. See "Bootstrap" in CONTRIBUTING.md.
+#
+# See docs/process/sop-qualidade.md for which rule is enforced where, and why
+# the suite runs at push rather than at commit.
+
+# The version that introduced the `pre-commit`/`pre-push` stage names below.
+minimum_pre_commit_version: "3.2.0"
+
+# So that a bare `pre-commit install` still wires all three git hooks. Without
+# it, only .git/hooks/pre-commit is written and the other two silently never
+# fire — the worst outcome for a convention hook, because it looks installed.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+
+# Deliberately no `default_stages`. Its schema default is *every* stage, and an
+# unset `stages:` inherits it — ruff and mypy would run a second time on push.
+# Every hook below names its stage.
+#
+# Deliberately no top-level `files:` either: pre-commit filters the commit-msg
+# filename through it too, so a repo-wide `^backend/` would quietly disable the
+# commit-message hook. Scope per hook instead.
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff — lint (backend)
+        # `-P backend` points Poetry at backend/pyproject.toml without changing
+        # directory, so the repo-root-relative paths pre-commit appends still
+        # resolve. `-C backend` would chdir and break them.
+        # `--force-exclude` makes ruff honour its own `exclude` even for files
+        # named explicitly, which is the only way pre-commit ever calls it.
+        entry: poetry -P backend run ruff check --force-exclude --fix
+        language: system
+        stages: [pre-commit]
+        types_or: [python, pyi]
+        files: ^backend/
+
+      - id: ruff-format
+        name: ruff — format (backend)
+        entry: poetry -P backend run ruff format --force-exclude
+        language: system
+        stages: [pre-commit]
+        types_or: [python, pyi]
+        files: ^backend/
+
+      - id: mypy
+        name: mypy (backend — the whole package)
+        # mypy is only sound over the whole package: given a subset it cannot
+        # see the definitions it is checking against, so it reports errors that
+        # are not there and misses ones that are. `pass_filenames: false` means
+        # pre-commit appends nothing and these three trees — the same three CI
+        # checks — are the entire argument list.
+        #
+        # `files:` still matters with pass_filenames false. It is the trigger:
+        # pre-commit skips a hook when nothing matched and `always_run` is
+        # false, so mypy runs when a backend Python file is staged, and is
+        # skipped otherwise.
+        #
+        # `-C backend` (chdir) here, not `-P`: the three paths are relative to
+        # backend/, and there are no appended filenames left to keep resolvable.
+        entry: poetry -C backend run mypy app migrations tests
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        types_or: [python, pyi]
+        files: ^backend/
+
+      - id: dados-pessoais
+        name: sem CPF, SIAPE, token ou e-mail de pessoa real
+        # Not a replacement for gitleaks, which runs in CI and is better at API
+        # keys. What gitleaks does not know is what a CPF is, what a SIAPE
+        # number is, or which domain belongs to the entity — and those are what
+        # the stakeholder workbooks are full of. Runs at commit because git
+        # keeps what it is given: after the commit the value is in the history
+        # of every clone.
+        entry: scripts/check_personal_data.py
+        language: system
+        stages: [pre-commit]
+        # Every text file, not only Python: the risk is a spreadsheet row pasted
+        # into a fixture, a doc or a migration.
+        types: [text]
+
+      - id: mensagem-de-commit
+        name: Conventional Commits + [SPEC-XXXX]
+        entry: scripts/check_commit_msg.py
+        language: system
+        stages: [commit-msg]
+        # No `files:` and no `types:` override here. At the commit-msg stage the
+        # single filename pre-commit passes is the message file itself, and any
+        # filter would exclude it and stop the hook from ever running.
+
+      - id: pytest
+        name: pytest com cobertura (backend, no push)
+        # RNF10's 70% floor, mirrored from backend-ci.yml so a red pipeline is
+        # found before the push and not after. At `pre-commit` this would add
+        # ~30s and a PostgreSQL requirement to every commit, and a hook that
+        # slow gets bypassed — at which point it protects nothing.
+        entry: poetry -C backend run pytest -q --cov=app --cov-fail-under=70
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        # Without this the hook is gated on the pushed range containing matching
+        # files. The suite has to run for anything that could break it, which
+        # includes migrations, alembic.ini and pyproject.toml.
+        always_run: true
