@@ -140,8 +140,11 @@ personal data; `pytest` runs at push. `docs/process/sop-qualidade.md` says which
 rule is checked where, and names the two that nothing checks.
 
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
-"Testing expectations". `git push`, `psql`, `alembic downgrade` and
-`docker compose down -v` are denied in `.claude/settings.json` by design.
+"Testing expectations". `psql`, `alembic downgrade` and `docker compose down -v`
+are denied in `.claude/settings.json` by design, and so is pushing to `dev`,
+`main` or with `--force`. Pushing the current branch to itself
+(`git push -u origin HEAD`) is permitted; opening the PR is what moves work
+towards `dev`.
 
 ## Spec-driven workflow (short version)
 
