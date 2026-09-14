@@ -319,7 +319,8 @@ def _sessoes() -> None:
              OR NEW.expira_em <> OLD.expira_em
              OR (OLD.revogado_em IS NOT NULL AND NEW.revogado_em IS NULL) THEN
             RAISE EXCEPTION
-              'sessao só admite alteração de revogado_em/revogado_motivo, e revogação não se desfaz'
+              'sessao accepts changes to revogado_em/revogado_motivo only, '
+              'and a revocation does not undo'
               USING ERRCODE = '{ERRO_SESSAO_IMUTAVEL}';
           END IF;
           RETURN NEW;

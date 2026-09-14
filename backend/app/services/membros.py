@@ -17,7 +17,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.senhas import gerar_hash
+from app.core.senhas import hash_senha
 from app.models.usuario import Usuario
 from app.repositories import sessao as repo_sessao
 from app.repositories import usuario as repo
@@ -38,9 +38,9 @@ from app.services.erros import (
 SQLSTATE_DEADLOCK = "40P01"
 SQLSTATE_ULTIMO_GESTOR = "SI005"
 
-# `ck_sessao_motivo_valor` fixa o vocabulário de `sessao.revogado_motivo`, e
-# ele não é o mesmo de `usuario.status`. São duas linguagens: uma descreve a
-# conta, a outra por que a sessão terminou.
+# `ck_sessao_motivo_valor` fixes the vocabulary of `sessao.revogado_motivo`,
+# and it is not the one `usuario.status` uses. Two languages: one describes the
+# account, the other why the session ended.
 MOTIVO_DA_REVOGACAO = {"bloqueado": "bloqueio", "desativado": "desativacao"}
 
 
@@ -50,7 +50,7 @@ def convidar(
     ator: Usuario,
     email: str,
     perfil: str,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> tuple[Usuario, str]:
     """Create a `pendente` account and issue its activation link (AC-0001-10).
@@ -63,7 +63,7 @@ def convidar(
     endereco = email.strip().lower()
     _exigir_dominio_institucional(endereco, cfg.dominios_institucionais)
 
-    if repo.por_email(sessao, endereco) is not None:
+    if repo.by_email(sessao, endereco) is not None:
         # In any status, including `desativado`. A second account for one person
         # splits their audit trail in two, and neither half answers "what did
         # this person do" (AC-0001-28).
@@ -74,7 +74,7 @@ def convidar(
         sessao,
         usuario_id=usuario.id,
         tipo=credenciais.CONVITE,
-        agora=agora,
+        now=now,
         criado_por=ator.id,
     )
     registrar(
@@ -89,7 +89,7 @@ def convidar(
             dados_anteriores={"perfil": perfil},
         ),
         correlation_id=correlation_id,
-        momento=agora,
+        at=now,
     )
     return usuario, grant.link("/convite")
 
@@ -99,7 +99,7 @@ def ativar(
     *,
     token: str,
     senha: str,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Usuario:
     """Redeem an invitation and set the credential (AC-0001-11, -25, -26).
@@ -108,16 +108,16 @@ def ativar(
     grant is spent, so a password that fails the policy leaves the invitation
     usable. A typo must not burn it and force the gestor to issue another.
     """
-    linha = credenciais.resgatar(sessao, valor=token, tipo=credenciais.CONVITE, agora=agora)
-    credenciais.exigir_senha_forte(senha)
+    linha = credenciais.resgatar(sessao, valor=token, tipo=credenciais.CONVITE, now=now)
+    credenciais.require_strong_senha(senha)
 
-    usuario = repo.por_id(sessao, linha.usuario_id)
+    usuario = repo.by_id(sessao, linha.usuario_id)
     if usuario is None:  # pragma: no cover - FK makes this unreachable
         raise UsuarioNaoEncontrado()
 
-    usuario.senha_hash = gerar_hash(senha)
+    usuario.senha_hash = hash_senha(senha)
     usuario.status = "ativo"
-    credenciais.consumir(sessao, linha, agora=agora)
+    credenciais.consumir(sessao, linha, now=now)
     registrar(
         sessao,
         Evento(
@@ -128,7 +128,7 @@ def ativar(
             dados_anteriores={"status": "pendente"},
         ),
         correlation_id=correlation_id,
-        momento=agora,
+        at=now,
     )
     return usuario
 
@@ -138,7 +138,7 @@ def bloquear(
     *,
     ator: Usuario,
     usuario_id: uuid.UUID,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Usuario:
     """Block an account (AC-0001-12).
@@ -155,7 +155,7 @@ def bloquear(
         usuario_id=usuario_id,
         novo_status="bloqueado",
         acao="usuario.bloqueado",
-        agora=agora,
+        now=now,
         correlation_id=correlation_id,
     )
 
@@ -165,7 +165,7 @@ def desativar(
     *,
     ator: Usuario,
     usuario_id: uuid.UUID,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Usuario:
     """Deactivate and anonymise, preserving the history (AC-0001-14, RN16).
@@ -181,7 +181,7 @@ def desativar(
         usuario_id=usuario_id,
         novo_status="desativado",
         acao="usuario.desativado",
-        agora=agora,
+        now=now,
         correlation_id=correlation_id,
     )
     # All four together, or the CHECK refuses the row: a half-anonymised usuario
@@ -190,7 +190,7 @@ def desativar(
     usuario.email = None
     usuario.senha_hash = None
     usuario.oidc_subject = None
-    usuario.anonimizado_em = agora
+    usuario.anonimizado_em = now
     sessao.flush()
     return usuario
 
@@ -206,13 +206,13 @@ def _mudar_status(
     usuario_id: uuid.UUID,
     novo_status: str,
     acao: str,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Usuario:
-    # Before reading the count, not after: see `repo.travar_gestores`.
-    repo.travar_gestores(sessao)
+    # Before reading the count, not after: see `repo.lock_gestores`.
+    repo.lock_gestores(sessao)
 
-    usuario = repo.por_id(sessao, usuario_id)
+    usuario = repo.by_id(sessao, usuario_id)
     if usuario is None:
         raise UsuarioNaoEncontrado()
 
@@ -223,7 +223,7 @@ def _mudar_status(
     if (
         usuario.perfil == "gestor"
         and anterior == "ativo"
-        and repo.contar_gestores_ativos(sessao, exceto=usuario.id) == 0
+        and repo.count_active_gestores(sessao, exceto=usuario.id) == 0
     ):
         _auditar_ultimo_gestor(sessao, ator=ator, alvo=usuario, correlation_id=correlation_id)
         raise UltimoGestor()
@@ -239,8 +239,8 @@ def _mudar_status(
             raise UltimoGestor() from exc
         raise
 
-    repo_sessao.revogar_do_usuario(
-        sessao, usuario.id, motivo=MOTIVO_DA_REVOGACAO[novo_status], momento=agora
+    repo_sessao.revoke_for_usuario(
+        sessao, usuario.id, motivo=MOTIVO_DA_REVOGACAO[novo_status], at=now
     )
     registrar(
         sessao,
@@ -252,7 +252,7 @@ def _mudar_status(
             dados_anteriores={"status": anterior},
         ),
         correlation_id=correlation_id,
-        momento=agora,
+        at=now,
     )
     return usuario
 

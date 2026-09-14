@@ -1,9 +1,9 @@
-"""OIDC institucional — AC-0001-19, -20, -21 e -22.
+"""Institutional OIDC — AC-0001-19, -20, -21 and -22.
 
-Provedor falso: par de chaves gerado no teste, JWKS servido por um transporte,
-`id_token` assinado aqui. Cobre `iss`/`aud`/`exp` errados, `nonce` trocado e
-`alg: none` sem tocar em rede — e é o único jeito de exercer isso antes de a TI
-da entidade entregar tenant, client e redirect (OQ-09).
+A fake provider: key pair generated in the test, JWKS served by a transport,
+`id_token` signed here. Covers a wrong `iss`/`aud`/`exp`, a swapped `nonce` and
+`alg: none` without touching the network — and it is the only way to exercise
+any of this before the entity's TI supplies tenant, client and redirect (OQ-09).
 """
 
 from __future__ import annotations
@@ -55,25 +55,25 @@ class ProvedorFalso:
             ]
         }
 
-    def assinar(self, **sobrescreve: Any) -> str:
-        agora = datetime.datetime.now(datetime.UTC)
-        conteudo: dict[str, Any] = {
+    def assinar(self, **overrides: Any) -> str:
+        now = datetime.datetime.now(datetime.UTC)
+        payload: dict[str, Any] = {
             "iss": EMISSOR,
             "aud": CLIENT_ID,
             "sub": "subject-estavel-123",
             "email": "ana@sc.gov.br",
             "groups": ["Gestores-TI"],
-            "iat": int(agora.timestamp()),
-            "exp": int((agora + datetime.timedelta(minutes=5)).timestamp()),
+            "iat": int(now.timestamp()),
+            "exp": int((now + datetime.timedelta(minutes=5)).timestamp()),
         }
-        conteudo.update(sobrescreve)
-        alg = sobrescreve.pop("__alg", "RS256")
+        payload.update(overrides)
+        alg = overrides.pop("__alg", "RS256")
         chave = "" if alg == "none" else self.privada
-        return jwt.encode(conteudo, chave, algorithm=alg, headers={"kid": KID})
+        return jwt.encode(payload, chave, algorithm=alg, headers={"kid": KID})
 
     def rota(self, requisicao: httpx2.Request) -> httpx2.Response:
-        caminho = requisicao.url.path
-        if caminho.endswith("/.well-known/openid-configuration"):
+        path = requisicao.url.path
+        if path.endswith("/.well-known/openid-configuration"):
             return httpx2.Response(
                 200,
                 json={
@@ -82,9 +82,9 @@ class ProvedorFalso:
                     "jwks_uri": f"{EMISSOR}/jwks",
                 },
             )
-        if caminho.endswith("/jwks"):
+        if path.endswith("/jwks"):
             return httpx2.Response(200, json=self.jwks())
-        if caminho.endswith("/token"):
+        if path.endswith("/token"):
             return httpx2.Response(200, json={"id_token": self.id_token})
         return httpx2.Response(404)
 
@@ -115,22 +115,22 @@ def _iniciar(aplicacao: TestClient) -> tuple[str, str, str]:
     the AC-0001-20 cases would pass for that reason instead of the one they
     investigate.
     """
-    resposta = aplicacao.get("/api/v1/auth/oidc/authorize", follow_redirects=False)
-    assert resposta.status_code == 302, resposta.text
-    destino = httpx2.URL(resposta.headers["location"])
+    response = aplicacao.get("/api/v1/auth/oidc/authorize", follow_redirects=False)
+    assert response.status_code == 302, response.text
+    destino = httpx2.URL(response.headers["location"])
     cookie = next(
         c.split("=", 1)[1].split(";")[0]
-        for c in resposta.headers.get_list("set-cookie")
+        for c in response.headers.get_list("set-cookie")
         if c.startswith("sigi_oidc_estado=")
     )
     return destino.params["state"], destino.params["nonce"], cookie
 
 
 def test_ac_0001_19_pkce_state_nonce(aplicacao: TestClient, provedor: ProvedorFalso) -> None:
-    """AC-0001-19 — o redirect leva PKCE S256, state e nonce."""
-    resposta = aplicacao.get("/api/v1/auth/oidc/authorize", follow_redirects=False)
-    assert resposta.status_code == 302
-    destino = httpx2.URL(resposta.headers["location"])
+    """AC-0001-19 — the redirect carries PKCE S256, state and nonce."""
+    response = aplicacao.get("/api/v1/auth/oidc/authorize", follow_redirects=False)
+    assert response.status_code == 302
+    destino = httpx2.URL(response.headers["location"])
 
     assert destino.params["response_type"] == "code"
     assert destino.params["code_challenge_method"] == "S256"
@@ -139,11 +139,11 @@ def test_ac_0001_19_pkce_state_nonce(aplicacao: TestClient, provedor: ProvedorFa
     assert destino.params["nonce"]
     assert destino.params["client_id"] == CLIENT_ID
 
-    # O verificador nunca vai na URL — só o desafio derivado dele.
+    # The verifier never goes into the URL — only the challenge derived from it.
     assert "code_verifier" not in destino.params
 
     bruto = next(
-        c for c in resposta.headers.get_list("set-cookie") if c.startswith("sigi_oidc_estado=")
+        c for c in response.headers.get_list("set-cookie") if c.startswith("sigi_oidc_estado=")
     )
     assert "httponly" in bruto.lower()
     assert "max-age=600" in bruto.lower()
@@ -152,7 +152,7 @@ def test_ac_0001_19_pkce_state_nonce(aplicacao: TestClient, provedor: ProvedorFa
 def test_ac_0001_19_estado_nunca_emitido_e_recusado(
     aplicacao: TestClient, provedor: ProvedorFalso
 ) -> None:
-    """AC-0001-19 — state forjado, e state sem cookie, respondem 401."""
+    """AC-0001-19 — a forged state, and a state with no cookie, both answer 401."""
     provedor.id_token = provedor.assinar()
 
     sem_cookie = aplicacao.get(
@@ -172,7 +172,7 @@ def test_ac_0001_19_estado_nunca_emitido_e_recusado(
 
 
 @pytest.mark.parametrize(
-    ("rotulo", "sobrescreve"),
+    ("label", "overrides"),
     [
         ("emissor-errado", {"iss": "https://outro-provedor.exemplo"}),
         ("audiencia-errada", {"aud": "outro-cliente"}),
@@ -184,21 +184,21 @@ def test_ac_0001_20_verificacao_do_id_token(
     aplicacao: TestClient,
     provedor: ProvedorFalso,
     sessao: Session,
-    rotulo: str,
-    sobrescreve: dict[str, Any],
+    label: str,
+    overrides: dict[str, Any],
 ) -> None:
-    """AC-0001-20 — assinatura, emissor, audiência, expiração e `alg: none`."""
+    """AC-0001-20 — signature, issuer, audience, expiry and `alg: none`."""
     estado, nonce, cookie = _iniciar(aplicacao)
-    provedor.id_token = provedor.assinar(nonce=nonce, **sobrescreve)
+    provedor.id_token = provedor.assinar(nonce=nonce, **overrides)
 
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
 
-    assert resposta.status_code == 401, f"{rotulo}: {resposta.text}"
-    assert resposta.json()["error"]["code"] == "ASSERCAO_INVALIDA"
+    assert response.status_code == 401, f"{label}: {response.text}"
+    assert response.json()["error"]["code"] == "ASSERCAO_INVALIDA"
 
     sessao.rollback()
     recusas = sessao.execute(
@@ -210,57 +210,57 @@ def test_ac_0001_20_verificacao_do_id_token(
 def test_ac_0001_20_assinatura_de_outra_chave(
     aplicacao: TestClient, provedor: ProvedorFalso
 ) -> None:
-    """Token bem formado, assinado por quem o provedor não publicou."""
+    """A well-formed token, signed by a key the provider never published."""
     estado, nonce, cookie = _iniciar(aplicacao)
-    intruso = ProvedorFalso()
-    provedor.id_token = intruso.assinar(nonce=nonce)
+    intruder = ProvedorFalso()
+    provedor.id_token = intruder.assinar(nonce=nonce)
 
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
-    assert resposta.status_code == 401
+    assert response.status_code == 401
 
 
 def test_ac_0001_20_nonce_trocado(aplicacao: TestClient, provedor: ProvedorFalso) -> None:
-    """Sem a checagem de nonce, um token emitido para outro login desta mesma
-    pessoa seria reaproveitável neste."""
+    """Without the nonce check, a token minted for another login by this same
+    person would be replayable into this one."""
     estado, nonce, cookie = _iniciar(aplicacao)
     provedor.id_token = provedor.assinar(nonce="nonce-de-outro-login")
 
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
-    assert resposta.status_code == 401
-    assert resposta.json()["error"]["code"] == "ASSERCAO_INVALIDA"
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "ASSERCAO_INVALIDA"
 
 
 def test_ac_0001_21_sem_provisionamento_jit(
     aplicacao: TestClient, provedor: ProvedorFalso, sessao: Session
 ) -> None:
-    """AC-0001-21 — assertiva válida sem conta: 403, e nenhuma linha criada."""
+    """AC-0001-21 — a valid assertion with no account: 403, and no row created."""
     sessao.rollback()
-    antes = sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one()
+    before = sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one()
 
     estado, nonce, cookie = _iniciar(aplicacao)
     provedor.id_token = provedor.assinar(nonce=nonce, sub="ninguem-aqui", email="ninguem@sc.gov.br")
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
 
-    assert resposta.status_code == 403
-    assert resposta.json()["error"]["code"] == "USUARIO_NAO_PROVISIONADO"
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "USUARIO_NAO_PROVISIONADO"
 
     sessao.rollback()
-    assert sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one() == antes
+    assert sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one() == before
 
-    # O endereço asserido é registrado como HMAC: quem foi recusado não tem
-    # conta para anonimizar depois, e a tabela nunca pode ser corrigida.
+    # The asserted address is recorded as an HMAC: whoever was refused has no
+    # account to anonymise later, and the table can never be corrected.
     linha = sessao.execute(
         text(
             "SELECT dados_anteriores::text FROM historico_movimentacao"
@@ -278,7 +278,7 @@ def test_ac_0001_21_conta_inativa_nao_entra(
     criar_usuario: Callable[..., Usuario],
     status: str,
 ) -> None:
-    """Conta que existe mas não está `ativo` também recebe 403."""
+    """An account that exists but is not `ativo` also gets 403."""
     sujeito = f"sub-{status}-{uuid.uuid4().hex[:6]}"
     email = f"{status}-{uuid.uuid4().hex[:6]}@sc.gov.br"
     criar_usuario(
@@ -290,13 +290,13 @@ def test_ac_0001_21_conta_inativa_nao_entra(
     estado, nonce, cookie = _iniciar(aplicacao)
     provedor.id_token = provedor.assinar(nonce=nonce, sub=sujeito, email=email)
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
 
-    assert resposta.status_code == 403
-    assert resposta.json()["error"]["code"] == "USUARIO_NAO_PROVISIONADO"
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "USUARIO_NAO_PROVISIONADO"
 
 
 def test_ac_0001_22_perfil_vem_do_registro(
@@ -305,20 +305,20 @@ def test_ac_0001_22_perfil_vem_do_registro(
     criar_usuario: Callable[..., Usuario],
     sessao: Session,
 ) -> None:
-    """AC-0001-22 — o provedor assere "Gestores-TI"; a sessão sai `servidor`."""
+    """AC-0001-22 — the provider asserts "Gestores-TI"; the session is `servidor`."""
     email = f"perfil-{uuid.uuid4().hex[:6]}@sc.gov.br"
     usuario = criar_usuario(email=email, perfil="servidor")
 
     estado, nonce, cookie = _iniciar(aplicacao)
     provedor.id_token = provedor.assinar(nonce=nonce, sub=f"sub-{usuario.id}", email=email)
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
 
-    assert resposta.status_code == 200, resposta.text
-    acesso = resposta.json()["access_token"]
+    assert response.status_code == 200, response.text
+    acesso = response.json()["access_token"]
     assert (
         json.loads(jwt.utils.base64url_decode(acesso.split(".")[1] + "==").decode())["perfil"]
         == "servidor"
@@ -332,7 +332,7 @@ def test_ac_0001_22_perfil_vem_do_registro(
         ),
         {"u": usuario.id},
     ).scalar_one()
-    # Registrada para a auditoria, e consultada por decisão nenhuma.
+    # Recorded for the audit trail, and consulted by no decision.
     assert "Gestores-TI" in claim
     assert "servidor" in claim
 
@@ -342,11 +342,11 @@ def test_ac_0001_03_oidc_nao_e_afetado(
     provedor: ProvedorFalso,
     criar_usuario: Callable[..., Usuario],
 ) -> None:
-    """AC-0001-03, última cláusula — o bloqueio por tentativas não alcança o OIDC.
+    """AC-0001-03, last clause — the lockout does not reach OIDC.
 
-    Se alcançasse, quem soubesse o e-mail do último gestor negaria a gestão de
-    membros em blocos de quinze minutos, anonimamente — o desfecho que o
-    AC-0001-29 existe para impedir, alcançado por uma rota que ele não guarda.
+    If it did, anyone who knew the last gestor's e-mail could deny member
+    management in fifteen-minute blocks, anonymously — the outcome AC-0001-29
+    exists to prevent, reached by a route it does not guard.
     """
     email = f"travado-{uuid.uuid4().hex[:6]}@sc.gov.br"
     criar_usuario(email=email, perfil="gestor")
@@ -361,9 +361,9 @@ def test_ac_0001_03_oidc_nao_e_afetado(
     estado, nonce, cookie = _iniciar(aplicacao)
     provedor.id_token = provedor.assinar(nonce=nonce, sub=f"sub-{email}", email=email)
     aplicacao.cookies.set("sigi_oidc_estado", cookie)
-    resposta = aplicacao.get(
+    response = aplicacao.get(
         "/api/v1/auth/oidc/callback", params={"code": "codigo", "state": estado}
     )
     aplicacao.cookies.clear()
 
-    assert resposta.status_code == 200, resposta.text
+    assert response.status_code == 200, response.text

@@ -26,9 +26,9 @@ from app.core.seguranca import (
     ClaimsAcesso,
     TokenExpirado,
     TokenInvalido,
-    emitir_access_token,
-    gerar_refresh_token,
-    verificar_access_token,
+    generate_refresh_token,
+    issue_access_token,
+    verify_access_token,
 )
 from app.models.usuario import Usuario
 from tests.conftest import cookie_de, usar_refresh
@@ -37,12 +37,12 @@ SENHA = "SenhaCorreta-12345"
 
 
 def _emitir(**kwargs: object) -> str:
-    return emitir_access_token(usuario_id=uuid.uuid4(), perfil="servidor", **kwargs)  # type: ignore[arg-type]
+    return issue_access_token(usuario_id=uuid.uuid4(), perfil="servidor", **kwargs)  # type: ignore[arg-type]
 
 
 def test_token_valido_devolve_as_claims() -> None:
     uid = uuid.uuid4()
-    claims = verificar_access_token(emitir_access_token(usuario_id=uid, perfil="gestor"))
+    claims = verify_access_token(issue_access_token(usuario_id=uid, perfil="gestor"))
     assert isinstance(claims, ClaimsAcesso)
     assert claims.usuario_id == uid
     assert claims.perfil == "gestor"
@@ -50,9 +50,9 @@ def test_token_valido_devolve_as_claims() -> None:
 
 def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
     """RNF03 fixes the window; AC-0001-06 fixes what an expired one does."""
-    agora = datetime.datetime.now(datetime.UTC)
-    claims = verificar_access_token(_emitir(agora=agora))
-    minutos = (claims.expira_em - agora).total_seconds() / 60
+    now = datetime.datetime.now(datetime.UTC)
+    claims = verify_access_token(_emitir(now=now))
+    minutos = (claims.expira_em - now).total_seconds() / 60
     assert 14.9 < minutos < 15.1
     assert minutos == pytest.approx(get_settings().access_token_ttl_minutos, abs=0.1)
 
@@ -60,7 +60,7 @@ def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
 def test_ac_0001_06_token_expirado_e_recusado() -> None:
     passado = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
     with pytest.raises(TokenExpirado) as exc:
-        verificar_access_token(_emitir(agora=passado))
+        verify_access_token(_emitir(now=passado))
     assert exc.value.codigo == "TOKEN_EXPIRADO"
     assert exc.value.http == 401
 
@@ -87,7 +87,7 @@ def test_ac_0001_09_assinatura_de_outra_chave_e_recusada() -> None:
         algorithm=ALGORITMO,
     )
     with pytest.raises(TokenInvalido):
-        verificar_access_token(forjado)
+        verify_access_token(forjado)
 
 
 def test_ac_0001_09_alg_none_e_recusado() -> None:
@@ -108,7 +108,7 @@ def test_ac_0001_09_alg_none_e_recusado() -> None:
         algorithm="none",
     )
     with pytest.raises(TokenInvalido):
-        verificar_access_token(sem_assinatura)
+        verify_access_token(sem_assinatura)
 
 
 def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
@@ -128,7 +128,7 @@ def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
         algorithm=ALGORITMO,
     )
     with pytest.raises(TokenInvalido):
-        verificar_access_token(de_outro_sistema)
+        verify_access_token(de_outro_sistema)
 
 
 def test_token_de_outro_tipo_nao_passa_por_access() -> None:
@@ -151,43 +151,43 @@ def test_token_de_outro_tipo_nao_passa_por_access() -> None:
         algorithm=ALGORITMO,
     )
     with pytest.raises(TokenInvalido):
-        verificar_access_token(outro_tipo)
+        verify_access_token(outro_tipo)
 
 
 def test_refresh_e_opaco_e_so_o_hash_circula() -> None:
     """AC-0001-07 needs server-side invalidation, which a self-contained token
     cannot offer. So: opaque, high-entropy, and stored only as its HMAC."""
-    valor, digest = gerar_refresh_token()
+    valor, digest = generate_refresh_token()
     assert len(valor) >= 40
     assert len(digest) == 32
     assert valor.encode() not in digest
-    outro, outro_digest = gerar_refresh_token()
+    outro, outro_digest = generate_refresh_token()
     assert valor != outro
     assert digest != outro_digest
     # Deterministic, or the lookup by hash would never match.
-    from app.core.segredos import digerir
+    from app.core.segredos import digest_secret
 
-    assert digerir(valor) == digest
+    assert digest_secret(valor) == digest
 
 
-# ── Contra o banco e a aplicação montada ────────────────────────────────────
-# O que vem abaixo não é propriedade do token isolado: renovar e invalidar são
-# estado do servidor, que é justamente o motivo de o refresh ser opaco.
+# ── Against the database and the assembled application ──────────────────────
+# What follows is not a property of the token alone: renewing and invalidating
+# are server state, which is exactly why the refresh token is opaque.
 
 
 def test_ac_0001_06_token_expirado_e_refresh(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
 ) -> None:
-    """AC-0001-06 — expirado é recusado; o refresh renova sem pedir senha."""
+    """AC-0001-06 — an expired token is refused; refresh renews without a senha."""
     usuario = criar_usuario()
     entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
     refresh = cookie_de(entrada, "sigi_refresh")
     assert refresh
 
-    expirado = emitir_access_token(
+    expirado = issue_access_token(
         usuario_id=usuario.id,
         perfil=usuario.perfil,
-        agora=datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
+        now=datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
     )
     recusado = aplicacao.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expirado}"})
     assert recusado.status_code == 401
@@ -199,8 +199,8 @@ def test_ac_0001_06_token_expirado_e_refresh(
     novo = renovado.json()["access_token"]
     assert novo != entrada.json()["access_token"]
 
-    # O cookie foi rotacionado, não reemitido igual: é a rotação que torna um
-    # refresh roubado detectável em vez de simplesmente válido por sete dias.
+    # The cookie was rotated, not reissued identical: rotation is what makes a
+    # stolen refresh token detectable rather than merely valid for seven days.
     rotacionado = cookie_de(renovado, "sigi_refresh")
     assert rotacionado and rotacionado != refresh
 
@@ -212,12 +212,12 @@ def test_ac_0001_06_token_expirado_e_refresh(
 def test_ac_0001_07_logout_e_replay_derruba_familia(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario], sessao: Session
 ) -> None:
-    """AC-0001-07 — sair invalida o refresh, e o replay é auditado.
+    """AC-0001-07 — logout invalidates the refresh, and a replay is audited.
 
-    O ponto que este teste existe para fixar é o último `assert`: a derrubada da
-    família e a linha de auditoria têm de **sobreviver** à requisição que falha.
-    Escritas na sessão do request elas voltariam atrás no rollback, deixando a
-    família roubada viva e o roubo sem registro — com o mesmo 401 na tela.
+    What this test exists to pin is the last `assert`: the family revocation and
+    the audit row must **survive** the request that fails. Written in the
+    request's session they would roll back with it, leaving the stolen family
+    alive and the theft unrecorded — behind the same 401 on screen.
     """
     usuario = criar_usuario()
     entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
@@ -237,7 +237,7 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
     assert replay.status_code == 401
     assert replay.json()["error"]["code"] == "REFRESH_INVALIDO"
 
-    # Uma geração anterior, que o logout também tinha de ter derrubado.
+    # An earlier generation, which the logout should also have revoked.
     usar_refresh(aplicacao, primeiro)
     assert aplicacao.post("/api/v1/auth/refresh").status_code == 401
 
@@ -258,8 +258,8 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
 
 
 def test_refresh_ausente_ou_desconhecido_e_401(aplicacao: TestClient) -> None:
-    """Sem cookie e com cookie inventado respondem igual: dizer "esse token não
-    existe" seria confirmar, por eliminação, quais existem."""
+    """No cookie and an invented cookie answer the same: saying "that token
+    does not exist" would confirm, by elimination, which ones do."""
     sem = aplicacao.post("/api/v1/auth/refresh")
     usar_refresh(aplicacao, "token-que-nunca-foi-emitido")
     desconhecido = aplicacao.post("/api/v1/auth/refresh")
@@ -269,6 +269,6 @@ def test_refresh_ausente_ou_desconhecido_e_401(aplicacao: TestClient) -> None:
 
 
 def test_logout_sem_cookie_nao_falha(aplicacao: TestClient) -> None:
-    """Sair sem sessão é 204: um cliente que perdeu o cookie ainda quer sair, e
-    um erro aqui só ensina a ignorar erros."""
+    """Logging out with no session is 204: a client that lost its cookie still
+    wants to leave, and an error here only teaches people to ignore errors."""
     assert aplicacao.post("/api/v1/auth/logout").status_code == 204

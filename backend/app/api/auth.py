@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.autorizacao import Publica, UsuarioAtual
 from app.core.config import get_settings
 from app.core.correlacao import atual
-from app.core.db import obter_sessao
+from app.core.db import get_sessao
 from app.models.usuario import Usuario
 from app.repositories import usuario as repo_usuario
 from app.schemas.auth import LoginEntrada, SessaoSaida, UsuarioSaida
@@ -32,11 +32,12 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 # `/refresh` and `/logout` ever read it.
 CAMINHO_COOKIE = "/api/v1/auth"
 
-SessaoDb = Annotated[Session, Depends(obter_sessao)]
+SessaoDb = Annotated[Session, Depends(get_sessao)]
 
-# Estas três são abertas por definição — quem chama ainda não tem sessão, ou
-# está devolvendo a que tem. Declarado, e não omitido: o AC-0001-23 recusa uma
-# rota de escrita sem decisão, e "esqueceram" não pode parecer "decidiram".
+# These three are open by definition: the caller has no session yet, or is
+# handing back the one they have. Declared rather than omitted — AC-0001-23
+# refuses a write route with no decision, and "forgot" must not look like
+# "decided".
 ABERTA = [Depends(Publica())]
 
 
@@ -67,12 +68,12 @@ def _ler_cookie(request: Request) -> str:
 
 @router.post("/login", response_model=SessaoSaida, dependencies=ABERTA)
 def login(
-    corpo: LoginEntrada, request: Request, response: Response, sessao: SessaoDb
+    body: LoginEntrada, request: Request, response: Response, sessao: SessaoDb
 ) -> SessaoSaida:
     """Local login. [SPEC-0001 AC-0001-01, -02, -04, -05, -24]"""
     correlation_id = _correlation_id(request)
     usuario = autenticar_local(
-        sessao, email=str(corpo.email), senha=corpo.senha, correlation_id=correlation_id
+        sessao, email=str(body.email), senha=body.senha, correlation_id=correlation_id
     )
     par = sessoes.abrir(
         sessao,
@@ -140,7 +141,7 @@ class _PerfilDoRegistro(sessoes.PerfilResolver):
         self.sessao = sessao
 
     def __call__(self, usuario_id: uuid.UUID) -> str:
-        usuario: Usuario | None = repo_usuario.por_id(self.sessao, usuario_id)
+        usuario: Usuario | None = repo_usuario.by_id(self.sessao, usuario_id)
         if usuario is None or not usuario.ativo:
             raise UsuarioInativo()
         return usuario.perfil

@@ -21,7 +21,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models.historico import HistoricoMovimentacao
-from app.repositories.historico import inserir
+from app.repositories.historico import insert_row
 
 
 class DadoPessoalNoHistorico(RuntimeError):
@@ -54,13 +54,13 @@ def registrar(
     evento: Evento,
     *,
     correlation_id: uuid.UUID,
-    momento: datetime.datetime | None = None,
+    at: datetime.datetime | None = None,
 ) -> None:
     _recusar_dado_pessoal(evento.dados_anteriores)
-    inserir(
+    insert_row(
         sessao,
         HistoricoMovimentacao(
-            ocorrido_em=momento or datetime.datetime.now(datetime.UTC),
+            ocorrido_em=at or datetime.datetime.now(datetime.UTC),
             entidade_tipo=evento.entidade_tipo,
             entidade_id=evento.entidade_id,
             acao=evento.acao,
@@ -77,30 +77,30 @@ def registrar(
 def _recusar_dado_pessoal(dados: Mapping[str, Any] | None) -> None:
     if dados is None:
         return
-    for caminho, valor in _percorrer(dados):
+    for path, valor in _percorrer(dados):
         if isinstance(valor, str) and _PARECE_EMAIL.search(valor):
             raise DadoPessoalNoHistorico(
-                f"dados_anteriores[{caminho}] parece conter um endereço de e-mail. "
-                "A tabela de auditoria nunca pode ser corrigida, então ela não "
-                "carrega dado pessoal: use app.core.segredos.digerir() e grave o "
-                "HMAC mais o domínio, como manda a SPEC-0001 §8."
+                f"dados_anteriores[{path}] parece conter um endereço de e-mail. "
+                "The audit table can never be corrected, so it carries no "
+                "personal data: use app.core.segredos.digest_secret() and write "
+                "the HMAC plus the domain, as SPEC-0001 §8 requires."
             )
 
 
-def _percorrer(valor: Any, caminho: str = "") -> list[tuple[str, Any]]:
+def _percorrer(valor: Any, path: str = "") -> list[tuple[str, Any]]:
     if isinstance(valor, Mapping):
         return [
             item
             for chave, sub in valor.items()
-            for item in _percorrer(sub, f"{caminho}.{chave}" if caminho else str(chave))
+            for item in _percorrer(sub, f"{path}.{chave}" if path else str(chave))
         ]
     if isinstance(valor, list | tuple):
-        return [item for i, sub in enumerate(valor) for item in _percorrer(sub, f"{caminho}[{i}]")]
-    return [(caminho, valor)]
+        return [item for i, sub in enumerate(valor) for item in _percorrer(sub, f"{path}[{i}]")]
+    return [(path, valor)]
 
 
 @contextmanager
-def transacao_avulsa() -> Iterator[Session]:
+def standalone_transaction() -> Iterator[Session]:
     """A session that commits, independent of the request's.
 
     For the failure path, which is the path that rolls back. A failed login
@@ -112,18 +112,18 @@ def transacao_avulsa() -> Iterator[Session]:
     must share that mutation's transaction, and a writer that commits on its own
     could leave one without the other.
     """
-    from app.core.db import fabrica_de_sessoes
+    from app.core.db import sessao_factory
 
-    with fabrica_de_sessoes()() as propria:
+    with sessao_factory()() as own_session:
         try:
-            yield propria
-            propria.commit()
+            yield own_session
+            own_session.commit()
         except Exception:
-            propria.rollback()
+            own_session.rollback()
             raise
 
 
-def registrar_avulso(evento: Evento, *, correlation_id: uuid.UUID) -> None:
+def record_standalone(evento: Evento, *, correlation_id: uuid.UUID) -> None:
     """Write a single audit row in a transaction of its own, and commit it.
 
     For the failure path, which is the path that rolls back. A failed login
@@ -131,7 +131,7 @@ def registrar_avulso(evento: Evento, *, correlation_id: uuid.UUID) -> None:
     would vanish with the failure it was recording — leaving the trail with only
     successes in it, which is the opposite of useful.
 
-    Use `transacao_avulsa` directly when more than one row has to land together.
+    Use `standalone_transaction` directly when more than one row has to land together.
     """
-    with transacao_avulsa() as propria:
-        registrar(propria, evento, correlation_id=correlation_id)
+    with standalone_transaction() as own_session:
+        registrar(own_session, evento, correlation_id=correlation_id)

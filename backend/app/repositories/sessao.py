@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.sessao import Sessao, SessaoFamilia
 
 
-def criar_familia(sessao: Session, usuario_id: uuid.UUID) -> uuid.UUID:
+def create_familia(sessao: Session, usuario_id: uuid.UUID) -> uuid.UUID:
     familia = uuid.uuid4()
     sessao.add(SessaoFamilia(familia=familia, usuario_id=usuario_id))
     sessao.flush()
@@ -40,7 +40,7 @@ def criar(
     return linha
 
 
-def por_hash(sessao: Session, token_hash: bytes) -> Sessao | None:
+def by_hash(sessao: Session, token_hash: bytes) -> Sessao | None:
     """Find a session by its token hash — **including revoked ones**.
 
     The predicate is load-bearing: filtering `revogado_em IS NULL` here would
@@ -52,36 +52,36 @@ def por_hash(sessao: Session, token_hash: bytes) -> Sessao | None:
     ).one_or_none()
 
 
-def proxima_geracao(sessao: Session, familia: uuid.UUID) -> int:
+def next_geracao(sessao: Session, familia: uuid.UUID) -> int:
     atual = sessao.scalar(select(func.max(Sessao.geracao)).where(Sessao.familia == familia))
     return int(atual or 0) + 1
 
 
-def revogar_familia(
-    sessao: Session, familia: uuid.UUID, *, motivo: str, momento: datetime.datetime
+def revoke_familia(
+    sessao: Session, familia: uuid.UUID, *, motivo: str, at: datetime.datetime
 ) -> int:
     """Revoke every live session descended from one login. Returns how many."""
-    resultado = sessao.execute(
+    result = sessao.execute(
         update(Sessao)
         .where(Sessao.familia == familia, Sessao.revogado_em.is_(None))
-        .values(revogado_em=momento, revogado_motivo=motivo)
+        .values(revogado_em=at, revogado_motivo=motivo)
     )
     sessao.execute(
         update(SessaoFamilia)
         .where(SessaoFamilia.familia == familia, SessaoFamilia.revogada_em.is_(None))
-        .values(revogada_em=momento)
+        .values(revogada_em=at)
     )
     sessao.flush()
-    return int(cast("CursorResult[Any]", resultado).rowcount or 0)
+    return int(cast("CursorResult[Any]", result).rowcount or 0)
 
 
-def revogar_do_usuario(
-    sessao: Session, usuario_id: uuid.UUID, *, motivo: str, momento: datetime.datetime
+def revoke_for_usuario(
+    sessao: Session, usuario_id: uuid.UUID, *, motivo: str, at: datetime.datetime
 ) -> int:
-    resultado = sessao.execute(
+    result = sessao.execute(
         update(Sessao)
         .where(Sessao.usuario_id == usuario_id, Sessao.revogado_em.is_(None))
-        .values(revogado_em=momento, revogado_motivo=motivo)
+        .values(revogado_em=at, revogado_motivo=motivo)
     )
     sessao.flush()
-    return int(cast("CursorResult[Any]", resultado).rowcount or 0)
+    return int(cast("CursorResult[Any]", result).rowcount or 0)

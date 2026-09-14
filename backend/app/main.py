@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, convites, health, oidc, usuarios
-from app.api.erros import registrar_tratadores
-from app.core.autorizacao import verificar_cobertura
+from app.api.erros import register_handlers
+from app.core.autorizacao import verify_coverage
 from app.core.config import get_settings
 from app.core.correlacao import CorrelacaoMiddleware
 
@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    registrar_tratadores(app)
+    register_handlers(app)
 
     app.include_router(health.router)
     app.include_router(auth.router)
@@ -33,9 +33,9 @@ def create_app() -> FastAPI:
     app.include_router(convites.router)
     app.include_router(oidc.router)
 
-    # AC-0001-23, na montagem: uma rota de escrita sem decisão de acesso quebra
-    # aqui — no build e nos testes — em vez de servir a requisição.
-    verificar_cobertura(app)
+    # AC-0001-23, at assembly: a write route with no access decision breaks
+    # here — in the build and in the tests — rather than serving a request.
+    verify_coverage(app)
     return app
 
 

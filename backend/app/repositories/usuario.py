@@ -15,13 +15,13 @@ from app.models.usuario import Usuario
 TRAVA_GESTORES = 0x5163_0001
 
 
-def por_email(sessao: Session, email: str) -> Usuario | None:
+def by_email(sessao: Session, email: str) -> Usuario | None:
     return sessao.scalars(
         select(Usuario).where(Usuario.email == email.strip().lower())
     ).one_or_none()
 
 
-def por_id(sessao: Session, usuario_id: uuid.UUID) -> Usuario | None:
+def by_id(sessao: Session, usuario_id: uuid.UUID) -> Usuario | None:
     return sessao.get(Usuario, usuario_id)
 
 
@@ -59,7 +59,7 @@ def contar(sessao: Session) -> int:
     return int(sessao.scalar(select(func.count()).select_from(Usuario)) or 0)
 
 
-def travar_gestores(sessao: Session) -> None:
+def lock_gestores(sessao: Session) -> None:
     """Serialise every decision that could remove the last active gestor.
 
     "At least one active gestor exists" is an aggregate across rows, and
@@ -76,7 +76,7 @@ def travar_gestores(sessao: Session) -> None:
     sessao.execute(text("SELECT pg_advisory_xact_lock(:chave)"), {"chave": TRAVA_GESTORES})
 
 
-def contar_gestores_ativos(sessao: Session, *, exceto: uuid.UUID | None = None) -> int:
+def count_active_gestores(sessao: Session, *, exceto: uuid.UUID | None = None) -> int:
     consulta = (
         select(func.count())
         .select_from(Usuario)
@@ -87,5 +87,5 @@ def contar_gestores_ativos(sessao: Session, *, exceto: uuid.UUID | None = None) 
     return int(sessao.scalar(consulta) or 0)
 
 
-def por_oidc_subject(sessao: Session, subject: str) -> Usuario | None:
+def by_oidc_subject(sessao: Session, subject: str) -> Usuario | None:
     return sessao.scalars(select(Usuario).where(Usuario.oidc_subject == subject)).one_or_none()

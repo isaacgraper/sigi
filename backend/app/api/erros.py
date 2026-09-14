@@ -14,10 +14,10 @@ from app.core.correlacao import atual
 from app.services.erros import ErroDominio
 
 
-def registrar_tratadores(app: FastAPI) -> None:
+def register_handlers(app: FastAPI) -> None:
     @app.exception_handler(ErroDominio)
     async def _tratar(request: Request, exc: ErroDominio) -> JSONResponse:
-        corpo: dict[str, object] = {
+        body: dict[str, object] = {
             "code": exc.codigo,
             "message": exc.mensagem,
             "correlation_id": str(atual()),
@@ -26,9 +26,9 @@ def registrar_tratadores(app: FastAPI) -> None:
         # mitigation for the transcription errors that motivated the project. It
         # is omitted rather than sent empty so the client can branch on presence.
         if exc.campos:
-            corpo["fields"] = exc.campos
-        cabecalhos = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
-        return JSONResponse(status_code=exc.http, content={"error": corpo}, headers=cabecalhos)
+            body["fields"] = exc.campos
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
+        return JSONResponse(status_code=exc.http, content={"error": body}, headers=headers)
 
     @app.exception_handler(RequestValidationError)
     async def _tratar_validacao(request: Request, exc: RequestValidationError) -> JSONResponse:

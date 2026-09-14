@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 
 from app.core.correlacao import atual
-from app.core.db import obter_sessao
-from app.core.seguranca import TokenInvalido, verificar_access_token
+from app.core.db import get_sessao
+from app.core.seguranca import TokenInvalido, verify_access_token
 from app.models.usuario import PERFIS, Usuario
 from app.repositories import usuario as repo
 from app.services.erros import PerfilNaoAutorizado, UsuarioInativo
@@ -30,16 +30,16 @@ ESQUEMA = "bearer"
 
 
 def _token_do_cabecalho(request: Request) -> str:
-    cabecalho = request.headers.get("authorization", "")
-    tipo, _, valor = cabecalho.partition(" ")
+    header = request.headers.get("authorization", "")
+    tipo, _, valor = header.partition(" ")
     if tipo.lower() != ESQUEMA or not valor.strip():
         raise TokenInvalido("Sua sessão não é válida. Entre novamente.")
     return valor.strip()
 
 
-def usuario_atual(request: Request, sessao: Annotated[Session, Depends(obter_sessao)]) -> Usuario:
-    claims = verificar_access_token(_token_do_cabecalho(request))
-    usuario = repo.por_id(sessao, claims.usuario_id)
+def current_usuario(request: Request, sessao: Annotated[Session, Depends(get_sessao)]) -> Usuario:
+    claims = verify_access_token(_token_do_cabecalho(request))
+    usuario = repo.by_id(sessao, claims.usuario_id)
     if usuario is None or not usuario.ativo:
         # Same response whether the account was deleted, blocked or deactivated:
         # the caller holds a valid signature, so they already know the account
@@ -48,49 +48,48 @@ def usuario_atual(request: Request, sessao: Annotated[Session, Depends(obter_ses
     return usuario
 
 
-UsuarioAtual = Annotated[Usuario, Depends(usuario_atual)]
+UsuarioAtual = Annotated[Usuario, Depends(current_usuario)]
 
 
-# ── A matriz de permissão (AC-0001-15 a -18, -23) ───────────────────────────
+# ── The permission matrix (AC-0001-15 to -18, -23) ──────────────────────────
 #
-# A decisão vive na própria rota, não numa tabela paralela. Uma tabela separada
-# é a que envelhece: alguém acrescenta um endpoint, esquece a linha, e o
-# endpoint fica sem decisão nenhuma. Aqui a rota não sobe sem declarar uma — e o
-# AC-0001-23 é literalmente essa verificação, feita quando a aplicação é
-# montada.
+# The decision lives on the route, not in a parallel table. A separate table is
+# the thing that ages: someone adds an endpoint, forgets the row, and the
+# endpoint ends up with no decision at all. Here a route cannot start without
+# declaring one, and AC-0001-23 is that check, run when the app is assembled.
 
 
 class Decisao:
-    """Base das declarações de acesso. A existência dela é o contrato."""
+    """Base for access declarations. Its presence is the contract."""
 
-    def descricao(self) -> str:  # pragma: no cover - sobrescrito
+    def descricao(self) -> str:  # pragma: no cover - overridden
         raise NotImplementedError
 
 
 class Publica(Decisao):
-    """Rota deliberadamente sem autenticação.
+    """A route deliberately left unauthenticated.
 
-    Existe para ser explícita: sem ela, "não tem decisão" e "decidiram que é
-    pública" seriam o mesmo estado, e o padrão de quem esquece viraria acesso
-    aberto. O default de uma entrada ausente é recusa, nunca permissão.
+    Explicit on purpose: without it, "has no decision" and "was decided to be
+    open" would be the same state, and forgetting would default to open access.
+    A missing entry defaults to refusal, never to permission.
     """
 
     def __call__(self) -> None:
         return None
 
     def descricao(self) -> str:
-        return "pública"
+        return "public"
 
 
 class Exige(Decisao):
-    """Exige autenticação, e opcionalmente um conjunto de perfis."""
+    """Requires authentication, and optionally a set of perfis."""
 
     def __init__(self, *perfis: str) -> None:
         desconhecidos = set(perfis) - set(PERFIS)
         if desconhecidos:
-            # Um perfil com erro de digitação recusaria todo mundo para sempre,
-            # silenciosamente. Melhor não subir.
-            raise ValueError(f"perfis inexistentes na matriz: {sorted(desconhecidos)}")
+            # A mistyped perfil would refuse everybody, for ever, silently.
+            # Better not to start.
+            raise ValueError(f"perfis not in the matrix: {sorted(desconhecidos)}")
         self.perfis = frozenset(perfis)
 
     def __call__(self, request: Request, usuario: UsuarioAtual) -> Usuario:
@@ -100,25 +99,26 @@ class Exige(Decisao):
         return usuario
 
     def descricao(self) -> str:
-        return ", ".join(sorted(self.perfis)) if self.perfis else "autenticado"
+        return ", ".join(sorted(self.perfis)) if self.perfis else "authenticated"
 
 
 def _auditar_recusa(request: Request, usuario: Usuario) -> None:
-    """AC-0001-18 — um 403 sem rastro é indistinguível de um ataque que nunca
-    houve. Em transação própria, porque a requisição vai levantar e levar a dela
-    junto — e o pedido não mudou nada, então não há mutação a que se agarrar."""
-    from app.services.auditoria import Evento, registrar_avulso
+    """AC-0001-18 — a 403 that leaves no trace is indistinguishable from an
+    attack that never happened. In its own transaction, because the request is
+    about to raise and take its own with it; nothing was mutated, so there is no
+    mutation for the row to be attached to."""
+    from app.services.auditoria import Evento, record_standalone
 
     rota = request.scope.get("route")
-    registrar_avulso(
+    record_standalone(
         Evento(
             entidade_tipo="usuario",
             entidade_id=usuario.id,
             acao="auth.negada",
             usuario_id=usuario.id,
             dados_anteriores={
-                # O caminho declarado, não o concreto: um id na rota é dado de
-                # negócio e a tabela de auditoria não pode ser corrigida depois.
+                # The declared path, not the concrete one: an id in the route
+                # is business data, and the audit table can never be corrected.
                 "rota": getattr(rota, "path", request.url.path),
                 "metodo": request.method,
                 "perfil": usuario.perfil,
@@ -136,33 +136,34 @@ def _correlation_id(request: Request) -> uuid.UUID:
 METODOS_DE_ESCRITA = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-def decisoes_da_rota(rota: APIRoute) -> list[Decisao]:
+def route_decisions(rota: APIRoute) -> list[Decisao]:
     """Toda `Decisao` alcançável a partir da rota, inclusive aninhada."""
 
-    def descer(dependente: Dependant) -> list[Decisao]:
+    def descend(dependente: Dependant) -> list[Decisao]:
         encontradas: list[Decisao] = (
             [dependente.call] if isinstance(dependente.call, Decisao) else []
         )
-        return encontradas + [d for sub in dependente.dependencies for d in descer(sub)]
+        return encontradas + [d for sub in dependente.dependencies for d in descend(sub)]
 
-    return descer(rota.dependant)
+    return descend(rota.dependant)
 
 
 class RotaSemDecisao(RuntimeError):
     """Uma rota de escrita subiu sem declarar quem pode chamá-la."""
 
 
-def rotas_da_aplicacao(app: Starlette) -> Iterator[tuple[str, APIRoute]]:
-    """Todo `APIRoute` da aplicação, com o caminho já completo.
+def app_routes(app: Starlette) -> Iterator[tuple[str, APIRoute]]:
+    """Every `APIRoute` in the app, with the full path already resolved.
 
-    Descer é obrigatório: desde o FastAPI 0.141 um `include_router` não achata
-    as rotas em `app.routes` — deixa lá um wrapper com o router original dentro.
-    Uma varredura rasa não veria nenhuma rota de escrita e o AC-0001-23 passaria
-    por vacuidade, dizendo "está tudo coberto" sobre uma lista vazia. O acesso é
-    por duck typing de propósito: a forma interna disso já mudou uma vez.
+    Descending is mandatory: since FastAPI 0.141 `include_router` no longer
+    flattens routes into `app.routes` — it leaves a wrapper holding the original
+    router. A shallow sweep would find no write route at all, and AC-0001-23
+    would pass vacuously, reporting "everything is covered" about an empty list.
+    The access is duck-typed on purpose: this internal shape has already changed
+    once.
     """
 
-    def descer(rotas: Sequence[object], prefixo: str = "") -> Iterator[tuple[str, APIRoute]]:
+    def descend(rotas: Sequence[object], prefixo: str = "") -> Iterator[tuple[str, APIRoute]]:
         for rota in rotas:
             if isinstance(rota, APIRoute):
                 yield prefixo + rota.path, rota
@@ -170,30 +171,30 @@ def rotas_da_aplicacao(app: Starlette) -> Iterator[tuple[str, APIRoute]]:
             interno = getattr(rota, "original_router", None)
             if interno is not None:
                 contexto = getattr(rota, "include_context", None)
-                yield from descer(interno.routes, prefixo + getattr(contexto, "prefix", ""))
+                yield from descend(interno.routes, prefixo + getattr(contexto, "prefix", ""))
             elif hasattr(rota, "routes"):
-                yield from descer(rota.routes, prefixo + str(getattr(rota, "path", "")))
+                yield from descend(rota.routes, prefixo + str(getattr(rota, "path", "")))
 
-    yield from descer(app.routes)
+    yield from descend(app.routes)
 
 
-def verificar_cobertura(app: Starlette) -> None:
-    """AC-0001-23 — nenhuma rota de escrita sobe sem decisão de acesso.
+def verify_coverage(app: Starlette) -> None:
+    """AC-0001-23 — no write route starts without an access decision.
 
-    Roda na montagem da aplicação, então quebra o build e não a produção. É o
-    que mantém AC-0001-15/-16/-17 honestos conforme o sistema cresce: um
-    endpoint acrescentado sem decisão é um buraco que ninguém escolheu abrir.
+    Runs at application assembly, so it breaks the build rather than
+    production. It is what keeps AC-0001-15/-16/-17 honest as the system grows:
+    an endpoint added without a decision is a hole nobody chose to open.
     """
-    faltantes = [
-        f"{metodo} {caminho}"
-        for caminho, rota in rotas_da_aplicacao(app)
+    missing = [
+        f"{metodo} {path}"
+        for path, rota in app_routes(app)
         for metodo in sorted((rota.methods or set()) & METODOS_DE_ESCRITA)
-        if not decisoes_da_rota(rota)
+        if not route_decisions(rota)
     ]
-    if faltantes:
+    if missing:
         raise RotaSemDecisao(
-            "rotas de escrita sem decisão de acesso: "
-            + ", ".join(faltantes)
-            + ". Declare uma: Depends(Exige('gestor')) ou Depends(Publica()) "
-            "quando a rota é deliberadamente aberta."
+            "write routes with no access decision: "
+            + ", ".join(missing)
+            + ". Declare one: Depends(Exige('gestor')), or Depends(Publica()) "
+            "when the route is deliberately open."
         )

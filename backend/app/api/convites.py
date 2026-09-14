@@ -12,14 +12,14 @@ from sqlalchemy.orm import Session
 from app.api.auth import CAMINHO_COOKIE, definir_cookie
 from app.core.autorizacao import Publica
 from app.core.correlacao import atual
-from app.core.db import obter_sessao
+from app.core.db import get_sessao
 from app.schemas.auth import SessaoSaida
 from app.schemas.convite import AtivacaoEntrada, AtivacaoSaida
 from app.services import membros, sessoes
 
 router = APIRouter(prefix="/api/v1/convites", tags=["convites"])
 
-SessaoDb = Annotated[Session, Depends(obter_sessao)]
+SessaoDb = Annotated[Session, Depends(get_sessao)]
 
 # Open by definition: whoever holds the link has no account yet, which is the
 # entire point. Declared rather than omitted — AC-0001-23 refuses a write route
@@ -30,7 +30,7 @@ ABERTA = [Depends(Publica())]
 @router.post("/{token}/ativar", response_model=AtivacaoSaida, dependencies=ABERTA)
 def ativar(
     token: str,
-    corpo: AtivacaoEntrada,
+    body: AtivacaoEntrada,
     request: Request,
     response: Response,
     sessao: SessaoDb,
@@ -41,12 +41,12 @@ def ativar(
     sending someone to a login screen right after they chose a password is a
     place to lose them, and they have just proved they hold the credential.
     """
-    agora = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.UTC)
     bruto = request.scope.get("state", {}).get("correlation_id")
     correlation_id = bruto if isinstance(bruto, uuid.UUID) else atual()
 
     usuario = membros.ativar(
-        sessao, token=token, senha=corpo.senha, agora=agora, correlation_id=correlation_id
+        sessao, token=token, senha=body.senha, now=now, correlation_id=correlation_id
     )
     par = sessoes.abrir(
         sessao,

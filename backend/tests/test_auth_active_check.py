@@ -1,9 +1,10 @@
-"""AC-0001-08 — a desativação vale agora, não daqui a quinze minutos.
+"""AC-0001-08 — deactivation takes effect now, not in fifteen minutes.
 
-O critério parece pequeno e é o mais caro da spec: obriga uma consulta ao banco
-em *toda* requisição autenticada. A alternativa — confiar só na assinatura —
-deixa quem foi desativado com até quinze minutos de acesso pleno, e quinze
-minutos é exatamente a janela em que alguém desligado às pressas ainda age.
+The criterion looks small and is the most expensive in the spec: it forces a
+database lookup on *every* authenticated request. The alternative — trusting the
+signature alone — leaves a deactivated person with up to fifteen minutes of full
+access, and fifteen minutes is exactly the window in which somebody cut off in a
+hurry still acts.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.seguranca import emitir_access_token
+from app.core.seguranca import issue_access_token
 from app.models.usuario import Usuario
 from tests.conftest import cookie_de, usar_refresh
 
@@ -24,9 +25,9 @@ SENHA = "SenhaCorreta-12345"
 
 
 def _entrar(aplicacao: TestClient, usuario: Usuario) -> str:
-    resposta = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
-    assert resposta.status_code == 200
-    token: str = resposta.json()["access_token"]
+    response = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    assert response.status_code == 200
+    token: str = response.json()["access_token"]
     return token
 
 
@@ -37,11 +38,11 @@ def test_ac_0001_08_desativacao_vale_imediatamente(
 ) -> None:
     usuario = criar_usuario()
     token = _entrar(aplicacao, usuario)
-    cabecalhos = {"Authorization": f"Bearer {token}"}
-    assert aplicacao.get(ME, headers=cabecalhos).status_code == 200
+    headers = {"Authorization": f"Bearer {token}"}
+    assert aplicacao.get(ME, headers=headers).status_code == 200
 
-    # Escrita direta porque a gestão de membros é o passo seguinte (AC-0001-12);
-    # o que este critério observa é o efeito sobre o token já emitido.
+    # Written directly because member management is the next step (AC-0001-12);
+    # what this criterion observes is the effect on the token already issued.
     usuario.status = "desativado"
     usuario.nome = None
     usuario.email = None
@@ -49,7 +50,7 @@ def test_ac_0001_08_desativacao_vale_imediatamente(
     usuario.anonimizado_em = datetime.datetime.now(datetime.UTC)
     sessao.commit()
 
-    recusado = aplicacao.get(ME, headers=cabecalhos)
+    recusado = aplicacao.get(ME, headers=headers)
     assert recusado.status_code == 401
     assert recusado.json()["error"]["code"] == "USUARIO_INATIVO"
 
@@ -59,15 +60,15 @@ def test_ac_0001_08_bloqueio_tambem_vale_imediatamente(
     criar_usuario: Callable[..., Usuario],
     sessao: Session,
 ) -> None:
-    """`ativo` é gerado de `status`, então bloquear derruba pelo mesmo caminho —
-    e é o caso que de fato acontece com uma conta comprometida."""
+    """`ativo` is generated from `status`, so blocking kills it by the same
+    path — and that is the case that actually happens to a compromised account."""
     usuario = criar_usuario()
-    cabecalhos = {"Authorization": f"Bearer {_entrar(aplicacao, usuario)}"}
+    headers = {"Authorization": f"Bearer {_entrar(aplicacao, usuario)}"}
 
     usuario.status = "bloqueado"
     sessao.commit()
 
-    assert aplicacao.get(ME, headers=cabecalhos).status_code == 401
+    assert aplicacao.get(ME, headers=headers).status_code == 401
 
 
 def test_ac_0001_08_refresh_tambem_checa(
@@ -75,11 +76,11 @@ def test_ac_0001_08_refresh_tambem_checa(
     criar_usuario: Callable[..., Usuario],
     sessao: Session,
 ) -> None:
-    """Renovar é uma decisão de autorização nova.
+    """A refresh is a fresh authorisation decision.
 
-    Sem esta checagem a desativação seria imediata para `/me` e inútil na
-    prática: o cliente renova sozinho e ganha mais quinze minutos do acesso que
-    a desativação tirou.
+    Without this check the deactivation would be immediate for `/me` and useless
+    in practice: the client refreshes on its own and gains another fifteen
+    minutes of exactly the access the deactivation removed.
     """
     usuario = criar_usuario()
     entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
@@ -96,18 +97,18 @@ def test_ac_0001_08_refresh_tambem_checa(
 
 
 def test_token_sem_conta_e_recusado(aplicacao: TestClient) -> None:
-    """Assinatura nossa, `sub` que não existe: 401, não 500.
+    """Our own signature, a `sub` that does not exist: 401, not 500.
 
-    Acontece de verdade depois de restaurar um backup antigo, e o modo de falha
-    barato é o que decide se alguém investiga ou reinicia o serviço.
+    It really happens after restoring an old backup, and the cheap failure mode
+    is what decides whether somebody investigates or restarts the service.
     """
-    token = emitir_access_token(usuario_id=uuid.uuid4(), perfil="gestor")
-    resposta = aplicacao.get(ME, headers={"Authorization": f"Bearer {token}"})
-    assert resposta.status_code == 401
-    assert resposta.json()["error"]["code"] == "USUARIO_INATIVO"
+    token = issue_access_token(usuario_id=uuid.uuid4(), perfil="gestor")
+    response = aplicacao.get(ME, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "USUARIO_INATIVO"
 
 
 def test_sem_cabecalho_authorization_e_401(aplicacao: TestClient) -> None:
-    resposta = aplicacao.get(ME)
-    assert resposta.status_code == 401
-    assert resposta.json()["error"]["code"] == "TOKEN_INVALIDO"
+    response = aplicacao.get(ME)
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "TOKEN_INVALIDO"

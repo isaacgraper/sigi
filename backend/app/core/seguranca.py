@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.config import get_settings
-from app.core.segredos import digerir
+from app.core.segredos import digest_secret
 from app.services.erros import ErroDominio
 
 ALGORITMO = "RS256"
@@ -69,8 +69,8 @@ def _par_de_chaves() -> tuple[bytes, bytes]:
         return cfg.jwt_private_key.encode(), cfg.jwt_public_key.encode()
     if cfg.app_env != "development":
         raise RuntimeError(
-            "jwt_private_key e jwt_public_key são obrigatórias fora de development: "
-            "um par efêmero invalidaria toda sessão a cada restart."
+            "jwt_private_key and jwt_public_key are required outside development: "
+            "an ephemeral pair would invalidate every session on each restart."
         )
     privada = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     return (
@@ -86,34 +86,34 @@ def _par_de_chaves() -> tuple[bytes, bytes]:
     )
 
 
-def reiniciar_chaves() -> None:
+def reset_keys() -> None:
     """Drop the cached pair. Tests mint their own."""
     _par_de_chaves.cache_clear()
 
 
-def emitir_access_token(
+def issue_access_token(
     *,
     usuario_id: uuid.UUID,
     perfil: str,
-    agora: datetime.datetime | None = None,
+    now: datetime.datetime | None = None,
 ) -> str:
     cfg = get_settings()
-    agora = agora or datetime.datetime.now(datetime.UTC)
-    expira = agora + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
+    now = now or datetime.datetime.now(datetime.UTC)
+    expira = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
     return jwt.encode(
         {
-            # RS256 é determinístico: sem um claim único, dois tokens emitidos
-            # no mesmo segundo para o mesmo usuário saem **byte a byte iguais**,
-            # porque `iat` e `exp` são segundos inteiros. O `jti` é o que dá a
-            # cada token emitido uma identidade própria — que é o que um log,
-            # uma correlação de auditoria ou uma futura lista de revogação
-            # precisam ter para significar alguma coisa.
+            # RS256 is deterministic: with no unique claim, two tokens issued
+            # in the same second for the same usuario come out **byte for byte
+            # identical**, because `iat` and `exp` are whole seconds. `jti` is
+            # what gives each issued token an identity of its own, which is what
+            # a log line, an audit correlation or a future revocation list need
+            # in order to mean anything.
             "jti": str(uuid.uuid4()),
             "sub": str(usuario_id),
             "perfil": perfil,
             "typ": TIPO_ACESSO,
             "iss": cfg.jwt_issuer,
-            "iat": int(agora.timestamp()),
+            "iat": int(now.timestamp()),
             "exp": int(expira.timestamp()),
         },
         _par_de_chaves()[0],
@@ -121,7 +121,7 @@ def emitir_access_token(
     )
 
 
-def verificar_access_token(token: str) -> ClaimsAcesso:
+def verify_access_token(token: str) -> ClaimsAcesso:
     """Decode and validate, or raise.
 
     `algorithms` is pinned to RS256, which is what makes `alg: none` and an
@@ -157,7 +157,7 @@ def verificar_access_token(token: str) -> ClaimsAcesso:
     )
 
 
-def gerar_refresh_token() -> tuple[str, bytes]:
+def generate_refresh_token() -> tuple[str, bytes]:
     """Return `(valor, hash)`. Only the hash is ever stored."""
     valor = secrets.token_urlsafe(BYTES_REFRESH)
-    return valor, digerir(valor)
+    return valor, digest_secret(valor)

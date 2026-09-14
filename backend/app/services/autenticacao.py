@@ -16,18 +16,18 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.segredos import digerir
-from app.core.senhas import conferir, gerar_hash
+from app.core.segredos import digest_secret
+from app.core.senhas import check_senha, hash_senha
 from app.models.usuario import Usuario
 from app.repositories import usuario as repo
 from app.services import bloqueio
-from app.services.auditoria import Evento, registrar, registrar_avulso, transacao_avulsa
+from app.services.auditoria import Evento, record_standalone, registrar, standalone_transaction
 from app.services.erros import CredenciaisInvalidas, RotaIndisponivel, UsuarioInativo
 
 # Verified against when no account matches, so that "unknown address" costs the
 # same ~300 ms as "wrong password". Without it the response time is an oracle
 # that answers the question AC-0001-02 forbids answering.
-_HASH_SENTINELA = gerar_hash(secrets.token_urlsafe(32))
+_HASH_SENTINELA = hash_senha(secrets.token_urlsafe(32))
 
 
 def autenticar_local(
@@ -39,19 +39,19 @@ def autenticar_local(
         # from one that was never built (AC-0001-24).
         raise RotaIndisponivel()
 
-    agora = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.UTC)
     # Before the password is looked at, not after: AC-0001-03 refuses the sixth
     # attempt "even with the correct password", and a lockout a correct guess
     # walks through announces the moment the attacker got it right.
-    bloqueio.verificar(sessao, email=email, agora=agora)
+    bloqueio.verificar(sessao, email=email, now=now)
 
     usuario = (
-        repo.por_email(sessao, email)
+        repo.by_email(sessao, email)
         if _dominio_institucional(email, cfg.dominios_institucionais)
         else None
     )
     armazenado = usuario.senha_hash if usuario and usuario.senha_hash else _HASH_SENTINELA
-    senha_confere = conferir(senha, armazenado)
+    senha_confere = check_senha(senha, armazenado)
 
     if usuario is None or not senha_confere:
         _contabilizar_falha(
@@ -59,7 +59,7 @@ def autenticar_local(
             motivo="credenciais_invalidas",
             usuario_id=usuario.id if usuario else None,
             correlation_id=correlation_id,
-            agora=agora,
+            now=now,
         )
         raise CredenciaisInvalidas()
 
@@ -96,7 +96,7 @@ def _contabilizar_falha(
     motivo: str,
     usuario_id: uuid.UUID | None,
     correlation_id: uuid.UUID,
-    agora: datetime.datetime,
+    now: datetime.datetime,
 ) -> None:
     """Count the attempt and record it, together, in one committed transaction.
 
@@ -104,16 +104,16 @@ def _contabilizar_falha(
     not say so are worse than either alone — the lockout then looks, to whoever
     investigates it later, like the system malfunctioning.
     """
-    with transacao_avulsa() as propria:
-        bloqueio.contabilizar_falha(
-            propria,
+    with standalone_transaction() as own_session:
+        bloqueio.count_failure(
+            own_session,
             email=email,
-            agora=agora,
+            now=now,
             usuario_id=usuario_id,
             correlation_id=correlation_id,
         )
         registrar(
-            propria, _evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id
+            own_session, _evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id
         )
 
 
@@ -129,7 +129,7 @@ def _auditar_falha(
     Never the address itself: `lgpd.md` promises this table carries no personal
     data, and it can never be corrected (SPEC-0001 §8).
     """
-    registrar_avulso(_evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id)
+    record_standalone(_evento_de_falha(email, motivo, usuario_id), correlation_id=correlation_id)
 
 
 def _evento_de_falha(email: str, motivo: str, usuario_id: uuid.UUID | None) -> Evento:
@@ -141,7 +141,7 @@ def _evento_de_falha(email: str, motivo: str, usuario_id: uuid.UUID | None) -> E
         usuario_id=usuario_id,
         dados_anteriores={
             "motivo": motivo,
-            "email_hmac": digerir(email).hex(),
+            "email_hmac": digest_secret(email).hex(),
             "dominio": dominio,
         },
     )

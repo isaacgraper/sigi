@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.segredos import digerir
-from app.core.seguranca import emitir_access_token, gerar_refresh_token
+from app.core.segredos import digest_secret
+from app.core.seguranca import generate_refresh_token, issue_access_token
 from app.repositories import sessao as repo
-from app.services.auditoria import Evento, registrar, transacao_avulsa
+from app.services.auditoria import Evento, registrar, standalone_transaction
 from app.services.erros import RefreshInvalido
 
 
@@ -41,10 +41,10 @@ def abrir(
     mecanismo: str,
 ) -> ParDeTokens:
     cfg = get_settings()
-    agora = _agora()
-    familia = repo.criar_familia(sessao, usuario_id)
-    valor, token_hash = gerar_refresh_token()
-    expira = agora + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
+    now = _agora()
+    familia = repo.create_familia(sessao, usuario_id)
+    valor, token_hash = generate_refresh_token()
+    expira = now + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
     repo.criar(
         sessao,
         usuario_id=usuario_id,
@@ -65,7 +65,7 @@ def abrir(
         correlation_id=correlation_id,
     )
     return ParDeTokens(
-        access_token=emitir_access_token(usuario_id=usuario_id, perfil=perfil, agora=agora),
+        access_token=issue_access_token(usuario_id=usuario_id, perfil=perfil, now=now),
         refresh_token=valor,
         expira_em=expira,
     )
@@ -82,8 +82,8 @@ def rotacionar(
     silently unmet behind a response that looks right.
     """
     cfg = get_settings()
-    agora = _agora()
-    atual = repo.por_hash(sessao, digerir(refresh_token))
+    now = _agora()
+    atual = repo.by_hash(sessao, digest_secret(refresh_token))
     if atual is None:
         raise RefreshInvalido()
 
@@ -95,28 +95,28 @@ def rotacionar(
             familia=atual.familia,
             usuario_id=atual.usuario_id,
             sessao_id=atual.id,
-            momento=agora,
+            at=now,
             correlation_id=correlation_id,
         )
         raise RefreshInvalido()
 
-    if atual.expira_em <= agora:
+    if atual.expira_em <= now:
         raise RefreshInvalido()
 
     perfil = perfil_de(atual.usuario_id)
-    valor, token_hash = gerar_refresh_token()
-    atual.revogado_em = agora
+    valor, token_hash = generate_refresh_token()
+    atual.revogado_em = now
     atual.revogado_motivo = "rotacao"
     nova = repo.criar(
         sessao,
         usuario_id=atual.usuario_id,
         familia=atual.familia,
-        geracao=repo.proxima_geracao(sessao, atual.familia),
+        geracao=repo.next_geracao(sessao, atual.familia),
         token_hash=token_hash,
-        expira_em=agora + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
+        expira_em=now + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
     )
     return ParDeTokens(
-        access_token=emitir_access_token(usuario_id=atual.usuario_id, perfil=perfil, agora=agora),
+        access_token=issue_access_token(usuario_id=atual.usuario_id, perfil=perfil, now=now),
         refresh_token=valor,
         expira_em=nova.expira_em,
     )
@@ -128,12 +128,12 @@ def encerrar(sessao: Session, *, refresh_token: str, correlation_id: uuid.UUID) 
     Revoking one generation would leave every other device logged in, which is
     not what anyone means by "sair".
     """
-    agora = _agora()
-    atual = repo.por_hash(sessao, digerir(refresh_token))
+    now = _agora()
+    atual = repo.by_hash(sessao, digest_secret(refresh_token))
     if atual is None:
         # Nothing to revoke, and saying so would confirm which tokens exist.
         return
-    repo.revogar_familia(sessao, atual.familia, motivo="logout", momento=agora)
+    repo.revoke_familia(sessao, atual.familia, motivo="logout", at=now)
     registrar(
         sessao,
         Evento(
@@ -151,7 +151,7 @@ def _derrubar_familia_apos_replay(
     familia: uuid.UUID,
     usuario_id: uuid.UUID,
     sessao_id: uuid.UUID,
-    momento: datetime.datetime,
+    at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> None:
     """Revoke the family and record the replay, in a transaction of their own.
@@ -161,10 +161,10 @@ def _derrubar_familia_apos_replay(
     family alive and the theft unrecorded — the detection reduced to a 401 that
     looks identical to a typo.
     """
-    with transacao_avulsa() as propria:
-        derrubadas = repo.revogar_familia(propria, familia, motivo="replay", momento=momento)
+    with standalone_transaction() as own_session:
+        revoked = repo.revoke_familia(own_session, familia, motivo="replay", at=at)
         registrar(
-            propria,
+            own_session,
             Evento(
                 entidade_tipo="usuario",
                 entidade_id=usuario_id,
@@ -172,7 +172,7 @@ def _derrubar_familia_apos_replay(
                 usuario_id=usuario_id,
                 dados_anteriores={
                     "sessao_id": str(sessao_id),
-                    "sessoes_derrubadas": derrubadas,
+                    "sessoes_derrubadas": revoked,
                 },
             ),
             correlation_id=correlation_id,

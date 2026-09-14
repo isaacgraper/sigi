@@ -51,9 +51,9 @@ class CorrelacaoMiddleware:
 
         async def enviar(mensagem: Message) -> None:
             if mensagem["type"] == "http.response.start":
-                cabecalhos = list(mensagem.get("headers", []))
-                cabecalhos.append((CABECALHO.lower().encode(), str(correlation_id).encode()))
-                mensagem = {**mensagem, "headers": cabecalhos}
+                headers = list(mensagem.get("headers", []))
+                headers.append((CABECALHO.lower().encode(), str(correlation_id).encode()))
+                mensagem = {**mensagem, "headers": headers}
             await send(mensagem)
 
         try:

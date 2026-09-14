@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.autorizacao import Exige
 from app.core.correlacao import atual
-from app.core.db import obter_sessao
+from app.core.db import get_sessao
 from app.models.usuario import Usuario
 from app.schemas.auth import UsuarioSaida
 from app.schemas.usuario import ConviteEntrada, ConviteSaida, MembroSaida, PaginaDeMembros
@@ -19,7 +19,7 @@ from app.services import membros
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
 
-SessaoDb = Annotated[Session, Depends(obter_sessao)]
+SessaoDb = Annotated[Session, Depends(get_sessao)]
 
 # The matrix, stated on the routes themselves so that AC-0001-23's check can
 # see it. The auditor reads and never writes — that is why they appear on the
@@ -56,7 +56,7 @@ def listar(
 
 @router.post("", response_model=ConviteSaida, status_code=status.HTTP_201_CREATED)
 def convidar(
-    corpo: ConviteEntrada, request: Request, sessao: SessaoDb, ator: Gestor
+    body: ConviteEntrada, request: Request, sessao: SessaoDb, ator: Gestor
 ) -> ConviteSaida:
     """Invite a member. [SPEC-0001 AC-0001-10, -13, -28]
 
@@ -64,13 +64,13 @@ def convidar(
     afterwards — only the token's HMAC is stored — so this response must not be
     logged, and no other endpoint returns it.
     """
-    agora = _agora()
+    now = _agora()
     usuario, link = membros.convidar(
         sessao,
         ator=ator,
-        email=str(corpo.email),
-        perfil=corpo.perfil,
-        agora=agora,
+        email=str(body.email),
+        perfil=body.perfil,
+        now=now,
         correlation_id=_correlation_id(request),
     )
     return ConviteSaida(
@@ -82,7 +82,7 @@ def convidar(
             status=usuario.status,
         ),
         link=link,
-        expira_em=agora + datetime.timedelta(hours=_ttl_convite()),
+        expira_em=now + datetime.timedelta(hours=_ttl_convite()),
     )
 
 
@@ -95,7 +95,7 @@ def bloquear(
         sessao,
         ator=ator,
         usuario_id=usuario_id,
-        agora=_agora(),
+        now=_agora(),
         correlation_id=_correlation_id(request),
     )
     return _saida(usuario)
@@ -110,7 +110,7 @@ def desativar(
         sessao,
         ator=ator,
         usuario_id=usuario_id,
-        agora=_agora(),
+        now=_agora(),
         correlation_id=_correlation_id(request),
     )
     return _saida(usuario)

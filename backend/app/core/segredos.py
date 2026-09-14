@@ -24,7 +24,7 @@ import hmac
 from app.core.config import get_settings
 
 
-def digerir(valor: str) -> bytes:
+def digest_secret(valor: str) -> bytes:
     """A stable, non-reversible 32-byte key for `valor`.
 
     Normalised to lowercase and stripped, so that `Ana@SC.gov.br ` and

@@ -33,10 +33,10 @@ def criar(
     return linha
 
 
-def por_hash(sessao: Session, token_hash: bytes) -> TokenCredencial | None:
+def by_hash(sessao: Session, token_hash: bytes) -> TokenCredencial | None:
     """Find a grant by its hash — **including spent and cancelled ones**.
 
-    The predicate is load-bearing, the same way it is in `sessao.por_hash`:
+    The predicate is load-bearing, the same way it is in `sessao.by_hash`:
     filtering the spent ones out here would turn "already redeemed" into "not
     found", and AC-0001-25 wants those two answered differently.
     """
@@ -45,16 +45,12 @@ def por_hash(sessao: Session, token_hash: bytes) -> TokenCredencial | None:
     ).one_or_none()
 
 
-def marcar_utilizado(
-    sessao: Session, token: TokenCredencial, *, momento: datetime.datetime
-) -> None:
-    token.utilizado_em = momento
+def mark_used(sessao: Session, token: TokenCredencial, *, at: datetime.datetime) -> None:
+    token.utilizado_em = at
     sessao.flush()
 
 
-def cancelar_abertos(
-    sessao: Session, *, usuario_id: uuid.UUID, tipo: str, momento: datetime.datetime
-) -> int:
+def cancel_open(sessao: Session, *, usuario_id: uuid.UUID, tipo: str, at: datetime.datetime) -> int:
     """Close any outstanding grant of this type for this usuario.
 
     `ux_token_credencial_aberto` allows exactly one open grant per usuario per
@@ -62,7 +58,7 @@ def cancelar_abertos(
     an expired-but-unredeemed grant still matches `utilizado_em IS NULL`, and
     `now()` cannot appear in an index predicate.
     """
-    resultado = sessao.execute(
+    result = sessao.execute(
         update(TokenCredencial)
         .where(
             TokenCredencial.usuario_id == usuario_id,
@@ -70,7 +66,7 @@ def cancelar_abertos(
             TokenCredencial.utilizado_em.is_(None),
             TokenCredencial.cancelado_em.is_(None),
         )
-        .values(cancelado_em=momento)
+        .values(cancelado_em=at)
     )
     sessao.flush()
-    return int(cast("CursorResult[Any]", resultado).rowcount or 0)
+    return int(cast("CursorResult[Any]", result).rowcount or 0)

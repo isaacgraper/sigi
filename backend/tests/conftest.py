@@ -33,7 +33,7 @@ from psycopg import sql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.senhas import gerar_hash
+from app.core.senhas import hash_senha
 from app.main import create_app
 from app.models.usuario import Usuario
 
@@ -190,12 +190,12 @@ def sessao(banco: tuple[str, str]) -> Iterator[Session]:
     Not autocommit: the point of most of these tests is what happens at the
     transaction boundary, so the boundary has to be real.
     """
-    motor = create_engine(_para_sqlalchemy(banco[1]))
+    engine = create_engine(_para_sqlalchemy(banco[1]))
     try:
-        with sessionmaker(bind=motor, expire_on_commit=False)() as s:
+        with sessionmaker(bind=engine, expire_on_commit=False)() as s:
             yield s
     finally:
-        motor.dispose()
+        engine.dispose()
 
 
 @pytest.fixture
@@ -204,27 +204,27 @@ def aplicacao(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterat
 
     The engine is pointed at the restricted role rather than the dependency
     being overridden, because two writers bypass any override: the failure-path
-    audit (`registrar_avulso`) and the replay revocation each open a session of
+    audit (`record_standalone`) and the replay revocation each open a session of
     their own, by design — an override would leave them pointing at whatever
     `DATABASE_URL` happens to say, which in CI is a database that does not exist.
     """
     from app.core.config import get_settings
-    from app.core.db import reiniciar_engine
-    from app.core.seguranca import reiniciar_chaves
+    from app.core.db import reset_engine
+    from app.core.seguranca import reset_keys
 
     monkeypatch.setenv("DATABASE_URL", _para_sqlalchemy(banco[1]))
     monkeypatch.setenv("DB_APP_ROLE", PAPEL_APP)
     get_settings.cache_clear()
-    reiniciar_engine()
-    reiniciar_chaves()
+    reset_engine()
+    reset_keys()
     try:
         with TestClient(create_app()) as c:
             yield c
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
-        reiniciar_engine()
-        reiniciar_chaves()
+        reset_engine()
+        reset_keys()
 
 
 @pytest.fixture
@@ -246,7 +246,7 @@ def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
         usuario = Usuario(
             nome=nome,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
-            senha_hash=gerar_hash(senha) if senha else None,
+            senha_hash=hash_senha(senha) if senha else None,
             perfil=perfil,
             status=status,
         )
@@ -258,14 +258,14 @@ def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
     return criar
 
 
-def cookie_de(resposta: object, nome: str) -> str | None:
+def cookie_de(response: object, nome: str) -> str | None:
     """Read a Set-Cookie value from the raw headers.
 
-    Not `resposta.cookies`: the refresh cookie is `Secure` (AC-0001-01) and the
+    Not `response.cookies`: the refresh cookie is `Secure` (AC-0001-01) and the
     test client speaks plain http, so the cookie jar discards it — the flag
     under test would make the test that checks it unable to see it.
     """
-    for bruto in resposta.headers.get_list("set-cookie"):  # type: ignore[attr-defined]
+    for bruto in response.headers.get_list("set-cookie"):  # type: ignore[attr-defined]
         atributo, _, resto = bruto.partition("=")
         if atributo.strip() == nome:
             return resto.split(";")[0]
@@ -304,7 +304,7 @@ def criar_usuario_em() -> Callable[..., Usuario]:
         usuario = Usuario(
             nome=nome,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
-            senha_hash=gerar_hash(senha) if senha else None,
+            senha_hash=hash_senha(senha) if senha else None,
             perfil=perfil,
             status=status,
         )

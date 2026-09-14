@@ -29,11 +29,12 @@ class Settings(BaseSettings):
     # a fresh clone run; a deployment that keeps it has no pepper at all.
     hmac_pepper: str = "troque-este-valor-em-producao"
 
-    # ── Sessão (RNF03, ADR-0010) ────────────────────────────────────────────
-    # PEM, por configuração e nunca no repositório. Vazias em `development`
-    # fazem o app gerar um par efêmero no arranque; fora de `development` isso
-    # é erro de inicialização, porque um par efêmero em produção invalida toda
-    # sessão a cada restart e ninguém liga os dois fatos.
+    # ── Session (RNF03, ADR-0010) ───────────────────────────────────────────
+    # PEM, from configuration and never from the repository. Empty in
+    # `development` makes the app generate an ephemeral pair at startup; outside
+    # `development` that is a startup error, because an ephemeral pair in
+    # production invalidates every session on each restart and nobody connects
+    # those two facts.
     jwt_private_key: str = ""
     jwt_public_key: str = ""
     jwt_issuer: str = "sigi"
@@ -45,41 +46,41 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     cookie_refresh_nome: str = "sigi_refresh"
 
-    # ── Credenciais locais (ADR-0010) ───────────────────────────────────────
-    # Desligável: o default honesto de produção é `False`, com OIDC como
-    # caminho primário. Ligado aqui para que um clone novo funcione.
+    # ── Local credentials (ADR-0010) ────────────────────────────────────────
+    # Switchable: the honest production default is `False`, with OIDC as the
+    # primary path. On here so that a fresh clone runs.
     local_login_enabled: bool = True
     dominios_institucionais: list[str] = ["sc.gov.br"]
     bcrypt_cost: int = 12
     senha_tamanho_minimo: int = 12
 
-    # ── OIDC institucional (ADR-0010, AC-0001-19..22) ───────────────────────
-    # Entra ID. A entidade ainda não entregou tenant, client e redirect (OQ-09),
-    # então os defaults vazios desligam o caminho e os testes injetam os seus.
+    # ── Institutional OIDC (ADR-0010, AC-0001-19..22) ───────────────────────
+    # Entra ID. The entity has not supplied tenant, client and redirect yet
+    # (OQ-09), so empty defaults switch the path off and tests inject their own.
     oidc_enabled: bool = False
     oidc_issuer: str = ""
     oidc_client_id: str = ""
     oidc_client_secret: str = ""
     oidc_redirect_uri: str = "http://localhost:3000/auth/callback"
-    # Claim de grupo que o provedor assere. Registrada na auditoria do login e
-    # nunca consultada por decisão de autorização (AC-0001-22).
+    # Group claim the provider asserts. Recorded on the login's audit row and
+    # consulted by no authorisation decision (AC-0001-22).
     oidc_claim_grupo: str = "groups"
-    # Janela entre iniciar o login e voltar do provedor.
+    # Window between starting the login and returning from the provider.
     oidc_estado_ttl_minutos: int = 10
 
-    # ── Bloqueio por tentativas (AC-0001-03) ────────────────────────────────
+    # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
     max_tentativas_login: int = 5
     janela_tentativas_minutos: int = 15
     bloqueio_minutos: int = 15
 
-    # ── Convites e redefinições (AC-0001-11, -25, -31) ──────────────────────
-    # Base do link que o gestor copia e entrega (AC-0001-10, v0.6). O backend
-    # monta o link porque é ele que conhece o token — que existe por um instante
-    # só, na resposta da criação, e depois some: o banco guarda apenas o HMAC.
+    # ── Invitations and resets (AC-0001-11, -25, -31) ───────────────────────
+    # Base of the link the gestor copies and delivers (AC-0001-10, v0.6). The
+    # backend builds it because the backend is what holds the token, which
+    # exists for one response and is then gone: only its HMAC is stored.
     url_base_frontend: str = "http://localhost:3000"
     convite_ttl_horas: int = 72
-    # Uma hora contra as 72 do convite: convite espera alguém arrumar tempo de
-    # entrar, redefinição é pedida por quem está na frente da tela.
+    # One hour against the invitation's 72: an invitation waits for somebody to
+    # find the time, a reset is asked for by someone sitting at the screen.
     redefinicao_ttl_horas: int = 1
 
 

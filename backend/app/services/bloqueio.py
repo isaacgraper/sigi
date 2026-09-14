@@ -21,13 +21,13 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.segredos import digerir
+from app.core.segredos import digest_secret
 from app.repositories import tentativa as repo
 from app.services.auditoria import Evento, registrar
 from app.services.erros import TentativasExcedidas
 
 
-def verificar(sessao: Session, *, email: str, agora: datetime.datetime) -> None:
+def verificar(sessao: Session, *, email: str, now: datetime.datetime) -> None:
     """Refuse a locked address **before** the password is even looked at.
 
     AC-0001-03 says the sixth attempt is refused "even with the correct
@@ -35,18 +35,18 @@ def verificar(sessao: Session, *, email: str, agora: datetime.datetime) -> None:
     attacker the moment they guessed right, which is the one thing the counter
     exists to hide.
     """
-    linha = repo.por_hmac(sessao, digerir(email))
-    if linha is None or linha.bloqueado_ate is None or linha.bloqueado_ate <= agora:
+    linha = repo.by_hmac(sessao, digest_secret(email))
+    if linha is None or linha.bloqueado_ate is None or linha.bloqueado_ate <= now:
         return
-    restante = (linha.bloqueado_ate - agora).total_seconds()
-    raise TentativasExcedidas(minutos=max(1, math.ceil(restante / 60)))
+    remaining = (linha.bloqueado_ate - now).total_seconds()
+    raise TentativasExcedidas(minutos=max(1, math.ceil(remaining / 60)))
 
 
-def contabilizar_falha(
+def count_failure(
     sessao: Session,
     *,
     email: str,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     usuario_id: uuid.UUID | None,
     correlation_id: uuid.UUID,
 ) -> int:
@@ -57,11 +57,11 @@ def contabilizar_falha(
     five, which is a lockout that never locks.
     """
     cfg = get_settings()
-    hmac = digerir(email)
-    tentativas = repo.contabilizar(
+    hmac = digest_secret(email)
+    tentativas = repo.count_attempt(
         sessao,
         email_hmac=hmac,
-        agora=agora,
+        now=now,
         janela=datetime.timedelta(minutes=cfg.janela_tentativas_minutos),
     )
     if tentativas < cfg.max_tentativas_login:
@@ -70,7 +70,7 @@ def contabilizar_falha(
     repo.bloquear(
         sessao,
         email_hmac=hmac,
-        ate=agora + datetime.timedelta(minutes=cfg.bloqueio_minutos),
+        ate=now + datetime.timedelta(minutes=cfg.bloqueio_minutos),
     )
     registrar(
         sessao,
@@ -84,11 +84,11 @@ def contabilizar_falha(
             dados_anteriores={"tentativas": tentativas},
         ),
         correlation_id=correlation_id,
-        momento=agora,
+        at=now,
     )
     return tentativas
 
 
 def limpar(sessao: Session, *, email: str) -> None:
     """A successful authentication resets the count for that address."""
-    repo.limpar(sessao, digerir(email))
+    repo.limpar(sessao, digest_secret(email))

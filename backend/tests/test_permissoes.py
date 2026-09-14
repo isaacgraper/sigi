@@ -1,10 +1,9 @@
-"""A matriz de permissão — AC-0001-15, -16, -17 e -23.
+"""The permission matrix — AC-0001-15, -16, -17 and -23.
 
-Os três primeiros critérios falam da *tabela de rotas da aplicação*, não de uma
-lista escrita à mão. Então os testes também: eles percorrem o que a aplicação
-montada expõe e crescem sozinhos a cada rota nova. Uma lista literal aqui
-envelheceria exatamente como a tabela paralela que o AC-0001-23 existe para
-proibir.
+The first three criteria speak of the *application's route table*, not of a
+hand-written list. So do these tests: they walk what the assembled app exposes
+and grow on their own with each new route. A literal list here would age exactly
+like the parallel table AC-0001-23 exists to forbid.
 """
 
 from __future__ import annotations
@@ -22,9 +21,9 @@ from app.core.autorizacao import (
     Decisao,
     Exige,
     RotaSemDecisao,
-    decisoes_da_rota,
-    rotas_da_aplicacao,
-    verificar_cobertura,
+    app_routes,
+    route_decisions,
+    verify_coverage,
 )
 from app.main import create_app
 from app.models.usuario import PERFIS, Usuario
@@ -34,28 +33,28 @@ SENHA = "SenhaCorreta-12345"
 
 def _rotas_com_decisao() -> list[tuple[str, str, Decisao]]:
     return [
-        (metodo, caminho, decisoes[0])
-        for caminho, rota in rotas_da_aplicacao(create_app())
-        if (decisoes := decisoes_da_rota(rota))
+        (metodo, path, decisoes[0])
+        for path, rota in app_routes(create_app())
+        if (decisoes := route_decisions(rota))
         for metodo in sorted(rota.methods or set())
         if metodo != "HEAD"
     ]
 
 
-def _concretizar(caminho: str) -> str:
-    """Trocar `{id}` por um uuid qualquer.
+def _concretizar(path: str) -> str:
+    """Swap `{id}` for any uuid.
 
-    O recurso não precisa existir: a decisão de perfil vem antes de qualquer
-    busca, e é justamente isso que se está afirmando.
+    The resource need not exist: the perfil decision comes before any lookup,
+    and that is precisely what is being asserted.
     """
-    partes = [str(uuid.uuid4()) if p.startswith("{") else p for p in caminho.strip("/").split("/")]
+    partes = [str(uuid.uuid4()) if p.startswith("{") else p for p in path.strip("/").split("/")]
     return "/" + "/".join(partes)
 
 
 def _autenticar(aplicacao: TestClient, usuario: Usuario) -> dict[str, str]:
-    resposta = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
-    assert resposta.status_code == 200, resposta.text
-    return {"Authorization": f"Bearer {resposta.json()['access_token']}"}
+    response = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 @pytest.mark.parametrize("perfil", PERFIS)
@@ -64,47 +63,47 @@ def test_matriz_por_perfil(
     aplicacao: TestClient,
     criar_usuario: Callable[..., Usuario],
 ) -> None:
-    """AC-0001-15 (gestor), AC-0001-16 (servidor) e AC-0001-17 (auditor).
+    """AC-0001-15 (gestor), AC-0001-16 (servidor) and AC-0001-17 (auditor).
 
-    A afirmação é sobre o motivo da recusa, não sobre o código de sucesso: um
-    corpo vazio faz a rota permitida responder 422, e 422 é "passou pela
-    autorização". O que nenhuma rota permitida pode devolver é 403.
+    The assertion is about the reason for refusal, not the success code: an
+    empty body makes a permitted route answer 422, and 422 means "got past
+    authorisation". What no permitted route may return is 403.
     """
     usuario = criar_usuario(perfil=perfil)
-    cabecalhos = _autenticar(aplicacao, usuario)
+    headers = _autenticar(aplicacao, usuario)
 
     verificadas = 0
-    for metodo, caminho, decisao in _rotas_com_decisao():
-        resposta = aplicacao.request(metodo, _concretizar(caminho), json={}, headers=cabecalhos)
+    for metodo, path, decisao in _rotas_com_decisao():
+        response = aplicacao.request(metodo, _concretizar(path), json={}, headers=headers)
         nega = isinstance(decisao, Exige) and bool(decisao.perfis) and perfil not in decisao.perfis
         if nega:
-            assert resposta.status_code == 403, f"{metodo} {caminho} devia recusar {perfil}"
-            assert resposta.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
+            assert response.status_code == 403, f"{metodo} {path} devia recusar {perfil}"
+            assert response.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
         else:
-            assert resposta.status_code != 403, f"{metodo} {caminho} recusou {perfil} sem motivo"
+            assert response.status_code != 403, f"{metodo} {path} recusou {perfil} sem motivo"
         verificadas += 1
 
     assert verificadas, "nenhuma rota declarou decisão de acesso — o teste passaria vazio"
 
 
 def test_ac_0001_23_toda_rota_de_escrita_tem_entrada() -> None:
-    """A aplicação real sobe: nenhuma rota de escrita sem decisão."""
+    """The real application starts: no write route without a decision."""
     aplicacao = create_app()
-    verificar_cobertura(aplicacao)
+    verify_coverage(aplicacao)
 
     escritas = [
-        f"{metodo} {caminho}"
-        for caminho, rota in rotas_da_aplicacao(aplicacao)
+        f"{metodo} {path}"
+        for path, rota in app_routes(aplicacao)
         for metodo in (rota.methods or set()) & METODOS_DE_ESCRITA
     ]
     assert escritas, "sem rota de escrita, o critério passaria por vacuidade"
 
 
 def test_ac_0001_23_rota_sem_decisao_quebra_o_build() -> None:
-    """Controle negativo, e é ele que dá sentido ao teste acima.
+    """The negative control, and what gives the test above its meaning.
 
-    Sem isto, um `verificar_cobertura` que não verificasse nada deixaria os dois
-    verdes — que é o modo de falha exato que este critério tenta impedir.
+    Without it, a `verify_coverage` that verified nothing would leave both
+    green — the exact failure mode this criterion tries to prevent.
     """
     aplicacao = FastAPI()
 
@@ -113,33 +112,33 @@ def test_ac_0001_23_rota_sem_decisao_quebra_o_build() -> None:
         return {}
 
     with pytest.raises(RotaSemDecisao) as exc:
-        verificar_cobertura(aplicacao)
+        verify_coverage(aplicacao)
     assert "POST /api/v1/esqueceram" in str(exc.value)
 
 
 def test_leitura_sem_decisao_nao_quebra() -> None:
-    """O critério fala de rotas que *mudam estado*. `/health` é GET e não
-    precisa declarar nada — exigir declaração de toda leitura transformaria a
-    verificação em ruído, e ruído é o que se aprende a ignorar."""
+    """The criterion speaks of routes that *change state*. `/health` is a GET
+    and declares nothing — requiring a declaration on every read would turn the
+    check into noise, and noise is what people learn to ignore."""
     aplicacao = FastAPI()
 
     @aplicacao.get("/health")
     def saude() -> dict[str, str]:
         return {"status": "ok"}
 
-    verificar_cobertura(aplicacao)
+    verify_coverage(aplicacao)
 
 
 def test_perfil_inexistente_na_matriz_e_recusado_na_montagem() -> None:
-    """`Exige("gestro")` recusaria todo mundo, para sempre, em silêncio."""
+    """`Exige("gestro")` would refuse everybody, for ever, silently."""
     with pytest.raises(ValueError, match="gestro"):
         Exige("gestro")
 
 
-# No nível do módulo, e não dentro do teste: com `from __future__ import
-# annotations` as anotações viram texto, e o FastAPI as resolve contra o
-# namespace do módulo — uma dependência declarada numa variável local não seria
-# encontrada, e o teste falharia por um motivo que não é o que ele investiga.
+# At module level rather than inside the test: with `from __future__ import
+# annotations` the annotations become text, and FastAPI resolves them against
+# the module namespace — a dependency declared in a local would not be found,
+# and the test would fail for a reason other than the one it investigates.
 GUARDA = Exige("gestor")
 
 
@@ -148,10 +147,10 @@ def _intermediaria(usuario: Annotated[Usuario, Depends(GUARDA)]) -> Usuario:
 
 
 def test_decisao_aninhada_e_encontrada() -> None:
-    """A decisão pode estar sob outra dependência, e a busca precisa descer.
+    """The decision can sit under another dependency, and the search must descend.
 
-    Se não descesse, uma rota protegida passaria por desprotegida e o
-    AC-0001-23 acusaria justamente a rota errada.
+    If it did not, a protected route would pass for unprotected and AC-0001-23
+    would report the wrong route.
     """
     aplicacao = FastAPI()
 
@@ -159,6 +158,6 @@ def test_decisao_aninhada_e_encontrada() -> None:
     def coisa(usuario: Annotated[Usuario, Depends(_intermediaria)]) -> dict[str, str]:
         return {}
 
-    rota = next(r for c, r in rotas_da_aplicacao(aplicacao) if c.endswith("coisa"))
-    assert decisoes_da_rota(rota) == [GUARDA]
-    verificar_cobertura(aplicacao)
+    rota = next(r for c, r in app_routes(aplicacao) if c.endswith("coisa"))
+    assert route_decisions(rota) == [GUARDA]
+    verify_coverage(aplicacao)

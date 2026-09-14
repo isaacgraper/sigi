@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.historico import HistoricoMovimentacao
 
 
-def inserir(sessao: Session, linha: HistoricoMovimentacao) -> None:
+def insert_row(sessao: Session, linha: HistoricoMovimentacao) -> None:
     """Append one row, in the caller's transaction.
 
     `flush` rather than leaving it to the commit: a constraint violation should

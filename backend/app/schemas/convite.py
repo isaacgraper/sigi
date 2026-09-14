@@ -9,7 +9,7 @@ from app.schemas.auth import SessaoSaida
 
 class AtivacaoEntrada(BaseModel):
     # No `min_length` here on purpose. The policy lives in
-    # `credenciais.exigir_senha_forte`, which raises SENHA_FRACA with the length
+    # `credenciais.require_strong_senha`, which raises SENHA_FRACA with the length
     # rule in the message — AC-0001-26 asks for that code, not a generic 422,
     # and two places stating the minimum is how they come to disagree.
     senha: str = Field(min_length=1)

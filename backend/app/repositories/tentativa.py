@@ -11,12 +11,12 @@ from sqlalchemy.orm import Session
 from app.models.tentativa_login import TentativaLogin
 
 
-def por_hmac(sessao: Session, email_hmac: bytes) -> TentativaLogin | None:
+def by_hmac(sessao: Session, email_hmac: bytes) -> TentativaLogin | None:
     return sessao.get(TentativaLogin, email_hmac)
 
 
-def contabilizar(
-    sessao: Session, *, email_hmac: bytes, agora: datetime.datetime, janela: datetime.timedelta
+def count_attempt(
+    sessao: Session, *, email_hmac: bytes, now: datetime.datetime, janela: datetime.timedelta
 ) -> int:
     """Count one failure and return the running total.
 
@@ -30,15 +30,15 @@ def contabilizar(
     timestamp the column would express "five failures ever", which locks an
     address out over failures spread across months.
     """
-    dentro_da_janela = TentativaLogin.ultima_em > agora - janela
-    declaracao = (
+    dentro_da_janela = TentativaLogin.ultima_em > now - janela
+    statement = (
         insert(TentativaLogin)
-        .values(email_hmac=email_hmac, tentativas=1, ultima_em=agora)
+        .values(email_hmac=email_hmac, tentativas=1, ultima_em=now)
         .on_conflict_do_update(
             index_elements=[TentativaLogin.email_hmac],
             set_={
                 "tentativas": case((dentro_da_janela, TentativaLogin.tentativas + 1), else_=1),
-                "ultima_em": agora,
+                "ultima_em": now,
                 # A lock whose window has decayed is gone, not merely expired:
                 # leaving it set would make the next failure look like the
                 # sixth of a series that ended fifteen minutes ago.
@@ -47,7 +47,7 @@ def contabilizar(
         )
         .returning(TentativaLogin.tentativas)
     )
-    return int(sessao.execute(declaracao).scalar_one())
+    return int(sessao.execute(statement).scalar_one())
 
 
 def bloquear(sessao: Session, *, email_hmac: bytes, ate: datetime.datetime) -> None:

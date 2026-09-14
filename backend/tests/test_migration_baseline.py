@@ -168,11 +168,11 @@ def test_pseudonimo_sobrevive_a_anonimizacao(
         " VALUES (%s, 'Bruno', %s, 'servidor', 'ativo')",
         (uid, f"bruno-{uid.hex[:8]}@sc.gov.br"),
     )
-    antes = _um(
+    before = _um(
         conexao_admin.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
     )
-    assert antes[0].startswith("USR-")
-    assert antes[1] is True
+    assert before[0].startswith("USR-")
+    assert before[1] is True
 
     conexao_admin.execute(
         "UPDATE usuario SET nome = NULL, email = NULL, senha_hash = NULL,"
@@ -180,11 +180,11 @@ def test_pseudonimo_sobrevive_a_anonimizacao(
         " WHERE id = %s",
         (uid,),
     )
-    depois = _um(
+    after = _um(
         conexao_admin.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
     )
-    assert depois[0] == antes[0]
-    assert depois[1] is False
+    assert after[0] == before[0]
+    assert after[1] is False
 
 
 def test_coluna_gerada_nao_aceita_update(conexao_admin: psycopg.Connection) -> None:
@@ -197,7 +197,7 @@ def test_coluna_gerada_nao_aceita_update(conexao_admin: psycopg.Connection) -> N
 
 
 @pytest.mark.parametrize(
-    ("rotulo", "sql_texto"),
+    ("label", "sql_texto"),
     [
         (
             "pendente-com-credencial",
@@ -225,7 +225,7 @@ def test_coluna_gerada_nao_aceita_update(conexao_admin: psycopg.Connection) -> N
     ],
 )
 def test_constraints_recusam_dado_invalido(
-    conexao_admin: psycopg.Connection, rotulo: str, sql_texto: str
+    conexao_admin: psycopg.Connection, label: str, sql_texto: str
 ) -> None:
     with pytest.raises(psycopg.errors.Error):
         conexao_admin.execute(sql_texto)
@@ -250,8 +250,8 @@ def test_familia_de_sessao_nao_atravessa_usuarios(
 ) -> None:
     """DB11. Without the composite FK one family could span two users, and
     revoking it would revoke another person's sessions."""
-    dono, intruso, familia = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    for uid, nome in ((dono, "Dono"), (intruso, "Intruso")):
+    dono, intruder, familia = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    for uid, nome in ((dono, "Dono"), (intruder, "Intruso")):
         conexao_admin.execute(
             "INSERT INTO usuario (id, nome, email, perfil, status)"
             " VALUES (%s, %s, %s, 'servidor', 'ativo')",
@@ -265,7 +265,7 @@ def test_familia_de_sessao_nao_atravessa_usuarios(
         conexao_admin.execute(
             "INSERT INTO sessao (usuario_id, familia, geracao, refresh_token_hash, expira_em)"
             " VALUES (%s, %s, 1, %s, now() + interval '7 days')",
-            (intruso, familia, uuid.uuid4().bytes),
+            (intruder, familia, uuid.uuid4().bytes),
         )
     assert exc.value.sqlstate == "23503"  # foreign_key_violation
 
@@ -283,20 +283,20 @@ def test_apenas_um_token_aberto_por_tipo(conexao_admin: psycopg.Connection) -> N
         " VALUES (%s, 'G', %s, 'gestor', 'ativo')",
         (gestor, f"g-{gestor.hex[:8]}@sc.gov.br"),
     )
-    inserir = (
+    insert_row = (
         "INSERT INTO token_credencial (usuario_id, tipo, token_hash, criado_por, expira_em)"
         " VALUES (%s, 'convite', %s, %s, now() + interval '72 hours')"
     )
-    conexao_admin.execute(inserir, (uid, uuid.uuid4().bytes, gestor))
+    conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute(inserir, (uid, uuid.uuid4().bytes, gestor))
+        conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
     assert exc.value.sqlstate == "23505"  # unique_violation
 
     # Cancelling is what makes reissue possible — AC-0001-25's remedy.
     conexao_admin.execute(
         "UPDATE token_credencial SET cancelado_em = now() WHERE usuario_id = %s", (uid,)
     )
-    conexao_admin.execute(inserir, (uid, uuid.uuid4().bytes, gestor))
+    conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
 
 
 # ── the last gestor ─────────────────────────────────────────────────────────

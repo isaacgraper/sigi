@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.segredos import digerir
+from app.core.segredos import digest_secret
 from app.models.token_credencial import TokenCredencial
 from app.repositories import token_credencial as repo
 from app.services.erros import ConviteExpirado, ConviteJaUtilizado, SenhaFraca
@@ -42,10 +42,10 @@ class GrantEmitido:
     valor: str
     """The raw token. Never stored, never logged, never returned twice."""
 
-    def link(self, caminho: str) -> str:
+    def link(self, path: str) -> str:
         """Build the URL the person opens to use this grant."""
         base = get_settings().url_base_frontend.rstrip("/")
-        return f"{base}{caminho}/{self.valor}"
+        return f"{base}{path}/{self.valor}"
 
 
 def emitir(
@@ -53,7 +53,7 @@ def emitir(
     *,
     usuario_id: uuid.UUID,
     tipo: str,
-    agora: datetime.datetime,
+    now: datetime.datetime,
     criado_por: uuid.UUID | None,
 ) -> GrantEmitido:
     """Issue a grant, cancelling any earlier one of the same type.
@@ -64,23 +64,21 @@ def emitir(
     """
     cfg = get_settings()
     horas = cfg.convite_ttl_horas if tipo == CONVITE else cfg.redefinicao_ttl_horas
-    repo.cancelar_abertos(sessao, usuario_id=usuario_id, tipo=tipo, momento=agora)
+    repo.cancel_open(sessao, usuario_id=usuario_id, tipo=tipo, at=now)
 
     valor = secrets.token_urlsafe(BYTES_TOKEN)
     linha = repo.criar(
         sessao,
         usuario_id=usuario_id,
         tipo=tipo,
-        token_hash=digerir(valor),
-        expira_em=agora + datetime.timedelta(hours=horas),
+        token_hash=digest_secret(valor),
+        expira_em=now + datetime.timedelta(hours=horas),
         criado_por=criado_por,
     )
     return GrantEmitido(token=linha, valor=valor)
 
 
-def resgatar(
-    sessao: Session, *, valor: str, tipo: str, agora: datetime.datetime
-) -> TokenCredencial:
+def resgatar(sessao: Session, *, valor: str, tipo: str, now: datetime.datetime) -> TokenCredencial:
     """Validate a grant and return it, or raise. Does **not** spend it.
 
     Spending is separate because AC-0001-26 requires a rejected password to
@@ -88,26 +86,26 @@ def resgatar(
     gestor to issue another. So the caller validates the password first and
     calls `consumir` only once it is going to succeed.
     """
-    linha = repo.por_hash(sessao, digerir(valor))
+    linha = repo.by_hash(sessao, digest_secret(valor))
     if linha is None or linha.tipo != tipo:
         # Same answer for "no such token" and "a token of the other kind":
         # distinguishing them would say which grants exist.
         raise ConviteJaUtilizado()
     if linha.utilizado_em is not None:
         raise ConviteJaUtilizado()
-    if linha.cancelado_em is not None or linha.expira_em <= agora:
+    if linha.cancelado_em is not None or linha.expira_em <= now:
         # A superseded grant reads as expired, which is what it is from the
         # holder's point of view: the gestor issued a newer one.
         raise ConviteExpirado()
     return linha
 
 
-def consumir(sessao: Session, token: TokenCredencial, *, agora: datetime.datetime) -> None:
+def consumir(sessao: Session, token: TokenCredencial, *, now: datetime.datetime) -> None:
     """Spend the grant. Single use is enforced here and by the unique index."""
-    repo.marcar_utilizado(sessao, token, momento=agora)
+    repo.mark_used(sessao, token, at=now)
 
 
-def exigir_senha_forte(senha: str) -> None:
+def require_strong_senha(senha: str) -> None:
     """Enforce the password policy (AC-0001-26).
 
     Length only, deliberately. Composition rules (a digit, a symbol, mixed case)

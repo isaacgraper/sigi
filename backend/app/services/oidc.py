@@ -59,7 +59,7 @@ def cliente() -> httpx2.Client:
     return httpx2.Client(timeout=10.0)
 
 
-def iniciar(*, agora: datetime.datetime) -> PedidoDeAutorizacao:
+def iniciar(*, now: datetime.datetime) -> PedidoDeAutorizacao:
     """Build the authorization redirect and the state to remember (AC-0001-19).
 
     The state, the PKCE verifier and the nonce live in a signed, short-lived
@@ -70,58 +70,58 @@ def iniciar(*, agora: datetime.datetime) -> PedidoDeAutorizacao:
     cfg = get_settings()
     estado = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
-    verificador = secrets.token_urlsafe(64)
-    desafio = (
-        base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).decode().rstrip("=")
+    verifier = secrets.token_urlsafe(64)
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
     )
 
-    parametros = {
+    params = {
         "response_type": "code",
         "client_id": cfg.oidc_client_id,
         "redirect_uri": cfg.oidc_redirect_uri,
         "scope": "openid email profile",
         "state": estado,
         "nonce": nonce,
-        "code_challenge": desafio,
+        "code_challenge": challenge,
         "code_challenge_method": "S256",
     }
     endpoints = _descobrir()
-    url = str(httpx2.URL(endpoints["authorization_endpoint"]).copy_merge_params(parametros))
+    url = str(httpx2.URL(endpoints["authorization_endpoint"]).copy_merge_params(params))
 
     return PedidoDeAutorizacao(
-        url=url, estado_assinado=_assinar_estado(estado, nonce, verificador, agora)
+        url=url, estado_assinado=_assinar_estado(estado, nonce, verifier, now)
     )
 
 
 def concluir(
-    *, codigo: str, estado_recebido: str, estado_assinado: str | None, agora: datetime.datetime
+    *, codigo: str, estado_recebido: str, estado_assinado: str | None, now: datetime.datetime
 ) -> Assercao:
     """Exchange the code and verify the assertion (AC-0001-19, -20).
 
     Raises before any database work: nothing about the caller is looked up until
     the provider's token has verified.
     """
-    estado, nonce, verificador = _ler_estado(estado_assinado)
+    estado, nonce, verifier = _ler_estado(estado_assinado)
     if not secrets.compare_digest(estado, estado_recebido):
         raise EstadoInvalido()
 
-    id_token = _trocar_codigo(codigo, verificador)
-    return _verificar(id_token, nonce=nonce, agora=agora)
+    id_token = _trocar_codigo(codigo, verifier)
+    return _verificar(id_token, nonce=nonce, now=now)
 
 
-def _assinar_estado(estado: str, nonce: str, verificador: str, agora: datetime.datetime) -> str:
+def _assinar_estado(estado: str, nonce: str, verifier: str, now: datetime.datetime) -> str:
     from app.core.seguranca import _par_de_chaves
 
     cfg = get_settings()
-    expira = agora + datetime.timedelta(minutes=cfg.oidc_estado_ttl_minutos)
+    expira = now + datetime.timedelta(minutes=cfg.oidc_estado_ttl_minutos)
     return jwt.encode(
         {
             "typ": TIPO_ESTADO,
             "iss": cfg.jwt_issuer,
             "estado": estado,
             "nonce": nonce,
-            "verificador": verificador,
-            "iat": int(agora.timestamp()),
+            "verifier": verifier,
+            "iat": int(now.timestamp()),
             "exp": int(expira.timestamp()),
         },
         _par_de_chaves()[0],
@@ -141,7 +141,7 @@ def _ler_estado(assinado: str | None) -> tuple[str, str, str]:
         raise EstadoInvalido()
     cfg = get_settings()
     try:
-        conteudo = jwt.decode(
+        payload = jwt.decode(
             assinado,
             _par_de_chaves()[1],
             algorithms=ALGORITMOS_ACEITOS,
@@ -150,26 +150,26 @@ def _ler_estado(assinado: str | None) -> tuple[str, str, str]:
         )
     except jwt.InvalidTokenError as exc:
         raise EstadoInvalido() from exc
-    if conteudo.get("typ") != TIPO_ESTADO:
+    if payload.get("typ") != TIPO_ESTADO:
         raise EstadoInvalido()
-    return conteudo["estado"], conteudo["nonce"], conteudo["verificador"]
+    return payload["estado"], payload["nonce"], payload["verifier"]
 
 
 def _descobrir() -> dict[str, Any]:
     cfg = get_settings()
     url = f"{cfg.oidc_issuer.rstrip('/')}/.well-known/openid-configuration"
     with cliente() as c:
-        resposta = c.get(url)
-        resposta.raise_for_status()
-        dados: dict[str, Any] = resposta.json()
+        response = c.get(url)
+        response.raise_for_status()
+        dados: dict[str, Any] = response.json()
     return dados
 
 
-def _trocar_codigo(codigo: str, verificador: str) -> str:
+def _trocar_codigo(codigo: str, verifier: str) -> str:
     cfg = get_settings()
     endpoints = _descobrir()
     with cliente() as c:
-        resposta = c.post(
+        response = c.post(
             endpoints["token_endpoint"],
             data={
                 "grant_type": "authorization_code",
@@ -177,13 +177,13 @@ def _trocar_codigo(codigo: str, verificador: str) -> str:
                 "redirect_uri": cfg.oidc_redirect_uri,
                 "client_id": cfg.oidc_client_id,
                 "client_secret": cfg.oidc_client_secret,
-                "code_verifier": verificador,
+                "code_verifier": verifier,
             },
         )
-    if resposta.status_code != 200:
+    if response.status_code != 200:
         raise AssercaoInvalida()
-    corpo = resposta.json()
-    id_token = corpo.get("id_token")
+    body = response.json()
+    id_token = body.get("id_token")
     if not isinstance(id_token, str):
         raise AssercaoInvalida()
     return id_token
@@ -193,9 +193,9 @@ def _chave_para(id_token: str) -> Any:
     """Fetch the provider's key matching this token's `kid`."""
     endpoints = _descobrir()
     with cliente() as c:
-        resposta = c.get(endpoints["jwks_uri"])
-        resposta.raise_for_status()
-        jwks = resposta.json()
+        response = c.get(endpoints["jwks_uri"])
+        response.raise_for_status()
+        jwks = response.json()
 
     try:
         kid = jwt.get_unverified_header(id_token).get("kid")
@@ -208,7 +208,7 @@ def _chave_para(id_token: str) -> Any:
     raise AssercaoInvalida()
 
 
-def _verificar(id_token: str, *, nonce: str, agora: datetime.datetime) -> Assercao:
+def _verificar(id_token: str, *, nonce: str, now: datetime.datetime) -> Assercao:
     """Verify signature, issuer, audience, expiry and nonce (AC-0001-20).
 
     `algorithms` is pinned, which is what makes `alg: none` fail rather than be
@@ -216,7 +216,7 @@ def _verificar(id_token: str, *, nonce: str, agora: datetime.datetime) -> Asserc
     """
     cfg = get_settings()
     try:
-        conteudo = jwt.decode(
+        payload = jwt.decode(
             id_token,
             _chave_para(id_token),
             algorithms=ALGORITMOS_ACEITOS,
@@ -227,18 +227,18 @@ def _verificar(id_token: str, *, nonce: str, agora: datetime.datetime) -> Asserc
     except jwt.InvalidTokenError as exc:
         raise AssercaoInvalida() from exc
 
-    if not secrets.compare_digest(str(conteudo.get("nonce", "")), nonce):
+    if not secrets.compare_digest(str(payload.get("nonce", "")), nonce):
         # Without this a token minted for another login of the same user would
         # be replayable into this one.
         raise AssercaoInvalida()
 
-    grupo = conteudo.get(cfg.oidc_claim_grupo)
+    grupo = payload.get(cfg.oidc_claim_grupo)
     if isinstance(grupo, list):
         grupo = grupo[0] if grupo else None
 
     return Assercao(
-        subject=str(conteudo["sub"]),
-        email=conteudo.get("email"),
+        subject=str(payload["sub"]),
+        email=payload.get("email"),
         grupo_asserido=str(grupo) if grupo is not None else None,
     )
 
@@ -252,9 +252,9 @@ def digerir_para_auditoria(valor: str | None) -> str | None:
     """
     if not valor:
         return None
-    from app.core.segredos import digerir
+    from app.core.segredos import digest_secret
 
-    return digerir(valor).hex()
+    return digest_secret(valor).hex()
 
 
 def uuid_nulo() -> uuid.UUID:

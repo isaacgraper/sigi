@@ -32,21 +32,21 @@ def engine() -> Engine:
     return _engine
 
 
-def fabrica_de_sessoes() -> sessionmaker[Session]:
+def sessao_factory() -> sessionmaker[Session]:
     global _sessao_factory
     if _sessao_factory is None:
         _sessao_factory = sessionmaker(bind=engine(), expire_on_commit=False)
     return _sessao_factory
 
 
-def obter_sessao() -> Iterator[Session]:
+def get_sessao() -> Iterator[Session]:
     """FastAPI dependency: one session, one transaction, per request.
 
     The commit is here rather than in each service because the audit row and the
     mutation it describes must land together — a service that commits on its own
     would be able to leave one without the other.
     """
-    with fabrica_de_sessoes()() as sessao:
+    with sessao_factory()() as sessao:
         try:
             yield sessao
             sessao.commit()
@@ -55,7 +55,7 @@ def obter_sessao() -> Iterator[Session]:
             raise
 
 
-def reiniciar_engine() -> None:
+def reset_engine() -> None:
     """Drop the cached engine. Tests point the app at their own database."""
     global _engine, _sessao_factory
     if _engine is not None:

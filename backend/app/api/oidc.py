@@ -14,16 +14,16 @@ from app.api.auth import definir_cookie
 from app.core.autorizacao import Publica
 from app.core.config import get_settings
 from app.core.correlacao import atual
-from app.core.db import obter_sessao
+from app.core.db import get_sessao
 from app.repositories import usuario as repo_usuario
 from app.schemas.auth import SessaoSaida
 from app.services import oidc, sessoes
-from app.services.auditoria import Evento, registrar, registrar_avulso
+from app.services.auditoria import Evento, record_standalone, registrar
 from app.services.erros import RotaIndisponivel, UsuarioNaoProvisionado
 
 router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"])
 
-SessaoDb = Annotated[Session, Depends(obter_sessao)]
+SessaoDb = Annotated[Session, Depends(get_sessao)]
 ABERTA = [Depends(Publica())]
 
 COOKIE_ESTADO = "sigi_oidc_estado"
@@ -44,7 +44,7 @@ def authorize(response: Response) -> RedirectResponse:
     """Start institutional login. [SPEC-0001 AC-0001-19]"""
     _exigir_oidc()
     cfg = get_settings()
-    pedido = oidc.iniciar(agora=datetime.datetime.now(datetime.UTC))
+    pedido = oidc.iniciar(now=datetime.datetime.now(datetime.UTC))
 
     redirecionamento = RedirectResponse(pedido.url, status_code=302)
     # The state travels in an httpOnly cookie, which is what binds it to this
@@ -67,7 +67,7 @@ def callback(
 ) -> SessaoSaida:
     """Complete institutional login. [SPEC-0001 AC-0001-19, -20, -21, -22]"""
     _exigir_oidc()
-    agora = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.UTC)
     correlation_id = _correlation_id(request)
 
     try:
@@ -75,15 +75,15 @@ def callback(
             codigo=code,
             estado_recebido=state,
             estado_assinado=request.cookies.get(COOKIE_ESTADO),
-            agora=agora,
+            now=now,
         )
     except Exception as exc:
         _auditar_recusa(motivo=type(exc).__name__, email=None, correlation_id=correlation_id)
         raise
 
-    usuario = repo_usuario.por_oidc_subject(sessao, assercao.subject)
+    usuario = repo_usuario.by_oidc_subject(sessao, assercao.subject)
     if usuario is None and assercao.email:
-        usuario = repo_usuario.por_email(sessao, assercao.email)
+        usuario = repo_usuario.by_email(sessao, assercao.email)
 
     if usuario is None or not usuario.ativo:
         # No just-in-time provisioning: an account exists because a gestor
@@ -122,7 +122,7 @@ def callback(
             },
         ),
         correlation_id=correlation_id,
-        momento=agora,
+        at=now,
     )
 
     definir_cookie(response, par.refresh_token)
@@ -137,7 +137,7 @@ def _auditar_recusa(*, motivo: str, email: str | None, correlation_id: uuid.UUID
     written there would vanish with the refusal it records.
     """
     _, _, dominio = (email or "").rpartition("@")
-    registrar_avulso(
+    record_standalone(
         Evento(
             entidade_tipo="usuario",
             entidade_id=oidc.uuid_nulo(),

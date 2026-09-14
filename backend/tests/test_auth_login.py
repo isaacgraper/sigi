@@ -23,17 +23,17 @@ LOGIN = "/api/v1/auth/login"
 def test_ac_0001_01_login_emite_par_de_tokens(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
 ) -> None:
-    """AC-0001-01 — 200, access token de 15 min, e o refresh só no cookie."""
+    """AC-0001-01 — 200, a 15-minute access token, and the refresh only in the cookie."""
     usuario = criar_usuario()
-    resposta = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    response = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
 
-    assert resposta.status_code == 200
-    corpo = resposta.json()
-    assert corpo["token_type"] == "Bearer"
-    assert corpo["access_token"]
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "Bearer"
+    assert body["access_token"]
 
     bruto = next(
-        c for c in resposta.headers.get_list("set-cookie") if c.startswith("sigi_refresh=")
+        c for c in response.headers.get_list("set-cookie") if c.startswith("sigi_refresh=")
     )
     atributos = {p.strip().split("=")[0].lower() for p in bruto.split(";")[1:]}
     assert "httponly" in atributos
@@ -41,56 +41,57 @@ def test_ac_0001_01_login_emite_par_de_tokens(
     assert "samesite=lax" in bruto.lower()
     assert "max-age=604800" in bruto.lower()  # 7 dias (RNF03)
 
-    # O valor do refresh não aparece em lugar nenhum do corpo — um refresh token
-    # que vaza num log ou numa captura de tela renova sessão por sete dias.
-    valor = cookie_de(resposta, "sigi_refresh")
-    assert valor and valor not in resposta.text
+    # The refresh value appears nowhere in the body — one that leaks into a log
+    # or a screenshot renews a session for seven days.
+    valor = cookie_de(response, "sigi_refresh")
+    assert valor and valor not in response.text
 
 
 def test_ac_0001_02_resposta_identica_para_email_inexistente(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
 ) -> None:
-    """AC-0001-02 — senha errada e e-mail inexistente respondem o mesmo.
+    """AC-0001-02 — a wrong senha and an unknown e-mail answer the same.
 
-    O `correlation_id` entra no envelope e muda a cada requisição, então o mesmo
-    é enviado nas duas: sem isso "byte-idêntico" seria impossível de afirmar, e
-    afirmar menos aqui é abrir de volta o oráculo que o critério fecha.
+    `correlation_id` goes into the envelope and changes per request, so the same
+    one is sent on both: without that, "byte-identical" could not be asserted,
+    and asserting less here reopens the oracle the criterion closes.
     """
     usuario = criar_usuario()
-    cabecalhos = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-00000000beef"}
+    headers = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-00000000beef"}
 
     errada = aplicacao.post(
         LOGIN,
         json={"email": usuario.email, "senha": "senha-errada-mas-longa"},
-        headers=cabecalhos,
+        headers=headers,
     )
     inexistente = aplicacao.post(
         LOGIN,
         json={"email": "naoexiste@sc.gov.br", "senha": "senha-errada-mas-longa"},
-        headers=cabecalhos,
+        headers=headers,
     )
 
     assert errada.status_code == inexistente.status_code == 401
     assert errada.json()["error"]["code"] == "CREDENCIAIS_INVALIDAS"
     assert errada.content == inexistente.content
-    # E nem o corpo nem o cabeçalho podem dizer "esse e-mail existe".
+    # And neither the body nor the headers may say "this e-mail exists".
     assert "existe" not in errada.text.lower().replace("inexistente", "")
 
 
 def test_ac_0001_04_dominio_fora_da_allowlist(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
 ) -> None:
-    """AC-0001-04 — e-mail fora dos domínios institucionais não autentica.
+    """AC-0001-04 — an address off the institutional domains does not authenticate.
 
-    Mesmo com a senha certa e a conta ativa: o registro existe, o domínio é que
-    não é aceito — e a resposta é indistinguível de senha errada.
+    Even with the right senha and an active account: the record exists, the
+    domain is what is refused — and the response is indistinguishable from a
+    wrong senha.
     """
     usuario = criar_usuario(email="alguem@gmail.com")
-    cabecalhos = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-0000000000aa"}
+    headers = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-0000000000aa"}
 
-    fora = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA}, headers=cabecalhos)
+    fora = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA}, headers=headers)
     errada = aplicacao.post(
-        LOGIN, json={"email": "outro@sc.gov.br", "senha": SENHA}, headers=cabecalhos
+        LOGIN, json={"email": "outro@sc.gov.br", "senha": SENHA}, headers=headers
     )
 
     assert fora.status_code == 401
@@ -101,7 +102,7 @@ def test_ac_0001_04_dominio_fora_da_allowlist(
 def test_ac_0001_05_hash_nunca_sai_do_banco(
     aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
 ) -> None:
-    """AC-0001-05 — bcrypt custo ≥ 12, e o hash não sai por nenhuma rota."""
+    """AC-0001-05 — bcrypt cost >= 12, and the hash leaves by no route."""
     usuario = criar_usuario()
     assert usuario.senha_hash is not None
     prefixo, custo = usuario.senha_hash.split("$")[1], usuario.senha_hash.split("$")[2]
@@ -116,9 +117,9 @@ def test_ac_0001_05_hash_nunca_sai_do_banco(
 
     assert eu.status_code == 200
     assert set(eu.json()) == {"id", "nome", "email", "perfil", "status"}
-    for resposta in (entrada, eu):
-        assert usuario.senha_hash not in resposta.text
-        assert "senha" not in resposta.text.lower()
+    for response in (entrada, eu):
+        assert usuario.senha_hash not in response.text
+        assert "senha" not in response.text.lower()
 
 
 def test_ac_0001_24_login_local_desligavel(
@@ -126,10 +127,10 @@ def test_ac_0001_24_login_local_desligavel(
     criar_usuario: Callable[..., Usuario],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """AC-0001-24 — desligado por configuração, a rota responde 404.
+    """AC-0001-24 — switched off by configuration, the route answers 404.
 
-    404 e não 403: um mecanismo desligado deve ser indistinguível de um que
-    nunca existiu, senão a própria recusa confirma que ele está lá.
+    404 and not 403: a mechanism that is off should be indistinguishable from
+    one that was never built, or the refusal itself confirms it is there.
     """
     usuario = criar_usuario()
     monkeypatch.setenv("LOCAL_LOGIN_ENABLED", "false")
@@ -145,12 +146,12 @@ def test_ac_0001_24_login_local_desligavel(
 
 
 def test_corpo_malformado_usa_o_mesmo_envelope(aplicacao: TestClient) -> None:
-    """`api-conventions.md` diz que erro *sempre* tem uma forma só; o 422 padrão
-    do FastAPI tem outra, e um cliente que precisa entender duas não entende
-    nenhuma."""
-    resposta = aplicacao.post(LOGIN, json={"email": "nao-e-email", "senha": ""})
-    assert resposta.status_code == 422
-    erro = resposta.json()["error"]
+    """`api-conventions.md` says an error *always* has one shape; FastAPI's
+    default 422 has another, and a client that must understand two understands
+    neither."""
+    response = aplicacao.post(LOGIN, json={"email": "nao-e-email", "senha": ""})
+    assert response.status_code == 422
+    erro = response.json()["error"]
     assert erro["code"] == "DADOS_INVALIDOS"
     assert set(erro["fields"]) == {"email", "senha"}
     assert erro["correlation_id"]

@@ -149,12 +149,12 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
             ),
             correlation_id=uuid.uuid4(),
         )
-    assert "segredos.digerir" in str(exc.value)
+    assert "segredos.digest_secret" in str(exc.value)
 
 
 def test_guarda_deixa_passar_o_payload_correto(sessao: Session) -> None:
     """What SPEC-0001 §8 actually prescribes: the HMAC and the bare domain."""
-    from app.core.segredos import digerir
+    from app.core.segredos import digest_secret
 
     registrar(
         sessao,
@@ -164,7 +164,7 @@ def test_guarda_deixa_passar_o_payload_correto(sessao: Session) -> None:
             acao="auth.falha",
             dados_anteriores={
                 "motivo": "credenciais_invalidas",
-                "email_hmac": digerir("ana@sc.gov.br").hex(),
+                "email_hmac": digest_secret("ana@sc.gov.br").hex(),
                 "dominio": "sc.gov.br",
             },
         ),

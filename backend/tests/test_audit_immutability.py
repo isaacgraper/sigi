@@ -123,16 +123,16 @@ def test_ac_0001_27_linha_sobrevive_a_todas_as_tentativas(
 ) -> None:
     uid = _semear(conexao_admin, conexao_app)
     consulta = "SELECT id, acao, usuario_id FROM historico_movimentacao WHERE usuario_id = %s"
-    antes = conexao_app.execute(consulta, (uid,)).fetchone()
+    before = conexao_app.execute(consulta, (uid,)).fetchone()
     for tentativa in (
         "UPDATE historico_movimentacao SET acao = 'x.y'",
         "DELETE FROM historico_movimentacao",
     ):
         with pytest.raises(psycopg.errors.Error):
             conexao_app.execute(tentativa)
-    depois = conexao_app.execute(consulta, (uid,)).fetchone()
-    assert antes == depois
-    assert depois is not None and depois[2] == uid
+    after = conexao_app.execute(consulta, (uid,)).fetchone()
+    assert before == after
+    assert after is not None and after[2] == uid
 
 
 def test_ano_sem_particao_falha_de_forma_conhecida(

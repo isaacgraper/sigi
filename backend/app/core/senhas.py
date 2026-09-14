@@ -27,12 +27,12 @@ def _preparar(senha: str) -> bytes:
     return base64.b64encode(hashlib.sha256(senha.encode()).digest())
 
 
-def gerar_hash(senha: str) -> str:
+def hash_senha(senha: str) -> str:
     custo = get_settings().bcrypt_cost
     return bcrypt.hashpw(_preparar(senha), bcrypt.gensalt(rounds=custo)).decode()
 
 
-def conferir(senha: str, hash_armazenado: str) -> bool:
+def check_senha(senha: str, hash_armazenado: str) -> bool:
     try:
         return bcrypt.checkpw(_preparar(senha), hash_armazenado.encode())
     except ValueError:
