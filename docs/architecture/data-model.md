@@ -8,12 +8,230 @@ Revised 2026-09-02 against the stakeholders' operational data — see
 ## Entities
 
 ### USUARIO
-`id UUID PK`, `nome`, `email UNIQUE`, `senha_hash`, `perfil ENUM(gestor,
-servidor, auditor)`, `ativo BOOL`, `status ENUM(pendente, ativo, bloqueado,
-desativado)`, `criado_em TIMESTAMPTZ`, `anonimizado_em TIMESTAMPTZ NULL`.
+`id UUID PK`, `nome NULL`, `email UNIQUE NULL`, `senha_hash NULL`,
+`perfil ENUM(gestor, servidor, auditor)`, `status ENUM(pendente, ativo,
+bloqueado, desativado)`, `criado_em TIMESTAMPTZ`,
+`anonimizado_em TIMESTAMPTZ NULL`, `oidc_subject VARCHAR UNIQUE NULL`,
+`ativo BOOL GENERATED ALWAYS AS (status = 'ativo') STORED`,
+`pseudonimo TEXT GENERATED ALWAYS AS ('USR-' || upper(substr(encode(uuid_send(id), 'hex'), 1, 12))) STORED UNIQUE`.
 
 `status` is added: the mockup shows Pendente and Bloqueado, which a single
-boolean cannot express. `ativo` is retained as a derived convenience.
+boolean cannot express.
+
+***(2026-09-10)* `senha_hash` is nullable, on purpose.** An invited account
+exists before it has a credential (AC-0001-10), and an account that
+authenticates only through the institutional provider never gets one. `NOT NULL`
+here would force whoever accepts an invite to invent a password nobody chose.
+
+***(2026-09-10)* `oidc_subject`** binds the provider's stable subject claim to
+the account, so a later change of institutional e-mail does not orphan it. It is
+populated on the first successful OIDC login and matched by e-mail only that
+once. `UNIQUE` prevents two accounts claiming one identity.
+
+***(2026-09-10)* `ativo` became a generated column.** It was described as "a
+derived convenience" and stored as a plain boolean — which is the column that
+eventually disagrees with `status`, and here it would disagree about who may
+manage members. "Blocked" had three representations and nothing kept them
+consistent. Now there is one source (`status`) and one derivation the database
+maintains.
+
+***(2026-09-10)* `pseudonimo` is what makes AC-0001-14 possible at all.** The
+audit trail must show a stable name for an anonymised user, and every other
+route is closed: writing `nome` into `dados_anteriores` is forbidden by
+`lgpd.md`; updating audit rows at anonymisation time is forbidden by
+AC-0001-27; and a mutable mapping table adds nothing `usuario_id` does not
+already give. So the pseudonym is an attribute of the usuario that anonymisation
+cannot touch — `GENERATED ALWAYS ... STORED` cannot be the target of an `UPDATE`
+at all, so PostgreSQL enforces the immutability with no trigger and no key to
+lose. It derives from a random UUID, not from `nome` or `email`, so it is not
+reversible to a person. Twelve hex characters rather than eight, because it
+carries a `UNIQUE` and 32 bits is not enough to ignore collisions.
+
+`uuid_send` and `encode` are immutable, which the generated expression requires;
+an `id::text` cast is not, and PostgreSQL rejects it.
+
+***(2026-09-10)* Anonymisation is a database rule, not a convention:**
+
+```sql
+CHECK (anonimizado_em IS NULL
+       OR (nome IS NULL AND email IS NULL
+           AND senha_hash IS NULL AND oidc_subject IS NULL))
+```
+
+AC-0001-14 blanks only `nome` and `email`. A deactivated account that keeps a
+live credential is an attack surface with no owner, and `lgpd.md` retains
+federated identity only while the account is active — so `senha_hash` and
+`oidc_subject` go too, and the constraint refuses a half-done anonymisation.
+
+Consequence worth stating: once `email` is `NULL`, `UNIQUE (email)` no longer
+blocks re-inviting that address. That is the intent — the person left the entity
+— and AC-0001-28's "in any status" means every status except anonymised.
+
+**The lockout counters are deliberately not here.** They live in
+`TENTATIVA_LOGIN`, keyed on the submitted address rather than on the account,
+because keying them on the usuario made AC-0001-02 false (SPEC-0001 v0.4).
+
+### TENTATIVA_LOGIN *(new, 2026-09-10)*
+`email_hmac BYTEA PK`, `tentativas INT NOT NULL DEFAULT 0`,
+`ultima_em TIMESTAMPTZ NOT NULL`, `bloqueado_ate TIMESTAMPTZ NULL`,
+`CHECK (tentativas >= 0)`.
+
+The lockout of AC-0001-03. Keyed on an HMAC of the **submitted** e-mail — so a
+row exists for addresses that have no account, which is exactly what makes a
+known and an unknown address behave identically at the threshold. The pepper
+lives in application configuration, never in the database, so a leaked dump does
+not reveal which addresses were tried.
+
+`ultima_em` is what makes the fifteen-minute window expressible. Two columns
+express only "five failures ever", which would lock an account over failures
+spread across days. The decay is applied in a single atomic statement, never a
+read-modify-write, and the statement returns the new count so the audit row has
+its `{tentativas}`.
+
+Two operational notes: the increment must be **committed on the failure path**,
+which is the path that otherwise rolls back and takes the lockout with it; and
+no row lock is ever held across a bcrypt verification, or a credential-stuffing
+run against one address would serialise on that row and exhaust the pool —
+turning the mitigation into the outage.
+
+### TOKEN_CREDENCIAL *(new, 2026-09-10)*
+`id UUID PK`, `usuario_id FK → USUARIO`,
+`tipo ENUM(convite, redefinicao)`, `token_hash BYTEA UNIQUE`,
+`criado_por FK → USUARIO NULL`, `criado_em TIMESTAMPTZ`,
+`expira_em TIMESTAMPTZ`, `utilizado_em TIMESTAMPTZ NULL`,
+`cancelado_em TIMESTAMPTZ NULL`.
+
+One table for the invitation of RF18 (AC-0001-10/11/25/26) **and** the password
+reset of AC-0001-30/31/32, because the mechanics are the same object: a hashed,
+single-use, expiring grant to set a credential. What differs is where it comes
+from, how long it lives, and what the e-mail says — `tipo`, `expira_em`, and
+copy that belongs to SPEC-0008, not three duplicated tables' worth of
+constraints, indexes and tests.
+
+*This was called `CONVITE` earlier on 2026-09-10.* The rename is free: no
+migration exists yet. "Convite" survives where it is the domain's own word — as
+a `tipo` value and in the API path `/api/v1/convites/{token}/ativar`, which is
+what a stakeholder actually says.
+
+Only the **hash** is stored, so a leaked database yields no usable token. The
+same reasoning as `SESSAO.refresh_token_hash`, including *not* using bcrypt:
+stretching buys nothing against a high-entropy random value and destroys the
+index.
+
+`criado_por` is nullable because a self-service reset has no other actor
+(AC-0001-30); it is set when a gestor invites (AC-0001-10) or triggers a reset
+(AC-0001-32), which is what makes those two auditable to a person.
+
+```sql
+CHECK (expira_em > criado_em)
+CHECK (utilizado_em IS NULL OR utilizado_em <= expira_em)
+CHECK (tipo <> 'convite' OR criado_por IS NOT NULL)
+CREATE UNIQUE INDEX ux_token_credencial_aberto
+  ON token_credencial (usuario_id, tipo)
+  WHERE utilizado_em IS NULL AND cancelado_em IS NULL;
+```
+
+The second `CHECK` is the database expression of the expiry rule — 72 hours for
+an invitation, 1 hour for a reset, enforced as "not used after it expired"
+rather than as an interval, because `timestamptz + interval` is `STABLE`, not
+`IMMUTABLE`, and PostgreSQL rejects it in a `CHECK`. The same reason makes
+`CHECK (ocorrido_em <= now())` impossible on the audit table; both are worth
+knowing before someone tries them.
+
+***(2026-09-10)* `cancelado_em` exists because the partial index would otherwise
+block the documented remedy.** One outstanding grant per usuario per type is the
+right rule, but an *expired* unredeemed one still matches `utilizado_em IS NULL`
+— and `now()` cannot appear in an index predicate, so the index cannot exclude
+it. Cancelling the old grant is what makes reissue possible, which is exactly
+what AC-0001-25 and AC-0001-30 tell the user to ask for.
+
+### LIMITE_TAXA *(new, 2026-09-10)*
+`chave BYTEA`, `rota VARCHAR(120)`, `janela_inicio TIMESTAMPTZ`,
+`contador INT NOT NULL DEFAULT 0`,
+`PRIMARY KEY (chave, rota, janela_inicio)`,
+`CHECK (contador >= 0)`.
+
+The per-source, per-route throttle of AC-0001-33 and RNF16 (ADR-0012). `chave`
+is an HMAC of the source address, never the address itself — an IP identifies a
+person closely enough to sit in `lgpd.md`'s inventory, and this table is queried
+on every authentication request, so it is the last place to keep one in clear.
+
+A fixed window rather than a sliding one: the counter is a single upsert
+(`ON CONFLICT ... DO UPDATE SET contador = contador + 1 RETURNING contador`), and
+the window boundary is derived from the request time, so no read-modify-write and
+no row lock held across anything slow. A sliding window would need the
+timestamps and is not worth it for a ceiling the entity tunes anyway.
+
+```sql
+CREATE INDEX ix_limite_taxa_janela ON limite_taxa (janela_inicio);
+```
+
+That index exists for the purge job, which is the point worth flagging: this
+table grows with traffic and **nothing keeps it healthy except a scheduled
+job**. It is the second such job in the project, alongside partition creation,
+and both fail silently — the failure surfaces as a slowly growing table, not as
+an error. ADR-0012 records it as a follow-up rather than an assumption.
+
+### SESSAO_FAMILIA *(new, 2026-09-10)*
+`familia UUID PK`, `usuario_id FK → USUARIO`, `criada_em TIMESTAMPTZ`,
+`revogada_em TIMESTAMPTZ NULL`, `UNIQUE (familia, usuario_id)`.
+
+Nothing in the first draft bound a session family to one user, so a family could
+have spanned two — and revoking it would have revoked another person's sessions.
+A parent table makes that impossible in the schema rather than in a trigger, and
+it turns the hot family-revocation write into a single-row update.
+
+### SESSAO *(new, 2026-09-10)*
+`id UUID PK`, `usuario_id FK`, `familia UUID`, `geracao SMALLINT NOT NULL`,
+`refresh_token_hash BYTEA UNIQUE`, `emitido_em TIMESTAMPTZ`,
+`expira_em TIMESTAMPTZ`, `revogado_em TIMESTAMPTZ NULL`,
+`revogado_motivo VARCHAR(20) NULL`,
+`UNIQUE (familia, geracao)`,
+`FOREIGN KEY (familia, usuario_id) REFERENCES SESSAO_FAMILIA (familia, usuario_id)`.
+
+Required by AC-0001-06/07. A refresh token that cannot be invalidated before its
+own expiry is not a session, it is a seven-day bearer grant — so refresh state
+lives server-side. `familia` groups every token descended from one login: on
+rotation the old row is revoked and the new one takes the next `geracao`, and a
+replay of an already-revoked row revokes the whole family. That is what turns a
+stolen refresh token into a detectable event instead of a silent one.
+
+```sql
+CHECK (expira_em > emitido_em)
+CHECK (revogado_em IS NULL OR revogado_em >= emitido_em)
+CHECK (revogado_motivo IN ('rotacao','logout','replay','desativacao','bloqueio'))
+CHECK ((revogado_em IS NULL) = (revogado_motivo IS NULL))
+
+CREATE INDEX ix_sessao_familia_ativa ON sessao (familia)    WHERE revogado_em IS NULL;
+CREATE INDEX ix_sessao_usuario_ativa ON sessao (usuario_id) WHERE revogado_em IS NULL;
+CREATE INDEX ix_sessao_expira        ON sessao (expira_em);
+```
+
+***(2026-09-10)* `geracao` replaced a `substituido_por_id` self-reference.** The
+chain was a second representation of what `familia` already carried, able to
+disagree with it, and family revocation never walks it — it is one `UPDATE ...
+WHERE familia = ? AND revogado_em IS NULL`. `UNIQUE (familia, geracao)` gives
+the same forensic ordering, gap-free by construction, with one write instead of
+two and no way to represent a cycle.
+
+***(2026-09-10)* `revogado_motivo` is not cosmetic.** `revogado_em` alone cannot
+tell the replay handler whether it is looking at a normally rotated token or a
+logged-out one, and SPEC-0001 §8's `auth.refresh_replay` row has no reason field
+to write without it.
+
+**On hashing the token.** `SHA-256`, or better HMAC-SHA256 with a server-side
+pepper, over a token carrying at least 128 bits from a CSPRNG. Explicitly **not**
+bcrypt or argon2: stretching buys nothing against a high-entropy random value
+and it destroys the index, because a salted hash cannot be looked up — every
+refresh would become a table scan plus N verifications. The btree behind
+`UNIQUE` is not constant-time, but converting that into a usable token would
+mean inverting SHA-256. Same reasoning applies verbatim to `TOKEN_CREDENCIAL.token_hash`.
+
+**The lookup predicate is load-bearing.** Replay detection must query
+`WHERE refresh_token_hash = :h` with **no** `AND revogado_em IS NULL`. A revoked
+row has to be *found* for the replay to be detected; filtering it out in SQL
+yields "not found", a plain 401, no family revocation — AC-0001-07 silently
+unmet behind a test that still sees its 401.
 
 ### FORNECEDOR
 `id UUID PK`, `cnpj UNIQUE`, `razao_social`, `email`, `ativo BOOL`.
@@ -138,19 +356,147 @@ An NE with zero items cannot leave `demanda` (RN09).
 lacks — OQ-12). No `ata_id`: the ATA is reached through the NE (RN02).
 
 ### HISTORICO_MOVIMENTACAO
-`id UUID PK`, `entidade_tipo`, `entidade_id UUID`, `acao`, `usuario_id FK`,
-`timestamp TIMESTAMPTZ`, `dados_anteriores JSONB`, `justificativa TEXT NULL`,
-`correlation_id UUID`.
 
-Partitioned by year. `REVOKE UPDATE, DELETE` from the application role plus a
-`BEFORE UPDATE OR DELETE` trigger. Index on
-`(entidade_tipo, entidade_id, timestamp DESC)` and on `(usuario_id, timestamp DESC)`.
+*(Corrected 2026-09-10. As previously written, **this table could not be
+created**: PostgreSQL refuses a unique constraint on a partitioned table that
+does not include every partitioning column, so `id UUID PK` with `PARTITION BY
+RANGE` fails at `CREATE TABLE`. The project's first migration would not have
+run.)*
+
+```sql
+CREATE TABLE historico_movimentacao (
+  id               UUID        NOT NULL DEFAULT gen_random_uuid(),
+  ocorrido_em      TIMESTAMPTZ NOT NULL,
+  entidade_tipo    VARCHAR(40) NOT NULL,
+  entidade_id      UUID        NOT NULL,
+  acao             VARCHAR(60) NOT NULL,
+  usuario_id       UUID        NULL REFERENCES usuario (id),
+  dados_anteriores JSONB       NULL,
+  justificativa    TEXT        NULL,
+  correlation_id   UUID        NOT NULL,
+  PRIMARY KEY (id, ocorrido_em),
+  CHECK (acao ~ '^[a-z_]+\.[a-z_]+$'),
+  CHECK (entidade_tipo ~ '^[a-z_]+$')
+) PARTITION BY RANGE (ocorrido_em);
+```
+
+Four changes from the previous description, each with a reason:
+
+- **`PRIMARY KEY (id, ocorrido_em)`.** Forced by partitioning. The cost is that
+  `id` alone is no longer uniqueness-enforced; with UUIDv4 the collision risk is
+  negligible, but the guarantee is gone and that should be a stated trade, not a
+  surprise.
+- **`timestamp` renamed to `ocorrido_em`.** `TIMESTAMP` is a type name; as a
+  column it needs quoting in hand-written DDL, and `PARTITION BY RANGE
+  (timestamp)` is exactly where the parser expects a type. The rename costs
+  nothing and removes a whole class of bug from a table full of hand-written SQL.
+- **`usuario_id` is nullable.** AC-0001-20 and AC-0001-21 both audit callers who
+  have no account at all. `ON DELETE` stays at `NO ACTION`, which is what makes
+  invariant I4 a database fact rather than a promise; `DELETE ON usuario` is
+  also revoked from the application role, since AC-0001-14 replaces deletion
+  with anonymisation and the privilege has no legitimate use.
+- **`entidade_tipo` and `acao` gained format checks.** In a table that can never
+  be corrected, a typo (`Usuario` for `usuario`) is permanent and silently
+  breaks every later filter. An enum would be wrong — each new spec adds
+  values — so the constraint is on shape, not on the value set.
+
+**Indexes**, on the parent so they propagate to future partitions:
+
+```sql
+(entidade_tipo, entidade_id, ocorrido_em)
+(usuario_id, ocorrido_em)
+(correlation_id)                 -- "everything that happened in one request"
+```
+
+*(2026-09-11)* The `DESC` these two carried until now is gone. With equality on
+the leading columns a btree scans backwards just as well, so it bought nothing —
+and it made the SQLAlchemy models diverge from the schema, which is what
+`alembic check` reported. AC-0007-08 over-specifies it as a criterion; that is
+the spec's to revise when SPEC-0007 is written.
+
+`CREATE INDEX CONCURRENTLY` is not supported on a partitioned table. Irrelevant
+while the table is empty; painful later.
+
+#### Append-only, and where the previous description was half-true
+
+`REVOKE UPDATE, DELETE` **plus** a `BEFORE UPDATE OR DELETE FOR EACH ROW`
+trigger (ADR-0004, RN06, RNF08, AC-0001-27). The details that decide whether
+this actually holds:
+
+- **Row triggers on the parent do propagate.** PostgreSQL 13+ clones a
+  `BEFORE ... FOR EACH ROW` trigger to existing partitions and to any partition
+  created or attached later. So new years are covered without action.
+- **Statement-level triggers are not cloned.** A `TRUNCATE` guard on the parent
+  never fires for `TRUNCATE historico_movimentacao_2027`. Defence against
+  TRUNCATE is privilege-only.
+- **Dropping a partition fires no trigger at all.** That is the real delete
+  path, and only ownership stops it.
+- **`ENABLE ALWAYS`** is required, or `session_replication_role = 'replica'`
+  disables the trigger. Whether a clone on a later partition inherits it is
+  asserted by a test, not assumed — the partition-creation routine re-applies it.
+- **Privileges are per-partition, not inherited**, but permission is checked
+  against the table *named in the query*. So `UPDATE historico_movimentacao` is
+  checked against the parent and the `REVOKE` works, while
+  `UPDATE historico_movimentacao_2026` is checked against that partition's own
+  ACL — which grants the app role nothing, unless someone runs
+  `GRANT ... ON ALL TABLES IN SCHEMA public`, the line every convenience script
+  contains. Each partition therefore gets `GRANT SELECT, INSERT` explicitly and
+  nothing else, and a test asserts the ACL.
+- The trigger raises a **custom SQLSTATE** (`SI001`) so tests assert on a code
+  rather than on a Portuguese message.
+
+**Two database roles are a precondition, and today there is one.**
+`docker-compose.yml` provisions only `sigi`, which is both owner and application
+role — and an owner can `ALTER TABLE ... DISABLE TRIGGER`, `TRUNCATE`, and
+re-`GRANT` itself `UPDATE`. ADR-0004 already says migrations run under a
+separate role; until that exists, **the append-only guarantee is enforced by
+nothing**. The migration guards its `GRANT`/`REVOKE` on a `pg_roles` lookup so
+it fails loudly instead of half-applying.
+
+#### Partitions
+
+Created for **2026 through 2032** in the first migration, plus an idempotent
+`SECURITY DEFINER` function `criar_particao_historico(ano int)` that creates a
+partition, applies the narrow grant and re-applies `ENABLE ALWAYS`.
+
+**Why seven at once:** nothing creates next year's partition automatically, and
+an insert with no matching partition fails with SQLSTATE `23514`. Because every
+write in SIGI must record its history row *in the same transaction*, that failure
+is not localised — **every write endpoint starts returning 500 at midnight on
+1 January.** A total, self-inflicted write outage, on a public holiday. Seven
+empty partitions cost nothing and buy six years of not depending on a cron job
+nobody is watching.
+
+**A `DEFAULT` partition is a trap here** and is deliberately absent. It prevents
+the outage, but rows landing in it cannot be moved out: attaching the real 2033
+partition later requires the default to hold no overlapping rows, and the table
+cannot be deleted from without breaking ADR-0004 at owner level.
+
+**Bounds are written in explicit UTC** — `FROM ('2026-01-01 00:00:00+00')` — not
+as bare dates. A bare date literal against a `TIMESTAMPTZ` column resolves in
+the creating session's `TimeZone`, and this project sets `TZ=America/Sao_Paulo`
+everywhere, so bounds would silently land at 03:00 UTC.
+
+#### Downgrade
+
+`alembic downgrade` **refuses** if the table holds any row, raising `SI002` with
+the count. A downgrade that silently destroys the audit trail is not a
+downgrade, and the definition-of-done's "reversible" cannot mean "reversible by
+deleting the evidence". It drops the parent, not the partitions it happens to
+know about, so cron-created ones do not become orphans.
+
+`env.py` also needs an `include_object` filter excluding
+`historico_movimentacao_%`, or the next `--autogenerate` will propose dropping
+every partition as an unknown table.
 
 ## Relationships
 
 ```
 USUARIO 1─────* ATA                (responsável)
-USUARIO 1─────* HISTORICO_MOVIMENTACAO
+USUARIO 1─────? HISTORICO_MOVIMENTACAO  (usuario_id é nullable: há linha sem ator)
+USUARIO 1─────* TOKEN_CREDENCIAL   (titular; e criado_por, nullable)
+USUARIO 1─────* SESSAO_FAMILIA
+SESSAO_FAMILIA 1* SESSAO           (FK composta (familia, usuario_id))
 FORNECEDOR 1──* ATA
 FORNECEDOR 1──* NOTA_FISCAL
 ATA 1─────────* ITEM_ATA *─────────1 INSUMO
@@ -173,6 +519,19 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB5 | Monetary columns are `NUMERIC`, never `FLOAT` | Column types |
 | DB6 | `Σ NF.valor` per NE ≤ `Σ ITEM_NOTA_EMPENHO.valor` | Trigger (RN12) *(2026-09-02)* |
 | DB7 | An NE may not leave `demanda` with zero items | Trigger (RN09) *(2026-09-02)* |
+| DB8 | A usuario has at most one outstanding grant of each type | `UNIQUE INDEX ON token_credencial (usuario_id, tipo) WHERE utilizado_em IS NULL AND cancelado_em IS NULL` *(2026-09-10)* |
+| DB9 | A `pendente` usuario never carries a credential | `CHECK (status <> 'pendente' OR senha_hash IS NULL)` *(2026-09-10)* |
+| DB10 | A `SESSAO` is immutable except for its revocation | Trigger rejecting any update that changes a column other than `revogado_em`/`revogado_motivo` *(2026-09-10, widened: "never un-revoked" left `familia`, `usuario_id`, `refresh_token_hash` and `emitido_em` mutable)* |
+| DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |
+| DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
+| DB13 | At least one `ativo` gestor always exists | Trigger on `USUARIO` update, counting with `ORDER BY id FOR UPDATE` so concurrent transactions take locks in a deterministic order; the service also takes `pg_advisory_xact_lock` so the API returns 409 `ULTIMO_GESTOR` instead of a deadlock *(2026-09-10)* |
+
+**On DB13.** It is a cross-row aggregate, so a `CHECK` cannot express it, and a
+trigger alone is not enough: two transactions each blocking a different one of
+two gestores both see a count of two and both commit. That is write skew, which
+snapshot isolation does not prevent. The trigger is the backstop — it stops a
+`psql` session too — and the advisory lock in the service is what serialises the
+API path so the specified 409 is what the caller sees. Neither alone suffices.
 
 Application-level enforcement is the first line, not the only one. Every rule an
 auditor may one day rely on is also expressed where a buggy migration script or
@@ -190,8 +549,10 @@ a well-meaning `psql` session cannot bypass it.
   the operation. *(2026-09-02)* RN07's "área de competência" turns out to be two
   axes the data does carry: **unidade** and **grupo de materiais**, both now
   entities. RN07 becomes implementable as a scope on `USUARIO` referencing
-  `UNIDADE` and `GRUPO_MATERIAL`; the columns land with the SPEC-0001 revision
-  that adopts them, not before. OQ-04 resolved, OQ-26.
+  `UNIDADE` and `GRUPO_MATERIAL`. *(2026-09-10)* Those columns land with
+  **SPEC-0003**, not SPEC-0001: RN07 restricts which *insumos* a servidor may
+  see, and neither reference table exists yet, so a criterion in SPEC-0001 would
+  assert nothing observable. OQ-04 resolved, OQ-26.
 
 ## Entities required by the operation
 

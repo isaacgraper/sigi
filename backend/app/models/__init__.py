@@ -1,0 +1,26 @@
+"""Model registry.
+
+Importing this package is what populates `Base.metadata`. `migrations/env.py`
+imports `Base` from here, and with an empty registry Alembic's autogenerate
+would see every existing table as unknown and propose dropping it — which is
+how a routine migration deletes an audit trail.
+"""
+
+from app.models.base import Base
+from app.models.historico import HistoricoMovimentacao
+from app.models.limite_taxa import LimiteTaxa
+from app.models.sessao import Sessao, SessaoFamilia
+from app.models.tentativa_login import TentativaLogin
+from app.models.token_credencial import TokenCredencial
+from app.models.usuario import Usuario
+
+__all__ = [
+    "Base",
+    "HistoricoMovimentacao",
+    "LimiteTaxa",
+    "Sessao",
+    "SessaoFamilia",
+    "TentativaLogin",
+    "TokenCredencial",
+    "Usuario",
+]

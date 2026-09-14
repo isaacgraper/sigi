@@ -24,20 +24,48 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-**There is no code yet.** The repo contains `docs/` and `.claude/` only —
-`backend/` and `frontend/` below describe the layout to create, not what exists.
-The root `README.md` already documents `.env.example`, `docker-compose.yml` and
-Alembic; none of those files exist yet either.
+*(Rewritten 2026-09-10. The previous text claimed there was no code, which had
+stopped being true.)*
 
-All specs are `Draft`, and **a spec at `Draft` may not be implemented**.
+*(This section went stale within one session on 2026-09-10, which is what a
+"current state" section does. If you are about to trust a sentence here, check
+it.)*
 
-*(2026-09-02)* Of the four gates `docs/GETTING-STARTED.md` sets before any code,
-the data closed two: **OQ-05** (an NE covers many insumos — 27,8%, up to 37;
-ADR-0007) and **OQ-04** (the "área de competência" is unidade + grupo de
-materiais). **OQ-07** is `Assumed` and implemented as AC-0004-16. Still open and
-blocking: **OQ-17**, the live prototype JWT published in RFC Appendix 9.1, which
-must be revoked. **OQ-28** joins it — two definitions of `RF05` and `RN11` now
-exist in `docs/`, and that must be settled before the first test is written.
+**The substrate exists; the behaviour does not.** `backend/` runs a FastAPI app
+factory with `/health`, a `Settings` object carrying **two database URLs**, and
+migration `0001_baseline`, which creates `usuario`, `token_credencial`,
+`tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
+`historico_movimentacao` with seven yearly partitions. Every table has a
+SQLAlchemy model, and `alembic check` is asserted by a test — so a divergence
+between models and schema fails the suite rather than producing a migration
+that drops tables.
+
+`frontend/` is still a Next.js App Router skeleton with a placeholder page.
+
+**What does not exist yet:** any endpoint beyond `/health`, any service, any
+authentication. No `app/services/` content, no `app/api/auth.py`.
+
+**Two database roles are not optional.** The application connects as a
+restricted role; migrations run as the owner. ADR-0004's append-only guarantee
+is void with a single role, because an owner can `ALTER TABLE ... DISABLE
+TRIGGER`. `infra/postgres/init/01-papeis.sh` provisions the app role and the
+migration refuses to run without it.
+
+**Specs:** `SPEC-0001` is at **v0.5**, `Approved`, and is the one being
+implemented — 33 acceptance criteria covering local and OIDC authentication,
+invitations, password reset, the permission matrix and rate limiting. Everything
+else is `Draft`, and **a spec at `Draft` may not be implemented**.
+
+*(2026-09-10)* Of the gates `docs/GETTING-STARTED.md` sets before code, the data
+closed **OQ-05** (an NE covers many insumos — 27,8%, up to 37; ADR-0007) and
+**OQ-04** (the "área de competência" is unidade + grupo de materiais, which
+SPEC-0003 will enforce). `Assumed` and implemented: **OQ-07** (AC-0004-16),
+**OQ-09** and **OQ-10** (ADR-0010). Still open: **OQ-17**, the live prototype
+JWT published in RFC Appendix 9.1, which must be revoked — this one blocks
+nothing mechanically and everything ethically. **OQ-28** stands too:
+`docs/rfc-sigi-v1.7.md` is marked superseded but still defines a second `RF05`
+and `RN11`, so no test may be named after either until its disposition is
+settled.
 
 ## Non-negotiable domain rules
 
@@ -71,6 +99,10 @@ These are invariants. If a task appears to require breaking one, **stop and ask*
 7. **There is no live API integration with DOMS or e-Publica.** Consistency is
    achieved through format validation and CSV import. Do not write HTTP clients
    for these systems. See `docs/architecture/adr/ADR-0002-*.md`.
+   *(2026-09-10)* This is about **data sources**, not identity. Talking OIDC to
+   the entity's identity provider is in scope (ADR-0010): it asserts who the
+   caller is and supplies no ATA, insumo, NE or NF. Do not read that as a
+   reversal of this rule, and do not read this rule as forbidding it.
 8. **Authorisation is enforced server-side on every endpoint.** Frontend role
    checks are cosmetic only. (A01)
 
@@ -127,9 +159,16 @@ When the real tooling lands, update both this table and `settings.json`.
 | Frontend dev | `npm run dev` |
 | Frontend tests | `npm run test` (Vitest) · `npm run test:e2e` (Playwright) |
 
-Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
-"Testing expectations". `git push`, `psql`, `alembic downgrade` and
-`docker compose down -v` are denied in `.claude/settings.json` by design.
+Backend tests need a real PostgreSQL, not SQLite — see "Testing expectations".
+The harness takes one of two routes: set `TEST_DATABASE_URL_ADMIN` to a libpq
+connection string for a running server, or leave it unset and `testcontainers`
+starts `postgres:16`. **Check for local PostgreSQL binaries before concluding
+you need Docker** — `/usr/lib/postgresql/16/bin` exists in some sandboxes, and
+assuming otherwise means writing migrations blind.
+
+`git push`, `psql`, `alembic downgrade` and `docker compose down -v` are denied
+in `.claude/settings.json` by design. That rules out `psql` for ad-hoc queries;
+use `psycopg` from `uv run python`, which is what the tests do anyway.
 
 ## Spec-driven workflow (short version)
 

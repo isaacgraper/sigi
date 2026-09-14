@@ -22,7 +22,9 @@ that does not produce a history row is a defect, regardless of what it does corr
 **AC-0007-01** — Every create, update, transition and delete-attempt on ATA,
 ITEM_ATA, Insumo, NE, NF, Fornecedor and Usuario writes one
 `HISTORICO_MOVIMENTACAO` row containing `entidade_tipo`, `entidade_id`, `acao`,
-`usuario_id`, `timestamp` and `dados_anteriores` (JSONB).
+`usuario_id`, `ocorrido_em` and `dados_anteriores` (JSONB). *(The column was
+called `timestamp` until 2026-09-10; renamed because `TIMESTAMP` is a type name
+and the table is partitioned by that column — see `data-model.md`.)*
 
 **AC-0007-02** — The history row is written in the **same transaction** as the
 mutation. If the history insert fails, the mutation rolls back. A test injects a
@@ -55,7 +57,10 @@ visible to any authenticated user (RF06).
 
 **AC-0007-08** — History is queryable by `entidade_tipo` + `entidade_id`, by
 `usuario_id`, and by time range, each under 300 ms on 1 million rows, with a
-composite index on `(entidade_tipo, entidade_id, timestamp DESC)`.
+composite index on `(entidade_tipo, entidade_id, ocorrido_em)`. *(The `DESC`
+was dropped on 2026-09-11: with equality on the leading columns a btree scans
+backwards just as well, and specifying it made the models diverge from the
+schema. This criterion should not name a sort direction at all.)*
 
 ## 3. Retention
 
