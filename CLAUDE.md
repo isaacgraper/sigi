@@ -201,6 +201,13 @@ Useful commands: `/spec-new`, `/spec-review`, `/plan`, `/implement`, `/trace`, `
   `page`, `size`, `sort`) are English; domain payload fields, paths, error
   codes and database identifiers stay Portuguese. `message` and every string a
   user reads are pt-BR. See ADR-0006.
+- **The same rule reaches past the code.** Branch names, commit messages, pull
+  request titles and bodies are English, with domain vocabulary kept Portuguese:
+  `add/authentication-spec-0001`, `feat(ne): block advance on insufficient saldo
+  [SPEC-0004]`. **pt-BR is for the frontend and for the entity's data** — the
+  strings a servidor reads, and the operational records themselves.
+  A reviewer should not have to switch language between the diff and the message
+  that explains it.
 
 ## Testing expectations
 
