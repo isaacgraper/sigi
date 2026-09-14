@@ -3,6 +3,10 @@
 A change is done when **all** of the following are true. This list is the merge
 gate; `/spec-review` checks it mechanically where it can.
 
+`sop-qualidade.md` says which of these a machine actually enforces and where —
+and names the ones nothing enforces, so that this list is read as a checklist
+rather than mistaken for a pipeline.
+
 ## Specification
 
 - [ ] A spec exists at `docs/specs/SPEC-XXXX-*.md` and its status is `Approved`.

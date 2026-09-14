@@ -21,6 +21,33 @@ Domain vocabulary stays in Portuguese everywhere — `ATA`, `Nota de Empenho` (N
 
 **Never push directly to `main` or `dev`.** Both are protected and require a PR.
 
+## Bootstrap
+
+Once per machine:
+
+```bash
+pipx install poetry==2.3.3
+```
+
+Once per clone:
+
+```bash
+cd backend
+poetry env use python3.12      # only if `python3` is not already 3.12
+poetry sync --all-groups       # creates backend/.venv, installs main + dev
+poetry run pre-commit install --install-hooks \
+    --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
+```
+
+The hooks are not optional and not a convenience: they are where `ruff`, `mypy`,
+the commit convention and the ban on committing personal data are actually
+enforced. Skipping the install means finding all four in CI instead, on somebody
+else's time.
+
+Run `poetry run pre-commit run --all-files` to check the whole tree at once.
+`docs/process/sop-qualidade.md` says which gate fires when, and what to do when
+one refuses.
+
 ## Workflow
 
 ```bash
