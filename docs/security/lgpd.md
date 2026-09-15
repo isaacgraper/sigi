@@ -8,8 +8,21 @@ Source: RFC §6.4. This document is the register a DPO would ask for.
 | --- | --- | --- | --- |
 | Servidor identification | nome, e-mail institucional, perfil/cargo | Art. 7, II and V — legal obligation / contract execution | While active + 5 years in audit rows (pseudonymised) |
 | Authentication | senha (hash), tokens, IP, user-agent | Art. 7, IX — legitimate interest, system security | Tokens until expiry; access logs 12 months |
+| Federated identity *(2026-09-10)* | `oidc_subject` — the provider's opaque subject claim | Art. 7, II — legal obligation / contract execution, as the institutional identity | While the account is active |
 | Audit and traceability | usuario_id, timestamp, ação, dados anteriores | Art. 7, II — legal obligation, public transparency | ≥ 5 years (RNF08) |
 | Operational | ATA, NE, NF, insumo data | Art. 7, V — contract execution. **Not personal data.** | Indefinite |
+
+### Why SIGI holds password hashes at all *(2026-09-10)*
+
+`ADR-0010` keeps local credentials as a switchable contingency beside
+institutional OIDC. A pure-OIDC design would hold **no** credential, and that
+would be the smaller privacy surface — this is the cost of the contingency, and
+it was accepted knowingly rather than by omission.
+
+Consequences: the `Authentication` row above stops being incidental and becomes
+load-bearing. And the honest production default is local login **disabled**
+(AC-0001-24 makes it switchable), so that the hashes exist but authenticate
+nobody, with a documented break-glass procedure. Decide that before go-live.
 
 ## Health data in the source exports *(2026-09-02)*
 
@@ -46,8 +59,10 @@ The profile mockup (9.2.1) shows **CPF** and **matrícula SIAPE**. Neither appea
 in the RFC's data model, and neither is required by any functional requirement.
 
 - **CPF** — collecting it needs a stated purpose; "it was on the mockup" is not
-  one. Recommendation: **do not collect**. E-mail plus SIAPE already identify a
-  servidor uniquely within the entity. Tracked as OQ-10.
+  one. **Decided 2026-09-10: not collected.** E-mail plus SIAPE already identify
+  a servidor uniquely within the entity. SPEC-0001 v0.3 removed the last
+  reference to it, in AC-0001-14, which had been anonymising a field no entity
+  carried. OQ-10 is `Assumed`.
 - **SIAPE** — justifiable as institutional identification; document the basis if kept.
 
 Under art. 6, III (minimisation), the cheapest compliance measure available is

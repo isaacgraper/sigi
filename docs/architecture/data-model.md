@@ -8,12 +8,57 @@ Revised 2026-09-02 against the stakeholders' operational data — see
 ## Entities
 
 ### USUARIO
-`id UUID PK`, `nome`, `email UNIQUE`, `senha_hash`, `perfil ENUM(gestor,
+`id UUID PK`, `nome`, `email UNIQUE`, `senha_hash NULL`, `perfil ENUM(gestor,
 servidor, auditor)`, `ativo BOOL`, `status ENUM(pendente, ativo, bloqueado,
-desativado)`, `criado_em TIMESTAMPTZ`, `anonimizado_em TIMESTAMPTZ NULL`.
+desativado)`, `criado_em TIMESTAMPTZ`, `anonimizado_em TIMESTAMPTZ NULL`,
+`oidc_subject VARCHAR UNIQUE NULL`, `tentativas_falhas INT NOT NULL DEFAULT 0`,
+`bloqueado_ate TIMESTAMPTZ NULL`.
 
 `status` is added: the mockup shows Pendente and Bloqueado, which a single
 boolean cannot express. `ativo` is retained as a derived convenience.
+
+***(2026-09-10)* `senha_hash` is nullable, on purpose.** An invited account
+exists before it has a credential (AC-0001-10), and an account that authenticates
+only through the institutional provider never gets one. A `NOT NULL` here would
+force the importer of an invite to invent a password nobody chose.
+
+***(2026-09-10)* `oidc_subject`** binds the provider's stable subject claim to
+the account, so a later change of institutional e-mail does not orphan it. It is
+populated on the first successful OIDC login and matched by e-mail only that
+once. `UNIQUE` prevents two accounts claiming one identity.
+
+***(2026-09-10)* `tentativas_falhas` and `bloqueado_ate`** carry the lockout of
+AC-0001-03. They are deliberately *not* derived from
+`HISTORICO_MOVIMENTACAO`: counting failures would mean an indexed range scan
+over a partitioned append-only table on every login attempt, which is the one
+path that must stay cheap under an attack. This is mutable operational state,
+not an auditable fact — the auditable fact is the `auth.falha` row.
+
+### CONVITE *(new, 2026-09-10)*
+`id UUID PK`, `usuario_id FK → USUARIO`, `token_hash UNIQUE`,
+`criado_por FK → USUARIO`, `criado_em TIMESTAMPTZ`,
+`expira_em TIMESTAMPTZ`, `utilizado_em TIMESTAMPTZ NULL`.
+
+The invitation of RF18 and AC-0001-10/11. Only the **hash** of the token is
+stored: a leaked database must not yield usable invitations. `utilizado_em`
+being non-null is what makes the token single-use (AC-0001-11), and it is a
+column rather than a deletion so the audit trail can still explain how an
+account came to exist.
+
+### SESSAO *(new, 2026-09-10)*
+`id UUID PK`, `usuario_id FK → USUARIO`, `familia UUID`,
+`refresh_token_hash UNIQUE`, `emitido_em TIMESTAMPTZ`,
+`expira_em TIMESTAMPTZ`, `revogado_em TIMESTAMPTZ NULL`,
+`substituido_por_id FK → SESSAO NULL`.
+
+Required by AC-0001-06/07. A refresh token that cannot be invalidated before its
+own expiry is not a session, it is a seven-day bearer grant — so refresh state
+lives server-side. `familia` groups every token descended from one login: on
+rotation the old row is revoked and points at its successor, and a replay of an
+already-revoked row revokes the whole family. That is what turns a stolen
+refresh token into a detectable event instead of a silent one.
+
+Only hashes are stored, for the same reason as `CONVITE`.
 
 ### FORNECEDOR
 `id UUID PK`, `cnpj UNIQUE`, `razao_social`, `email`, `ativo BOOL`.
@@ -151,6 +196,9 @@ Partitioned by year. `REVOKE UPDATE, DELETE` from the application role plus a
 ```
 USUARIO 1─────* ATA                (responsável)
 USUARIO 1─────* HISTORICO_MOVIMENTACAO
+USUARIO 1─────* CONVITE            (convidado; e outro FK para quem convidou)
+USUARIO 1─────* SESSAO
+SESSAO  1─────? SESSAO             (rotação: substituido_por_id)
 FORNECEDOR 1──* ATA
 FORNECEDOR 1──* NOTA_FISCAL
 ATA 1─────────* ITEM_ATA *─────────1 INSUMO
@@ -173,6 +221,9 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB5 | Monetary columns are `NUMERIC`, never `FLOAT` | Column types |
 | DB6 | `Σ NF.valor` per NE ≤ `Σ ITEM_NOTA_EMPENHO.valor` | Trigger (RN12) *(2026-09-02)* |
 | DB7 | An NE may not leave `demanda` with zero items | Trigger (RN09) *(2026-09-02)* |
+| DB8 | A `CONVITE` is redeemable exactly once | Conditional update guarded on `utilizado_em IS NULL`, whose affected-row count is the check, plus `CHECK (utilizado_em IS NULL OR utilizado_em >= criado_em)` *(2026-09-10)* |
+| DB9 | A `pendente` usuario never carries a credential | `CHECK (status <> 'pendente' OR senha_hash IS NULL)` *(2026-09-10)* |
+| DB10 | A revoked `SESSAO` is never un-revoked | Trigger rejecting an update that clears `revogado_em` *(2026-09-10)* |
 
 Application-level enforcement is the first line, not the only one. Every rule an
 auditor may one day rely on is also expressed where a buggy migration script or
@@ -190,8 +241,10 @@ a well-meaning `psql` session cannot bypass it.
   the operation. *(2026-09-02)* RN07's "área de competência" turns out to be two
   axes the data does carry: **unidade** and **grupo de materiais**, both now
   entities. RN07 becomes implementable as a scope on `USUARIO` referencing
-  `UNIDADE` and `GRUPO_MATERIAL`; the columns land with the SPEC-0001 revision
-  that adopts them, not before. OQ-04 resolved, OQ-26.
+  `UNIDADE` and `GRUPO_MATERIAL`. *(2026-09-10)* Those columns land with
+  **SPEC-0003**, not SPEC-0001: RN07 restricts which *insumos* a servidor may
+  see, and neither reference table exists yet, so a criterion in SPEC-0001 would
+  assert nothing observable. OQ-04 resolved, OQ-26.
 
 ## Entities required by the operation
 
