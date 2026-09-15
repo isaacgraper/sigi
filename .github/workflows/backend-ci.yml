@@ -1,8 +1,11 @@
 name: backend-ci
 
 on:
+  # No branch filter on pull_request: the filter matches the *target* branch, so
+  # a stacked PR — one opened against another feature branch — would run nothing
+  # at all, and get reviewed with no recorded result. push stays on dev and main,
+  # which are the only branches that take commits directly.
   pull_request:
-    branches: [dev, main]
   push:
     branches: [dev, main]
 
