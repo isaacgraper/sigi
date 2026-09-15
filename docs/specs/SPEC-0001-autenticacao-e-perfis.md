@@ -535,7 +535,154 @@ Invariant I4 still holds — a row that *does* name a `usuario_id` never loses i
 
 ## 10. Implementation plan
 
-_Filled by `/plan SPEC-0001`._
+*Produced by `/plan SPEC-0001` on 2026-09-10, after the persistence review that
+drove v0.4. Not yet executed.*
+
+### New dependencies
+
+| Dependency | Why | Alternative rejected |
+| --- | --- | --- |
+| `bcrypt` | AC-0001-05 names the algorithm and the cost | argon2 is stronger, but the criterion is already written and changing it is a spec decision, not a plan one |
+| `pyjwt[crypto]` | RS256 issuance (AC-0001-09) and verification of the provider's assertion (AC-0001-20) | `authlib` bundles an OIDC client we would use a tenth of |
+| `httpx2` | OIDC token exchange, JWKS retrieval, and the `TestClient` Starlette 1.6 now wants | `httpx` 0.28 works, but Starlette then warns on every test that uses `TestClient`, and the auth suite lives there |
+| `mypy` *(dev)* | definition-of-done already required a clean run; the pipeline did not run it | — |
+
+**Not** used: `PyJWKClient`, although it ships with `pyjwt`. It fetches JWKS with
+`urllib`, which would force the tests' fake provider to bind a real socket
+instead of being an ASGI app. Fetching JWKS through the injected `httpx2` client
+keeps the provider a fixture and puts the `kid` cache AC-0001-20 needs under
+explicit control.
+
+### Migration — `0001_baseline`
+
+The project's first migration; `migrations/versions/` is empty. Tables:
+`usuario`, `tentativa_login`, `convite`, `sessao_familia`, `sessao`,
+`historico_movimentacao` + seven partitions. Full DDL, constraint names and the
+reasoning behind each are in `docs/architecture/data-model.md`, which was
+corrected on 2026-09-10 for exactly this migration.
+
+Hand-written `op.execute`, not autogenerate: partitioning, the trigger, the
+`SECURITY DEFINER` partition function, generated columns and grants are all
+invisible to Alembic's comparison. `env.py` gains an `include_object` filter
+excluding `historico_movimentacao_%` so the *next* autogenerate does not propose
+dropping every partition.
+
+**`downgrade()` refuses** when `historico_movimentacao` holds any row, raising
+`SI002` with the count. It drops the parent (not enumerated partitions), then
+the trigger function. What a permitted downgrade loses: every usuario, session,
+invitation and lockout counter — acceptable, because it can only run on an empty
+audit trail, which means nothing auditable has happened yet.
+
+**Precondition, not a step:** two database roles. See Risks.
+
+### Modules
+
+| Layer | Files |
+| --- | --- |
+| Migration | `backend/migrations/versions/0001_baseline.py`; `migrations/env.py` (filter) |
+| Models | `app/models/usuario.py`, `convite.py`, `sessao.py`, `tentativa_login.py`, `historico.py` |
+| Repositories | `app/repositories/usuario.py`, `convite.py`, `sessao.py`, `tentativa_login.py`, `historico.py` |
+| Services | `app/services/autenticacao.py`, `sessoes.py`, `bloqueio.py`, `convites.py`, `membros.py`, `oidc.py`, `auditoria.py`, `permissoes.py` |
+| Domain errors | `app/services/erros.py` — one exception per error code in §5 |
+| API | `app/api/auth.py`, `oidc.py`, `usuarios.py`, `convites.py`; `app/api/erros.py` (exception→envelope mapping) |
+| Dependencies | `app/core/seguranca.py` (token issue/verify, the active check of AC-0001-08), `app/core/autorizacao.py` (the matrix and the route audit) |
+| Schemas | `app/schemas/auth.py`, `usuario.py`, `convite.py` |
+| Config | `app/core/config.py` — keys, TTLs, allowlist, `local_login_enabled`, OIDC, HMAC pepper |
+| Infra | `docker-compose.yml`, `.env.example` (two roles) |
+
+Layering per CLAUDE.md: no `HTTPException` below `app/api/`, no business rule in
+a repository, and the audit row written in the same transaction as its mutation.
+
+### Endpoints
+
+| Method | Path | Request → Response | ACs |
+| --- | --- | --- | --- |
+| POST | `/api/v1/auth/login` | `{email, senha}` → access token + refresh cookie | 01–05, 24 |
+| POST | `/api/v1/auth/refresh` | refresh cookie → rotated pair | 06, 07 |
+| POST | `/api/v1/auth/logout` | refresh cookie → 204 | 07 |
+| GET | `/api/v1/auth/me` | — → `{id, nome, email, perfil}` | 08, 22 |
+| GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
+| GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
+| GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
+| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
+| POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
+| POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
+| POST | `/api/v1/convites/{token}/ativar` | `{senha}` → session | 11, 25, 26 |
+
+Errors use the envelope in `api-conventions.md`; `code` from §5, `message` pt-BR.
+
+### Tests — every AC mapped
+
+| AC | File · function |
+| --- | --- |
+| 01 | `test_auth_login.py::test_ac_0001_01_login_emite_par_de_tokens` |
+| 02 | `test_auth_login.py::test_ac_0001_02_resposta_identica_para_email_inexistente` |
+| 03 | `test_auth_lockout.py::test_ac_0001_03_bloqueio_por_tentativas` · `::test_ac_0001_03_decaimento_da_janela` · `::test_ac_0001_03_oidc_nao_e_afetado` |
+| 04 | `test_auth_login.py::test_ac_0001_04_dominio_fora_da_allowlist` |
+| 05 | `test_auth_login.py::test_ac_0001_05_hash_nunca_sai_do_banco` |
+| 06 | `test_auth_tokens.py::test_ac_0001_06_token_expirado_e_refresh` |
+| 07 | `test_auth_tokens.py::test_ac_0001_07_logout_e_replay_derruba_familia` |
+| 08 | `test_auth_active_check.py::test_ac_0001_08_desativacao_vale_imediatamente` |
+| 09 | `test_auth_tokens.py::test_ac_0001_09_assinatura_alheia_e_alg_none` |
+| 10 | `test_usuarios_convites.py::test_ac_0001_10_gestor_convida` |
+| 11 | `test_usuarios_convites.py::test_ac_0001_11_ativacao` |
+| 12 | `test_usuarios_gestao.py::test_ac_0001_12_bloqueio` |
+| 13 | `test_usuarios_gestao.py::test_ac_0001_13_servidor_e_auditor_nao_gerenciam` |
+| 14 | `test_usuarios_gestao.py::test_ac_0001_14_anonimizacao_preserva_historico` |
+| 15 | `test_permissoes.py::test_ac_0001_15_matriz_gestor` |
+| 16 | `test_permissoes.py::test_ac_0001_16_matriz_servidor` |
+| 17 | `test_permissoes.py::test_ac_0001_17_matriz_auditor` |
+| 18 | `test_permissoes.py::test_ac_0001_18_recusa_por_perfil_e_auditada` |
+| 19 | `test_auth_oidc.py::test_ac_0001_19_pkce_state_nonce` |
+| 20 | `test_auth_oidc.py::test_ac_0001_20_verificacao_do_id_token` |
+| 21 | `test_auth_oidc.py::test_ac_0001_21_sem_provisionamento_jit` |
+| 22 | `test_auth_oidc.py::test_ac_0001_22_perfil_vem_do_registro` |
+| 23 | `test_permissoes.py::test_ac_0001_23_toda_rota_de_escrita_tem_entrada` |
+| 24 | `test_auth_login.py::test_ac_0001_24_login_local_desligavel` |
+| 25 | `test_usuarios_convites.py::test_ac_0001_25_convite_uso_unico_e_expiracao` |
+| 26 | `test_usuarios_convites.py::test_ac_0001_26_politica_de_senha` |
+| 27 | `test_audit_immutability.py::test_ac_0001_27_historico_recusa_update_e_delete` |
+| 28 | `test_usuarios_convites.py::test_ac_0001_28_convite_duplicado_ou_fora_do_dominio` |
+| 29 | `test_usuarios_gestao.py::test_ac_0001_29_ultimo_gestor` · `::test_ac_0001_29_corrida_entre_dois_gestores` |
+
+Plus `test_migration_baseline.py`, which proves the schema rather than an AC:
+the illegal-PK correction, partition bounds under `TimeZone='America/Sao_Paulo'`,
+a per-partition ACL of exactly `{SELECT, INSERT}`, the cloned trigger being
+`ENABLE ALWAYS`, an insert into an unpartitioned year raising `23514`, and
+`downgrade()` refusing with `SI002` against a non-empty table.
+
+AC-0001-29's race test runs many iterations, not once: write skew is
+probabilistic and a single pass proves nothing.
+
+### Sequence
+
+1. Two database roles — `docker-compose.yml`, `.env.example`, `config.py`, and a
+   `pg_roles` guard in the migration. **Nothing else can be trusted before this.**
+2. `0001_baseline` + `test_migration_baseline.py`.
+3. Test harness: `conftest.py` gains a real PostgreSQL fixture and a
+   second-role connection, without which AC-0001-27 cannot be asserted.
+4. Models and repositories.
+5. `auditoria.py` + `test_audit_immutability.py` — the substrate everything else
+   writes to.
+6. Auth config, key handling, token issue/verify.
+7. Local login, refresh, logout, `/me` (AC-01..09, 24).
+8. Lockout (AC-03), on its own commit because it owns the committed-on-rollback
+   subtlety.
+9. Permission matrix, authorisation dependency, route-table check (AC-15..18, 23).
+10. Invitations and member management (AC-10..14, 25, 26, 28, 29).
+11. OIDC and the fake provider fixture (AC-19..22).
+12. `/trace`, `security-reviewer`, then the PR.
+
+### Risks
+
+| Risk | Cheapest early detection |
+| --- | --- |
+| **One database role.** `docker-compose.yml` ships `sigi` as owner *and* application role, and an owner can `ALTER TABLE ... DISABLE TRIGGER`. Until a second role exists, ADR-0004's guarantee is enforced by nothing | Step 1, before any DDL. `test_audit_immutability.py` asserts the failure as `sigi_app`, so a single-role setup fails the suite instead of passing it |
+| **RNF01 vs AC-0001-05.** RNF01 demands p95 under 300 ms; a bcrypt cost-12 verification alone costs roughly 250–400 ms, so `POST /auth/login` **cannot** meet it. This is a requirement conflict, not a tuning problem | Measure in step 7 and settle it then: either RNF01 carves out credential verification explicitly, or AC-0001-05's cost changes. Both are spec edits. Do not silently lower the cost |
+| **January outage.** Nothing creates next year's partition, and every write depends on the audit insert | Partitions through 2032 in step 2, plus the `23514` test that names the failure mode |
+| **HMAC pepper rotation.** Rotating it silently breaks lockout continuity and de-correlates historical audit rows for one address | Document it as a one-way decision in `.env.example` before the first row is written |
+| **No Docker locally.** The DB-backed tests, the whole substrate, run only in CI | Accepted; steps 2–5 are validated by CI on the first push, not locally |
+| **OIDC against the real tenant is unverifiable** until the entity's TI delivers tenant/client/redirect (OQ-09) | The fake provider covers our side of the contract; the first real login stays a known unknown |
 
 ## Revision history
 
