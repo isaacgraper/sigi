@@ -8,11 +8,13 @@ on an `Approved` spec is a merge blocker.
 
 | RF/RN | Spec | Acceptance criteria | Tests | Status |
 | --- | --- | --- | --- | --- |
-| RF01, RN01 | SPEC-0001 v0.3 | AC-0001-01..09 | _pending_ | **Approved** |
-| RF01 (OIDC) | SPEC-0001 v0.3 | AC-0001-19..22, AC-0001-24 | _pending_ | **Approved** |
-| RF02, RF18, RN16 | SPEC-0001 v0.3 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | _pending_ | **Approved** |
-| RN04 | SPEC-0001 v0.3 | AC-0001-15..18, AC-0001-23 | _pending_ | **Approved** |
-| RN06 (enforcement) | SPEC-0001 v0.3 | AC-0001-27 | _pending_ | **Approved** |
+| RF01, RN01 | SPEC-0001 v0.5 | AC-0001-01..09 | _pending_ | **Approved** |
+| RF01 (OIDC) | SPEC-0001 v0.5 | AC-0001-19..22, AC-0001-24 | _pending_ | **Approved** |
+| RF02, RF18, RN16 | SPEC-0001 v0.5 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | _pending_ | **Approved** |
+| RN04 | SPEC-0001 v0.5 | AC-0001-15..18, AC-0001-23 | _pending_ | **Approved** |
+| RN06 (enforcement) | SPEC-0001 v0.5 | AC-0001-27 | _pending_ | **Approved** |
+| RF01 (redefinição) | SPEC-0001 v0.5 | AC-0001-30..32 | _pending_ | **Approved** |
+| RNF16 | SPEC-0001 v0.5 | AC-0001-33 | _pending_ | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v0.2 | AC-0002-01..12 | _pending_ | Draft |
 | RN11, RN13, RN15 | SPEC-0002 v0.2 | AC-0002-13..17 | _pending_ | Draft |
 | RF03, RF07, RN14 | SPEC-0003 v0.2 | AC-0003-01..10 | _pending_ | Draft |
@@ -45,6 +47,7 @@ Requirements with no spec. This list must be empty before M5.
 | RNF09 | CI job `compose-smoke` |
 | RNF10 | CI job `coverage` |
 | RNF15 | `tests/test_money_precision.py` |
+| RNF16 | `tests/test_limite_taxa.py` *(2026-09-10, ADR-0012)* |
 
 ## Acceptance criteria added or revised *(2026-09-02, 2026-09-10)*
 
@@ -67,7 +70,7 @@ version bump and a changelog line; additions take the next free number.
 | AC-0006-02, -05, -06, -07 | Aggregate over `ITEM_NOTA_EMPENHO`; performance re-measured across one more join | ADR-0007 |
 | AC-0006-10, -11, -12 | **New** — quantity saldo per item; value and quantity disagreeing about exhaustion; 25% aditivo ceiling | OQ-20, RN15 |
 
-### Done — SPEC-0001 v0.3
+### Done — SPEC-0001 v0.5
 
 | AC | Change | Driver |
 | --- | --- | --- |
@@ -85,6 +88,9 @@ version bump and a changelog line; additions take the next free number.
 | AC-0001-27 | **New** — the history table refuses UPDATE and DELETE at the database level | RN06, RNF08, ADR-0004 |
 | AC-0001-28 | **New** — a duplicate or off-domain invitation is refused | `/spec-review` |
 | AC-0001-29 | **New** — the last active gestor cannot be blocked or deactivated | `/spec-review` |
+| AC-0001-02, -03 | Revised in v0.4 — the lockout moved off the account and onto the submitted address, because keying it on the usuario made AC-0001-02 **false**: six attempts distinguished a real address from an unknown one | persistence review |
+| AC-0001-30, -31, -32 | **New** in v0.5 — password reset. A forgotten local credential had no recovery path at all: the scope line promised the flow without a criterion, and AC-0001-28 blocked the only workaround | product owner |
+| AC-0001-33 | **New** in v0.5 — rate limiting across every auth route, keyed on the source, independent of the per-address lockout | product owner, ADR-0012 |
 
 **On RN06.** Its *enforcement* — the privilege revocation and the trigger — is
 built and proven in SPEC-0001 (AC-0001-27), because four of that spec's criteria
