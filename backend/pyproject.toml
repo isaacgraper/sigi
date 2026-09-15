@@ -6,18 +6,27 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "pydantic>=2.9",
+    # `[email]` pulls in the email-validator that EmailStr requires. Without it
+    # the invitation (AC-0001-28) validates an address by hand, which is where
+    # that validation always goes wrong. It makes no DNS query: pydantic calls
+    # the validator with check_deliverability=False, so nothing here talks to
+    # the network.
+    "pydantic[email]>=2.9",
     "pydantic-settings>=2.6",
     "sqlalchemy>=2.0",
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
+    # SPEC-0001. Justification lives in the spec's Implementation plan section;
+    # CLAUDE.md forbids a new dependency without one.
+    "bcrypt>=4.2",          # AC-0001-05 pins the algorithm and cost
+    "pyjwt[crypto]>=2.10",  # AC-0001-09 RS256; AC-0001-20 verifies the provider's token
+    "httpx2>=2.12",         # OIDC token exchange and JWKS retrieval (ADR-0010)
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
-    "httpx>=0.28",
     "testcontainers[postgres]>=4.9",
     "ruff>=0.8",
     # The definition of done has required a clean mypy run since before there
