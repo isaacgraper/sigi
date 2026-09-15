@@ -71,6 +71,12 @@ a gate people bypass protects nothing, and the bypass for a commit hook
 duplicate of the hooks; it is the half that runs on code arriving from
 someone else's machine, where no hook was installed.
 
+Every pull request, not only the ones aimed at `dev` and `main`. The workflows
+used to filter `pull_request` by branch, and that filter matches the **target**,
+so a PR opened against another feature branch — one link of a stacked series —
+ran nothing at all and reached its reviewer with no recorded result. The row
+above promising `PR` was false for exactly the PRs that most needed it.
+
 ## Bootstrap
 
 Once per machine:
