@@ -46,8 +46,11 @@ timeline and the auditor's screens. This spec only writes rows.
 
 ## 3. Domain model touched
 
-`USUARIO` (created, read, anonymised), `CONVITE` (created, redeemed),
-`SESSAO` (created, rotated, revoked), `HISTORICO_MOVIMENTACAO` (append).
+`USUARIO` (created, read, anonymised), `TOKEN_CREDENCIAL` (created, redeemed —
+invitations and password resets share one grant mechanism),
+`SESSAO_FAMILIA` and `SESSAO` (created, rotated, revoked),
+`TENTATIVA_LOGIN` and `LIMITE_TAXA` (the two throttles),
+`HISTORICO_MOVIMENTACAO` (append).
 
 Invariants this spec owns:
 
