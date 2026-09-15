@@ -19,3 +19,4 @@ Create one with `/adr-new <title>`.
 | 0007 | The Nota de Empenho carries multiple insumos | Accepted |
 | 0008 | Ingesting stock signals from DOMS without becoming an inventory system | Accepted |
 | 0009 | Operational data supersedes the RFC as the source of truth | Accepted |
+| 0010 | Two authentication mechanisms: institutional OIDC and local credentials | Accepted |
