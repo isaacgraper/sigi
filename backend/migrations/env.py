@@ -17,7 +17,12 @@ config = context.config
 # Alembic runs as the owner, not as the application role. The application role
 # deliberately has no DDL, and the migration grants privileges *to* it — see
 # ADR-0004 and `infra/postgres/init/01-roles.sh`.
-config.set_main_option("sqlalchemy.url", get_settings().database_url_admin)
+#
+# A caller that already set the URL wins: the test harness points each run at
+# its own throwaway database, and having to juggle environment variables to do
+# that is how a migration ends up untested.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", get_settings().database_url_admin)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
