@@ -11,7 +11,7 @@ Domain vocabulary stays in Portuguese — `ATA`, `NE`, `NF`, `empenho`, `saldo`.
 ## Branch model
 
 ```
-feature/*  fix/*  chore/*
+add/*  fix/*  chore/*
         \    |    /
          \   |   /          PR + CI  (continuous review)
           v  v  v
@@ -42,7 +42,8 @@ feature/*  fix/*  chore/*
 
 Created from `dev`, named by type:
 
-- `feature/<short-description>` — new functionality
+- `add/<short-description>` — new functionality. Never a person's or a
+  tool's name: not `claude/…`, not `isaac/…`. See `CONTRIBUTING.md`.
 - `fix/<short-description>` — bug fix
 - `chore/<short-description>` — tooling, CI, dependencies, documentation
 

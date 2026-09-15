@@ -77,7 +77,7 @@ Work in this order, and commit at each step:
 5. Frontend.
 
 Commit convention: `type(scope): summary [SPEC-XXXX]`, e.g.
-`feat(ne): bloqueia avanço com saldo insuficiente [SPEC-0004]`.
+`feat(ne): block advance on insufficient saldo [SPEC-0004]`.
 
 ### 5. VERIFY
 

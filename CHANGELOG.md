@@ -13,6 +13,22 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- **Quality gates that run before the commit, not only in CI.** `pre-commit`
+  enforces `ruff`, `ruff format` and `mypy`; `pytest` with the 70% coverage
+  floor runs at push. Every hook is `repo: local` with `language: system`, so
+  there is one pinned version of each tool — the one in `poetry.lock` — and
+  installing the hooks needs no network.
+- `scripts/check_commit_msg.py` — enforces the Conventional Commits convention
+  and the `[SPEC-XXXX]` reference, which `CONTRIBUTING.md` has required and
+  nothing has checked.
+- `scripts/check_personal_data.py` — refuses to commit CPF, SIAPE numbers, JWTs
+  or an institutional address belonging to a real person. A generic scanner does
+  not know what a CPF is, and this table of rules is where that knowledge lives.
+- `gitleaks` as a CI job, closing the gap `docs/security/threat-model.md` has
+  named in three separate paragraphs and `roadmap.md` places in M1.
+- `docs/process/sop-qualidade.md` — which rule is enforced by which machine,
+  and, deliberately in the same table, the four that nothing enforces.
+- `## Bootstrap` in `CONTRIBUTING.md`.
 - Initial project structure: FastAPI backend, Next.js frontend, Docker Compose
   and specification documentation.
 - Branching and release process (`dev` → `main` via a release PR), Pull Request
@@ -31,6 +47,15 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- **The backend is managed with Poetry instead of uv.** `pyproject.toml` keeps
+  its PEP 621 and PEP 735 tables unchanged and gains `package-mode = false`,
+  which is what the application always was; `backend/poetry.toml` fixes the
+  environment at `backend/.venv`; `uv.lock` is replaced by `poetry.lock`. CI,
+  the Dockerfile, `CLAUDE.md` and `.claude/settings.json` follow.
+- Ruff now selects `W` and `D` (docstrings, `google` convention) alongside
+  `E`, `F`, `I`, `UP`, `B` and `SIM`. `mypy` joins the dev dependencies, which
+  `definition-of-done.md` had required since before there was a pipeline to run
+  it in.
 - `NOTA_EMPENHO` becomes a header with a new `ITEM_NOTA_EMPENHO` child; `INSUMO`
   gains `sku`, `codigo_externo`, `grupo_id`, `substituido_por_id`; new
   `GRUPO_MATERIAL`. `DB2` and `DB6` revised, `DB7` added (ADR-0007).

@@ -1,19 +1,14 @@
 <!--
-Write the summary below as prose, with no heading: what this PR establishes,
-in present tense. Then fill in the three sections.
-Convention and a worked example: CONTRIBUTING.md → "Pull request descriptions".
+One or two sentences of plain description, no heading. Then the two sections.
 Keep domain vocabulary in Portuguese: ATA, NE, NF, empenho, saldo, insumo.
+Everything else is English. See CONTRIBUTING.md → "Pull request descriptions".
 -->
 
-### Changes
+## Key Changes
 
-* **Area**
-  * Past-tense bullet describing what was done
+- What changed, one line each
 
-### Why / Motivation
+## Technical Details
 
-<!-- Why this change, and why now. Reference the spec (SPEC-XXXX) if there is one. -->
-
-### How to Test
-
-1. **Area:** Steps to run, and the observable result that means it passed.
+Decisions a reviewer cannot read off the diff: why an approach was chosen, what
+was measured, what broke and how it was fixed.
