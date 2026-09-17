@@ -24,20 +24,33 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-**There is no code yet.** The repo contains `docs/` and `.claude/` only —
-`backend/` and `frontend/` below describe the layout to create, not what exists.
-The root `README.md` already documents `.env.example`, `docker-compose.yml` and
-Alembic; none of those files exist yet either.
+*(Rewritten 2026-09-10. The previous text claimed there was no code, which had
+stopped being true.)*
 
-All specs are `Draft`, and **a spec at `Draft` may not be implemented**.
+**A scaffold exists; the domain does not.** `backend/` runs a FastAPI app
+factory with `/health`, a `Settings` object, and Alembic configured against
+**zero migrations**. `app/models/base.py` is an empty `DeclarativeBase`: no
+entity is modelled in code. `frontend/` is a Next.js App Router skeleton with a
+placeholder page. `docker-compose.yml`, `.env.example` and two CI workflows are
+real and green.
 
-*(2026-09-02)* Of the four gates `docs/GETTING-STARTED.md` sets before any code,
-the data closed two: **OQ-05** (an NE covers many insumos — 27,8%, up to 37;
-ADR-0007) and **OQ-04** (the "área de competência" is unidade + grupo de
-materiais). **OQ-07** is `Assumed` and implemented as AC-0004-16. Still open and
-blocking: **OQ-17**, the live prototype JWT published in RFC Appendix 9.1, which
-must be revoked. **OQ-28** joins it — two definitions of `RF05` and `RN11` now
-exist in `docs/`, and that must be settled before the first test is written.
+So the layout under "Repository layout" describes something that partly exists.
+What does not exist yet: any table, any domain rule, any authentication.
+
+**Specs:** `SPEC-0001` is at v0.3 and is the one being implemented — auth,
+profiles, invitations. Everything else is `Draft`, and **a spec at `Draft` may
+not be implemented**.
+
+*(2026-09-10)* Of the gates `docs/GETTING-STARTED.md` sets before code, the data
+closed **OQ-05** (an NE covers many insumos — 27,8%, up to 37; ADR-0007) and
+**OQ-04** (the "área de competência" is unidade + grupo de materiais, which
+SPEC-0003 will enforce). `Assumed` and implemented: **OQ-07** (AC-0004-16),
+**OQ-09** and **OQ-10** (ADR-0010). Still open: **OQ-17**, the live prototype
+JWT published in RFC Appendix 9.1, which must be revoked — this one blocks
+nothing mechanically and everything ethically. **OQ-28** stands too:
+`docs/rfc-sigi-v1.7.md` is marked superseded but still defines a second `RF05`
+and `RN11`, so no test may be named after either until its disposition is
+settled.
 
 ## Non-negotiable domain rules
 
@@ -71,6 +84,10 @@ These are invariants. If a task appears to require breaking one, **stop and ask*
 7. **There is no live API integration with DOMS or e-Publica.** Consistency is
    achieved through format validation and CSV import. Do not write HTTP clients
    for these systems. See `docs/architecture/adr/ADR-0002-*.md`.
+   *(2026-09-10)* This is about **data sources**, not identity. Talking OIDC to
+   the entity's identity provider is in scope (ADR-0010): it asserts who the
+   caller is and supplies no ATA, insumo, NE or NF. Do not read that as a
+   reversal of this rule, and do not read this rule as forbidding it.
 8. **Authorisation is enforced server-side on every endpoint.** Frontend role
    checks are cosmetic only. (A01)
 
