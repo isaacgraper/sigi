@@ -37,6 +37,37 @@ class Settings(BaseSettings):
     # a fresh clone run; a deployment that keeps it has no pepper at all.
     hmac_pepper: str = "troque-este-valor-em-producao"
 
+    # ── Session (RNF03, ADR-0010) ───────────────────────────────────────────
+    # PEM, from configuration and never from the repository. Empty in
+    # `development` makes the app generate an ephemeral pair at startup; outside
+    # `development` that is a startup error, because an ephemeral pair in
+    # production invalidates every session on each restart and nobody connects
+    # those two facts.
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+    jwt_issuer: str = "sigi"
+    access_token_ttl_minutos: int = 15
+    refresh_token_ttl_dias: int = 7
+
+    # ── Local credentials (ADR-0010) ────────────────────────────────────────
+    # Switchable: the honest production default is `False`, with OIDC as the
+    # primary path. On here so that a fresh clone runs.
+    local_login_enabled: bool = True
+    dominios_institucionais: list[str] = ["sc.gov.br"]
+    bcrypt_cost: int = 12
+    senha_tamanho_minimo: int = 12
+
+    # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
+    max_tentativas_login: int = 5
+    janela_tentativas_minutos: int = 15
+    bloqueio_minutos: int = 15
+
+    # ── Invitations and resets (AC-0001-11, -25, -31) ───────────────────────
+    convite_ttl_horas: int = 72
+    # One hour against the invitation's 72: an invitation waits for somebody to
+    # find the time, a reset is asked for by someone sitting at the screen.
+    redefinicao_ttl_horas: int = 1
+
 
 @lru_cache
 def get_settings() -> Settings:
