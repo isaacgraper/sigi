@@ -30,6 +30,8 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from psycopg import sql
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.main import create_app
 
@@ -185,3 +187,18 @@ def conexao_app(banco: tuple[str, str]) -> Iterator[psycopg.Connection]:
     """Application connection. What production actually runs as."""
     with psycopg.connect(banco[1], autocommit=True) as c:
         yield c
+
+
+@pytest.fixture
+def sessao(banco: tuple[str, str]) -> Iterator[Session]:
+    """A SQLAlchemy session as the *application* role.
+
+    Not autocommit: the point of most of these tests is what happens at the
+    transaction boundary, so the boundary has to be real.
+    """
+    engine = create_engine(_para_sqlalchemy(banco[1]))
+    try:
+        with sessionmaker(bind=engine, expire_on_commit=False)() as s:
+            yield s
+    finally:
+        engine.dispose()
