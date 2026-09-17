@@ -94,38 +94,83 @@ no row lock is ever held across a bcrypt verification, or a credential-stuffing
 run against one address would serialise on that row and exhaust the pool —
 turning the mitigation into the outage.
 
-### CONVITE *(new, 2026-09-10)*
-`id UUID PK`, `usuario_id FK → USUARIO`, `token_hash BYTEA UNIQUE`,
-`criado_por FK → USUARIO`, `criado_em TIMESTAMPTZ`,
+### TOKEN_CREDENCIAL *(new, 2026-09-10)*
+`id UUID PK`, `usuario_id FK → USUARIO`,
+`tipo ENUM(convite, redefinicao)`, `token_hash BYTEA UNIQUE`,
+`criado_por FK → USUARIO NULL`, `criado_em TIMESTAMPTZ`,
 `expira_em TIMESTAMPTZ`, `utilizado_em TIMESTAMPTZ NULL`,
 `cancelado_em TIMESTAMPTZ NULL`.
 
-The invitation of RF18 and AC-0001-10/11. Only the **hash** of the token is
-stored: a leaked database must not yield usable invitations. `utilizado_em`
-being non-null is what makes the token single-use (AC-0001-25), and it is a
-column rather than a deletion so the audit trail can still explain how an
-account came to exist.
+One table for the invitation of RF18 (AC-0001-10/11/25/26) **and** the password
+reset of AC-0001-30/31/32, because the mechanics are the same object: a hashed,
+single-use, expiring grant to set a credential. What differs is where it comes
+from, how long it lives, and what the e-mail says — `tipo`, `expira_em`, and
+copy that belongs to SPEC-0008, not three duplicated tables' worth of
+constraints, indexes and tests.
+
+*This was called `CONVITE` earlier on 2026-09-10.* The rename is free: no
+migration exists yet. "Convite" survives where it is the domain's own word — as
+a `tipo` value and in the API path `/api/v1/convites/{token}/ativar`, which is
+what a stakeholder actually says.
+
+Only the **hash** is stored, so a leaked database yields no usable token. The
+same reasoning as `SESSAO.refresh_token_hash`, including *not* using bcrypt:
+stretching buys nothing against a high-entropy random value and destroys the
+index.
+
+`criado_por` is nullable because a self-service reset has no other actor
+(AC-0001-30); it is set when a gestor invites (AC-0001-10) or triggers a reset
+(AC-0001-32), which is what makes those two auditable to a person.
 
 ```sql
 CHECK (expira_em > criado_em)
 CHECK (utilizado_em IS NULL OR utilizado_em <= expira_em)
-CREATE UNIQUE INDEX ux_convite_aberto ON convite (usuario_id)
+CHECK (tipo <> 'convite' OR criado_por IS NOT NULL)
+CREATE UNIQUE INDEX ux_token_credencial_aberto
+  ON token_credencial (usuario_id, tipo)
   WHERE utilizado_em IS NULL AND cancelado_em IS NULL;
 ```
 
-The second `CHECK` is the database expression of the 72-hour rule. Do **not**
-write it as `expira_em <= criado_em + interval '72 hours'`: `timestamptz +
-interval` is `STABLE`, not `IMMUTABLE`, and PostgreSQL rejects it in a `CHECK`.
-The same reason makes `CHECK (ocorrido_em <= now())` impossible on the audit
-table — both are worth knowing before someone tries them.
+The second `CHECK` is the database expression of the expiry rule — 72 hours for
+an invitation, 1 hour for a reset, enforced as "not used after it expired"
+rather than as an interval, because `timestamptz + interval` is `STABLE`, not
+`IMMUTABLE`, and PostgreSQL rejects it in a `CHECK`. The same reason makes
+`CHECK (ocorrido_em <= now())` impossible on the audit table; both are worth
+knowing before someone tries them.
 
 ***(2026-09-10)* `cancelado_em` exists because the partial index would otherwise
-block the documented remedy.** AC-0001-25 tells a user whose invitation expired
-to ask the gestor for a new one, and AC-0001-28 refuses a second invitation. One
-outstanding invite per usuario is the right rule, but an *expired* unredeemed
-invite still matches `utilizado_em IS NULL` — and `now()` cannot appear in an
-index predicate, so the index cannot exclude it. Cancelling the old invite is
-what makes reissue possible.
+block the documented remedy.** One outstanding grant per usuario per type is the
+right rule, but an *expired* unredeemed one still matches `utilizado_em IS NULL`
+— and `now()` cannot appear in an index predicate, so the index cannot exclude
+it. Cancelling the old grant is what makes reissue possible, which is exactly
+what AC-0001-25 and AC-0001-30 tell the user to ask for.
+
+### LIMITE_TAXA *(new, 2026-09-10)*
+`chave BYTEA`, `rota VARCHAR(120)`, `janela_inicio TIMESTAMPTZ`,
+`contador INT NOT NULL DEFAULT 0`,
+`PRIMARY KEY (chave, rota, janela_inicio)`,
+`CHECK (contador >= 0)`.
+
+The per-source, per-route throttle of AC-0001-33 and RNF16 (ADR-0012). `chave`
+is an HMAC of the source address, never the address itself — an IP identifies a
+person closely enough to sit in `lgpd.md`'s inventory, and this table is queried
+on every authentication request, so it is the last place to keep one in clear.
+
+A fixed window rather than a sliding one: the counter is a single upsert
+(`ON CONFLICT ... DO UPDATE SET contador = contador + 1 RETURNING contador`), and
+the window boundary is derived from the request time, so no read-modify-write and
+no row lock held across anything slow. A sliding window would need the
+timestamps and is not worth it for a ceiling the entity tunes anyway.
+
+```sql
+CREATE INDEX ix_limite_taxa_janela ON limite_taxa (janela_inicio);
+```
+
+That index exists for the purge job, which is the point worth flagging: this
+table grows with traffic and **nothing keeps it healthy except a scheduled
+job**. It is the second such job in the project, alongside partition creation,
+and both fail silently — the failure surfaces as a slowly growing table, not as
+an error. ADR-0012 records it as a follow-up rather than an assumption.
 
 ### SESSAO_FAMILIA *(new, 2026-09-10)*
 `familia UUID PK`, `usuario_id FK → USUARIO`, `criada_em TIMESTAMPTZ`,
@@ -180,7 +225,7 @@ bcrypt or argon2: stretching buys nothing against a high-entropy random value
 and it destroys the index, because a salted hash cannot be looked up — every
 refresh would become a table scan plus N verifications. The btree behind
 `UNIQUE` is not constant-time, but converting that into a usable token would
-mean inverting SHA-256. Same reasoning applies verbatim to `CONVITE.token_hash`.
+mean inverting SHA-256. Same reasoning applies verbatim to `TOKEN_CREDENCIAL.token_hash`.
 
 **The lookup predicate is load-bearing.** Replay detection must query
 `WHERE refresh_token_hash = :h` with **no** `AND revogado_em IS NULL`. A revoked
@@ -443,7 +488,7 @@ every partition as an unknown table.
 ```
 USUARIO 1─────* ATA                (responsável)
 USUARIO 1─────? HISTORICO_MOVIMENTACAO  (usuario_id é nullable: há linha sem ator)
-USUARIO 1─────* CONVITE            (convidado; e outro FK para quem convidou)
+USUARIO 1─────* TOKEN_CREDENCIAL   (titular; e criado_por, nullable)
 USUARIO 1─────* SESSAO_FAMILIA
 SESSAO_FAMILIA 1* SESSAO           (FK composta (familia, usuario_id))
 FORNECEDOR 1──* ATA
@@ -468,7 +513,7 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB5 | Monetary columns are `NUMERIC`, never `FLOAT` | Column types |
 | DB6 | `Σ NF.valor` per NE ≤ `Σ ITEM_NOTA_EMPENHO.valor` | Trigger (RN12) *(2026-09-02)* |
 | DB7 | An NE may not leave `demanda` with zero items | Trigger (RN09) *(2026-09-02)* |
-| DB8 | A usuario has at most one outstanding `CONVITE` | `UNIQUE INDEX ... WHERE utilizado_em IS NULL AND cancelado_em IS NULL` *(2026-09-10)* |
+| DB8 | A usuario has at most one outstanding grant of each type | `UNIQUE INDEX ON token_credencial (usuario_id, tipo) WHERE utilizado_em IS NULL AND cancelado_em IS NULL` *(2026-09-10)* |
 | DB9 | A `pendente` usuario never carries a credential | `CHECK (status <> 'pendente' OR senha_hash IS NULL)` *(2026-09-10)* |
 | DB10 | A `SESSAO` is immutable except for its revocation | Trigger rejecting any update that changes a column other than `revogado_em`/`revogado_motivo` *(2026-09-10, widened: "never un-revoked" left `familia`, `usuario_id`, `refresh_token_hash` and `emitido_em` mutable)* |
 | DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |

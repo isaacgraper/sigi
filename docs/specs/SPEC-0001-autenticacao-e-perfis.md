@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.4
+version: 0.5
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -27,7 +27,16 @@ authorisation rule every other spec depends on.
 
 **Out of scope** — Gov.br, which ADR-0010 cuts rather than defers. Directory
 synchronisation: SIGI never reads the tenant's user list, and accounts exist only
-because a gestor invited them. Password self-service reset beyond a token e-mail.
+because a gestor invited them.
+
+*(v0.5)* **Password reset is in scope, and was missing.** v0.3's scope line read
+"password self-service reset beyond a token e-mail" — declaring the token-e-mail
+flow in scope by exception and then never giving it a criterion. Worse, v0.3 cut
+"change own password" from the permission matrix *and* added AC-0001-28, which
+refuses inviting an address that already has an account **in any status**.
+Between them, a servidor who forgot a local password had no path at all: no
+self-service, no re-invite, only database access. AC-0001-30 through -32 close
+it.
 
 **The audit substrate arrives with this spec.** Four criteria here require an
 audit row (AC-0001-03, -07, -12, -18), so the append-only history table and its
@@ -37,8 +46,11 @@ timeline and the auditor's screens. This spec only writes rows.
 
 ## 3. Domain model touched
 
-`USUARIO` (created, read, anonymised), `CONVITE` (created, redeemed),
-`SESSAO` (created, rotated, revoked), `HISTORICO_MOVIMENTACAO` (append).
+`USUARIO` (created, read, anonymised), `TOKEN_CREDENCIAL` (created, redeemed —
+invitations and password resets share one grant mechanism),
+`SESSAO_FAMILIA` and `SESSAO` (created, rotated, revoked),
+`TENTATIVA_LOGIN` and `LIMITE_TAXA` (the two throttles),
+`HISTORICO_MOVIMENTACAO` (append).
 
 Invariants this spec owns:
 
@@ -242,6 +254,11 @@ When  a gestor invites "alguem@gmail.com", which is not on the institutional all
 Then  the response is 422 with error code "DOMINIO_NAO_INSTITUCIONAL"
 And   the message names the allowed domains
 ```
+*(v0.5)* The duplicate-e-mail rule is right — a second account for one person
+would split their audit trail — but until v0.5 it was also the reason a
+forgotten password had no remedy, because re-inviting was the only workaround
+anyone would reach for. The remedy is AC-0001-30/-32, and
+`EMAIL_JA_CADASTRADO`'s message now says so.
 
 **AC-0001-29** — The last active gestor cannot be locked out
 ```gherkin
@@ -406,7 +423,94 @@ Then  the same request authenticates normally
 404 rather than 403: a mechanism that is switched off should be
 indistinguishable from one that was never built.
 
-### 4.6 The audit substrate *(new in v0.3)*
+### 4.6 Password reset *(new in v0.5)*
+
+**AC-0001-30** — Requesting a reset never discloses whether the address exists
+```gherkin
+Given local login is enabled
+When  a reset is requested for an address with an "ativo" account and a local credential
+Then  the response is 202 and a single-use token valid 1 hour is sent to that address
+When  a reset is requested for an address with no account at all
+Then  the response is 202 with a byte-identical body, and no token is issued
+When  a reset is requested for an account that authenticates only through OIDC,
+      or whose status is not "ativo"
+Then  the response is 202 with the same body, no token is issued,
+      and an audit row records the refusal and its reason
+And   in all three cases the response does not wait on the e-mail transport,
+      so how long it takes reveals nothing either
+```
+The uniform 202 is the whole point: a reset form that answers differently for a
+known address is an account-enumeration endpoint with a helpful error message.
+
+**AC-0001-31** — Redeeming a reset token replaces the credential and ends every session
+```gherkin
+Given a valid, unredeemed reset token for an "ativo" usuario holding two active sessions
+When  the token is redeemed with a password meeting the policy
+Then  the usuario's credential is replaced
+And   every session of that usuario is revoked with reason "redefinicao"
+And   an audit row records the reset
+When  the same token is redeemed again
+Then  the response is 409 with error code "REDEFINICAO_JA_UTILIZADA"
+When  a token issued more than 1 hour earlier is redeemed
+Then  the response is 409 with error code "REDEFINICAO_EXPIRADA"
+When  the password is shorter than the policy allows
+Then  the response is 422 with "SENHA_FRACA" and the token remains unredeemed
+```
+Revoking every session is not optional and cuts both ways deliberately. If the
+person reset because they suspect theft, it evicts the thief; if a thief with
+mailbox access did the reset, it evicts the owner, who then notices. Leaving old
+sessions alive would make the reset cosmetic in the case that matters.
+
+One hour, against the invitation's 72: an invitation waits for someone to get
+around to joining, while a reset is requested by a person sitting at the screen.
+The exposure window should match the intent.
+
+**AC-0001-32** — A gestor can trigger a reset for a member
+```gherkin
+Given a gestor and an "ativo" member with a local credential
+When  the gestor triggers a reset for that member
+Then  a single-use token valid 1 hour is sent to the member's own address
+And   the response carries no token
+And   an audit row records the gestor as actor and the member as target
+When  a servidor or an auditor triggers a reset for another member
+Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+```
+The token still goes only to the member's own address — a gestor triggers the
+reset, never learns the token, and cannot set the password. That keeps the
+support path (a servidor telephones the gestor, which is what actually happens)
+without turning a gestor into someone who can take over an account silently.
+
+### 4.7 Rate limiting *(new in v0.5)*
+
+**AC-0001-33** — Every authentication route is rate-limited per source
+```gherkin
+Given a per-route ceiling and window taken from configuration
+When  one source exceeds the ceiling within the window on any route under
+      "/api/v1/auth" or "/api/v1/convites"
+Then  the response is 429 with error code "LIMITE_DE_TAXA" and a Retry-After header
+And   the body says nothing about which throttle fired, nor how many attempts remain
+And   an audit row records the event with no address in clear
+Given a source inside a configured institutional range
+When  it exceeds the ordinary ceiling but stays below that range's own, higher ceiling
+Then  requests continue to be served
+And   exceeding the higher ceiling also returns 429
+Given the application's route table
+When  it is compared against the configured ceilings
+Then  every route under those two prefixes has one, and a route without is reported by name
+```
+This is a second, independent throttle, not a replacement for AC-0001-03. That
+one asks "is someone attacking this account?" and is keyed on the submitted
+address; this one asks "is someone abusing this endpoint?" and is keyed on the
+source. Neither contains the other: the first misses a spray across many
+addresses, the second misses a slow, patient attack on one.
+
+The higher ceiling for institutional ranges rather than an exemption is
+deliberate, and so is its direction: whole unidades sit behind one NAT address,
+so a ceiling tuned for the open internet would lock out a building on its first
+busy morning — while an exemption would mean an attacker inside the network
+faces no limit at all. ADR-0012 carries the reasoning.
+
+### 4.8 The audit substrate *(new in v0.3)*
 
 **AC-0001-27** — The history table refuses to be rewritten
 ```gherkin
@@ -437,7 +541,10 @@ the trigger stops whatever the privilege does not — a superuser session, or a
 | Invitation already redeemed | 409 | `CONVITE_JA_UTILIZADO` | "Este convite já foi utilizado. Peça um novo ao gestor." |
 | Invitation older than 72 h | 409 | `CONVITE_EXPIRADO` | "Este convite expirou. Peça um novo ao gestor." |
 | Password below the minimum | 422 | `SENHA_FRACA` | "A senha precisa ter ao menos 12 caracteres." |
-| E-mail already invited or registered | 409 | `EMAIL_JA_CADASTRADO` | "Já existe uma conta para este e-mail." |
+| Reset token already used | 409 | `REDEFINICAO_JA_UTILIZADA` | "Este link de redefinição já foi usado. Solicite outro." |
+| Reset token older than 1 hour | 409 | `REDEFINICAO_EXPIRADA` | "Este link de redefinição expirou. Solicite outro." |
+| Rate limit exceeded | 429 | `LIMITE_DE_TAXA` | "Muitas requisições. Tente novamente em instantes." |
+| E-mail already invited or registered | 409 | `EMAIL_JA_CADASTRADO` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
 | Invited e-mail outside the institutional domains | 422 | `DOMINIO_NAO_INSTITUCIONAL` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
 | Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
@@ -449,8 +556,10 @@ do next — which for an access problem is naming who can fix it.
 | Action | gestor | servidor | auditor |
 | --- | --- | --- | --- |
 | Invite / activate / block / deactivate members | ✅ | ❌ | ❌ |
+| Trigger a password reset for another member | ✅ | ❌ | ❌ |
 | View member list | ✅ | ❌ | ✅ read-only |
 | Authenticate, refresh, log out | ✅ | ✅ | ✅ |
+| Request a reset for one's own address | unauthenticated — see AC-0001-30 | | |
 
 *(2026-09-10)* **"Change own password" left this matrix.** v0.2 granted it to all
 three profiles while specifying no criterion and no endpoint for it — a matrix
@@ -475,6 +584,9 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | POST | `/api/v1/usuarios/{id}/bloquear` | Block | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | Deactivate and anonymise | 13, 14, 29 |
 | POST | `/api/v1/convites/{token}/ativar` | Redeem an invitation | 11, 25, 26 |
+| POST | `/api/v1/auth/redefinicoes` | Request a reset; always 202 | 30, 33 |
+| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | Set a new password | 31 |
+| POST | `/api/v1/usuarios/{id}/redefinir-senha` | Gestor triggers a reset | 32 |
 
 All auth routes live under `/api/v1`, resolving a divergence in v0.2, which
 listed them at the root while `api-conventions.md` states the prefix is
@@ -495,6 +607,11 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Deactivation | `usuario` | `usuario.desativado` | `{status}` |
 | Refusal by profile | `usuario` | `auth.negada` | `{rota, metodo, perfil}` |
 | Blocked attempt to remove the last gestor | `usuario` | `usuario.ultimo_gestor` | `{alvo_id}` |
+| Reset requested | `usuario` | `auth.redefinicao_solicitada` | `{email_hmac, dominio}` |
+| Reset refused (no account, or not `ativo`, or OIDC-only) | `usuario` | `auth.redefinicao_recusada` | `{motivo, email_hmac, dominio}` |
+| Reset completed | `usuario` | `auth.redefinicao_concluida` | `{sessoes_revogadas}` |
+| Reset triggered by a gestor | `usuario` | `usuario.redefinicao_disparada` | `{alvo_id}` |
+| Rate limit exceeded | `usuario` | `auth.limite_excedido` | `{rota, origem_hmac}` |
 
 No row carries a password, a token value, or a `nome` in `dados_anteriores` —
 `lgpd.md`'s resolution of the erasure/immutability tension depends on it.
@@ -535,7 +652,170 @@ Invariant I4 still holds — a row that *does* name a `usuario_id` never loses i
 
 ## 10. Implementation plan
 
-_Filled by `/plan SPEC-0001`._
+*Produced by `/plan SPEC-0001` on 2026-09-10, after the persistence review that
+drove v0.4. Not yet executed.*
+
+### New dependencies
+
+| Dependency | Why | Alternative rejected |
+| --- | --- | --- |
+| `bcrypt` | AC-0001-05 names the algorithm and the cost | argon2 is stronger, but the criterion is already written and changing it is a spec decision, not a plan one |
+| `pyjwt[crypto]` | RS256 issuance (AC-0001-09) and verification of the provider's assertion (AC-0001-20) | `authlib` bundles an OIDC client we would use a tenth of |
+| `httpx2` | OIDC token exchange, JWKS retrieval, and the `TestClient` Starlette 1.6 now wants | `httpx` 0.28 works, but Starlette then warns on every test that uses `TestClient`, and the auth suite lives there |
+| `mypy` *(dev)* | definition-of-done already required a clean run; the pipeline did not run it | — |
+
+**Not** used: `PyJWKClient`, although it ships with `pyjwt`. It fetches JWKS with
+`urllib`, which would force the tests' fake provider to bind a real socket
+instead of being an ASGI app. Fetching JWKS through the injected `httpx2` client
+keeps the provider a fixture and puts the `kid` cache AC-0001-20 needs under
+explicit control.
+
+### Migration — `0001_baseline`
+
+The project's first migration; `migrations/versions/` is empty. Tables:
+`usuario`, `tentativa_login`, `token_credencial`, `limite_taxa`,
+`sessao_familia`, `sessao`, `historico_movimentacao` + seven partitions. Full DDL, constraint names and the
+reasoning behind each are in `docs/architecture/data-model.md`, which was
+corrected on 2026-09-10 for exactly this migration.
+
+Hand-written `op.execute`, not autogenerate: partitioning, the trigger, the
+`SECURITY DEFINER` partition function, generated columns and grants are all
+invisible to Alembic's comparison. `env.py` gains an `include_object` filter
+excluding `historico_movimentacao_%` so the *next* autogenerate does not propose
+dropping every partition.
+
+**`downgrade()` refuses** when `historico_movimentacao` holds any row, raising
+`SI002` with the count. It drops the parent (not enumerated partitions), then
+the trigger function. What a permitted downgrade loses: every usuario, session,
+invitation and lockout counter — acceptable, because it can only run on an empty
+audit trail, which means nothing auditable has happened yet.
+
+**Precondition, not a step:** two database roles. See Risks.
+
+### Modules
+
+| Layer | Files |
+| --- | --- |
+| Migration | `backend/migrations/versions/0001_baseline.py`; `migrations/env.py` (filter) |
+| Models | `app/models/usuario.py`, `token_credencial.py`, `sessao.py`, `tentativa_login.py`, `limite_taxa.py`, `historico.py` |
+| Repositories | `app/repositories/usuario.py`, `token_credencial.py`, `sessao.py`, `tentativa_login.py`, `limite_taxa.py`, `historico.py` |
+| Services | `app/services/autenticacao.py`, `sessoes.py`, `bloqueio.py`, `credenciais.py` (invites and resets share the grant mechanics), `membros.py`, `oidc.py`, `auditoria.py`, `permissoes.py`, `limite_taxa.py` |
+| Domain errors | `app/services/erros.py` — one exception per error code in §5 |
+| API | `app/api/auth.py`, `oidc.py`, `usuarios.py`, `convites.py`; `app/api/erros.py` (exception→envelope mapping) |
+| Dependencies | `app/core/seguranca.py` (token issue/verify, the active check of AC-0001-08), `app/core/autorizacao.py` (the matrix and the route audit), `app/core/limite.py` (the AC-0001-33 throttle, applied to two path prefixes) |
+| Schemas | `app/schemas/auth.py`, `usuario.py`, `convite.py` |
+| Config | `app/core/config.py` — keys, TTLs, allowlist, `local_login_enabled`, OIDC, HMAC pepper, per-route ceilings and institutional CIDRs |
+| Infra | `docker-compose.yml`, `.env.example` (two roles) |
+
+Layering per CLAUDE.md: no `HTTPException` below `app/api/`, no business rule in
+a repository, and the audit row written in the same transaction as its mutation.
+
+### Endpoints
+
+| Method | Path | Request → Response | ACs |
+| --- | --- | --- | --- |
+| POST | `/api/v1/auth/login` | `{email, senha}` → access token + refresh cookie | 01–05, 24 |
+| POST | `/api/v1/auth/refresh` | refresh cookie → rotated pair | 06, 07 |
+| POST | `/api/v1/auth/logout` | refresh cookie → 204 | 07 |
+| GET | `/api/v1/auth/me` | — → `{id, nome, email, perfil}` | 08, 22 |
+| GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
+| GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
+| GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
+| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
+| POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
+| POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
+| POST | `/api/v1/convites/{token}/ativar` | `{senha}` → session | 11, 25, 26 |
+| POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
+| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | `{senha}` → 204, sessions revoked | 31 |
+| POST | `/api/v1/usuarios/{id}/redefinir-senha` | — → 202 | 32 |
+
+Errors use the envelope in `api-conventions.md`; `code` from §5, `message` pt-BR.
+AC-0001-33's throttle wraps every row above except the three `usuarios` routes,
+which are already behind authentication and the permission matrix.
+
+### Tests — every AC mapped
+
+| AC | File · function |
+| --- | --- |
+| 01 | `test_auth_login.py::test_ac_0001_01_login_emite_par_de_tokens` |
+| 02 | `test_auth_login.py::test_ac_0001_02_resposta_identica_para_email_inexistente` |
+| 03 | `test_auth_lockout.py::test_ac_0001_03_bloqueio_por_tentativas` · `::test_ac_0001_03_decaimento_da_janela` · `::test_ac_0001_03_oidc_nao_e_afetado` |
+| 04 | `test_auth_login.py::test_ac_0001_04_dominio_fora_da_allowlist` |
+| 05 | `test_auth_login.py::test_ac_0001_05_hash_nunca_sai_do_banco` |
+| 06 | `test_auth_tokens.py::test_ac_0001_06_token_expirado_e_refresh` |
+| 07 | `test_auth_tokens.py::test_ac_0001_07_logout_e_replay_derruba_familia` |
+| 08 | `test_auth_active_check.py::test_ac_0001_08_desativacao_vale_imediatamente` |
+| 09 | `test_auth_tokens.py::test_ac_0001_09_assinatura_alheia_e_alg_none` |
+| 10 | `test_usuarios_convites.py::test_ac_0001_10_gestor_convida` |
+| 11 | `test_usuarios_convites.py::test_ac_0001_11_ativacao` |
+| 12 | `test_usuarios_gestao.py::test_ac_0001_12_bloqueio` |
+| 13 | `test_usuarios_gestao.py::test_ac_0001_13_servidor_e_auditor_nao_gerenciam` |
+| 14 | `test_usuarios_gestao.py::test_ac_0001_14_anonimizacao_preserva_historico` |
+| 15 | `test_permissoes.py::test_ac_0001_15_matriz_gestor` |
+| 16 | `test_permissoes.py::test_ac_0001_16_matriz_servidor` |
+| 17 | `test_permissoes.py::test_ac_0001_17_matriz_auditor` |
+| 18 | `test_permissoes.py::test_ac_0001_18_recusa_por_perfil_e_auditada` |
+| 19 | `test_auth_oidc.py::test_ac_0001_19_pkce_state_nonce` |
+| 20 | `test_auth_oidc.py::test_ac_0001_20_verificacao_do_id_token` |
+| 21 | `test_auth_oidc.py::test_ac_0001_21_sem_provisionamento_jit` |
+| 22 | `test_auth_oidc.py::test_ac_0001_22_perfil_vem_do_registro` |
+| 23 | `test_permissoes.py::test_ac_0001_23_toda_rota_de_escrita_tem_entrada` |
+| 24 | `test_auth_login.py::test_ac_0001_24_login_local_desligavel` |
+| 25 | `test_usuarios_convites.py::test_ac_0001_25_convite_uso_unico_e_expiracao` |
+| 26 | `test_usuarios_convites.py::test_ac_0001_26_politica_de_senha` |
+| 27 | `test_audit_immutability.py::test_ac_0001_27_historico_recusa_update_e_delete` |
+| 28 | `test_usuarios_convites.py::test_ac_0001_28_convite_duplicado_ou_fora_do_dominio` |
+| 29 | `test_usuarios_gestao.py::test_ac_0001_29_ultimo_gestor` · `::test_ac_0001_29_corrida_entre_dois_gestores` |
+| 30 | `test_redefinicao_senha.py::test_ac_0001_30_202_uniforme_para_os_tres_casos` |
+| 31 | `test_redefinicao_senha.py::test_ac_0001_31_troca_credencial_e_revoga_sessoes` · `::test_ac_0001_31_uso_unico_e_expiracao` |
+| 32 | `test_redefinicao_senha.py::test_ac_0001_32_gestor_dispara_sem_ver_o_token` |
+| 33 | `test_limite_taxa.py::test_ac_0001_33_429_com_retry_after` · `::test_ac_0001_33_faixa_institucional_tem_teto_maior` · `::test_ac_0001_33_toda_rota_tem_teto` |
+
+Plus `test_migration_baseline.py`, which proves the schema rather than an AC:
+the illegal-PK correction, partition bounds under `TimeZone='America/Sao_Paulo'`,
+a per-partition ACL of exactly `{SELECT, INSERT}`, the cloned trigger being
+`ENABLE ALWAYS`, an insert into an unpartitioned year raising `23514`, and
+`downgrade()` refusing with `SI002` against a non-empty table.
+
+AC-0001-29's race test runs many iterations, not once: write skew is
+probabilistic and a single pass proves nothing.
+
+### Sequence
+
+1. Two database roles — `docker-compose.yml`, `.env.example`, `config.py`, and a
+   `pg_roles` guard in the migration. **Nothing else can be trusted before this.**
+2. `0001_baseline` + `test_migration_baseline.py`.
+3. Test harness: `conftest.py` gains a real PostgreSQL fixture and a
+   second-role connection, without which AC-0001-27 cannot be asserted.
+4. Models and repositories.
+5. `auditoria.py` + `test_audit_immutability.py` — the substrate everything else
+   writes to.
+6. Auth config, key handling, token issue/verify.
+7. Local login, refresh, logout, `/me` (AC-01..09, 24).
+8. Lockout (AC-03), on its own commit because it owns the committed-on-rollback
+   subtlety.
+9. Permission matrix, authorisation dependency, route-table check (AC-15..18, 23).
+10. Invitations and member management (AC-10..14, 25, 26, 28, 29).
+11. OIDC and the fake provider fixture (AC-19..22).
+12. Rate limiting (AC-33), last among the features because it wraps routes that
+    must already exist — and its route-coverage check then fails loudly if a
+    later commit adds an auth route without a ceiling.
+13. Password reset (AC-30..32), which reuses the grant mechanics from step 10
+    and the throttle from step 12; without the throttle, the request endpoint is
+    an e-mail bomb.
+14. `/trace`, `security-reviewer`, then the PR.
+
+### Risks
+
+| Risk | Cheapest early detection |
+| --- | --- |
+| **One database role.** `docker-compose.yml` ships `sigi` as owner *and* application role, and an owner can `ALTER TABLE ... DISABLE TRIGGER`. Until a second role exists, ADR-0004's guarantee is enforced by nothing | Step 1, before any DDL. `test_audit_immutability.py` asserts the failure as `sigi_app`, so a single-role setup fails the suite instead of passing it |
+| **RNF01 vs AC-0001-05.** RNF01 demands p95 under 300 ms; a bcrypt cost-12 verification alone costs roughly 250–400 ms, so `POST /auth/login` **cannot** meet it. This is a requirement conflict, not a tuning problem | Measure in step 7 and settle it then: either RNF01 carves out credential verification explicitly, or AC-0001-05's cost changes. Both are spec edits. Do not silently lower the cost |
+| **January outage.** Nothing creates next year's partition, and every write depends on the audit insert | Partitions through 2032 in step 2, plus the `23514` test that names the failure mode |
+| **Two scheduled jobs, both failing silently.** Partition creation and `limite_taxa` purging. Neither raises an error when it stops running; the first surfaces as a total write outage in January, the second as a table that quietly grows | Partitions through 2032 remove the first from the critical path for six years. For the purge, a row-count check belongs in whatever monitoring RNF02 brings — recorded now so it is a known gap rather than a discovery |
+| **HMAC pepper rotation.** Rotating it silently breaks lockout continuity and de-correlates historical audit rows for one address | Document it as a one-way decision in `.env.example` before the first row is written |
+| **No Docker locally.** The DB-backed tests, the whole substrate, run only in CI | Accepted; steps 2–5 are validated by CI on the first push, not locally |
+| **OIDC against the real tenant is unverifiable** until the entity's TI delivers tenant/client/redirect (OQ-09) | The fake provider covers our side of the contract; the first real login stays a known unknown |
 
 ## Revision history
 
@@ -593,6 +873,29 @@ AC-0001-29 also grew to cover demotion of the last gestor and to state the
 concurrency requirement, since it is a cross-row condition and therefore subject
 to write skew.
 
+**v0.5 (2026-09-10)** — two gaps the product owner found by reading the spec,
+neither of which `/spec-review` or the persistence review had caught.
+
+1. **There was no way to recover a forgotten password.** v0.3's scope line
+   declared the token-e-mail reset in scope "by exception" and then never gave it
+   a criterion; the same version cut "change own password" from the permission
+   matrix and added AC-0001-28, which refuses inviting an address that already
+   has an account in any status. The three together left a servidor with a
+   forgotten local credential no path at all — not self-service, not a
+   re-invite, only database access. Closed by AC-0001-30/-31/-32.
+2. **Only one path was throttled.** AC-0001-03 protected login and nothing else,
+   leaving ten endpoints open — among them the OIDC callback, which performs a
+   network call to the entity's own identity provider on every request, and the
+   invitation redemption, which runs bcrypt and is therefore cheap to send and
+   expensive to serve. Closed by AC-0001-33 and ADR-0012.
+
+Also settled here: **ADR-0011** resolves the RNF01/AC-0001-05 conflict rather
+than leaving it for whoever writes the endpoint. The 300 ms budget never came
+from a measurement, and lowering the bcrypt cost to meet it would have been a
+security downgrade wearing the clothes of a performance fix. Credential
+verification gets its own provisional 500 ms, to be replaced by a measured
+figure before M5's load tests close.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -601,3 +904,4 @@ to write skew.
 | 0.2 | 2026-09-02 | OQ-09 reframed from the 17/08 meeting: Entra ID, not Gov.br. Candidate axes for RN07 scoping recorded from the data (unidade, grupo de materiais) |
 | 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice, with AC-0001-27 proving RN06/RNF08. `/spec-review` added AC-0001-25/26 (invitation single-use, password policy), AC-0001-28 (duplicate and off-domain invites) and AC-0001-29 (the last active gestor cannot be locked out); "change own password" left the permission matrix as unspecified |
 | 0.4 | 2026-09-10 | `/plan`'s persistence review corrected four defects: the lockout is keyed on the submitted address, not the account (AC-0001-02 was false as written); AC-0001-03 states an inactivity decay rather than two conflicting rules; the lockout no longer reaches institutional OIDC, closing a DoS on member management; and §8 stops writing e-mail addresses into the immutable audit table, using a peppered HMAC plus domain. AC-0001-29 extended to demotion and to the concurrency requirement |
+| 0.5 | 2026-09-10 | Password reset specified at last (AC-0001-30/-31/-32): a forgotten local credential had no recovery path, because the scope line promised the flow without a criterion while AC-0001-28 blocked the only workaround. Rate limiting added across every auth route (AC-0001-33, ADR-0012), keyed on the source and independent of the per-address lockout, with a higher ceiling for institutional ranges because whole unidades share one NAT address. RNF01's conflict with AC-0001-05 settled by ADR-0011 instead of by lowering the bcrypt cost |
