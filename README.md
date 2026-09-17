@@ -59,9 +59,9 @@ passar por Pull Request revisado. `main` recebe apenas releases; todo o trabalho
 é integrado em `dev`.
 
 1. Parta de `dev` atualizada (`git checkout dev && git pull origin dev`)
-2. Crie sua branch (`git checkout -b feature/minha-feature`)
+2. Crie sua branch (`git checkout -b add/minha-feature`)
 3. Commit suas alterações (`git commit -m 'feat: minha feature [SPEC-0001]'`)
-4. Faça o push (`git push -u origin feature/minha-feature`)
+4. Faça o push (`git push -u origin add/minha-feature`)
 5. Abra um Pull Request **para `dev`** — nunca para `main`
 
 Leia o [guia de contribuição](CONTRIBUTING.md) antes do primeiro PR. O modelo de

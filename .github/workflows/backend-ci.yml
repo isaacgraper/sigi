@@ -1,8 +1,11 @@
 name: backend-ci
 
 on:
+  # No branch filter on pull_request: the filter matches the *target* branch, so
+  # a stacked PR — one opened against another feature branch — would run nothing
+  # at all, and get reviewed with no recorded result. push stays on dev and main,
+  # which are the only branches that take commits directly.
   pull_request:
-    branches: [dev, main]
   push:
     branches: [dev, main]
 
@@ -24,28 +27,81 @@ jobs:
       run:
         working-directory: backend
 
+    env:
+      # Pinned deliberately. setup-python's poetry cache parses the output of
+      # `poetry config --list` line by line; a future Poetry that prints one
+      # unparseable value would break the *cache* step, which is a confusing
+      # thing to debug on somebody else's pull request.
+      POETRY_VERSION: 2.3.3
+
     steps:
       - uses: actions/checkout@v5
 
-      # setup-uv no longer publishes major/minor tags since v8.0.0, so the
-      # reference is the release's immutable commit — as its own README advises.
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          enable-cache: true
+      # Before setup-python on purpose: `cache: poetry` shells out to
+      # `poetry config --list` to work out what to cache, so Poetry has to be
+      # resolvable by then.
+      - name: Install Poetry
+        working-directory: .
+        run: |
+          pipx install "poetry==${POETRY_VERSION}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      # --locked fails if uv.lock is stale relative to pyproject.toml,
-      # instead of silently re-resolving.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      # Together these are what `uv sync --locked` used to guarantee:
+      # `check --lock` fails when the lock is missing, and `sync` refuses a lock
+      # that is stale relative to pyproject.toml rather than re-resolving in
+      # silence. `sync` and not `install` because the environment is restored
+      # from a cache — anything the lock no longer names has to be pruned.
+      - name: Validate pyproject and lock
+        run: poetry check --lock
+
       - name: Install dependencies
-        run: uv sync --all-groups --locked
+        run: poetry sync --all-groups
 
       - name: Ruff — lint
-        run: uv run ruff check .
+        run: poetry run ruff check .
 
       - name: Ruff — format
-        run: uv run ruff format --check .
+        run: poetry run ruff format --check .
+
+      # definition-of-done requires a clean mypy run. It was in the checklist
+      # before it was in the pipeline, which is how a checklist stops being one.
+      - name: mypy
+        # `migrations` is included on purpose: it is where the hand-written DDL
+        # lives, which is the code least covered by tests and most able to
+        # destroy data.
+        run: poetry run mypy app migrations tests
 
       # Minimum 70% coverage (RNF10). Tests use a real PostgreSQL via
       # testcontainers — the ubuntu-latest runner already provides Docker.
       - name: Tests with coverage
-        run: uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+        run: poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+
+  segredos:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # Its own job rather than a step in `backend`: this scans the whole
+    # repository, not the backend, and a lint failure must not stop it from
+    # reporting. `threat-model.md` has asked for this in three separate
+    # paragraphs and `roadmap.md` puts it in M1; OQ-17 is the live prototype
+    # token it exists to catch.
+    #
+    # The commit hook in .pre-commit-config.yaml is the local half and knows
+    # what a CPF and a SIAPE number are, which gitleaks does not. gitleaks is
+    # the half that knows what an API key looks like. Neither replaces the
+    # other, and only this one runs on code that arrives from outside.
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # gitleaks scans history, not just the working tree, so it needs one.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

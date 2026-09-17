@@ -24,6 +24,8 @@ is deliberately changed.
 | `security/lgpd.md` | Data inventory, legal basis, data-subject rights | Personal data handling changes. |
 | `process/sdd-workflow.md` | How a change moves from idea to merged code | The team changes how it works. |
 | `process/definition-of-done.md` | Merge checklist | The team raises the bar. |
+| `process/sop-qualidade.md` | Which rule is enforced by which machine, and which are enforced by nobody | A hook, a CI job or an unenforced rule changes. |
+| `process/branching-and-releases.md` | Branch model, versioning, the release PR | The release process changes. |
 | `open-questions.md` | What the evidence does not answer: policies, lead times, intentions. A contradiction the **data** answers is a defect in the spec, not an entry here (ADR-0009). | Continuously. |
 | `roadmap.md` | M1–M5 milestones and spec sequencing | Planning sessions. |
 

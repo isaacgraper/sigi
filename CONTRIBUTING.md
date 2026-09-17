@@ -14,12 +14,49 @@ Domain vocabulary stays in Portuguese everywhere — `ATA`, `Nota de Empenho` (N
 | ----------- | --------------------------------------------------------------- |
 | `main`      | Release only. Protected. Advances exclusively via a release PR.  |
 | `dev`       | Integration branch. All work merges here first.                  |
-| `feature/*` | New functionality. Branched from `dev`.                          |
+| `add/*`     | New functionality. Branched from `dev`.                          |
 | `fix/*`     | Bug fix. Branched from `dev`.                                    |
 | `chore/*`   | Tooling, docs, CI, dependencies. Branched from `dev`.            |
 | `hotfix/*`  | Urgent production fix. Branched from `main`.                     |
 
+Name the branch after **the work**, and reference the spec when there is one:
+`add/authentication-spec-0001`, `fix/nf-orfa-spec-0005`, `chore/poetry-pre-commit-sop`.
+
+**A branch never carries the name of a person or of a tool.** Not `claude/…`,
+not `isaac/…`. A branch is a unit of work, and whoever picks it up next should
+be able to tell what it does from its name — a repository where branches are
+named after who happened to open them stops being readable the moment two people
+work on the same area, and it reads as authorship in an accountability record
+where the authorship that counts is the commit trailer and the PR.
+
 **Never push directly to `main` or `dev`.** Both are protected and require a PR.
+
+## Bootstrap
+
+Once per machine:
+
+```bash
+pipx install poetry==2.3.3
+```
+
+Once per clone:
+
+```bash
+cd backend
+poetry env use python3.12      # only if `python3` is not already 3.12
+poetry sync --all-groups       # creates backend/.venv, installs main + dev
+poetry run pre-commit install --install-hooks \
+    --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
+```
+
+The hooks are not optional and not a convenience: they are where `ruff`, `mypy`,
+the commit convention and the ban on committing personal data are actually
+enforced. Skipping the install means finding all four in CI instead, on somebody
+else's time.
+
+Run `poetry run pre-commit run --all-files` to check the whole tree at once.
+`docs/process/sop-qualidade.md` says which gate fires when, and what to do when
+one refuses.
 
 ## Workflow
 
@@ -29,13 +66,13 @@ git checkout dev
 git pull origin dev
 
 # 2. Create your branch
-git checkout -b feature/cadastro-de-ata
+git checkout -b add/cadastro-de-ata-spec-0002
 
 # 3. Work and commit
 git commit -m "feat(ata): add registration endpoint [SPEC-0002]"
 
 # 4. Publish and open the PR
-git push -u origin feature/cadastro-de-ata
+git push -u origin add/cadastro-de-ata-spec-0002
 ```
 
 The Pull Request **always** targets `dev` — never `main`.
@@ -63,53 +100,41 @@ Accepted types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`
 
 ## Pull request descriptions
 
-A PR description is read twice: once by the reviewer, and again months later by
-whoever is auditing how a change reached production. Write it for the second
-reader.
+A PR description is read twice: by the reviewer now, and by whoever audits how a
+change reached production later. Write it for the second reader.
 
-The template in `.github/pull_request_template.md` is applied automatically.
-It has four parts:
+Three parts, and nothing else:
 
-**1. Summary — prose, no heading.** Open with what the PR establishes, in
-present tense. Two or three sentences, in business terms, not a restatement of
-the diff.
+**1. Description — one or two sentences, no heading.** What the PR does.
 
-**2. `### Changes`** — grouped by area, with the area in bold and its changes as
-nested bullets. Bullets start with a past-tense verb: *Scaffolded*, *Configured*,
-*Integrated*, *Added*, *Removed*.
+**2. `## Key Changes`** — one line per change. No sub-grouping, no prose.
 
-**3. `### Why / Motivation`** — why this change, and why now. Reference the spec
-when there is one. This is the section the auditor reads.
+**3. `## Technical Details`** — what a reviewer cannot read off the diff: why an
+approach was chosen over the alternative, what was measured, what broke during
+implementation and how. Short paragraphs, each opening with the subject in bold.
 
-**4. `### How to Test`** — numbered steps a reviewer can actually follow, each
-naming the area in bold and stating the observable result that means it passed.
-"Run the tests" is not a step; "hit `/health` and verify a `200 OK`" is.
+Keep it dry. No summaries of the summary, no restating the diff in prose, no
+closing paragraph that repeats the opening one.
 
 ### Worked example
 
 ```markdown
-Establishes the foundational architecture and configuration for the project
-repository. It scaffolds a Next.js frontend with modern testing tools, sets up a
-FastAPI backend with database migration and containerization support, and
-incorporates initial documentation and development tooling configurations.
+Replaces uv with Poetry and adds pre-commit hooks.
 
-### Changes
-* **Backend Setup**
-  * Scaffolded FastAPI application structure including an initial health check endpoint
-  * Configured Alembic for database schema migrations and Docker for containerized deployment
-* **Frontend Setup**
-  * Scaffolded Next.js client-side architecture
-  * Integrated Vitest for unit testing and Playwright for end-to-end test execution
+## Key Changes
 
-### Why / Motivation
-To lay down the project's boilerplate structure, developer environment
-configuration, and testing foundation before initiating core feature development.
+- Backend dependency management moves from uv to Poetry
+- Ruff gains the `W` and `D` rules; the 24 resulting violations are fixed
+- `gitleaks` added as a CI job
 
-### How to Test
-1. **Backend:** Spin up the backend via Docker or local python environment, run
-   Alembic migrations, and hit the `/health` endpoint to verify a `200 OK` response.
-2. **Frontend:** Run the Next.js development server to verify the template builds
-   correctly, and run Vitest/Playwright test suites to confirm the testing pipeline works.
+## Technical Details
+
+**Poetry.** `pyproject.toml` keeps its PEP 621 tables unchanged.
+`package-mode = false` replaces `[build-system]`: no wheel is ever built, and
+the Dockerfile already installed dependencies only.
+
+**Hooks.** All `repo: local`, so ruff and mypy come from `poetry.lock` rather
+than a second pin that drifts from it.
 ```
 
 ### What a PR is expected to satisfy
