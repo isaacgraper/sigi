@@ -105,3 +105,26 @@ def _percorrer(valor: Any, path: str = "") -> list[tuple[str, Any]]:
     if isinstance(valor, list | tuple):
         return [item for i, sub in enumerate(valor) for item in _percorrer(sub, f"{path}[{i}]")]
     return [(path, valor)]
+
+
+def record_standalone(evento: Evento, *, correlation_id: uuid.UUID) -> None:
+    """Write an audit row in a transaction of its own, and commit it.
+
+    For the failure path, which is the path that rolls back. A failed login
+    raises, the request's session is rolled back, and an audit row written in it
+    would vanish with the failure it was recording, leaving the trail with only
+    successes in it.
+
+    Deliberately **not** the default: everything that accompanies a mutation
+    must share that mutation's transaction, and a writer that commits on its own
+    could leave one without the other.
+    """
+    from app.core.db import sessao_factory
+
+    with sessao_factory()() as own_session:
+        try:
+            registrar(own_session, evento, correlation_id=correlation_id)
+            own_session.commit()
+        except Exception:
+            own_session.rollback()
+            raise

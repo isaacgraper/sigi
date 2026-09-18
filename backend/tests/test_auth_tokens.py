@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from collections.abc import Callable
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core import seguranca
 from app.core.config import get_settings
@@ -26,6 +30,10 @@ from app.core.seguranca import (
     issue_access_token,
     verify_access_token,
 )
+from app.models.usuario import Usuario
+from tests.conftest import cookie_de, usar_refresh
+
+SENHA = "SenhaCorreta-12345"
 
 
 def _emitir(**kwargs: object) -> str:
@@ -173,3 +181,113 @@ def test_refresh_e_opaco_e_so_o_hash_circula() -> None:
     from app.core.segredos import digest_secret
 
     assert digest_secret(valor) == digest
+
+
+# ── Against the database and the assembled application ──────────────────────
+# What follows is not a property of the token alone: renewing and invalidating
+# are server state, which is exactly why the refresh token is opaque.
+
+
+def test_ac_0001_06_token_expirado_e_refresh(
+    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+) -> None:
+    """AC-0001-06 — an expired token is refused; refresh renews without a senha."""
+    usuario = criar_usuario()
+    entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    refresh = cookie_de(entrada, "sigi_refresh")
+    assert refresh
+
+    expirado = issue_access_token(
+        usuario_id=usuario.id,
+        perfil=usuario.perfil,
+        now=datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
+    )
+    recusado = aplicacao.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expirado}"})
+    assert recusado.status_code == 401
+    assert recusado.json()["error"]["code"] == "TOKEN_EXPIRADO"
+
+    usar_refresh(aplicacao, refresh)
+    renovado = aplicacao.post("/api/v1/auth/refresh")
+    assert renovado.status_code == 200
+    novo = renovado.json()["access_token"]
+    assert novo != entrada.json()["access_token"]
+
+    # The cookie was rotated, not reissued identical: rotation is what makes a
+    # stolen refresh token detectable rather than merely valid for seven days.
+    rotacionado = cookie_de(renovado, "sigi_refresh")
+    assert rotacionado and rotacionado != refresh
+
+    aceito = aplicacao.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {novo}"})
+    assert aceito.status_code == 200
+    assert aceito.json()["id"] == str(usuario.id)
+
+
+def test_ac_0001_07_logout_e_replay_derruba_familia(
+    aplicacao: TestClient, criar_usuario: Callable[..., Usuario], sessao: Session
+) -> None:
+    """AC-0001-07 — logout invalidates the refresh, and a replay is audited.
+
+    What this test exists to pin is the last `assert`: the family revocation and
+    the audit row must **survive** the request that fails. Written in the
+    request's session they would roll back with it, leaving the stolen family
+    alive and the theft unrecorded — behind the same 401 on screen.
+    """
+    usuario = criar_usuario()
+    entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    primeiro = cookie_de(entrada, "sigi_refresh")
+    assert primeiro
+
+    usar_refresh(aplicacao, primeiro)
+    renovado = aplicacao.post("/api/v1/auth/refresh")
+    segundo = cookie_de(renovado, "sigi_refresh")
+    assert segundo
+
+    usar_refresh(aplicacao, segundo)
+    assert aplicacao.post("/api/v1/auth/logout").status_code == 204
+
+    usar_refresh(aplicacao, segundo)
+    replay = aplicacao.post("/api/v1/auth/refresh")
+    assert replay.status_code == 401
+    assert replay.json()["error"]["code"] == "REFRESH_INVALIDO"
+
+    # An earlier generation, which the logout should also have revoked.
+    usar_refresh(aplicacao, primeiro)
+    assert aplicacao.post("/api/v1/auth/refresh").status_code == 401
+
+    sessao.rollback()  # enxerga o que as transações do servidor comitaram
+    linhas = sessao.execute(
+        text(
+            "SELECT dados_anteriores FROM historico_movimentacao"
+            " WHERE acao = 'auth.refresh_replay' AND usuario_id = :uid"
+        ),
+        {"uid": usuario.id},
+    ).all()
+    assert len(linhas) >= 1
+    vivas = sessao.execute(
+        text("SELECT count(*) FROM sessao WHERE usuario_id = :uid AND revogado_em IS NULL"),
+        {"uid": usuario.id},
+    ).scalar_one()
+    assert vivas == 0
+
+
+def test_refresh_ausente_ou_desconhecido_e_401(aplicacao: TestClient) -> None:
+    """A missing refresh cookie and an invented one answer identically.
+
+    Saying "that token does not exist" would confirm, by elimination, which
+    ones do.
+    """
+    sem = aplicacao.post("/api/v1/auth/refresh")
+    usar_refresh(aplicacao, "token-que-nunca-foi-emitido")
+    desconhecido = aplicacao.post("/api/v1/auth/refresh")
+
+    assert sem.status_code == desconhecido.status_code == 401
+    assert sem.json()["error"]["code"] == desconhecido.json()["error"]["code"] == "REFRESH_INVALIDO"
+
+
+def test_logout_sem_cookie_nao_falha(aplicacao: TestClient) -> None:
+    """Logging out with no session is still 204.
+
+    A client that lost its cookie still wants to leave, and an error here only
+    teaches people to ignore errors.
+    """
+    assert aplicacao.post("/api/v1/auth/logout").status_code == 204

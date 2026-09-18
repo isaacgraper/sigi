@@ -662,6 +662,7 @@ drove v0.4. Not yet executed.*
 | `bcrypt` | AC-0001-05 names the algorithm and the cost | argon2 is stronger, but the criterion is already written and changing it is a spec decision, not a plan one |
 | `pyjwt[crypto]` | RS256 issuance (AC-0001-09) and verification of the provider's assertion (AC-0001-20) | `authlib` bundles an OIDC client we would use a tenth of |
 | `httpx2` | OIDC token exchange, JWKS retrieval, and the `TestClient` Starlette 1.6 now wants | `httpx` 0.28 works, but Starlette then warns on every test that uses `TestClient`, and the auth suite lives there |
+| `pydantic[email]` | `EmailStr` needs `email-validator`. Address validation by hand is where address validation is always wrong, and AC-0001-28 turns on it | a regex of our own, which would accept or refuse the wrong addresses at the exact moment nobody is watching. The extra makes no DNS query: pydantic calls the validator with `check_deliverability=False` |
 | `mypy` *(dev)* | definition-of-done already required a clean run; the pipeline did not run it | — |
 
 **Not** used: `PyJWKClient`, although it ships with `pyjwt`. It fetches JWKS with
