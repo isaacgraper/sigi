@@ -57,7 +57,10 @@ visible to any authenticated user (RF06).
 
 **AC-0007-08** — History is queryable by `entidade_tipo` + `entidade_id`, by
 `usuario_id`, and by time range, each under 300 ms on 1 million rows, with a
-composite index on `(entidade_tipo, entidade_id, ocorrido_em DESC)`.
+composite index on `(entidade_tipo, entidade_id, ocorrido_em)`. *(The `DESC`
+was dropped on 2026-09-11: with equality on the leading columns a btree scans
+backwards just as well, and specifying it made the models diverge from the
+schema. This criterion should not name a sort direction at all.)*
 
 ## 3. Retention
 

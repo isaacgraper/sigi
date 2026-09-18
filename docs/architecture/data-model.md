@@ -403,10 +403,16 @@ Four changes from the previous description, each with a reason:
 **Indexes**, on the parent so they propagate to future partitions:
 
 ```sql
-(entidade_tipo, entidade_id, ocorrido_em DESC)
-(usuario_id, ocorrido_em DESC)
+(entidade_tipo, entidade_id, ocorrido_em)
+(usuario_id, ocorrido_em)
 (correlation_id)                 -- "everything that happened in one request"
 ```
+
+*(2026-09-11)* The `DESC` these two carried until now is gone. With equality on
+the leading columns a btree scans backwards just as well, so it bought nothing —
+and it made the SQLAlchemy models diverge from the schema, which is what
+`alembic check` reported. AC-0007-08 over-specifies it as a criterion; that is
+the spec's to revise when SPEC-0007 is written.
 
 `CREATE INDEX CONCURRENTLY` is not supported on a partitioned table. Irrelevant
 while the table is empty; painful later.
