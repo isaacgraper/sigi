@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
-from app.services.auditoria import DadoPessoalNoHistorico, Evento, registrar
+from app.services.audit import DadoPessoalNoHistorico, Event, record
 
 
 def _criar_usuario(sessao: Session, nome: str = "Ana") -> uuid.UUID:
@@ -43,9 +43,9 @@ def _contar(sessao: Session, uid: uuid.UUID) -> int:
 def test_linha_e_gravada_na_transacao_de_quem_chama(sessao: Session) -> None:
     """RN06 — the row lands in the caller's transaction, not one of its own."""
     uid = _criar_usuario(sessao)
-    registrar(
+    record(
         sessao,
-        Evento(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
+        Event(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
         correlation_id=uuid.uuid4(),
     )
     sessao.commit()
@@ -55,9 +55,9 @@ def test_linha_e_gravada_na_transacao_de_quem_chama(sessao: Session) -> None:
 def test_rollback_da_mutacao_leva_a_auditoria_junto(sessao: Session) -> None:
     """The first half of the promise: no orphan audit row."""
     uid = _criar_usuario(sessao)
-    registrar(
+    record(
         sessao,
-        Evento(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
+        Event(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
         correlation_id=uuid.uuid4(),
     )
     sessao.rollback()
@@ -77,9 +77,9 @@ def test_falha_da_auditoria_derruba_a_mutacao(sessao: Session) -> None:
     """
     uid = _criar_usuario(sessao, "Bruno")
     with pytest.raises(DBAPIError):
-        registrar(
+        record(
             sessao,
-            Evento(entidade_tipo="usuario", entidade_id=uid, acao="UsuarioConvidado"),
+            Event(entidade_tipo="usuario", entidade_id=uid, acao="UsuarioConvidado"),
             correlation_id=uuid.uuid4(),
         )
     sessao.rollback()
@@ -96,9 +96,9 @@ def test_linha_sem_ator_e_permitida(sessao: Session) -> None:
     which is why `usuario_id` is nullable.
     """
     alvo = uuid.uuid4()
-    registrar(
+    record(
         sessao,
-        Evento(
+        Event(
             entidade_tipo="usuario",
             entidade_id=alvo,
             acao="auth.oidc_recusada",
@@ -114,9 +114,9 @@ def test_linha_sem_ator_e_permitida(sessao: Session) -> None:
 def test_correlation_id_e_gravado(sessao: Session) -> None:
     """RNF12 — the correlation id reaches the row, so a log line can be tied to it."""
     uid, correlacao = uuid.uuid4(), uuid.uuid4()
-    registrar(
+    record(
         sessao,
-        Evento(entidade_tipo="usuario", entidade_id=uid, acao="auth.login"),
+        Event(entidade_tipo="usuario", entidade_id=uid, acao="auth.login"),
         correlation_id=correlacao,
     )
     sessao.commit()
@@ -146,9 +146,9 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
     of only refusing.
     """
     with pytest.raises(DadoPessoalNoHistorico) as exc:
-        registrar(
+        record(
             sessao,
-            Evento(
+            Event(
                 entidade_tipo="usuario",
                 entidade_id=uuid.uuid4(),
                 acao="auth.oidc_recusada",
@@ -156,16 +156,16 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
             ),
             correlation_id=uuid.uuid4(),
         )
-    assert "segredos.digest_secret" in str(exc.value)
+    assert "secrets_hmac.digest_secret" in str(exc.value)
 
 
 def test_guarda_deixa_passar_o_payload_correto(sessao: Session) -> None:
     """What SPEC-0001 §8 actually prescribes: the HMAC and the bare domain."""
-    from app.core.segredos import digest_secret
+    from app.core.secrets_hmac import digest_secret
 
-    registrar(
+    record(
         sessao,
-        Evento(
+        Event(
             entidade_tipo="usuario",
             entidade_id=uuid.uuid4(),
             acao="auth.falha",

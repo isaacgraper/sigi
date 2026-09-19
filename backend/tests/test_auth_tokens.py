@@ -19,40 +19,40 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core import seguranca
+from app.core import security
 from app.core.config import get_settings
-from app.core.seguranca import (
-    ALGORITMO,
-    ClaimsAcesso,
+from app.core.security import (
+    ALGORITHM,
+    AccessClaims,
     TokenExpirado,
     TokenInvalido,
     generate_refresh_token,
     issue_access_token,
     verify_access_token,
 )
-from app.models.usuario import Usuario
-from tests.conftest import cookie_de, usar_refresh
+from app.models.user import User
+from tests.conftest import cookie_from, use_refresh
 
 SENHA = "SenhaCorreta-12345"
 
 
-def _emitir(**kwargs: object) -> str:
-    return issue_access_token(usuario_id=uuid.uuid4(), perfil="servidor", **kwargs)  # type: ignore[arg-type]
+def _issue(**kwargs: object) -> str:
+    return issue_access_token(usuario_id=uuid.uuid4(), role="servidor", **kwargs)  # type: ignore[arg-type]
 
 
 def test_token_valido_devolve_as_claims() -> None:
     """A token this service minted verifies, and its claims come back intact."""
     uid = uuid.uuid4()
-    claims = verify_access_token(issue_access_token(usuario_id=uid, perfil="gestor"))
-    assert isinstance(claims, ClaimsAcesso)
+    claims = verify_access_token(issue_access_token(usuario_id=uid, role="gestor"))
+    assert isinstance(claims, AccessClaims)
     assert claims.usuario_id == uid
-    assert claims.perfil == "gestor"
+    assert claims.role == "gestor"
 
 
 def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
     """RNF03 fixes the window; AC-0001-06 fixes what an expired one does."""
     now = datetime.datetime.now(datetime.UTC)
-    claims = verify_access_token(_emitir(now=now))
+    claims = verify_access_token(_issue(now=now))
     minutos = (claims.expira_em - now).total_seconds() / 60
     assert 14.9 < minutos < 15.1
     assert minutos == pytest.approx(get_settings().access_token_ttl_minutos, abs=0.1)
@@ -62,8 +62,8 @@ def test_ac_0001_06_token_expirado_e_recusado() -> None:
     """AC-0001-06 — an expired token is refused."""
     passado = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
     with pytest.raises(TokenExpirado) as exc:
-        verify_access_token(_emitir(now=passado))
-    assert exc.value.codigo == "TOKEN_EXPIRADO"
+        verify_access_token(_issue(now=passado))
+    assert exc.value.code == "TOKEN_EXPIRADO"
     assert exc.value.http == 401
 
 
@@ -87,7 +87,7 @@ def test_ac_0001_09_assinatura_de_outra_chave_e_recusada() -> None:
             ),
         },
         pem,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(forjado)
@@ -119,7 +119,7 @@ def test_ac_0001_09_alg_none_e_recusado() -> None:
 
 def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
     """AC-0001-09 — a token from another issuer is refused."""
-    privada = seguranca._par_de_chaves()[0]
+    privada = security._key_pair()[0]
     de_outro_sistema = jwt.encode(
         {
             "sub": str(uuid.uuid4()),
@@ -132,7 +132,7 @@ def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
             ),
         },
         privada,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(de_outro_sistema)
@@ -145,7 +145,7 @@ def test_token_de_outro_tipo_nao_passa_por_access() -> None:
     could — and accepting one would be a privilege escalation with no signature
     error to notice it.
     """
-    privada = seguranca._par_de_chaves()[0]
+    privada = security._key_pair()[0]
     outro_tipo = jwt.encode(
         {
             "sub": str(uuid.uuid4()),
@@ -158,7 +158,7 @@ def test_token_de_outro_tipo_nao_passa_por_access() -> None:
             ),
         },
         privada,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(outro_tipo)
@@ -178,7 +178,7 @@ def test_refresh_e_opaco_e_so_o_hash_circula() -> None:
     assert valor != outro
     assert digest != outro_digest
     # Deterministic, or the lookup by hash would never match.
-    from app.core.segredos import digest_secret
+    from app.core.secrets_hmac import digest_secret
 
     assert digest_secret(valor) == digest
 
@@ -189,41 +189,41 @@ def test_refresh_e_opaco_e_so_o_hash_circula() -> None:
 
 
 def test_ac_0001_06_token_expirado_e_refresh(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+    application: TestClient, criar_usuario: Callable[..., User]
 ) -> None:
     """AC-0001-06 — an expired token is refused; refresh renews without a senha."""
     usuario = criar_usuario()
-    entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
-    refresh = cookie_de(entrada, "sigi_refresh")
+    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    refresh = cookie_from(entrada, "sigi_refresh")
     assert refresh
 
     expirado = issue_access_token(
         usuario_id=usuario.id,
-        perfil=usuario.perfil,
+        role=usuario.role,
         now=datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
     )
-    recusado = aplicacao.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expirado}"})
+    recusado = application.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expirado}"})
     assert recusado.status_code == 401
     assert recusado.json()["error"]["code"] == "TOKEN_EXPIRADO"
 
-    usar_refresh(aplicacao, refresh)
-    renovado = aplicacao.post("/api/v1/auth/refresh")
+    use_refresh(application, refresh)
+    renovado = application.post("/api/v1/auth/refresh")
     assert renovado.status_code == 200
     novo = renovado.json()["access_token"]
     assert novo != entrada.json()["access_token"]
 
     # The cookie was rotated, not reissued identical: rotation is what makes a
     # stolen refresh token detectable rather than merely valid for seven days.
-    rotacionado = cookie_de(renovado, "sigi_refresh")
+    rotacionado = cookie_from(renovado, "sigi_refresh")
     assert rotacionado and rotacionado != refresh
 
-    aceito = aplicacao.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {novo}"})
+    aceito = application.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {novo}"})
     assert aceito.status_code == 200
     assert aceito.json()["id"] == str(usuario.id)
 
 
 def test_ac_0001_07_logout_e_replay_derruba_familia(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario], sessao: Session
+    application: TestClient, criar_usuario: Callable[..., User], sessao: Session
 ) -> None:
     """AC-0001-07 — logout invalidates the refresh, and a replay is audited.
 
@@ -233,26 +233,26 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
     alive and the theft unrecorded — behind the same 401 on screen.
     """
     usuario = criar_usuario()
-    entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
-    primeiro = cookie_de(entrada, "sigi_refresh")
+    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    primeiro = cookie_from(entrada, "sigi_refresh")
     assert primeiro
 
-    usar_refresh(aplicacao, primeiro)
-    renovado = aplicacao.post("/api/v1/auth/refresh")
-    segundo = cookie_de(renovado, "sigi_refresh")
+    use_refresh(application, primeiro)
+    renovado = application.post("/api/v1/auth/refresh")
+    segundo = cookie_from(renovado, "sigi_refresh")
     assert segundo
 
-    usar_refresh(aplicacao, segundo)
-    assert aplicacao.post("/api/v1/auth/logout").status_code == 204
+    use_refresh(application, segundo)
+    assert application.post("/api/v1/auth/logout").status_code == 204
 
-    usar_refresh(aplicacao, segundo)
-    replay = aplicacao.post("/api/v1/auth/refresh")
+    use_refresh(application, segundo)
+    replay = application.post("/api/v1/auth/refresh")
     assert replay.status_code == 401
     assert replay.json()["error"]["code"] == "REFRESH_INVALIDO"
 
     # An earlier generation, which the logout should also have revoked.
-    usar_refresh(aplicacao, primeiro)
-    assert aplicacao.post("/api/v1/auth/refresh").status_code == 401
+    use_refresh(application, primeiro)
+    assert application.post("/api/v1/auth/refresh").status_code == 401
 
     sessao.rollback()  # enxerga o que as transações do servidor comitaram
     linhas = sessao.execute(
@@ -270,24 +270,24 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
     assert vivas == 0
 
 
-def test_refresh_ausente_ou_desconhecido_e_401(aplicacao: TestClient) -> None:
+def test_refresh_ausente_ou_desconhecido_e_401(application: TestClient) -> None:
     """A missing refresh cookie and an invented one answer identically.
 
     Saying "that token does not exist" would confirm, by elimination, which
     ones do.
     """
-    sem = aplicacao.post("/api/v1/auth/refresh")
-    usar_refresh(aplicacao, "token-que-nunca-foi-emitido")
-    desconhecido = aplicacao.post("/api/v1/auth/refresh")
+    sem = application.post("/api/v1/auth/refresh")
+    use_refresh(application, "token-que-nunca-foi-emitido")
+    desconhecido = application.post("/api/v1/auth/refresh")
 
     assert sem.status_code == desconhecido.status_code == 401
     assert sem.json()["error"]["code"] == desconhecido.json()["error"]["code"] == "REFRESH_INVALIDO"
 
 
-def test_logout_sem_cookie_nao_falha(aplicacao: TestClient) -> None:
+def test_logout_sem_cookie_nao_falha(application: TestClient) -> None:
     """Logging out with no session is still 204.
 
     A client that lost its cookie still wants to leave, and an error here only
     teaches people to ignore errors.
     """
-    assert aplicacao.post("/api/v1/auth/logout").status_code == 204
+    assert application.post("/api/v1/auth/logout").status_code == 204

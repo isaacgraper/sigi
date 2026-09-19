@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
 
-class HistoricoMovimentacao(Base):
+class AuditLog(Base):
     """The append-only audit trail, partitioned by year (RN06, ADR-0004).
 
     Never updated and never deleted, enforced in the database rather than here:

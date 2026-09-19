@@ -33,9 +33,9 @@ from psycopg import sql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.senhas import hash_senha
+from app.core.passwords import hash_password
 from app.main import create_app
-from app.models.usuario import Usuario
+from app.models.user import User
 
 PAPEL_APP = "sigi_app_test"
 SENHA_APP = "sigi_app_test"
@@ -207,7 +207,7 @@ def sessao(banco: tuple[str, str]) -> Iterator[Session]:
 
 
 @pytest.fixture
-def aplicacao(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     """A `TestClient` whose application really talks to the test database.
 
     The engine is pointed at the restricted role rather than the dependency
@@ -218,7 +218,7 @@ def aplicacao(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterat
     """
     from app.core.config import get_settings
     from app.core.db import reset_engine
-    from app.core.seguranca import reset_keys
+    from app.core.security import reset_keys
 
     monkeypatch.setenv("DATABASE_URL", _para_sqlalchemy(banco[1]))
     monkeypatch.setenv("DB_APP_ROLE", PAPEL_APP)
@@ -236,7 +236,7 @@ def aplicacao(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterat
 
 
 @pytest.fixture
-def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
+def criar_usuario(sessao: Session) -> Callable[..., User]:
     """Insert a usuario directly.
 
     Member management is a later step (AC-0001-10 onwards); until it exists the
@@ -250,12 +250,12 @@ def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
         perfil: str = "servidor",
         status: str = "ativo",
         nome: str = "Pessoa de Teste",
-    ) -> Usuario:
-        usuario = Usuario(
+    ) -> User:
+        usuario = User(
             nome=nome,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
-            senha_hash=hash_senha(senha) if senha else None,
-            perfil=perfil,
+            senha_hash=hash_password(senha) if senha else None,
+            role=perfil,
             status=status,
         )
         sessao.add(usuario)
@@ -266,7 +266,7 @@ def criar_usuario(sessao: Session) -> Callable[..., Usuario]:
     return criar
 
 
-def cookie_de(response: object, nome: str) -> str | None:
+def cookie_from(response: object, nome: str) -> str | None:
     """Read a Set-Cookie value from the raw headers.
 
     Not `response.cookies`: the refresh cookie is `Secure` (AC-0001-01) and the
@@ -280,7 +280,7 @@ def cookie_de(response: object, nome: str) -> str | None:
     return None
 
 
-def usar_refresh(cliente: TestClient, valor: str) -> None:
+def use_refresh(cliente: TestClient, valor: str) -> None:
     """Put a refresh token in the client's jar.
 
     Necessary because the cookie the application sets is `Secure` and the test

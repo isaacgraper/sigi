@@ -15,37 +15,37 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.db import get_sessao
-from app.core.seguranca import TokenInvalido, verify_access_token
-from app.models.usuario import Usuario
-from app.repositories import usuario as repo
-from app.services.erros import UsuarioInativo
+from app.core.security import TokenInvalido, verify_access_token
+from app.models.user import User
+from app.repositories import user as repo
+from app.services.errors import InactiveUser
 
 ESQUEMA = "bearer"
 
 
-def _token_do_cabecalho(request: Request) -> str:
+def _token_from_header(request: Request) -> str:
     cabecalho = request.headers.get("authorization", "")
-    tipo, _, valor = cabecalho.partition(" ")
-    if tipo.lower() != ESQUEMA or not valor.strip():
+    tipo, _, value = cabecalho.partition(" ")
+    if tipo.lower() != ESQUEMA or not value.strip():
         raise TokenInvalido("Sua sessão não é válida. Entre novamente.")
-    return valor.strip()
+    return value.strip()
 
 
-def current_usuario(request: Request, sessao: Annotated[Session, Depends(get_sessao)]) -> Usuario:
-    """Resolve the bearer token to a usuario, and refuse one that is not ativo.
+def current_usuario(request: Request, session: Annotated[Session, Depends(get_sessao)]) -> User:
+    """Resolve the bearer token to a user, and refuse one that is not ativo.
 
     The active check runs here, on every request, rather than only at login.
     Otherwise a deactivation would take up to fifteen minutes to bite, which is
     the life of the access token (AC-0001-08).
     """
-    claims = verify_access_token(_token_do_cabecalho(request))
-    usuario = repo.by_id(sessao, claims.usuario_id)
-    if usuario is None or not usuario.ativo:
+    claims = verify_access_token(_token_from_header(request))
+    user = repo.by_id(session, claims.usuario_id)
+    if user is None or not user.ativo:
         # Same response whether the account was deleted, blocked or deactivated:
         # the caller holds a valid signature, so they already know the account
         # existed, but they learn nothing further about its state.
-        raise UsuarioInativo()
-    return usuario
+        raise InactiveUser()
+    return user
 
 
-UsuarioAtual = Annotated[Usuario, Depends(current_usuario)]
+UsuarioAtual = Annotated[User, Depends(current_usuario)]

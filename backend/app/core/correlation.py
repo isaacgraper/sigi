@@ -22,10 +22,10 @@ CABECALHO = "X-Correlation-Id"
 _atual: ContextVar[uuid.UUID | None] = ContextVar("correlation_id", default=None)
 
 
-def atual() -> uuid.UUID:
+def current() -> uuid.UUID:
     """The current request's correlation id, or a fresh one outside a request."""
-    valor = _atual.get()
-    return valor if valor is not None else uuid.uuid4()
+    value = _atual.get()
+    return value if value is not None else uuid.uuid4()
 
 
 class CorrelacaoMiddleware:
@@ -46,17 +46,17 @@ class CorrelacaoMiddleware:
             await self.app(scope, receive, send)
             return
 
-        entrada = _do_cabecalho(scope)
+        entrada = _from_header(scope)
         correlation_id = entrada or uuid.uuid4()
         token = _atual.set(correlation_id)
         scope.setdefault("state", {})["correlation_id"] = correlation_id
 
-        async def enviar(mensagem: Message) -> None:
-            if mensagem["type"] == "http.response.start":
-                headers = list(mensagem.get("headers", []))
+        async def enviar(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
                 headers.append((CABECALHO.lower().encode(), str(correlation_id).encode()))
-                mensagem = {**mensagem, "headers": headers}
-            await send(mensagem)
+                message = {**message, "headers": headers}
+            await send(message)
 
         try:
             await self.app(scope, receive, enviar)
@@ -64,12 +64,12 @@ class CorrelacaoMiddleware:
             _atual.reset(token)
 
 
-def _do_cabecalho(scope: Scope) -> uuid.UUID | None:
-    alvo = CABECALHO.lower().encode()
-    for nome, valor in scope.get("headers", []):
-        if nome.lower() == alvo:
+def _from_header(scope: Scope) -> uuid.UUID | None:
+    target = CABECALHO.lower().encode()
+    for nome, value in scope.get("headers", []):
+        if nome.lower() == target:
             try:
-                return uuid.UUID(valor.decode())
+                return uuid.UUID(value.decode())
             except ValueError:
                 # A malformed inbound value is discarded rather than rejected:
                 # it is a tracing convenience, not an authorisation input.

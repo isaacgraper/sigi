@@ -28,41 +28,41 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.config import get_settings
-from app.core.segredos import digest_secret
-from app.services.erros import ErroDominio
+from app.core.secrets_hmac import digest_secret
+from app.services.errors import DomainError
 
-ALGORITMO = "RS256"
-TIPO_ACESSO = "access"
+ALGORITHM = "RS256"
+ACCESS_TYPE = "access"
 # 256 bits from a CSPRNG. The refresh token is looked up by equality on an
 # indexed column, so its security rests entirely on being unguessable.
 BYTES_REFRESH = 32
 
 
-class TokenExpirado(ErroDominio):
+class TokenExpirado(DomainError):
     """The access token is past its `exp`."""
 
-    codigo = "TOKEN_EXPIRADO"
+    code = "TOKEN_EXPIRADO"
     http = 401
 
 
-class TokenInvalido(ErroDominio):
+class TokenInvalido(DomainError):
     """The access token did not verify, or is not an access token."""
 
-    codigo = "TOKEN_INVALIDO"
+    code = "TOKEN_INVALIDO"
     http = 401
 
 
 @dataclass(frozen=True)
-class ClaimsAcesso:
+class AccessClaims:
     """What a verified access token asserts."""
 
     usuario_id: uuid.UUID
-    perfil: str
+    role: str
     expira_em: datetime.datetime
 
 
 @lru_cache
-def _par_de_chaves() -> tuple[bytes, bytes]:
+def _key_pair() -> tuple[bytes, bytes]:
     """The signing pair, or an ephemeral one in development.
 
     Generating a pair when none is configured keeps a fresh clone working. Doing
@@ -94,46 +94,46 @@ def _par_de_chaves() -> tuple[bytes, bytes]:
 
 def reset_keys() -> None:
     """Drop the cached pair. Tests mint their own."""
-    _par_de_chaves.cache_clear()
+    _key_pair.cache_clear()
 
 
 def issue_access_token(
     *,
     usuario_id: uuid.UUID,
-    perfil: str,
+    role: str,
     now: datetime.datetime | None = None,
 ) -> str:
-    """Mint an access token for this usuario and perfil."""
+    """Mint an access token for this user and role."""
     cfg = get_settings()
     now = now or datetime.datetime.now(datetime.UTC)
-    expira = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
+    expires = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
     return jwt.encode(
         {
-            # RS256 é determinístico: sem um claim único, dois tokens emitidos
-            # no mesmo segundo para o mesmo usuário saem **byte a byte iguais**,
-            # porque `iat` e `exp` são segundos inteiros. O `jti` é o que dá a
-            # cada token emitido uma identidade própria — que é o que um log,
-            # uma correlação de auditoria ou uma futura lista de revogação
-            # precisam ter para significar alguma coisa.
+            # RS256 is deterministic: with no unique claim, two tokens minted
+            # in the same second for the same usuario come out **byte for byte
+            # identical**, because `iat` and `exp` are whole seconds. `jti` is
+            # what gives each minted token an identity of its own — which is
+            # what a log line, an audit correlation or a future revocation list
+            # need in order to mean anything.
             "jti": str(uuid.uuid4()),
             "sub": str(usuario_id),
-            "perfil": perfil,
-            "typ": TIPO_ACESSO,
+            "perfil": role,
+            "typ": ACCESS_TYPE,
             "iss": cfg.jwt_issuer,
             "iat": int(now.timestamp()),
-            "exp": int(expira.timestamp()),
+            "exp": int(expires.timestamp()),
         },
-        _par_de_chaves()[0],
-        algorithm=ALGORITMO,
+        _key_pair()[0],
+        algorithm=ALGORITHM,
     )
 
 
-def verify_access_token(token: str) -> ClaimsAcesso:
+def verify_access_token(token: str) -> AccessClaims:
     """Decode and validate, or raise.
 
     `algorithms` is pinned to RS256, which is what makes `alg: none` and an
     HS256 token signed with the public key both fail (AC-0001-09). This says
-    nothing about whether the usuario is still active — that is a separate
+    nothing about whether the user is still active — that is a separate
     check, on every request, and conflating the two is how a deactivation comes
     to take fifteen minutes (AC-0001-08).
     """
@@ -141,8 +141,8 @@ def verify_access_token(token: str) -> ClaimsAcesso:
     try:
         payload = jwt.decode(
             token,
-            _par_de_chaves()[1],
-            algorithms=[ALGORITMO],
+            _key_pair()[1],
+            algorithms=[ALGORITHM],
             issuer=cfg.jwt_issuer,
             options={"require": ["exp", "iat", "sub", "iss"]},
         )
@@ -151,20 +151,20 @@ def verify_access_token(token: str) -> ClaimsAcesso:
     except jwt.InvalidTokenError as exc:
         raise TokenInvalido("Sua sessão não é válida. Entre novamente.") from exc
 
-    if payload.get("typ") != TIPO_ACESSO:
+    if payload.get("typ") != ACCESS_TYPE:
         # A refresh token is opaque and could never arrive here, but a future
         # token kind could — and accepting one as an access token would be a
         # privilege escalation with no signature error to notice it.
         raise TokenInvalido("Sua sessão não é válida. Entre novamente.")
 
-    return ClaimsAcesso(
+    return AccessClaims(
         usuario_id=uuid.UUID(payload["sub"]),
-        perfil=payload["perfil"],
+        role=payload["perfil"],
         expira_em=datetime.datetime.fromtimestamp(payload["exp"], datetime.UTC),
     )
 
 
 def generate_refresh_token() -> tuple[str, bytes]:
-    """Return `(valor, hash)`. Only the hash is ever stored."""
-    valor = secrets.token_urlsafe(BYTES_REFRESH)
-    return valor, digest_secret(valor)
+    """Return `(value, hash)`. Only the hash is ever stored."""
+    value = secrets.token_urlsafe(BYTES_REFRESH)
+    return value, digest_secret(value)

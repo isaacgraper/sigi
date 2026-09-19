@@ -26,18 +26,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-MOTIVOS_REVOGACAO = (
+REVOCATION_REASONS = (
     "rotacao",
     "logout",
     "replay",
     "desativacao",
-    "bloqueio",
+    "lockout",
     "redefinicao",
 )
 
 
-class SessaoFamilia(Base):
-    """One row per login. Binds a family to exactly one usuario (DB11).
+class SessionFamily(Base):
+    """One row per login. Binds a family to exactly one user (DB11).
 
     Without this, one family could span two users, and revoking it would revoke
     another person's sessions.
@@ -45,7 +45,7 @@ class SessaoFamilia(Base):
 
     __tablename__ = "sessao_familia"
 
-    familia: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    family: Mapped[uuid.UUID] = mapped_column("familia", Uuid, primary_key=True)
     usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("usuario.id"))
     criada_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
@@ -55,11 +55,11 @@ class SessaoFamilia(Base):
     __table_args__ = (UniqueConstraint("familia", "usuario_id", name="uq_sessao_familia_usuario"),)
 
 
-class Sessao(Base):
+class UserSession(Base):
     """One refresh token in a family. Only its HMAC is stored.
 
-    `geracao` replaces a `substituido_por_id` pointer, which was a second
-    representation of what `familia` already said and could disagree with it.
+    `generation` replaces a `substituido_por_id` pointer, which was a second
+    representation of what `family` already said and could disagree with it.
     """
 
     __tablename__ = "sessao"
@@ -68,11 +68,11 @@ class Sessao(Base):
         Uuid, primary_key=True, server_default="gen_random_uuid()"
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid)
-    familia: Mapped[uuid.UUID] = mapped_column(Uuid)
+    family: Mapped[uuid.UUID] = mapped_column("familia", Uuid)
     # Replaced a `substituido_por_id` self-reference, which was a second
-    # representation of what `familia` already carried and could disagree with
+    # representation of what `family` already carried and could disagree with
     # it. Family revocation never walks a chain — it is one UPDATE.
-    geracao: Mapped[int] = mapped_column(SmallInteger)
+    generation: Mapped[int] = mapped_column("geracao", SmallInteger)
     refresh_token_hash: Mapped[bytes] = mapped_column(LargeBinary, unique=True)
     emitido_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
@@ -97,7 +97,7 @@ class Sessao(Base):
         ),
         CheckConstraint(
             "revogado_motivo IN"
-            " ('rotacao', 'logout', 'replay', 'desativacao', 'bloqueio', 'redefinicao')",
+            " ('rotacao', 'logout', 'replay', 'desativacao', 'lockout', 'redefinicao')",
             name="ck_sessao_motivo_valor",
         ),
         CheckConstraint(

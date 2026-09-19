@@ -11,7 +11,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app.core.correlacao import CABECALHO
+from app.core.correlation import CABECALHO
 
 
 def test_resposta_sempre_carrega_correlation_id(client: TestClient) -> None:

@@ -13,19 +13,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
-from app.models.usuario import Usuario
-from tests.conftest import cookie_de
+from app.models.user import User
+from tests.conftest import cookie_from
 
 SENHA = "SenhaCorreta-12345"
 LOGIN = "/api/v1/auth/login"
 
 
 def test_ac_0001_01_login_emite_par_de_tokens(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+    application: TestClient, criar_usuario: Callable[..., User]
 ) -> None:
     """AC-0001-01 — 200, a 15-minute access token, and the refresh only in the cookie."""
     usuario = criar_usuario()
-    response = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    response = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
 
     assert response.status_code == 200
     body = response.json()
@@ -43,12 +43,12 @@ def test_ac_0001_01_login_emite_par_de_tokens(
 
     # The refresh value appears nowhere in the body — one that leaks into a log
     # or a screenshot renews a session for seven days.
-    valor = cookie_de(response, "sigi_refresh")
+    valor = cookie_from(response, "sigi_refresh")
     assert valor and valor not in response.text
 
 
 def test_ac_0001_02_resposta_identica_para_email_inexistente(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+    application: TestClient, criar_usuario: Callable[..., User]
 ) -> None:
     """AC-0001-02 — a wrong senha and an unknown e-mail answer the same.
 
@@ -59,12 +59,12 @@ def test_ac_0001_02_resposta_identica_para_email_inexistente(
     usuario = criar_usuario()
     headers = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-00000000beef"}
 
-    errada = aplicacao.post(
+    errada = application.post(
         LOGIN,
         json={"email": usuario.email, "senha": "senha-errada-mas-longa"},
         headers=headers,
     )
-    inexistente = aplicacao.post(
+    inexistente = application.post(
         LOGIN,
         json={"email": "naoexiste@sc.gov.br", "senha": "senha-errada-mas-longa"},
         headers=headers,
@@ -78,7 +78,7 @@ def test_ac_0001_02_resposta_identica_para_email_inexistente(
 
 
 def test_ac_0001_04_dominio_fora_da_allowlist(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+    application: TestClient, criar_usuario: Callable[..., User]
 ) -> None:
     """AC-0001-04 — an address off the institutional domains does not authenticate.
 
@@ -89,8 +89,8 @@ def test_ac_0001_04_dominio_fora_da_allowlist(
     usuario = criar_usuario(email="alguem@gmail.com")
     headers = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-0000000000aa"}
 
-    fora = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA}, headers=headers)
-    errada = aplicacao.post(
+    fora = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA}, headers=headers)
+    errada = application.post(
         LOGIN, json={"email": "outro@sc.gov.br", "senha": SENHA}, headers=headers
     )
 
@@ -100,7 +100,7 @@ def test_ac_0001_04_dominio_fora_da_allowlist(
 
 
 def test_ac_0001_05_hash_nunca_sai_do_banco(
-    aplicacao: TestClient, criar_usuario: Callable[..., Usuario]
+    application: TestClient, criar_usuario: Callable[..., User]
 ) -> None:
     """AC-0001-05 — bcrypt cost >= 12, and the hash leaves by no route."""
     usuario = criar_usuario()
@@ -109,8 +109,8 @@ def test_ac_0001_05_hash_nunca_sai_do_banco(
     assert prefixo in ("2a", "2b", "2y")
     assert int(custo) >= 12
 
-    entrada = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
-    eu = aplicacao.get(
+    entrada = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    eu = application.get(
         "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {entrada.json()['access_token']}"},
     )
@@ -123,8 +123,8 @@ def test_ac_0001_05_hash_nunca_sai_do_banco(
 
 
 def test_ac_0001_24_login_local_desligavel(
-    aplicacao: TestClient,
-    criar_usuario: Callable[..., Usuario],
+    application: TestClient,
+    criar_usuario: Callable[..., User],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AC-0001-24 — switched off by configuration, the route answers 404.
@@ -136,22 +136,22 @@ def test_ac_0001_24_login_local_desligavel(
     monkeypatch.setenv("LOCAL_LOGIN_ENABLED", "false")
     get_settings.cache_clear()
 
-    desligado = aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    desligado = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
     assert desligado.status_code == 404
     assert desligado.json()["error"]["code"] == "NAO_ENCONTRADO"
 
     monkeypatch.setenv("LOCAL_LOGIN_ENABLED", "true")
     get_settings.cache_clear()
-    assert aplicacao.post(LOGIN, json={"email": usuario.email, "senha": SENHA}).status_code == 200
+    assert application.post(LOGIN, json={"email": usuario.email, "senha": SENHA}).status_code == 200
 
 
-def test_corpo_malformado_usa_o_mesmo_envelope(aplicacao: TestClient) -> None:
+def test_corpo_malformado_usa_o_mesmo_envelope(application: TestClient) -> None:
     """A malformed body uses the same error envelope as everything else.
 
     `api-conventions.md` says an error always has one shape. FastAPI's default
     422 has another, and a client that must understand two understands neither.
     """
-    response = aplicacao.post(LOGIN, json={"email": "nao-e-email", "senha": ""})
+    response = application.post(LOGIN, json={"email": "nao-e-email", "senha": ""})
     assert response.status_code == 422
     erro = response.json()["error"]
     assert erro["code"] == "DADOS_INVALIDOS"
