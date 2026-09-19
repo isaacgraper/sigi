@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.core import security
 from app.core.config import get_settings
 from app.core.security import (
-    ALGORITMO,
+    ALGORITHM,
     AccessClaims,
     TokenExpirado,
     TokenInvalido,
@@ -87,7 +87,7 @@ def test_ac_0001_09_assinatura_de_outra_chave_e_recusada() -> None:
             ),
         },
         pem,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(forjado)
@@ -132,7 +132,7 @@ def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
             ),
         },
         privada,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(de_outro_sistema)
@@ -158,7 +158,7 @@ def test_token_de_outro_tipo_nao_passa_por_access() -> None:
             ),
         },
         privada,
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
     with pytest.raises(TokenInvalido):
         verify_access_token(outro_tipo)

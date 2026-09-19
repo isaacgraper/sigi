@@ -33,7 +33,7 @@ from psycopg import sql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.passwords import hash_senha
+from app.core.passwords import hash_password
 from app.main import create_app
 from app.models.user import User
 
@@ -254,7 +254,7 @@ def criar_usuario(sessao: Session) -> Callable[..., User]:
         usuario = User(
             nome=nome,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
-            senha_hash=hash_senha(senha) if senha else None,
+            senha_hash=hash_password(senha) if senha else None,
             role=perfil,
             status=status,
         )

@@ -36,7 +36,7 @@ class DomainError(Exception):
         self.retry_after = retry_after
 
 
-class CredenciaisInvalidas(DomainError):
+class InvalidCredentials(DomainError):
     """Wrong password, unknown e-mail, or an address off the allowlist.
 
     One class for all three on purpose: AC-0001-02 requires the three responses
@@ -51,7 +51,7 @@ class CredenciaisInvalidas(DomainError):
         super().__init__("E-mail ou senha inválidos.")
 
 
-class UsuarioInativo(DomainError):
+class InactiveUser(DomainError):
     """The credential is right and the account is not ativo."""
 
     code = "USUARIO_INATIVO"
@@ -62,7 +62,7 @@ class UsuarioInativo(DomainError):
         super().__init__("Esta conta não está ativa. Procure o gestor da sua unidade.")
 
 
-class RefreshInvalido(DomainError):
+class InvalidRefresh(DomainError):
     """The refresh token is unknown, expired, or already rotated."""
 
     code = "REFRESH_INVALIDO"
@@ -73,7 +73,7 @@ class RefreshInvalido(DomainError):
         super().__init__("Sua sessão não é mais válida. Entre novamente.")
 
 
-class RotaIndisponivel(DomainError):
+class RouteUnavailable(DomainError):
     """A mechanism switched off by configuration (AC-0001-24).
 
     404 rather than 403: a mechanism that is off should be indistinguishable
@@ -88,7 +88,7 @@ class RotaIndisponivel(DomainError):
         super().__init__("Recurso não encontrado.")
 
 
-class TentativasExcedidas(DomainError):
+class AttemptsExceeded(DomainError):
     """The address is locked after repeated failures (AC-0001-03).
 
     429 rather than 401: the caller is not being told their credential is

@@ -16,18 +16,18 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.passwords import check_senha, hash_senha
+from app.core.passwords import check_password, hash_password
 from app.core.secrets_hmac import digest_secret
 from app.models.user import User
 from app.repositories import user as repo
 from app.services import lockout
 from app.services.audit import Event, record, record_standalone, standalone_transaction
-from app.services.errors import CredenciaisInvalidas, RotaIndisponivel, UsuarioInativo
+from app.services.errors import InactiveUser, InvalidCredentials, RouteUnavailable
 
 # Verified against when no account matches, so that "unknown address" costs the
 # same ~300 ms as "wrong password". Without it the response time is an oracle
 # that answers the question AC-0001-02 forbids answering.
-_HASH_SENTINELA = hash_senha(secrets.token_urlsafe(32))
+_HASH_SENTINEL = hash_password(secrets.token_urlsafe(32))
 
 
 def authenticate_local(
@@ -44,7 +44,7 @@ def authenticate_local(
     if not cfg.local_login_enabled:
         # 404, not 403: a mechanism switched off should be indistinguishable
         # from one that was never built (AC-0001-24).
-        raise RotaIndisponivel()
+        raise RouteUnavailable()
 
     now = datetime.datetime.now(datetime.UTC)
     # Before the password is looked at, not after: AC-0001-03 refuses the sixth
@@ -57,18 +57,18 @@ def authenticate_local(
         if _institutional_domain(email, cfg.dominios_institucionais)
         else None
     )
-    armazenado = user.senha_hash if user and user.senha_hash else _HASH_SENTINELA
-    senha_confere = check_senha(password, armazenado)
+    armazenado = user.senha_hash if user and user.senha_hash else _HASH_SENTINEL
+    senha_confere = check_password(password, armazenado)
 
     if user is None or not senha_confere:
-        _contabilizar_falha(
+        _record_failure(
             email,
             reason="credenciais_invalidas",
             usuario_id=user.id if user else None,
             correlation_id=correlation_id,
             now=now,
         )
-        raise CredenciaisInvalidas()
+        raise InvalidCredentials()
 
     if not user.ativo:
         # The password was right, so this is a legitimate person whose account
@@ -83,7 +83,7 @@ def authenticate_local(
             usuario_id=user.id,
             correlation_id=correlation_id,
         )
-        raise UsuarioInativo()
+        raise InactiveUser()
 
     # In the request's transaction, so it lands with the login it belongs to.
     lockout.clear(session, email=email)
@@ -97,7 +97,7 @@ def _institutional_domain(email: str, permitidos: list[str]) -> bool:
     )
 
 
-def _contabilizar_falha(
+def _record_failure(
     email: str,
     *,
     reason: str,

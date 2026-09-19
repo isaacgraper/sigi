@@ -18,7 +18,7 @@ from app.core.secrets_hmac import digest_secret
 from app.core.security import generate_refresh_token, issue_access_token
 from app.repositories import session as repo
 from app.services.audit import Event, record, standalone_transaction
-from app.services.errors import RefreshInvalido
+from app.services.errors import InvalidRefresh
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,7 @@ def rotate(
     now = _now()
     current = repo.by_hash(session, digest_secret(refresh_token))
     if current is None:
-        raise RefreshInvalido()
+        raise InvalidRefresh()
 
     if current.revogado_em is not None:
         # Someone is using a token that was already rotated, logged out or
@@ -105,10 +105,10 @@ def rotate(
             at=now,
             correlation_id=correlation_id,
         )
-        raise RefreshInvalido()
+        raise InvalidRefresh()
 
     if current.expira_em <= now:
-        raise RefreshInvalido()
+        raise InvalidRefresh()
 
     role = perfil_de(current.usuario_id)
     value, token_hash = generate_refresh_token()

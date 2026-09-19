@@ -1,4 +1,4 @@
-"""Data access for `sessao_familia` and `session`."""
+"""Data access for `sessao_familia` and `sessao`."""
 
 from __future__ import annotations
 

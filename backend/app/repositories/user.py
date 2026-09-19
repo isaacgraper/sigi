@@ -1,4 +1,4 @@
-"""Data access for `user`. No business rule lives here (`CLAUDE.md`)."""
+"""Data access for `usuario`. No business rule lives here (`CLAUDE.md`)."""
 
 from __future__ import annotations
 

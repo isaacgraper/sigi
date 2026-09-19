@@ -24,7 +24,7 @@ from app.core.config import get_settings
 from app.core.secrets_hmac import digest_secret
 from app.repositories import login_attempt as repo
 from app.services.audit import Event, record
-from app.services.errors import TentativasExcedidas
+from app.services.errors import AttemptsExceeded
 
 
 def verificar(session: Session, *, email: str, now: datetime.datetime) -> None:
@@ -39,7 +39,7 @@ def verificar(session: Session, *, email: str, now: datetime.datetime) -> None:
     if row is None or row.blocked_until is None or row.blocked_until <= now:
         return
     remaining = (row.blocked_until - now).total_seconds()
-    raise TentativasExcedidas(minutes=max(1, math.ceil(remaining / 60)))
+    raise AttemptsExceeded(minutes=max(1, math.ceil(remaining / 60)))
 
 
 def count_failure(

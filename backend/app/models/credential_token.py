@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-TIPOS = ("convite", "redefinicao")
+TYPES = ("convite", "redefinicao")
 
 
 class CredentialToken(Base):

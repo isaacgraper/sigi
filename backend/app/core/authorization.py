@@ -1,6 +1,6 @@
 """Who is calling, and whether they still may.
 
-AC-0001-08 is the whole point of this module: `user.ativo` is checked on
+AC-0001-08 is the whole point of this module: `usuario.ativo` is checked on
 **every** request, not only at login. That costs one indexed lookup per
 authenticated call, and it is the difference between a deactivation that takes
 effect now and one that takes effect in up to fifteen minutes — which is not a
@@ -18,7 +18,7 @@ from app.core.db import get_sessao
 from app.core.security import TokenInvalido, verify_access_token
 from app.models.user import User
 from app.repositories import user as repo
-from app.services.errors import UsuarioInativo
+from app.services.errors import InactiveUser
 
 ESQUEMA = "bearer"
 
@@ -44,7 +44,7 @@ def current_usuario(request: Request, session: Annotated[Session, Depends(get_se
         # Same response whether the account was deleted, blocked or deactivated:
         # the caller holds a valid signature, so they already know the account
         # existed, but they learn nothing further about its state.
-        raise UsuarioInativo()
+        raise InactiveUser()
     return user
 
 

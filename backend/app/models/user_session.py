@@ -26,7 +26,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-MOTIVOS_REVOGACAO = (
+REVOCATION_REASONS = (
     "rotacao",
     "logout",
     "replay",

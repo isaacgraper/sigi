@@ -27,13 +27,13 @@ def _prepare(password: str) -> bytes:
     return base64.b64encode(hashlib.sha256(password.encode()).digest())
 
 
-def hash_senha(password: str) -> str:
+def hash_password(password: str) -> str:
     """Hash a password with bcrypt at the configured cost (AC-0001-05)."""
     cost = get_settings().bcrypt_cost
     return bcrypt.hashpw(_prepare(password), bcrypt.gensalt(rounds=cost)).decode()
 
 
-def check_senha(password: str, hash_armazenado: str) -> bool:
+def check_password(password: str, hash_armazenado: str) -> bool:
     """Check a password against a stored hash. A malformed hash verifies nobody."""
     try:
         return bcrypt.checkpw(_prepare(password), hash_armazenado.encode())

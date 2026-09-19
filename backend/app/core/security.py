@@ -8,7 +8,7 @@ Two token kinds, deliberately different in nature:
 - The **refresh token** is an opaque random string, never a JWT. AC-0001-07
   requires invalidating one before its own expiry and detecting a replay, and
   neither is possible with a self-contained token: the state has to live in
-  `session`. Only its HMAC is stored, so a leaked database yields nothing usable.
+  `sessao`. Only its HMAC is stored, so a leaked database yields nothing usable.
 
 Asymmetric signing for the access token even though only this service verifies
 it today: RS256 means a future reader — a report exporter, a second service —
@@ -31,8 +31,8 @@ from app.core.config import get_settings
 from app.core.secrets_hmac import digest_secret
 from app.services.errors import DomainError
 
-ALGORITMO = "RS256"
-TIPO_ACESSO = "access"
+ALGORITHM = "RS256"
+ACCESS_TYPE = "access"
 # 256 bits from a CSPRNG. The refresh token is looked up by equality on an
 # indexed column, so its security rests entirely on being unguessable.
 BYTES_REFRESH = 32
@@ -109,22 +109,22 @@ def issue_access_token(
     expires = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
     return jwt.encode(
         {
-            # RS256 é determinístico: sem um claim único, dois tokens emitidos
-            # no mesmo segundo para o mesmo usuário saem **byte a byte iguais**,
-            # porque `iat` e `exp` são segundos inteiros. O `jti` é o que dá a
-            # cada token emitido uma identidade própria — que é o que um log,
-            # uma correlação de audit ou uma futura lista de revogação
-            # precisam ter para significar alguma coisa.
+            # RS256 is deterministic: with no unique claim, two tokens minted
+            # in the same second for the same usuario come out **byte for byte
+            # identical**, because `iat` and `exp` are whole seconds. `jti` is
+            # what gives each minted token an identity of its own — which is
+            # what a log line, an audit correlation or a future revocation list
+            # need in order to mean anything.
             "jti": str(uuid.uuid4()),
             "sub": str(usuario_id),
             "perfil": role,
-            "typ": TIPO_ACESSO,
+            "typ": ACCESS_TYPE,
             "iss": cfg.jwt_issuer,
             "iat": int(now.timestamp()),
             "exp": int(expires.timestamp()),
         },
         _key_pair()[0],
-        algorithm=ALGORITMO,
+        algorithm=ALGORITHM,
     )
 
 
@@ -142,7 +142,7 @@ def verify_access_token(token: str) -> AccessClaims:
         payload = jwt.decode(
             token,
             _key_pair()[1],
-            algorithms=[ALGORITMO],
+            algorithms=[ALGORITHM],
             issuer=cfg.jwt_issuer,
             options={"require": ["exp", "iat", "sub", "iss"]},
         )
@@ -151,7 +151,7 @@ def verify_access_token(token: str) -> AccessClaims:
     except jwt.InvalidTokenError as exc:
         raise TokenInvalido("Sua sessão não é válida. Entre novamente.") from exc
 
-    if payload.get("typ") != TIPO_ACESSO:
+    if payload.get("typ") != ACCESS_TYPE:
         # A refresh token is opaque and could never arrive here, but a future
         # token kind could — and accepting one as an access token would be a
         # privilege escalation with no signature error to notice it.

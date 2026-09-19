@@ -23,7 +23,7 @@ from app.repositories import user as repo_usuario
 from app.schemas.auth import LoginInput, SessionOutput, UserOutput
 from app.services import sessions
 from app.services.authentication import authenticate_local
-from app.services.errors import RefreshInvalido, UsuarioInativo
+from app.services.errors import InactiveUser, InvalidRefresh
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -56,7 +56,7 @@ def _set_cookie(response: Response, value: str) -> None:
 def _read_cookie(request: Request) -> str:
     value = request.cookies.get(get_settings().cookie_refresh_nome)
     if not value:
-        raise RefreshInvalido()
+        raise InvalidRefresh()
     return value
 
 
@@ -92,7 +92,7 @@ def refresh(request: Request, response: Response, session: SessaoDb) -> SessionO
     par = sessions.rotate(
         session,
         refresh_token=_read_cookie(request),
-        perfil_de=_PerfilDoRegistro(session),
+        perfil_de=_RoleOfRecord(session),
         correlation_id=_correlation_id(request),
     )
     _set_cookie(response, par.refresh_token)
@@ -133,7 +133,7 @@ def me(user: UsuarioAtual) -> UserOutput:
     )
 
 
-class _PerfilDoRegistro(sessions.RoleResolver):
+class _RoleOfRecord(sessions.RoleResolver):
     """Answers "what role does this user have *now*", and refuses the dead.
 
     A refresh is a fresh authorisation decision, so AC-0001-08 applies to it as
@@ -148,5 +148,5 @@ class _PerfilDoRegistro(sessions.RoleResolver):
     def __call__(self, usuario_id: uuid.UUID) -> str:
         user: User | None = repo_usuario.by_id(self.sessao, usuario_id)
         if user is None or not user.ativo:
-            raise UsuarioInativo()
+            raise InactiveUser()
         return user.role
