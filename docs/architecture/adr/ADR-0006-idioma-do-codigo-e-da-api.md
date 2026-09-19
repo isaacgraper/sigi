@@ -1,9 +1,16 @@
 # ADR-0006 — Language split: English code and API envelope, Portuguese domain, pt-BR user text
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0013
 - **Date:** 2026-08-20
 - **Deciders:** Isaac Kleimann Graper
 - **Related:** SPEC-0003, SPEC-0004, A01
+
+> **Superseded on 2026-09-19 by ADR-0013.** The rule below chooses a
+> language by asking whether a word is in the glossary. ADR-0013 asks who
+> reads the string instead, which protects the whole database schema rather
+> than only its glossary words, and frees exception classes and error codes
+> that carry no domain noun. Read this file for the reasoning that led
+> there; read ADR-0013 for the rule in force.
 
 ## Context
 

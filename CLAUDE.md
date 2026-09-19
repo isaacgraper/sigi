@@ -226,20 +226,27 @@ Useful commands: `/spec-new`, `/spec-review`, `/plan`, `/implement`, `/trace`, `
 
 - Comments explain *why*, never *what*.
 - No new dependency without a note in the spec's plan section.
-- Source code — identifiers, comments, docstrings, log messages — is English,
-  with domain vocabulary kept Portuguese (invariant 1):
-  `def calcular_saldo(ata)`, not `def calculate_balance(minutes)`. The API
-  envelope's plumbing fields (`error`, `code`, `message`, `fields`, `items`,
-  `page`, `size`, `sort`) are English; domain payload fields, paths, error
-  codes and database identifiers stay Portuguese. `message` and every string a
-  user reads are pt-BR. See ADR-0006.
-- **The same rule reaches past the code.** Branch names, commit messages, pull
-  request titles and bodies are English, with domain vocabulary kept Portuguese:
-  `add/authentication-spec-0001`, `feat(ne): block advance on insufficient saldo
-  [SPEC-0004]`. **pt-BR is for the frontend and for the entity's data** — the
-  strings a servidor reads, and the operational records themselves.
-  A reviewer should not have to switch language between the diff and the message
-  that explains it.
+- **Language is chosen by who reads the string** (ADR-0013). Ask that first;
+  it answers every case, including the ones a vocabulary list cannot reach.
+
+  | Layer | Language | Reader |
+  | --- | --- | --- |
+  | Database schema: tables, columns, constraints, indexes, DDL, `acao` values, `dados_anteriores` keys | Portuguese | A DBA or a data analyst, querying directly |
+  | UI copy, `message`, `fields` values, tooltips | pt-BR | The servidor using the platform |
+  | Everything else: folders, filenames, Python, comments, docstrings, logs, JSON payload fields, error codes, route paths, config keys, branch names, commit messages, PR titles and bodies | English | A developer |
+
+- **Glossary vocabulary stays Portuguese in every layer** (invariant 1, which
+  ADR-0013 does not narrow): `def calcular_saldo(ata)`, not
+  `def calculate_balance(minutes)`. The tie-break for a compound is all or
+  nothing: a name built around a glossary noun keeps the whole Portuguese
+  expression, a name without one becomes English, and neither is ever
+  translated word by word. `SALDO_INSUFICIENTE` stays; `CREDENCIAIS_INVALIDAS`
+  becomes `INVALID_CREDENTIALS`; `SALDO_INSUFFICIENT` is wrong.
+- A payload field and the column behind it need not share a name, because they
+  have different readers. `password` over `senha_hash` is correct.
+- A reviewer should not have to switch language between the diff and the message
+  that explains it: `add/authentication-spec-0001`, `feat: block advance on
+  insufficient saldo [SPEC-0004]`.
 
 ## Testing expectations
 
