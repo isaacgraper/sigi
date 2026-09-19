@@ -14,15 +14,15 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.segredos import digest_secret
-from app.core.seguranca import generate_refresh_token, issue_access_token
-from app.repositories import sessao as repo
-from app.services.auditoria import Evento, registrar
-from app.services.erros import RefreshInvalido
+from app.core.secrets_hmac import digest_secret
+from app.core.security import generate_refresh_token, issue_access_token
+from app.repositories import session as repo
+from app.services.audit import Event, record, standalone_transaction
+from app.services.errors import RefreshInvalido
 
 
 @dataclass(frozen=True)
-class ParDeTokens:
+class TokenPair:
     """An access token and the refresh token issued with it."""
 
     access_token: str
@@ -34,14 +34,14 @@ def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.UTC)
 
 
-def abrir(
-    sessao: Session,
+def open_session(
+    session: Session,
     *,
     usuario_id: uuid.UUID,
-    perfil: str,
+    role: str,
     correlation_id: uuid.UUID,
     mecanismo: str,
-) -> ParDeTokens:
+) -> TokenPair:
     """Open a session: a new family, generation one, and a token pair.
 
     The refresh token is returned to the caller and stored only as its HMAC,
@@ -49,20 +49,20 @@ def abrir(
     """
     cfg = get_settings()
     now = _now()
-    familia = repo.create_familia(sessao, usuario_id)
-    valor, token_hash = generate_refresh_token()
-    expira = now + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
-    repo.criar(
-        sessao,
+    family = repo.create_familia(session, usuario_id)
+    value, token_hash = generate_refresh_token()
+    expires = now + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
+    repo.create(
+        session,
         usuario_id=usuario_id,
-        familia=familia,
-        geracao=1,
+        family=family,
+        generation=1,
         token_hash=token_hash,
-        expira_em=expira,
+        expira_em=expires,
     )
-    registrar(
-        sessao,
-        Evento(
+    record(
+        session,
+        Event(
             entidade_tipo="usuario",
             entidade_id=usuario_id,
             acao="auth.login",
@@ -71,16 +71,16 @@ def abrir(
         ),
         correlation_id=correlation_id,
     )
-    return ParDeTokens(
-        access_token=issue_access_token(usuario_id=usuario_id, perfil=perfil, now=now),
-        refresh_token=valor,
-        expira_em=expira,
+    return TokenPair(
+        access_token=issue_access_token(usuario_id=usuario_id, role=role, now=now),
+        refresh_token=value,
+        expira_em=expires,
     )
 
 
-def rotacionar(
-    sessao: Session, *, refresh_token: str, perfil_de: PerfilResolver, correlation_id: uuid.UUID
-) -> ParDeTokens:
+def rotate(
+    session: Session, *, refresh_token: str, perfil_de: RoleResolver, correlation_id: uuid.UUID
+) -> TokenPair:
     """Exchange a refresh token for a new pair, or detect a replay.
 
     The lookup deliberately does not filter out revoked rows: a replayed token
@@ -90,72 +90,72 @@ def rotacionar(
     """
     cfg = get_settings()
     now = _now()
-    atual = repo.by_hash(sessao, digest_secret(refresh_token))
-    if atual is None:
+    current = repo.by_hash(session, digest_secret(refresh_token))
+    if current is None:
         raise RefreshInvalido()
 
-    if atual.revogado_em is not None:
+    if current.revogado_em is not None:
         # Someone is using a token that was already rotated, logged out or
         # revoked. Whoever holds the live one may be the thief, so the whole
         # family goes — that is what turns theft into a detectable event.
-        _derrubar_familia_apos_replay(
-            familia=atual.familia,
-            usuario_id=atual.usuario_id,
-            sessao_id=atual.id,
+        _revoke_familia_after_replay(
+            family=current.family,
+            usuario_id=current.usuario_id,
+            sessao_id=current.id,
             at=now,
             correlation_id=correlation_id,
         )
         raise RefreshInvalido()
 
-    if atual.expira_em <= now:
+    if current.expira_em <= now:
         raise RefreshInvalido()
 
-    perfil = perfil_de(atual.usuario_id)
-    valor, token_hash = generate_refresh_token()
-    atual.revogado_em = now
-    atual.revogado_motivo = "rotacao"
-    nova = repo.criar(
-        sessao,
-        usuario_id=atual.usuario_id,
-        familia=atual.familia,
-        geracao=repo.next_geracao(sessao, atual.familia),
+    role = perfil_de(current.usuario_id)
+    value, token_hash = generate_refresh_token()
+    current.revogado_em = now
+    current.revogado_motivo = "rotacao"
+    nova = repo.create(
+        session,
+        usuario_id=current.usuario_id,
+        family=current.family,
+        generation=repo.next_geracao(session, current.family),
         token_hash=token_hash,
         expira_em=now + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
     )
-    return ParDeTokens(
-        access_token=issue_access_token(usuario_id=atual.usuario_id, perfil=perfil, now=now),
-        refresh_token=valor,
+    return TokenPair(
+        access_token=issue_access_token(usuario_id=current.usuario_id, role=role, now=now),
+        refresh_token=value,
         expira_em=nova.expira_em,
     )
 
 
-def encerrar(sessao: Session, *, refresh_token: str, correlation_id: uuid.UUID) -> None:
+def close(session: Session, *, refresh_token: str, correlation_id: uuid.UUID) -> None:
     """Log out: revoke the whole family, not just the presented token.
 
     Revoking one generation would leave every other device logged in, which is
     not what anyone means by "sair".
     """
     now = _now()
-    atual = repo.by_hash(sessao, digest_secret(refresh_token))
-    if atual is None:
+    current = repo.by_hash(session, digest_secret(refresh_token))
+    if current is None:
         # Nothing to revoke, and saying so would confirm which tokens exist.
         return
-    repo.revoke_familia(sessao, atual.familia, motivo="logout", at=now)
-    registrar(
-        sessao,
-        Evento(
+    repo.revoke_familia(session, current.family, reason="logout", at=now)
+    record(
+        session,
+        Event(
             entidade_tipo="usuario",
-            entidade_id=atual.usuario_id,
+            entidade_id=current.usuario_id,
             acao="auth.logout",
-            usuario_id=atual.usuario_id,
+            usuario_id=current.usuario_id,
         ),
         correlation_id=correlation_id,
     )
 
 
-def _derrubar_familia_apos_replay(
+def _revoke_familia_after_replay(
     *,
-    familia: uuid.UUID,
+    family: uuid.UUID,
     usuario_id: uuid.UUID,
     sessao_id: uuid.UUID,
     at: datetime.datetime,
@@ -168,41 +168,32 @@ def _derrubar_familia_apos_replay(
     family alive and the theft unrecorded — the detection reduced to a 401 that
     looks identical to a typo.
     """
-    from app.core.db import sessao_factory
-
-    with sessao_factory()() as propria:
-        try:
-            derrubadas = repo.revoke_familia(propria, familia, motivo="replay", at=at)
-            registrar(
-                propria,
-                Evento(
-                    entidade_tipo="usuario",
-                    entidade_id=usuario_id,
-                    acao="auth.refresh_replay",
-                    usuario_id=usuario_id,
-                    dados_anteriores={
-                        "sessao_id": str(sessao_id),
-                        "sessoes_derrubadas": derrubadas,
-                    },
-                ),
-                correlation_id=correlation_id,
-            )
-            propria.commit()
-        except Exception:
-            propria.rollback()
-            raise
+    with standalone_transaction() as own_session:
+        revoked = repo.revoke_familia(own_session, family, reason="replay", at=at)
+        record(
+            own_session,
+            Event(
+                entidade_tipo="usuario",
+                entidade_id=usuario_id,
+                acao="auth.refresh_replay",
+                usuario_id=usuario_id,
+                dados_anteriores={
+                    "sessao_id": str(sessao_id),
+                    "sessoes_derrubadas": revoked,
+                },
+            ),
+            correlation_id=correlation_id,
+        )
 
 
-class PerfilResolver:
-    """Answers what perfil a usuario holds right now."""
-
-    """Callable that answers "what perfil does this usuario have *now*".
+class RoleResolver:
+    """Callable that answers "what role does this user have *now*".
 
     A protocol rather than a repository import, so this module stays unaware of
-    how a usuario is loaded — and so the refreshed access token carries the
-    current perfil rather than the one minted at login.
+    how a user is loaded — and so the refreshed access token carries the
+    current role rather than the one minted at login.
     """
 
     def __call__(self, usuario_id: uuid.UUID) -> str:  # pragma: no cover - protocol
-        """Return the perfil, or raise if the usuario may no longer hold one."""
+        """Return the role, or raise if the user may no longer hold one."""
         raise NotImplementedError

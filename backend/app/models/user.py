@@ -14,7 +14,7 @@ PERFIS = ("gestor", "servidor", "auditor")
 STATUS = ("pendente", "ativo", "bloqueado", "desativado")
 
 
-class Usuario(Base):
+class User(Base):
     """A member of the entity. `ativo` and `pseudonimo` are generated columns.
 
     Generated rather than written: `ativo` stored as an ordinary boolean is the
@@ -36,7 +36,7 @@ class Usuario(Base):
     # Nullable on purpose: an invited account exists before it has a credential
     # (AC-0001-10), and an OIDC-only account never gets one.
     senha_hash: Mapped[str | None] = mapped_column(String(100))
-    perfil: Mapped[str] = mapped_column(String(20))
+    role: Mapped[str] = mapped_column("perfil", String(20))
     status: Mapped[str] = mapped_column(String(20))
     criado_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"

@@ -23,20 +23,20 @@ import bcrypt
 from app.core.config import get_settings
 
 
-def _preparar(senha: str) -> bytes:
-    return base64.b64encode(hashlib.sha256(senha.encode()).digest())
+def _prepare(password: str) -> bytes:
+    return base64.b64encode(hashlib.sha256(password.encode()).digest())
 
 
-def hash_senha(senha: str) -> str:
-    """Hash a senha with bcrypt at the configured cost (AC-0001-05)."""
-    custo = get_settings().bcrypt_cost
-    return bcrypt.hashpw(_preparar(senha), bcrypt.gensalt(rounds=custo)).decode()
+def hash_senha(password: str) -> str:
+    """Hash a password with bcrypt at the configured cost (AC-0001-05)."""
+    cost = get_settings().bcrypt_cost
+    return bcrypt.hashpw(_prepare(password), bcrypt.gensalt(rounds=cost)).decode()
 
 
-def check_senha(senha: str, hash_armazenado: str) -> bool:
-    """Check a senha against a stored hash. A malformed hash verifies nobody."""
+def check_senha(password: str, hash_armazenado: str) -> bool:
+    """Check a password against a stored hash. A malformed hash verifies nobody."""
     try:
-        return bcrypt.checkpw(_preparar(senha), hash_armazenado.encode())
+        return bcrypt.checkpw(_prepare(password), hash_armazenado.encode())
     except ValueError:
         # A malformed stored hash must not authenticate anyone, and must not
         # crash the login route either — a 500 here would tell an attacker they

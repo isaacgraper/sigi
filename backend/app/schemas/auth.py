@@ -12,14 +12,14 @@ import uuid
 from pydantic import BaseModel, EmailStr, Field
 
 
-class LoginEntrada(BaseModel):
+class LoginInput(BaseModel):
     """The body of a local login."""
 
     email: EmailStr
     senha: str = Field(min_length=1)
 
 
-class SessaoSaida(BaseModel):
+class SessionOutput(BaseModel):
     """The access token and its expiry. The refresh token travels as a cookie."""
 
     access_token: str
@@ -30,7 +30,7 @@ class SessaoSaida(BaseModel):
     expira_em: datetime.datetime
 
 
-class UsuarioSaida(BaseModel):
+class UserOutput(BaseModel):
     """The caller's identity, declared field by field so `senha_hash` cannot leak."""
 
     id: uuid.UUID

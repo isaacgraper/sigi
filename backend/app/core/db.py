@@ -48,12 +48,12 @@ def get_sessao() -> Iterator[Session]:
     mutation it describes must land together — a service that commits on its own
     would be able to leave one without the other.
     """
-    with sessao_factory()() as sessao:
+    with sessao_factory()() as session:
         try:
-            yield sessao
-            sessao.commit()
+            yield session
+            session.commit()
         except Exception:
-            sessao.rollback()
+            session.rollback()
             raise
 
 

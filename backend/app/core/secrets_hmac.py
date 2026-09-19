@@ -24,12 +24,12 @@ import hmac
 from app.core.config import get_settings
 
 
-def digest_secret(valor: str) -> bytes:
-    """A stable, non-reversible 32-byte key for `valor`.
+def digest_secret(value: str) -> bytes:
+    """A stable, non-reversible 32-byte key for `value`.
 
     Normalised to lowercase and stripped, so that `Ana@SC.gov.br ` and
     `ana@sc.gov.br` share a lockout counter — otherwise changing the case of one
     letter would reset an attacker's budget.
     """
     pepper = get_settings().hmac_pepper.encode()
-    return hmac.new(pepper, valor.strip().lower().encode(), hashlib.sha256).digest()
+    return hmac.new(pepper, value.strip().lower().encode(), hashlib.sha256).digest()

@@ -16,31 +16,31 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.seguranca import issue_access_token
-from app.models.usuario import Usuario
-from tests.conftest import cookie_de, usar_refresh
+from app.core.security import issue_access_token
+from app.models.user import User
+from tests.conftest import cookie_from, use_refresh
 
 ME = "/api/v1/auth/me"
 SENHA = "SenhaCorreta-12345"
 
 
-def _entrar(aplicacao: TestClient, usuario: Usuario) -> str:
-    response = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+def _sign_in(application: TestClient, usuario: User) -> str:
+    response = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
     assert response.status_code == 200
     token: str = response.json()["access_token"]
     return token
 
 
 def test_ac_0001_08_desativacao_vale_imediatamente(
-    aplicacao: TestClient,
-    criar_usuario: Callable[..., Usuario],
+    application: TestClient,
+    criar_usuario: Callable[..., User],
     sessao: Session,
 ) -> None:
     """AC-0001-08 deactivation bites at once, not when the token expires."""
     usuario = criar_usuario()
-    token = _entrar(aplicacao, usuario)
+    token = _sign_in(application, usuario)
     headers = {"Authorization": f"Bearer {token}"}
-    assert aplicacao.get(ME, headers=headers).status_code == 200
+    assert application.get(ME, headers=headers).status_code == 200
 
     # Written directly because member management is the next step (AC-0001-12);
     # what this criterion observes is the effect on the token already issued.
@@ -51,14 +51,14 @@ def test_ac_0001_08_desativacao_vale_imediatamente(
     usuario.anonimizado_em = datetime.datetime.now(datetime.UTC)
     sessao.commit()
 
-    recusado = aplicacao.get(ME, headers=headers)
+    recusado = application.get(ME, headers=headers)
     assert recusado.status_code == 401
     assert recusado.json()["error"]["code"] == "USUARIO_INATIVO"
 
 
 def test_ac_0001_08_bloqueio_tambem_vale_imediatamente(
-    aplicacao: TestClient,
-    criar_usuario: Callable[..., Usuario],
+    application: TestClient,
+    criar_usuario: Callable[..., User],
     sessao: Session,
 ) -> None:
     """Blocking an account kills its live token too.
@@ -67,17 +67,17 @@ def test_ac_0001_08_bloqueio_tambem_vale_imediatamente(
     and that is the case that actually happens to a compromised account.
     """
     usuario = criar_usuario()
-    headers = {"Authorization": f"Bearer {_entrar(aplicacao, usuario)}"}
+    headers = {"Authorization": f"Bearer {_sign_in(application, usuario)}"}
 
     usuario.status = "bloqueado"
     sessao.commit()
 
-    assert aplicacao.get(ME, headers=headers).status_code == 401
+    assert application.get(ME, headers=headers).status_code == 401
 
 
 def test_ac_0001_08_refresh_tambem_checa(
-    aplicacao: TestClient,
-    criar_usuario: Callable[..., Usuario],
+    application: TestClient,
+    criar_usuario: Callable[..., User],
     sessao: Session,
 ) -> None:
     """A refresh is a fresh authorisation decision.
@@ -87,33 +87,33 @@ def test_ac_0001_08_refresh_tambem_checa(
     minutes of exactly the access the deactivation removed.
     """
     usuario = criar_usuario()
-    entrada = aplicacao.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
-    refresh = cookie_de(entrada, "sigi_refresh")
+    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    refresh = cookie_from(entrada, "sigi_refresh")
     assert refresh
-    usar_refresh(aplicacao, refresh)
+    use_refresh(application, refresh)
 
     usuario.status = "bloqueado"
     sessao.commit()
 
-    recusado = aplicacao.post("/api/v1/auth/refresh")
+    recusado = application.post("/api/v1/auth/refresh")
     assert recusado.status_code == 401
     assert recusado.json()["error"]["code"] == "USUARIO_INATIVO"
 
 
-def test_token_sem_conta_e_recusado(aplicacao: TestClient) -> None:
+def test_token_sem_conta_e_recusado(application: TestClient) -> None:
     """Our own signature, a `sub` that does not exist: 401, not 500.
 
     It really happens after restoring an old backup, and the cheap failure mode
     is what decides whether somebody investigates or restarts the service.
     """
-    token = issue_access_token(usuario_id=uuid.uuid4(), perfil="gestor")
-    response = aplicacao.get(ME, headers={"Authorization": f"Bearer {token}"})
+    token = issue_access_token(usuario_id=uuid.uuid4(), role="gestor")
+    response = application.get(ME, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "USUARIO_INATIVO"
 
 
-def test_sem_cabecalho_authorization_e_401(aplicacao: TestClient) -> None:
+def test_sem_cabecalho_authorization_e_401(application: TestClient) -> None:
     """A request with no Authorization header is 401."""
-    response = aplicacao.get(ME)
+    response = application.get(ME)
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "TOKEN_INVALIDO"

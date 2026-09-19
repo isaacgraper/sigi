@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, health
-from app.api.erros import register_handlers
+from app.api.errors import register_handlers
 from app.core.config import get_settings
-from app.core.correlacao import CorrelacaoMiddleware
+from app.core.correlation import CorrelacaoMiddleware
 
 
 def create_app() -> FastAPI:

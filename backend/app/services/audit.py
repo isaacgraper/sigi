@@ -2,7 +2,7 @@
 
 The contract, from `CLAUDE.md`: every mutation writes a history row **in the
 same transaction as the mutation**, and if the history write fails, the mutation
-fails. That is why this takes the caller's `Session` and never opens or commits
+fails. That is why this takes the caller's `UserSession` and never opens or commits
 one of its own — a writer with its own transaction could leave a mutation
 without its record, which in an auditability product is the defect the product
 exists to prevent.
@@ -13,26 +13,27 @@ from __future__ import annotations
 import datetime
 import re
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models.historico import HistoricoMovimentacao
-from app.repositories.historico import insert_row
+from app.models.audit_log import AuditLog
+from app.repositories.audit_log import insert_row
 
 
 class DadoPessoalNoHistorico(RuntimeError):
     """A caller tried to write personal data into an immutable table.
 
-    Not an `ErroDominio`: no user caused this and no message would help them.
+    Not an `DomainError`: no user caused this and no message would help them.
     It is a bug, and the right outcome is a 500 plus a fix.
     """
 
 
 @dataclass(frozen=True)
-class Evento:
+class Event:
     """One thing that happened, as the audit trail will record it."""
 
     entidade_tipo: str
@@ -50,24 +51,23 @@ class Evento:
 _PARECE_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
-def registrar(
-    sessao: Session,
-    evento: Evento,
+def record(
+    session: Session,
+    evento: Event,
     *,
     correlation_id: uuid.UUID,
     at: datetime.datetime | None = None,
 ) -> None:
     """Append one audit row, in the caller's transaction.
 
-    The caller's session on purpose: every write endpoint records history in the
-    same transaction as the write, so if the history fails the write fails with
-    it (RN06). A writer that committed on its own could leave one without the
-    other.
+    The caller's session on purpose: every write endpoint records history in
+    the same transaction as the write, so if the history fails the write fails
+    with it (RN06).
     """
-    _recusar_dado_pessoal(evento.dados_anteriores)
+    _refuse_personal_data(evento.dados_anteriores)
     insert_row(
-        sessao,
-        HistoricoMovimentacao(
+        session,
+        AuditLog(
             ocorrido_em=at or datetime.datetime.now(datetime.UTC),
             entidade_tipo=evento.entidade_tipo,
             entidade_id=evento.entidade_id,
@@ -82,38 +82,39 @@ def registrar(
     )
 
 
-def _recusar_dado_pessoal(dados: Mapping[str, Any] | None) -> None:
-    if dados is None:
+def _refuse_personal_data(data: Mapping[str, Any] | None) -> None:
+    if data is None:
         return
-    for path, valor in _percorrer(dados):
-        if isinstance(valor, str) and _PARECE_EMAIL.search(valor):
+    for path, value in _walk(data):
+        if isinstance(value, str) and _PARECE_EMAIL.search(value):
             raise DadoPessoalNoHistorico(
                 f"dados_anteriores[{path}] parece conter um endereço de e-mail. "
                 "The audit table can never be corrected, so it carries no "
-                "personal data: use app.core.segredos.digest_secret() and write "
+                "personal data: use app.core.secrets_hmac.digest_secret() and write "
                 "the HMAC plus the domain, as SPEC-0001 §8 requires."
             )
 
 
-def _percorrer(valor: Any, path: str = "") -> list[tuple[str, Any]]:
-    if isinstance(valor, Mapping):
+def _walk(value: Any, path: str = "") -> list[tuple[str, Any]]:
+    if isinstance(value, Mapping):
         return [
             item
-            for chave, sub in valor.items()
-            for item in _percorrer(sub, f"{path}.{chave}" if path else str(chave))
+            for key, sub in value.items()
+            for item in _walk(sub, f"{path}.{key}" if path else str(key))
         ]
-    if isinstance(valor, list | tuple):
-        return [item for i, sub in enumerate(valor) for item in _percorrer(sub, f"{path}[{i}]")]
-    return [(path, valor)]
+    if isinstance(value, list | tuple):
+        return [item for i, sub in enumerate(value) for item in _walk(sub, f"{path}[{i}]")]
+    return [(path, value)]
 
 
-def record_standalone(evento: Evento, *, correlation_id: uuid.UUID) -> None:
-    """Write an audit row in a transaction of its own, and commit it.
+@contextmanager
+def standalone_transaction() -> Iterator[Session]:
+    """A session that commits, independent of the request's.
 
     For the failure path, which is the path that rolls back. A failed login
-    raises, the request's session is rolled back, and an audit row written in it
-    would vanish with the failure it was recording, leaving the trail with only
-    successes in it.
+    raises, the request's session is rolled back, and anything written in it
+    goes with the failure it was recording — the audit trail left with only
+    successes in it, and the lockout counter of AC-0001-03 never reaching five.
 
     Deliberately **not** the default: everything that accompanies a mutation
     must share that mutation's transaction, and a writer that commits on its own
@@ -123,8 +124,22 @@ def record_standalone(evento: Evento, *, correlation_id: uuid.UUID) -> None:
 
     with sessao_factory()() as own_session:
         try:
-            registrar(own_session, evento, correlation_id=correlation_id)
+            yield own_session
             own_session.commit()
         except Exception:
             own_session.rollback()
             raise
+
+
+def record_standalone(evento: Event, *, correlation_id: uuid.UUID) -> None:
+    """Write a single audit row in a transaction of its own, and commit it.
+
+    For the failure path, which is the path that rolls back. A failed login
+    raises, the request's session is rolled back, and an audit row written in it
+    would vanish with the failure it was recording — leaving the trail with only
+    successes in it, which is the opposite of useful.
+
+    Use `standalone_transaction` directly when more than one row has to land together.
+    """
+    with standalone_transaction() as own_session:
+        record(own_session, evento, correlation_id=correlation_id)

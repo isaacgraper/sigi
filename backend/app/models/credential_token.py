@@ -18,7 +18,7 @@ from app.models.base import Base
 TIPOS = ("convite", "redefinicao")
 
 
-class TokenCredencial(Base):
+class CredentialToken(Base):
     """An invitation or a password reset. Only the HMAC of the token is stored.
 
     One table with a `tipo` rather than two: both are a hashed grant, single
@@ -58,7 +58,7 @@ class TokenCredencial(Base):
             "tipo <> 'convite' OR criado_por IS NOT NULL",
             name="ck_token_convite_tem_autor",
         ),
-        # One outstanding grant per usuario per type. `cancelado_em` is what
+        # One outstanding grant per user per type. `cancelado_em` is what
         # makes reissue possible: an expired-unredeemed grant still matches
         # `utilizado_em IS NULL`, and now() cannot appear in an index predicate.
         Index(

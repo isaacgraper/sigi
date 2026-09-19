@@ -14,16 +14,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.autorizacao import UsuarioAtual
+from app.core.authorization import UsuarioAtual
 from app.core.config import get_settings
-from app.core.correlacao import atual
+from app.core.correlation import current
 from app.core.db import get_sessao
-from app.models.usuario import Usuario
-from app.repositories import usuario as repo_usuario
-from app.schemas.auth import LoginEntrada, SessaoSaida, UsuarioSaida
-from app.services import sessoes
-from app.services.autenticacao import autenticar_local
-from app.services.erros import RefreshInvalido, UsuarioInativo
+from app.models.user import User
+from app.repositories import user as repo_usuario
+from app.schemas.auth import LoginInput, SessionOutput, UserOutput
+from app.services import sessions
+from app.services.authentication import authenticate_local
+from app.services.errors import RefreshInvalido, UsuarioInativo
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -36,15 +36,15 @@ SessaoDb = Annotated[Session, Depends(get_sessao)]
 
 
 def _correlation_id(request: Request) -> uuid.UUID:
-    bruto = request.scope.get("state", {}).get("correlation_id")
-    return bruto if isinstance(bruto, uuid.UUID) else atual()
+    raw = request.scope.get("state", {}).get("correlation_id")
+    return raw if isinstance(raw, uuid.UUID) else current()
 
 
-def _definir_cookie(response: Response, valor: str) -> None:
+def _set_cookie(response: Response, value: str) -> None:
     cfg = get_settings()
     response.set_cookie(
         cfg.cookie_refresh_nome,
-        valor,
+        value,
         max_age=cfg.refresh_token_ttl_dias * 24 * 60 * 60,
         httponly=True,
         secure=cfg.cookie_secure,
@@ -53,60 +53,60 @@ def _definir_cookie(response: Response, valor: str) -> None:
     )
 
 
-def _ler_cookie(request: Request) -> str:
-    valor = request.cookies.get(get_settings().cookie_refresh_nome)
-    if not valor:
+def _read_cookie(request: Request) -> str:
+    value = request.cookies.get(get_settings().cookie_refresh_nome)
+    if not value:
         raise RefreshInvalido()
-    return valor
+    return value
 
 
-@router.post("/login", response_model=SessaoSaida)
+@router.post("/login", response_model=SessionOutput)
 def login(
-    corpo: LoginEntrada, request: Request, response: Response, sessao: SessaoDb
-) -> SessaoSaida:
+    body: LoginInput, request: Request, response: Response, session: SessaoDb
+) -> SessionOutput:
     """Local login, returning an access token and setting the refresh cookie.
 
     [SPEC-0001 AC-0001-01, -02, -04, -05, -24]
     """
     correlation_id = _correlation_id(request)
-    usuario = autenticar_local(
-        sessao, email=str(corpo.email), senha=corpo.senha, correlation_id=correlation_id
+    user = authenticate_local(
+        session, email=str(body.email), password=body.senha, correlation_id=correlation_id
     )
-    par = sessoes.abrir(
-        sessao,
-        usuario_id=usuario.id,
-        perfil=usuario.perfil,
+    par = sessions.open_session(
+        session,
+        usuario_id=user.id,
+        role=user.role,
         correlation_id=correlation_id,
         mecanismo="local",
     )
-    _definir_cookie(response, par.refresh_token)
-    return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
+    _set_cookie(response, par.refresh_token)
+    return SessionOutput(access_token=par.access_token, expira_em=par.expira_em)
 
 
-@router.post("/refresh", response_model=SessaoSaida)
-def refresh(request: Request, response: Response, sessao: SessaoDb) -> SessaoSaida:
+@router.post("/refresh", response_model=SessionOutput)
+def refresh(request: Request, response: Response, session: SessaoDb) -> SessionOutput:
     """Rotate the token pair without asking for credentials.
 
     [SPEC-0001 AC-0001-06, -07]
     """
-    par = sessoes.rotacionar(
-        sessao,
-        refresh_token=_ler_cookie(request),
-        perfil_de=_PerfilDoRegistro(sessao),
+    par = sessions.rotate(
+        session,
+        refresh_token=_read_cookie(request),
+        perfil_de=_PerfilDoRegistro(session),
         correlation_id=_correlation_id(request),
     )
-    _definir_cookie(response, par.refresh_token)
-    return SessaoSaida(access_token=par.access_token, expira_em=par.expira_em)
+    _set_cookie(response, par.refresh_token)
+    return SessionOutput(access_token=par.access_token, expira_em=par.expira_em)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(request: Request, response: Response, sessao: SessaoDb) -> None:
+def logout(request: Request, response: Response, session: SessaoDb) -> None:
     """Invalidate the whole refresh family.
 
     [SPEC-0001 AC-0001-07]
     """
-    sessoes.encerrar(
-        sessao,
+    sessions.close(
+        session,
         refresh_token=request.cookies.get(get_settings().cookie_refresh_nome) or "",
         correlation_id=_correlation_id(request),
     )
@@ -115,8 +115,8 @@ def logout(request: Request, response: Response, sessao: SessaoDb) -> None:
     response.delete_cookie(get_settings().cookie_refresh_nome, path=CAMINHO_COOKIE)
 
 
-@router.get("/me", response_model=UsuarioSaida)
-def me(usuario: UsuarioAtual) -> UsuarioSaida:
+@router.get("/me", response_model=UserOutput)
+def me(user: UsuarioAtual) -> UserOutput:
     """Report the caller's identity.
 
     [SPEC-0001 AC-0001-08, -22]
@@ -124,17 +124,17 @@ def me(usuario: UsuarioAtual) -> UsuarioSaida:
     The response model is explicit rather than derived from the ORM object, so
     `senha_hash` cannot arrive here by someone adding a column (AC-0001-05).
     """
-    return UsuarioSaida(
-        id=usuario.id,
-        nome=usuario.nome,
-        email=usuario.email,
-        perfil=usuario.perfil,
-        status=usuario.status,
+    return UserOutput(
+        id=user.id,
+        nome=user.nome,
+        email=user.email,
+        perfil=user.role,
+        status=user.status,
     )
 
 
-class _PerfilDoRegistro(sessoes.PerfilResolver):
-    """Answers "what perfil does this usuario have *now*", and refuses the dead.
+class _PerfilDoRegistro(sessions.RoleResolver):
+    """Answers "what role does this user have *now*", and refuses the dead.
 
     A refresh is a fresh authorisation decision, so AC-0001-08 applies to it as
     much as to any other request: renewing the access token of an account that
@@ -142,11 +142,11 @@ class _PerfilDoRegistro(sessoes.PerfilResolver):
     exactly the access the deactivation removed.
     """
 
-    def __init__(self, sessao: Session) -> None:
-        self.sessao = sessao
+    def __init__(self, session: Session) -> None:
+        self.sessao = session
 
     def __call__(self, usuario_id: uuid.UUID) -> str:
-        usuario: Usuario | None = repo_usuario.by_id(self.sessao, usuario_id)
-        if usuario is None or not usuario.ativo:
+        user: User | None = repo_usuario.by_id(self.sessao, usuario_id)
+        if user is None or not user.ativo:
             raise UsuarioInativo()
-        return usuario.perfil
+        return user.role
