@@ -3,12 +3,23 @@
 ## Base
 
 - Prefix `/api/v1`. Breaking changes bump the prefix; nothing else.
-- Resource paths in Portuguese, plural, kebab-case: `/notas-empenho`, `/atas`,
-  `/insumos`, `/notas-fiscais`, `/usuarios`, `/fornecedores`.
-- Payload fields in `snake_case`, matching the domain vocabulary exactly.
-- Envelope and plumbing fields are English (`error`, `code`, `message`,
-  `fields`, `items`, `page`, `size`, `sort`); domain payload fields keep their
-  Portuguese names. Paths stay Portuguese too. See ADR-0006.
+- Resource paths plural, kebab-case. Payload fields `snake_case`.
+- **Nobody but a developer reads this surface, so it is English** (ADR-0013):
+  field names, error codes, route path segments and query parameters.
+- **Except glossary vocabulary, which is never translated** (invariant 1).
+  `/notas-empenho`, `/atas`, `/insumos`, `/notas-fiscais`, `/usuarios`,
+  `/fornecedores`, and fields such as `saldo`, `perfil`, `valor_estimado`,
+  `data_emissao`, `processo_sei`.
+- **The tie-break for compounds:** a name built around a glossary noun keeps the
+  whole Portuguese expression; a name with no glossary noun becomes English.
+  Never translate a compound word by word. So `SALDO_INSUFICIENTE` and
+  `/notas-empenho/{id}/avancar` stay whole, while `CREDENCIAIS_INVALIDAS`
+  becomes `INVALID_CREDENTIALS` and `/convites/{token}/ativar` becomes
+  `/invites/{token}/activate`. `SALDO_INSUFFICIENT` and `/usuarios/{id}/block`
+  read as neither language and are what this rule exists to prevent.
+- Database columns are Portuguese regardless (ADR-0013), so a payload field and
+  the column behind it need not share a name. `password` over `senha_hash` is
+  correct, not a mismatch to fix.
 
 ## Verbs
 
@@ -44,8 +55,9 @@ Success returns the resource. Errors always use this shape:
 - `message` is pt-BR, addressed to Carlos, and says what to do next.
 - `fields` drives inline field errors in the UI. Per-field messages are the
   stated mitigation for transcription errors (RFC §3.2); a single generic
-  "dados inválidos" defeats it. Keys are domain field names and stay
-  Portuguese — the envelope around them is English, the domain is not.
+  "dados inválidos" defeats it. Keys are the payload field names they refer to,
+  so they follow the rule above; the values are pt-BR, because the servidor
+  reads them.
 
 ## Status codes
 
@@ -67,8 +79,8 @@ and a blocking dialog without parsing prose.
 
 `?page=1&size=25` (max 100), response envelope `{ "items": [...], "total": n,
 "page": 1, "size": 25 }`. Filters are explicit query parameters, never a
-generic `filter` DSL. Sorting via `?sort=-data_emissao` — the sort key itself is
-a domain column name and stays Portuguese.
+generic `filter` DSL. Sorting via `?sort=-data_emissao`: the parameter is
+English, the key names a payload field, and that one is glossary vocabulary.
 
 ## Auth
 
