@@ -1,0 +1,29 @@
+# Gitleaks scans a pull request as a commit range, not as a tree: every commit
+# from the first on the branch is re-scanned on every push. A finding in an
+# earlier commit therefore survives any later commit that removes it, and the
+# only ways out are rewriting the branch or telling the scanner the value is
+# safe. This file is read from the checked-out tree and applies to the whole
+# scan, which is what makes the second option possible without a force push.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+One synthetic credential in the backend test suite. The login and lockout tests
+need a senha that works, and `SenhaCorreta-12345` is it: a literal in a test
+file, with no account, environment or deployment behind it.
+
+It is listed here because of a rename, not because anything leaked. It sat in
+`dev` for weeks as `SENHA = "SenhaCorreta-12345"` and no scan ever objected;
+`generic-api-key` matches a keyword next to a high entropy string, and `senha`
+is not one of its keywords while `PASSWORD` is. Translating the constant is what
+made a fixture look like a credential.
+
+The entry is the literal value rather than the path, so a real token pasted into
+the same file is still caught. Changing the fixture value means changing this
+line too, and a scan that goes red until someone does is the correct outcome.
+"""
+regexes = [
+  '''SenhaCorreta-12345''',
+]
