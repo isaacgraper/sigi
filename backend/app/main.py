@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, health
 from app.api.errors import register_handlers
+from app.core.authorization import verify_coverage
 from app.core.config import get_settings
 from app.core.correlation import CorrelacaoMiddleware
 
@@ -35,6 +36,10 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+
+    # AC-0001-23, at assembly: a write route with no access decision breaks
+    # here, in the build and in the tests, rather than serving the request.
+    verify_coverage(app)
     return app
 
 
