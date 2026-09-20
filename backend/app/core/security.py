@@ -41,14 +41,14 @@ BYTES_REFRESH = 32
 class TokenExpirado(DomainError):
     """The access token is past its `exp`."""
 
-    code = "TOKEN_EXPIRADO"
+    code = "TOKEN_EXPIRED"
     http = 401
 
 
 class TokenInvalido(DomainError):
     """The access token did not verify, or is not an access token."""
 
-    code = "TOKEN_INVALIDO"
+    code = "TOKEN_INVALID"
     http = 401
 
 

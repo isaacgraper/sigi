@@ -63,7 +63,7 @@ def test_ac_0001_06_token_expirado_e_recusado() -> None:
     passado = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
     with pytest.raises(TokenExpirado) as exc:
         verify_access_token(_issue(now=passado))
-    assert exc.value.code == "TOKEN_EXPIRADO"
+    assert exc.value.code == "TOKEN_EXPIRED"
     assert exc.value.http == 401
 
 
@@ -193,7 +193,9 @@ def test_ac_0001_06_token_expirado_e_refresh(
 ) -> None:
     """AC-0001-06 — an expired token is refused; refresh renews without a senha."""
     usuario = criar_usuario()
-    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    entrada = application.post(
+        "/api/v1/auth/login", json={"email": usuario.email, "password": SENHA}
+    )
     refresh = cookie_from(entrada, "sigi_refresh")
     assert refresh
 
@@ -204,7 +206,7 @@ def test_ac_0001_06_token_expirado_e_refresh(
     )
     recusado = application.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expirado}"})
     assert recusado.status_code == 401
-    assert recusado.json()["error"]["code"] == "TOKEN_EXPIRADO"
+    assert recusado.json()["error"]["code"] == "TOKEN_EXPIRED"
 
     use_refresh(application, refresh)
     renovado = application.post("/api/v1/auth/refresh")
@@ -233,7 +235,9 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
     alive and the theft unrecorded — behind the same 401 on screen.
     """
     usuario = criar_usuario()
-    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    entrada = application.post(
+        "/api/v1/auth/login", json={"email": usuario.email, "password": SENHA}
+    )
     primeiro = cookie_from(entrada, "sigi_refresh")
     assert primeiro
 
@@ -248,7 +252,7 @@ def test_ac_0001_07_logout_e_replay_derruba_familia(
     use_refresh(application, segundo)
     replay = application.post("/api/v1/auth/refresh")
     assert replay.status_code == 401
-    assert replay.json()["error"]["code"] == "REFRESH_INVALIDO"
+    assert replay.json()["error"]["code"] == "INVALID_REFRESH"
 
     # An earlier generation, which the logout should also have revoked.
     use_refresh(application, primeiro)
@@ -281,7 +285,7 @@ def test_refresh_ausente_ou_desconhecido_e_401(application: TestClient) -> None:
     desconhecido = application.post("/api/v1/auth/refresh")
 
     assert sem.status_code == desconhecido.status_code == 401
-    assert sem.json()["error"]["code"] == desconhecido.json()["error"]["code"] == "REFRESH_INVALIDO"
+    assert sem.json()["error"]["code"] == desconhecido.json()["error"]["code"] == "INVALID_REFRESH"
 
 
 def test_logout_sem_cookie_nao_falha(application: TestClient) -> None:

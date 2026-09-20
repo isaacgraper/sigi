@@ -1,7 +1,7 @@
 """Request and response bodies for the auth routes.
 
-Domain field names stay Portuguese; the envelope's plumbing is English
-(ADR-0006, `api-conventions.md`).
+Nobody but a developer reads this surface, so it is English, except a
+glossary noun such as `perfil` (ADR-0013, `api-conventions.md`).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ class LoginInput(BaseModel):
     """The body of a local login."""
 
     email: EmailStr
-    senha: str = Field(min_length=1)
+    password: str = Field(min_length=1)
 
 
 class SessionOutput(BaseModel):
@@ -27,14 +27,14 @@ class SessionOutput(BaseModel):
     # The refresh token is deliberately absent: it travels only in the httpOnly
     # cookie, so a body that leaked into a log or a screenshot cannot renew a
     # session (AC-0001-01).
-    expira_em: datetime.datetime
+    expires_at: datetime.datetime
 
 
 class UserOutput(BaseModel):
     """The caller's identity, declared field by field so `senha_hash` cannot leak."""
 
     id: uuid.UUID
-    nome: str | None
+    name: str | None
     email: str | None
     perfil: str
     status: str

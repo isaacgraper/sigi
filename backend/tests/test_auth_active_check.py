@@ -25,7 +25,9 @@ SENHA = "SenhaCorreta-12345"
 
 
 def _sign_in(application: TestClient, usuario: User) -> str:
-    response = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    response = application.post(
+        "/api/v1/auth/login", json={"email": usuario.email, "password": SENHA}
+    )
     assert response.status_code == 200
     token: str = response.json()["access_token"]
     return token
@@ -87,7 +89,9 @@ def test_ac_0001_08_refresh_tambem_checa(
     minutes of exactly the access the deactivation removed.
     """
     usuario = criar_usuario()
-    entrada = application.post("/api/v1/auth/login", json={"email": usuario.email, "senha": SENHA})
+    entrada = application.post(
+        "/api/v1/auth/login", json={"email": usuario.email, "password": SENHA}
+    )
     refresh = cookie_from(entrada, "sigi_refresh")
     assert refresh
     use_refresh(application, refresh)
@@ -116,4 +120,4 @@ def test_sem_cabecalho_authorization_e_401(application: TestClient) -> None:
     """A request with no Authorization header is 401."""
     response = application.get(ME)
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "TOKEN_INVALIDO"
+    assert response.json()["error"]["code"] == "TOKEN_INVALID"

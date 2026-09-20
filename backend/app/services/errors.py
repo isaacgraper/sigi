@@ -17,7 +17,7 @@ class DomainError(Exception):
     the transcription errors that motivated the project.
     """
 
-    code: str = "ERRO_DOMINIO"
+    code: str = "DOMAIN_ERROR"
     http: int = 422
 
     def __init__(
@@ -43,7 +43,7 @@ class InvalidCredentials(DomainError):
     to be byte-identical, and having separate classes is how they drift apart.
     """
 
-    code = "CREDENCIAIS_INVALIDAS"
+    code = "INVALID_CREDENTIALS"
     http = 401
 
     def __init__(self) -> None:
@@ -65,7 +65,7 @@ class InactiveUser(DomainError):
 class InvalidRefresh(DomainError):
     """The refresh token is unknown, expired, or already rotated."""
 
-    code = "REFRESH_INVALIDO"
+    code = "INVALID_REFRESH"
     http = 401
 
     def __init__(self) -> None:
@@ -80,7 +80,7 @@ class RouteUnavailable(DomainError):
     from one that was never built.
     """
 
-    code = "NAO_ENCONTRADO"
+    code = "NOT_FOUND"
     http = 404
 
     def __init__(self) -> None:
@@ -95,7 +95,7 @@ class AttemptsExceeded(DomainError):
     wrong — this attempt was never evaluated.
     """
 
-    code = "TENTATIVAS_EXCEDIDAS"
+    code = "ATTEMPTS_EXCEEDED"
     http = 429
 
     def __init__(self, *, minutes: int) -> None:

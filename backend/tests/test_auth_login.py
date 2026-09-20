@@ -25,7 +25,7 @@ def test_ac_0001_01_login_emite_par_de_tokens(
 ) -> None:
     """AC-0001-01 — 200, a 15-minute access token, and the refresh only in the cookie."""
     usuario = criar_usuario()
-    response = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    response = application.post(LOGIN, json={"email": usuario.email, "password": SENHA})
 
     assert response.status_code == 200
     body = response.json()
@@ -61,17 +61,17 @@ def test_ac_0001_02_resposta_identica_para_email_inexistente(
 
     errada = application.post(
         LOGIN,
-        json={"email": usuario.email, "senha": "senha-errada-mas-longa"},
+        json={"email": usuario.email, "password": "senha-errada-mas-longa"},
         headers=headers,
     )
     inexistente = application.post(
         LOGIN,
-        json={"email": "naoexiste@sc.gov.br", "senha": "senha-errada-mas-longa"},
+        json={"email": "naoexiste@sc.gov.br", "password": "senha-errada-mas-longa"},
         headers=headers,
     )
 
     assert errada.status_code == inexistente.status_code == 401
-    assert errada.json()["error"]["code"] == "CREDENCIAIS_INVALIDAS"
+    assert errada.json()["error"]["code"] == "INVALID_CREDENTIALS"
     assert errada.content == inexistente.content
     # And neither the body nor the headers may say "this e-mail exists".
     assert "existe" not in errada.text.lower().replace("inexistente", "")
@@ -89,13 +89,15 @@ def test_ac_0001_04_dominio_fora_da_allowlist(
     usuario = criar_usuario(email="alguem@gmail.com")
     headers = {"X-Correlation-Id": "018f3c2e-0000-4000-8000-0000000000aa"}
 
-    fora = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA}, headers=headers)
+    fora = application.post(
+        LOGIN, json={"email": usuario.email, "password": SENHA}, headers=headers
+    )
     errada = application.post(
-        LOGIN, json={"email": "outro@sc.gov.br", "senha": SENHA}, headers=headers
+        LOGIN, json={"email": "outro@sc.gov.br", "password": SENHA}, headers=headers
     )
 
     assert fora.status_code == 401
-    assert fora.json()["error"]["code"] == "CREDENCIAIS_INVALIDAS"
+    assert fora.json()["error"]["code"] == "INVALID_CREDENTIALS"
     assert fora.content == errada.content
 
 
@@ -109,17 +111,17 @@ def test_ac_0001_05_hash_nunca_sai_do_banco(
     assert prefixo in ("2a", "2b", "2y")
     assert int(custo) >= 12
 
-    entrada = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    entrada = application.post(LOGIN, json={"email": usuario.email, "password": SENHA})
     eu = application.get(
         "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {entrada.json()['access_token']}"},
     )
 
     assert eu.status_code == 200
-    assert set(eu.json()) == {"id", "nome", "email", "perfil", "status"}
+    assert set(eu.json()) == {"id", "name", "email", "perfil", "status"}
     for response in (entrada, eu):
         assert usuario.senha_hash not in response.text
-        assert "senha" not in response.text.lower()
+        assert "password" not in response.text.lower()
 
 
 def test_ac_0001_24_login_local_desligavel(
@@ -136,13 +138,15 @@ def test_ac_0001_24_login_local_desligavel(
     monkeypatch.setenv("LOCAL_LOGIN_ENABLED", "false")
     get_settings.cache_clear()
 
-    desligado = application.post(LOGIN, json={"email": usuario.email, "senha": SENHA})
+    desligado = application.post(LOGIN, json={"email": usuario.email, "password": SENHA})
     assert desligado.status_code == 404
-    assert desligado.json()["error"]["code"] == "NAO_ENCONTRADO"
+    assert desligado.json()["error"]["code"] == "NOT_FOUND"
 
     monkeypatch.setenv("LOCAL_LOGIN_ENABLED", "true")
     get_settings.cache_clear()
-    assert application.post(LOGIN, json={"email": usuario.email, "senha": SENHA}).status_code == 200
+    assert (
+        application.post(LOGIN, json={"email": usuario.email, "password": SENHA}).status_code == 200
+    )
 
 
 def test_corpo_malformado_usa_o_mesmo_envelope(application: TestClient) -> None:
@@ -151,9 +155,9 @@ def test_corpo_malformado_usa_o_mesmo_envelope(application: TestClient) -> None:
     `api-conventions.md` says an error always has one shape. FastAPI's default
     422 has another, and a client that must understand two understands neither.
     """
-    response = application.post(LOGIN, json={"email": "nao-e-email", "senha": ""})
+    response = application.post(LOGIN, json={"email": "nao-e-email", "password": ""})
     assert response.status_code == 422
     erro = response.json()["error"]
-    assert erro["code"] == "DADOS_INVALIDOS"
-    assert set(erro["fields"]) == {"email", "senha"}
+    assert erro["code"] == "INVALID_DATA"
+    assert set(erro["fields"]) == {"email", "password"}
     assert erro["correlation_id"]

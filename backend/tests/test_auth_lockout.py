@@ -25,7 +25,7 @@ ERRADA = "senha-errada-mas-longa"
 
 def _errar(application: TestClient, email: str, vezes: int) -> None:
     for _ in range(vezes):
-        assert application.post(LOGIN, json={"email": email, "senha": ERRADA}).status_code == 401
+        assert application.post(LOGIN, json={"email": email, "password": ERRADA}).status_code == 401
 
 
 def _envelhecer(sessao: Session, email: str, minutes: int) -> None:
@@ -58,10 +58,10 @@ def test_ac_0001_03_bloqueio_por_tentativas(
 
     # The sixth, **with the right password**. A lockout a correct password walks
     # through announces the exact moment the attacker got it right.
-    sexta = application.post(LOGIN, json={"email": user.email, "senha": PASSWORD})
+    sexta = application.post(LOGIN, json={"email": user.email, "password": PASSWORD})
     assert sexta.status_code == 429
     error = sexta.json()["error"]
-    assert error["code"] == "TENTATIVAS_EXCEDIDAS"
+    assert error["code"] == "ATTEMPTS_EXCEEDED"
     assert "minutos" in error["message"]
     # The "when" has to exist outside the pt-BR sentence: a 429 that states the
     # time only inside prose is a 429 no client can obey.
@@ -78,7 +78,7 @@ def test_ac_0001_03_bloqueio_por_tentativas(
     assert attempts == "5"
 
     _envelhecer(sessao, user.email, 16)
-    liberado = application.post(LOGIN, json={"email": user.email, "senha": PASSWORD})
+    liberado = application.post(LOGIN, json={"email": user.email, "password": PASSWORD})
     assert liberado.status_code == 200
 
     # And success clears the count: the next series starts from zero, or
@@ -105,7 +105,7 @@ def test_ac_0001_03_decaimento_da_janela(
     _errar(application, user.email, 4)
     _envelhecer(sessao, user.email, 16)
 
-    quinta = application.post(LOGIN, json={"email": user.email, "senha": ERRADA})
+    quinta = application.post(LOGIN, json={"email": user.email, "password": ERRADA})
     assert quinta.status_code == 401
 
     sessao.rollback()
@@ -115,7 +115,9 @@ def test_ac_0001_03_decaimento_da_janela(
     ).one()
     assert count.tentativas == 1
     assert count.bloqueado_ate is None
-    assert application.post(LOGIN, json={"email": user.email, "senha": PASSWORD}).status_code == 200
+    assert (
+        application.post(LOGIN, json={"email": user.email, "password": PASSWORD}).status_code == 200
+    )
 
 
 def test_ac_0001_02_no_limiar_o_desconhecido_responde_igual(
@@ -134,9 +136,11 @@ def test_ac_0001_02_no_limiar_o_desconhecido_responde_igual(
     for endereco in (user.email, "naoexiste-nunca@sc.gov.br"):
         _errar(application, endereco, 5)
 
-    real = application.post(LOGIN, json={"email": user.email, "senha": PASSWORD}, headers=headers)
+    real = application.post(
+        LOGIN, json={"email": user.email, "password": PASSWORD}, headers=headers
+    )
     inexistente = application.post(
-        LOGIN, json={"email": "naoexiste-nunca@sc.gov.br", "senha": PASSWORD}, headers=headers
+        LOGIN, json={"email": "naoexiste-nunca@sc.gov.br", "password": PASSWORD}, headers=headers
     )
 
     assert real.status_code == inexistente.status_code == 429
@@ -154,7 +158,7 @@ def test_conta_inativa_com_senha_certa_nao_conta_tentativa(
     user = criar_usuario(status="bloqueado")
     assert user.email
     for _ in range(6):
-        response = application.post(LOGIN, json={"email": user.email, "senha": PASSWORD})
+        response = application.post(LOGIN, json={"email": user.email, "password": PASSWORD})
         assert response.status_code == 401
         assert response.json()["error"]["code"] == "USUARIO_INATIVO"
 
