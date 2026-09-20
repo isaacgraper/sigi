@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.7
+version: 0.8
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -189,10 +189,40 @@ And   neither attempt is treated as authenticated
 Given a gestor
 When  a member is invited with an institutional e-mail and a perfil
 Then  a usuario is created with status "pendente" and no credential
-And   a single-use invitation token valid 72 hours is sent to that e-mail
-And   the token value does not appear in the response body
+And   a single-use activation link valid 72 hours is returned to the inviting gestor
+And   the link is returned exactly once, in that response, and no endpoint can recover it afterwards
 And   an audit row records the invite with the gestor as actor and the perfil granted
+And   the audit row does not carry the token
 ```
+
+*(v0.8)* **The gestor delivers the link; the system does not send it.** Until
+v0.7 this criterion said the token was *sent to that e-mail* and must not appear
+in the response body. There is no mail transport in this project and the entity
+has never supplied SMTP. Because there is no self-registration and no
+just-in-time provisioning (AC-0001-21), **every account in the system is born
+from an invitation**, so a criterion that cannot be satisfied does not block
+only itself: it blocks anyone from ever logging in. The gestor now receives the
+link and passes it on through whatever channel the entity already trusts, which
+is what an organisation with locked-down mail does in practice.
+
+Three properties keep this a decision rather than a hole. Only the token's HMAC
+reaches the database, so "not recoverable afterwards" is a fact about the schema
+and not a promise about the code. The gestor already chose to create the account
+and its perfil, so holding the link grants them nothing they did not have. And
+the audit row records the grant without the credential inside it, which
+`lgpd.md` depends on.
+
+What this does **not** change: the gestor never sets the other person's
+password. Activation still belongs to whoever holds the link (AC-0001-11).
+
+*(v0.8)* **The token is redeemed in a request body, not a URL path** (OQ-31).
+§10 specified `POST /convites/{token}/ativar`. A single-use credential in a path
+lands in access logs, proxy logs and browser history, none of which this project
+controls, and the cost of changing it rises the moment a client binds to it. The
+route is now `POST /api/v1/convites/ativar` with `{token, password}`. The link
+handed to the gestor still carries the token as a query parameter, because a
+link has to be openable; what changed is that our API never accepts it in a
+path.
 
 **AC-0001-11** — An invited user activates and sets a password
 ```gherkin
@@ -726,7 +756,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
-| POST | `/api/v1/convites/{token}/ativar` | `{password}` → session | 11, 25, 26 |
+| POST | `/api/v1/convites/ativar` | `{token, password}` → session | 11, 25, 26 |
 | POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
 | POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | `{password}` → 204, sessions revoked | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | — → 202 | 32 |
@@ -940,6 +970,24 @@ The message says only that the response could not be validated. Which of
 signature, issuer, audience, expiry or nonce failed is a detail for the audit
 row, not for the person at the screen.
 
+**v0.8 (2026-09-20)** — invitations become implementable, and the token leaves
+the URL.
+
+Two changes, both forced by reality rather than chosen.
+
+**There is no mail transport, and every account is born from an invitation.**
+AC-0001-10 required the token to be *sent to that e-mail* and to stay out of the
+response. The entity has never supplied SMTP, and with no self-registration and
+no JIT provisioning the consequence is not a missing feature but an empty
+system: nobody can ever log in. The gestor now receives the link and delivers
+it. The properties that made the original safe are kept where they can be:
+only the HMAC is stored, the audit row carries no token, and the gestor still
+cannot set the other person's password.
+
+**The token moves from the path to the request body** (OQ-31). A single-use
+credential in a URL path lands in access logs, proxies and browser history. Free
+to change now, expensive once a client binds to it.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -951,3 +999,4 @@ row, not for the person at the screen.
 | 0.5 | 2026-09-10 | Password reset specified at last (AC-0001-30/-31/-32): a forgotten local credential had no recovery path, because the scope line promised the flow without a criterion while AC-0001-28 blocked the only workaround. Rate limiting added across every auth route (AC-0001-33, ADR-0012), keyed on the source and independent of the per-address lockout, with a higher ceiling for institutional ranges because whole unidades share one NAT address. RNF01's conflict with AC-0001-05 settled by ADR-0011 instead of by lowering the bcrypt cost |
 | 0.6 | 2026-09-20 | API surface renamed to English per ADR-0013, which replaces ADR-0006's glossary test with a reader test: `senha`/`expira_em`/`nome` become `password`/`expires_at`/`name`, and seventeen of twenty-one error codes are anglicised. `USUARIO_INATIVO`, `USUARIO_NAO_PROVISIONADO`, `PERFIL_NAO_AUTORIZADO` and `ULTIMO_GESTOR` keep Portuguese names because each is built on a glossary noun. Database columns are unchanged, so a payload field and its column no longer share a name |
 | 0.7 | 2026-09-20 | `INVALID_ASSERTION` added to §5. AC-0001-20 requires refusing a provider token that does not verify, and no code existed for it, so the implementation would have invented one |
+| 0.8 | 2026-09-20 | AC-0001-10: the gestor receives and delivers the activation link, because there is no mail transport and every account is born from an invitation, so the original criterion blocked all login rather than one feature. The token also moves from the URL path to the request body (OQ-31) |

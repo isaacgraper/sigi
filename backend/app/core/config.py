@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     bloqueio_minutos: int = 15
 
     # ── Invitations and resets (AC-0001-11, -25, -31) ───────────────────────
+    # Where an activation or reset link points. The token travels as a query
+    # parameter on the frontend route, which then posts it in a request body:
+    # a link has to be openable, but our API never takes it in a path.
+    url_base_frontend: str = "http://localhost:3000"
     convite_ttl_horas: int = 72
     # One hour against the invitation's 72: an invitation waits for somebody to
     # find the time, a reset is asked for by someone sitting at the screen.
