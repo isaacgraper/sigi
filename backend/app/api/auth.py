@@ -14,7 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.authorization import UsuarioAtual
+from app.core.authorization import Public, UsuarioAtual
 from app.core.config import get_settings
 from app.core.correlation import current
 from app.core.db import get_sessao
@@ -26,6 +26,12 @@ from app.services.authentication import authenticate_local
 from app.services.errors import InactiveUser, InvalidRefresh
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+# These three are open by definition: the caller has no session yet, or is
+# handing back the one they have. Declared rather than omitted, because
+# AC-0001-23 refuses a write route with no decision and "they forgot" must
+# never look like "they decided".
+OPEN = [Depends(Public())]
 
 # The cookie is scoped to the routes that consume it. A refresh token sent on
 # every request to every path is a refresh token exposed by every request; only
@@ -60,7 +66,7 @@ def _read_cookie(request: Request) -> str:
     return value
 
 
-@router.post("/login", response_model=SessionOutput)
+@router.post("/login", response_model=SessionOutput, dependencies=OPEN)
 def login(
     body: LoginInput, request: Request, response: Response, session: SessaoDb
 ) -> SessionOutput:
@@ -83,7 +89,7 @@ def login(
     return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
 
 
-@router.post("/refresh", response_model=SessionOutput)
+@router.post("/refresh", response_model=SessionOutput, dependencies=OPEN)
 def refresh(request: Request, response: Response, session: SessaoDb) -> SessionOutput:
     """Rotate the token pair without asking for credentials.
 
@@ -99,7 +105,7 @@ def refresh(request: Request, response: Response, session: SessaoDb) -> SessionO
     return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=OPEN)
 def logout(request: Request, response: Response, session: SessaoDb) -> None:
     """Invalidate the whole refresh family.
 

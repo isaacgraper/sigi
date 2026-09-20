@@ -142,3 +142,19 @@ class UnprovisionedUsuario(DomainError):
     def __init__(self) -> None:
         """Build the error, pointing the caller at the gestor who can fix it."""
         super().__init__("Seu acesso ainda não foi liberado. Procure o gestor da sua unidade.")
+
+
+class UnauthorizedPerfil(DomainError):
+    """Authenticated, and the perfil does not permit it (RN04, A01).
+
+    403 rather than 404 on purpose: the caller is a known servidor of the
+    entity, and hiding that the action exists would only make them ask a
+    colleague to try it too.
+    """
+
+    code = "PERFIL_NAO_AUTORIZADO"
+    http = 403
+
+    def __init__(self) -> None:
+        """Build the error. It carries no detail, because the perfil is the reason."""
+        super().__init__("Seu perfil não permite esta ação.")
