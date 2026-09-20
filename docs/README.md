@@ -26,6 +26,7 @@ is deliberately changed.
 | `process/definition-of-done.md` | Merge checklist | The team raises the bar. |
 | `process/sop-qualidade.md` | Which rule is enforced by which machine, and which are enforced by nobody | A hook, a CI job or an unenforced rule changes. |
 | `process/branching-and-releases.md` | Branch model, versioning, the release PR | The release process changes. |
+| `process/spec-0001-remaining-work.md` | The branches SPEC-0001 still needs, in order, with the traps | A branch lands, or the order changes. |
 | `open-questions.md` | What the evidence does not answer: policies, lead times, intentions. A contradiction the **data** answers is a defect in the spec, not an entry here (ADR-0009). | Continuously. |
 | `roadmap.md` | M1–M5 milestones and spec sequencing | Planning sessions. |
 
