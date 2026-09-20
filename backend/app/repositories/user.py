@@ -23,3 +23,22 @@ def by_id(session: Session, usuario_id: uuid.UUID) -> User | None:
 def by_oidc_subject(session: Session, subject: str) -> User | None:
     """Find a user by the provider's stable subject, or None."""
     return session.scalars(select(User).where(User.oidc_subject == subject)).one_or_none()
+
+
+def create(
+    session: Session,
+    *,
+    email: str,
+    role: str,
+    nome: str | None = None,
+) -> User:
+    """Insert a `pendente` account and flush it, so the caller has its id."""
+    user = User(
+        email=email.strip().lower(),
+        nome=nome,
+        role=role,
+        status="pendente",
+    )
+    session.add(user)
+    session.flush()
+    return user

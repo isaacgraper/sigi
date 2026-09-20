@@ -158,3 +158,72 @@ class UnauthorizedPerfil(DomainError):
     def __init__(self) -> None:
         """Build the error. It carries no detail, because the perfil is the reason."""
         super().__init__("Seu perfil não permite esta ação.")
+
+
+class InviteAlreadyUsed(DomainError):
+    """The grant was already redeemed, or never existed (AC-0001-25)."""
+
+    code = "INVITE_ALREADY_USED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, which does not distinguish spent from unknown."""
+        super().__init__("Este convite já foi utilizado. Peça um novo ao gestor.")
+
+
+class InviteExpired(DomainError):
+    """The grant timed out, or a newer one superseded it (AC-0001-25)."""
+
+    code = "INVITE_EXPIRED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, pointing at the gestor who can issue another."""
+        super().__init__("Este convite expirou. Peça um novo ao gestor.")
+
+
+class WeakPassword(DomainError):
+    """The chosen password is shorter than the policy allows (AC-0001-26)."""
+
+    code = "WEAK_PASSWORD"
+    http = 422
+
+    def __init__(self, minimum: int) -> None:
+        """Build the error, stating the rule rather than merely refusing."""
+        super().__init__(f"A senha precisa ter ao menos {minimum} caracteres.")
+
+
+class EmailAlreadyRegistered(DomainError):
+    """An account already exists for this address, in any status (AC-0001-28)."""
+
+    code = "EMAIL_ALREADY_REGISTERED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, naming the reset path rather than a second invite."""
+        super().__init__(
+            "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, "
+            "use 'redefinir senha' em vez de convidar de novo."
+        )
+
+
+class NonInstitutionalDomain(DomainError):
+    """The invited address is outside the institutional domains (AC-0001-28)."""
+
+    code = "NON_INSTITUTIONAL_DOMAIN"
+    http = 422
+
+    def __init__(self, allowed: list[str]) -> None:
+        """Build the error, listing the domains so the gestor can correct it."""
+        super().__init__(f"Use um e-mail institucional. Domínios aceitos: {', '.join(allowed)}.")
+
+
+class UsuarioNotFound(DomainError):
+    """No usuario matches the identifier supplied."""
+
+    code = "NAO_ENCONTRADO"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error. It says nothing about whether the id ever existed."""
+        super().__init__("Recurso não encontrado.")
