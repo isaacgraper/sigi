@@ -104,3 +104,19 @@ class AttemptsExceeded(DomainError):
             f"Muitas tentativas. Tente novamente em {minutes} minutos.",
             retry_after=minutes * 60,
         )
+
+
+class UnauthorizedPerfil(DomainError):
+    """Authenticated, and the perfil does not permit it (RN04, A01).
+
+    403 rather than 404 on purpose: the caller is a known servidor of the
+    entity, and hiding that the action exists would only make them ask a
+    colleague to try it too.
+    """
+
+    code = "PERFIL_NAO_AUTORIZADO"
+    http = 403
+
+    def __init__(self) -> None:
+        """Build the error. It carries no detail, because the perfil is the reason."""
+        super().__init__("Seu perfil não permite esta ação.")
