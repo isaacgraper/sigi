@@ -88,7 +88,7 @@ def _refuse_personal_data(data: Mapping[str, Any] | None) -> None:
     for path, value in _walk(data):
         if isinstance(value, str) and _PARECE_EMAIL.search(value):
             raise DadoPessoalNoHistorico(
-                f"dados_anteriores[{path}] parece conter um endereço de e-mail. "
+                f"dados_anteriores[{path}] looks like it carries an e-mail address. "
                 "The audit table can never be corrected, so it carries no "
                 "personal data: use app.core.secrets_hmac.digest_secret() and write "
                 "the HMAC plus the domain, as SPEC-0001 §8 requires."

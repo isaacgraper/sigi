@@ -70,7 +70,7 @@ def login(
     """
     correlation_id = _correlation_id(request)
     user = authenticate_local(
-        session, email=str(body.email), password=body.senha, correlation_id=correlation_id
+        session, email=str(body.email), password=body.password, correlation_id=correlation_id
     )
     par = sessions.open_session(
         session,
@@ -80,7 +80,7 @@ def login(
         mecanismo="local",
     )
     _set_cookie(response, par.refresh_token)
-    return SessionOutput(access_token=par.access_token, expira_em=par.expira_em)
+    return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
 
 
 @router.post("/refresh", response_model=SessionOutput)
@@ -96,7 +96,7 @@ def refresh(request: Request, response: Response, session: SessaoDb) -> SessionO
         correlation_id=_correlation_id(request),
     )
     _set_cookie(response, par.refresh_token)
-    return SessionOutput(access_token=par.access_token, expira_em=par.expira_em)
+    return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -126,7 +126,7 @@ def me(user: UsuarioAtual) -> UserOutput:
     """
     return UserOutput(
         id=user.id,
-        nome=user.nome,
+        name=user.nome,
         email=user.email,
         perfil=user.role,
         status=user.status,

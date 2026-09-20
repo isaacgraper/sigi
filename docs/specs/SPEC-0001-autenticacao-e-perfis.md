@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.5
+version: 0.6
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -81,7 +81,7 @@ readable by script is a refresh token stealable by XSS (RNF03).
 ```gherkin
 Given an "ativo" usuario "ana@sc.gov.br"
 When  local login is requested for "ana@sc.gov.br" with the wrong password
-Then  the response is 401 with error code "CREDENCIAIS_INVALIDAS"
+Then  the response is 401 with error code "INVALID_CREDENTIALS"
 When  local login is requested for "naoexiste@sc.gov.br" with any password
 Then  the response is 401 with the same code and byte-identical message
 And   the same holds at the lockout threshold: a sixth attempt returns 429 for
@@ -98,7 +98,7 @@ rather than on the usuario (AC-0001-03).
 Given 5 failed local login attempts for one e-mail address, each within 15
       minutes of the previous one
 When  a sixth attempt is made, even with the correct password
-Then  the response is 429 with error code "TENTATIVAS_EXCEDIDAS"
+Then  the response is 429 with error code "ATTEMPTS_EXCEEDED"
 And   the message states when the address may try again
 And   an audit row records the lockout with the attempt count
 And   15 minutes after the last attempt, the correct password authenticates normally
@@ -129,7 +129,7 @@ Then  the response is 200 and a session is issued
 ```gherkin
 Given the institutional domain allowlist contains "sc.gov.br"
 When  local login is requested for "alguem@gmail.com"
-Then  the response is 401 with error code "CREDENCIAIS_INVALIDAS"
+Then  the response is 401 with error code "INVALID_CREDENTIALS"
 And   the response is indistinguishable from a wrong-password response
 ```
 
@@ -145,7 +145,7 @@ And   the stored credential is a bcrypt hash at cost 12 or higher
 ```gherkin
 Given an access token whose expiry has passed
 When  it is presented to any authenticated endpoint
-Then  the response is 401 with error code "TOKEN_EXPIRADO"
+Then  the response is 401 with error code "TOKEN_EXPIRED"
 When  the refresh endpoint is called carrying the valid refresh cookie
 Then  the response is 200 with a new access token and a rotated refresh cookie
 And   no credentials are requested
@@ -155,7 +155,7 @@ And   no credentials are requested
 ```gherkin
 Given a usuario who has logged out
 When  the refresh token issued before the logout is replayed
-Then  the response is 401 with error code "REFRESH_INVALIDO"
+Then  the response is 401 with error code "INVALID_REFRESH"
 And   an audit row records the replay with the usuario and the token identifier
 And   every refresh token descended from the same login is invalidated
 ```
@@ -207,11 +207,11 @@ And   an audit row records the activation
 ```gherkin
 Given an invitation token that has already been redeemed
 When  it is redeemed again
-Then  the response is 409 with error code "CONVITE_JA_UTILIZADO"
+Then  the response is 409 with error code "INVITE_ALREADY_USED"
 And   the usuario's credential is unchanged
 Given an invitation token issued more than 72 hours earlier
 When  it is redeemed
-Then  the response is 409 with error code "CONVITE_EXPIRADO"
+Then  the response is 409 with error code "INVITE_EXPIRED"
 And   the usuario's status remains "pendente"
 ```
 
@@ -219,7 +219,7 @@ And   the usuario's status remains "pendente"
 ```gherkin
 Given a usuario with status "pendente" and a valid invitation token
 When  the token is redeemed with a password shorter than 12 characters
-Then  the response is 422 with error code "SENHA_FRACA"
+Then  the response is 422 with error code "WEAK_PASSWORD"
 And   the message states the length rule
 And   the token remains unredeemed, so a second attempt with a valid password succeeds
 ```
@@ -248,17 +248,17 @@ And   the denial produces the audit row AC-0001-18 requires
 ```gherkin
 Given a usuario already exists for "ana@sc.gov.br", in any status
 When  a gestor invites "ana@sc.gov.br"
-Then  the response is 409 with error code "EMAIL_JA_CADASTRADO"
+Then  the response is 409 with error code "EMAIL_ALREADY_REGISTERED"
 And   no second usuario row and no second invitation is created
 When  a gestor invites "alguem@gmail.com", which is not on the institutional allowlist
-Then  the response is 422 with error code "DOMINIO_NAO_INSTITUCIONAL"
+Then  the response is 422 with error code "NON_INSTITUTIONAL_DOMAIN"
 And   the message names the allowed domains
 ```
 *(v0.5)* The duplicate-e-mail rule is right — a second account for one person
 would split their audit trail — but until v0.5 it was also the reason a
 forgotten password had no remedy, because re-inviting was the only workaround
 anyone would reach for. The remedy is AC-0001-30/-32, and
-`EMAIL_JA_CADASTRADO`'s message now says so.
+`EMAIL_ALREADY_REGISTERED`'s message now says so.
 
 **AC-0001-29** — The last active gestor cannot be locked out
 ```gherkin
@@ -356,7 +356,7 @@ Then  the response redirects to the provider's authorization endpoint
 And   the redirect carries response_type=code, a PKCE challenge using method S256, a state and a nonce
 And   the state and the PKCE verifier are bound to that caller and expire within 10 minutes
 When  a callback presents a state that was never issued, or one that has expired
-Then  the response is 401 with error code "ESTADO_INVALIDO"
+Then  the response is 401 with error code "INVALID_STATE"
 ```
 
 **AC-0001-20** — The provider's assertion is verified before it is trusted
@@ -450,11 +450,11 @@ Then  the usuario's credential is replaced
 And   every session of that usuario is revoked with reason "redefinicao"
 And   an audit row records the reset
 When  the same token is redeemed again
-Then  the response is 409 with error code "REDEFINICAO_JA_UTILIZADA"
+Then  the response is 409 with error code "RESET_ALREADY_USED"
 When  a token issued more than 1 hour earlier is redeemed
-Then  the response is 409 with error code "REDEFINICAO_EXPIRADA"
+Then  the response is 409 with error code "RESET_EXPIRED"
 When  the password is shorter than the policy allows
-Then  the response is 422 with "SENHA_FRACA" and the token remains unredeemed
+Then  the response is 422 with "WEAK_PASSWORD" and the token remains unredeemed
 ```
 Revoking every session is not optional and cuts both ways deliberately. If the
 person reset because they suspect theft, it evicts the thief; if a thief with
@@ -487,7 +487,7 @@ without turning a gestor into someone who can take over an account silently.
 Given a per-route ceiling and window taken from configuration
 When  one source exceeds the ceiling within the window on any route under
       "/api/v1/auth" or "/api/v1/convites"
-Then  the response is 429 with error code "LIMITE_DE_TAXA" and a Retry-After header
+Then  the response is 429 with error code "RATE_LIMITED" and a Retry-After header
 And   the body says nothing about which throttle fired, nor how many attempts remain
 And   an audit row records the event with no address in clear
 Given a source inside a configured institutional range
@@ -530,22 +530,22 @@ the trigger stops whatever the privilege does not — a superuser session, or a
 
 | Condition | HTTP | Error code | Message (pt-BR) |
 | --- | --- | --- | --- |
-| Wrong password, unknown e-mail, or off-allowlist domain | 401 | `CREDENCIAIS_INVALIDAS` | "E-mail ou senha inválidos." |
-| Too many attempts | 429 | `TENTATIVAS_EXCEDIDAS` | "Muitas tentativas. Tente novamente em {minutos} minutos." |
-| Access token expired | 401 | `TOKEN_EXPIRADO` | "Sua sessão expirou. Entre novamente." |
-| Refresh token invalid or replayed | 401 | `REFRESH_INVALIDO` | "Sua sessão não é mais válida. Entre novamente." |
+| Wrong password, unknown e-mail, or off-allowlist domain | 401 | `INVALID_CREDENTIALS` | "E-mail ou senha inválidos." |
+| Too many attempts | 429 | `ATTEMPTS_EXCEEDED` | "Muitas tentativas. Tente novamente em {minutos} minutos." |
+| Access token expired | 401 | `TOKEN_EXPIRED` | "Sua sessão expirou. Entre novamente." |
+| Refresh token invalid or replayed | 401 | `INVALID_REFRESH` | "Sua sessão não é mais válida. Entre novamente." |
 | Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa. Procure o gestor da sua unidade." |
 | Profile does not permit | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
-| OIDC state absent or expired | 401 | `ESTADO_INVALIDO` | "A tentativa de entrada expirou. Comece novamente." |
+| OIDC state absent or expired | 401 | `INVALID_STATE` | "A tentativa de entrada expirou. Comece novamente." |
 | OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade." |
-| Invitation already redeemed | 409 | `CONVITE_JA_UTILIZADO` | "Este convite já foi utilizado. Peça um novo ao gestor." |
-| Invitation older than 72 h | 409 | `CONVITE_EXPIRADO` | "Este convite expirou. Peça um novo ao gestor." |
-| Password below the minimum | 422 | `SENHA_FRACA` | "A senha precisa ter ao menos 12 caracteres." |
-| Reset token already used | 409 | `REDEFINICAO_JA_UTILIZADA` | "Este link de redefinição já foi usado. Solicite outro." |
-| Reset token older than 1 hour | 409 | `REDEFINICAO_EXPIRADA` | "Este link de redefinição expirou. Solicite outro." |
-| Rate limit exceeded | 429 | `LIMITE_DE_TAXA` | "Muitas requisições. Tente novamente em instantes." |
-| E-mail already invited or registered | 409 | `EMAIL_JA_CADASTRADO` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
-| Invited e-mail outside the institutional domains | 422 | `DOMINIO_NAO_INSTITUCIONAL` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
+| Invitation already redeemed | 409 | `INVITE_ALREADY_USED` | "Este convite já foi utilizado. Peça um novo ao gestor." |
+| Invitation older than 72 h | 409 | `INVITE_EXPIRED` | "Este convite expirou. Peça um novo ao gestor." |
+| Password below the minimum | 422 | `WEAK_PASSWORD` | "A senha precisa ter ao menos 12 caracteres." |
+| Reset token already used | 409 | `RESET_ALREADY_USED` | "Este link de redefinição já foi usado. Solicite outro." |
+| Reset token older than 1 hour | 409 | `RESET_EXPIRED` | "Este link de redefinição expirou. Solicite outro." |
+| Rate limit exceeded | 429 | `RATE_LIMITED` | "Muitas requisições. Tente novamente em instantes." |
+| E-mail already invited or registered | 409 | `EMAIL_ALREADY_REGISTERED` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
+| Invited e-mail outside the institutional domains | 422 | `NON_INSTITUTIONAL_DOMAIN` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
 | Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
 Every `message` is addressed to a servidor, not to a developer, and says what to
@@ -715,19 +715,19 @@ a repository, and the audit row written in the same transaction as its mutation.
 
 | Method | Path | Request → Response | ACs |
 | --- | --- | --- | --- |
-| POST | `/api/v1/auth/login` | `{email, senha}` → access token + refresh cookie | 01–05, 24 |
+| POST | `/api/v1/auth/login` | `{email, password}` → access token + refresh cookie | 01–05, 24 |
 | POST | `/api/v1/auth/refresh` | refresh cookie → rotated pair | 06, 07 |
 | POST | `/api/v1/auth/logout` | refresh cookie → 204 | 07 |
-| GET | `/api/v1/auth/me` | — → `{id, nome, email, perfil}` | 08, 22 |
+| GET | `/api/v1/auth/me` | — → `{id, name, email, perfil}` | 08, 22 |
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
 | POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
-| POST | `/api/v1/convites/{token}/ativar` | `{senha}` → session | 11, 25, 26 |
+| POST | `/api/v1/convites/{token}/ativar` | `{password}` → session | 11, 25, 26 |
 | POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
-| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | `{senha}` → 204, sessions revoked | 31 |
+| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | `{password}` → 204, sessions revoked | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | — → 202 | 32 |
 
 Errors use the envelope in `api-conventions.md`; `code` from §5, `message` pt-BR.
@@ -842,7 +842,7 @@ fixed here:
 5. **The audit substrate had no criterion.** This slice builds the `REVOKE` and
    the trigger, so RN06 and RNF08 are proven here, not in SPEC-0007. Now
    AC-0001-27, and RN06 joins `satisfies`.
-6. **`EMAIL_JA_CADASTRADO` sat in the error table with no criterion.** Inviting
+6. **`EMAIL_ALREADY_REGISTERED` sat in the error table with no criterion.** Inviting
    the same e-mail twice, or an off-domain address, had no specified behaviour.
    Now AC-0001-28.
 7. **Nothing stopped the last gestor being locked out.** Two permitted actions
@@ -898,6 +898,35 @@ security downgrade wearing the clothes of a performance fix. Credential
 verification gets its own provisional 500 ms, to be replaced by a measured
 figure before M5's load tests close.
 
+**v0.6 (2026-09-20)** — the API surface is renamed, following ADR-0013.
+
+The rule that governs this spec's contract changed. ADR-0006 chose a language by
+asking whether a word was in the glossary; ADR-0013 asks who reads the string.
+Nobody but a developer reads a payload field or an error code, so both are
+English, and the database schema stays Portuguese as a whole because a DBA reads
+it. Payload field names and the column names behind them therefore no longer
+have to match, and `password` sitting over `senha_hash` is correct rather than a
+mismatch to reconcile.
+
+What changed here: `senha` to `password`, `expira_em` to `expires_at` and `nome`
+to `name` in §10's endpoint payloads, and seventeen of the twenty-one error
+codes in §5.
+
+Four codes keep their Portuguese names, under ADR-0013's tie-break that a name
+built around a glossary noun stays whole: `USUARIO_INATIVO`,
+`USUARIO_NAO_PROVISIONADO`, `PERFIL_NAO_AUTORIZADO` and `ULTIMO_GESTOR`. So does
+`perfil` as a payload field. Translating only their non-glossary halves would
+produce names in neither language.
+
+Twelve of the renamed codes are not implemented yet; they belong to the
+invitation, OIDC, reset and rate-limiting criteria. They are renamed now anyway,
+because leaving them Portuguese in an Approved spec is an instruction to the
+branch that implements them to get it wrong, and then to do this a second time.
+
+No acceptance criterion changed meaning, and no route path moved: every path
+segment in §7 is built on a glossary noun. The schema is untouched, which
+`alembic check` asserts inside the test suite.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -907,3 +936,4 @@ figure before M5's load tests close.
 | 0.3 | 2026-09-10 | ADR-0010 adopted: OIDC primary + local contingency, Gov.br cut. AC-19..24 added (PKCE/state/nonce, token verification, no JIT provisioning, perfil never from a claim, route-table completeness, local login switchable). All criteria converted to Given/When/Then; AC-15/16/17 split; AC-14 lost `cpf` (OQ-10 Assumed). Auth routes moved under `/api/v1`. RN07 moved to SPEC-0003 with the reason recorded. Audit substrate scoped into this slice, with AC-0001-27 proving RN06/RNF08. `/spec-review` added AC-0001-25/26 (invitation single-use, password policy), AC-0001-28 (duplicate and off-domain invites) and AC-0001-29 (the last active gestor cannot be locked out); "change own password" left the permission matrix as unspecified |
 | 0.4 | 2026-09-10 | `/plan`'s persistence review corrected four defects: the lockout is keyed on the submitted address, not the account (AC-0001-02 was false as written); AC-0001-03 states an inactivity decay rather than two conflicting rules; the lockout no longer reaches institutional OIDC, closing a DoS on member management; and §8 stops writing e-mail addresses into the immutable audit table, using a peppered HMAC plus domain. AC-0001-29 extended to demotion and to the concurrency requirement |
 | 0.5 | 2026-09-10 | Password reset specified at last (AC-0001-30/-31/-32): a forgotten local credential had no recovery path, because the scope line promised the flow without a criterion while AC-0001-28 blocked the only workaround. Rate limiting added across every auth route (AC-0001-33, ADR-0012), keyed on the source and independent of the per-address lockout, with a higher ceiling for institutional ranges because whole unidades share one NAT address. RNF01's conflict with AC-0001-05 settled by ADR-0011 instead of by lowering the bcrypt cost |
+| 0.6 | 2026-09-20 | API surface renamed to English per ADR-0013, which replaces ADR-0006's glossary test with a reader test: `senha`/`expira_em`/`nome` become `password`/`expires_at`/`name`, and seventeen of twenty-one error codes are anglicised. `USUARIO_INATIVO`, `USUARIO_NAO_PROVISIONADO`, `PERFIL_NAO_AUTORIZADO` and `ULTIMO_GESTOR` keep Portuguese names because each is built on a glossary noun. Database columns are unchanged, so a payload field and its column no longer share a name |

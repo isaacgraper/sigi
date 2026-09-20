@@ -45,8 +45,8 @@ def register_handlers(app: FastAPI) -> None:
             status_code=422,
             content={
                 "error": {
-                    "code": "DADOS_INVALIDOS",
-                    "message": "Verifique os fields destacados.",
+                    "code": "INVALID_DATA",
+                    "message": "Verifique os campos destacados.",
                     "fields": fields,
                     "correlation_id": str(current()),
                 }
