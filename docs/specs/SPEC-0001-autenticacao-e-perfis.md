@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.6
+version: 0.7
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -537,6 +537,7 @@ the trigger stops whatever the privilege does not — a superuser session, or a
 | Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa. Procure o gestor da sua unidade." |
 | Profile does not permit | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
 | OIDC state absent or expired | 401 | `INVALID_STATE` | "A tentativa de entrada expirou. Comece novamente." |
+| The provider's identity token does not verify | 401 | `INVALID_ASSERTION` | "Não foi possível validar a resposta do provedor." |
 | OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade." |
 | Invitation already redeemed | 409 | `INVITE_ALREADY_USED` | "Este convite já foi utilizado. Peça um novo ao gestor." |
 | Invitation older than 72 h | 409 | `INVITE_EXPIRED` | "Este convite expirou. Peça um novo ao gestor." |
@@ -927,6 +928,18 @@ No acceptance criterion changed meaning, and no route path moved: every path
 segment in §7 is built on a glossary noun. The schema is untouched, which
 `alembic check` asserts inside the test suite.
 
+**v0.7 (2026-09-20)** — one error code the OIDC implementation needed.
+
+§5 had a row for a state that was never issued (`INVALID_STATE`) and one for a
+subject with no account (`USUARIO_NAO_PROVISIONADO`), but none for the case
+between them: the provider answered, and its identity token did not verify.
+AC-0001-20 requires that refusal and the spec named no code for it, so the
+implementation would have invented one. `INVALID_ASSERTION`, 401.
+
+The message says only that the response could not be validated. Which of
+signature, issuer, audience, expiry or nonce failed is a detail for the audit
+row, not for the person at the screen.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -937,3 +950,4 @@ segment in §7 is built on a glossary noun. The schema is untouched, which
 | 0.4 | 2026-09-10 | `/plan`'s persistence review corrected four defects: the lockout is keyed on the submitted address, not the account (AC-0001-02 was false as written); AC-0001-03 states an inactivity decay rather than two conflicting rules; the lockout no longer reaches institutional OIDC, closing a DoS on member management; and §8 stops writing e-mail addresses into the immutable audit table, using a peppered HMAC plus domain. AC-0001-29 extended to demotion and to the concurrency requirement |
 | 0.5 | 2026-09-10 | Password reset specified at last (AC-0001-30/-31/-32): a forgotten local credential had no recovery path, because the scope line promised the flow without a criterion while AC-0001-28 blocked the only workaround. Rate limiting added across every auth route (AC-0001-33, ADR-0012), keyed on the source and independent of the per-address lockout, with a higher ceiling for institutional ranges because whole unidades share one NAT address. RNF01's conflict with AC-0001-05 settled by ADR-0011 instead of by lowering the bcrypt cost |
 | 0.6 | 2026-09-20 | API surface renamed to English per ADR-0013, which replaces ADR-0006's glossary test with a reader test: `senha`/`expira_em`/`nome` become `password`/`expires_at`/`name`, and seventeen of twenty-one error codes are anglicised. `USUARIO_INATIVO`, `USUARIO_NAO_PROVISIONADO`, `PERFIL_NAO_AUTORIZADO` and `ULTIMO_GESTOR` keep Portuguese names because each is built on a glossary noun. Database columns are unchanged, so a payload field and its column no longer share a name |
+| 0.7 | 2026-09-20 | `INVALID_ASSERTION` added to §5. AC-0001-20 requires refusing a provider token that does not verify, and no code existed for it, so the implementation would have invented one |
