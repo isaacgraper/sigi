@@ -54,6 +54,21 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     cookie_refresh_nome: str = "sigi_refresh"
 
+    # ── Institutional OIDC (ADR-0010, AC-0001-19 to -22) ────────────────────
+    # Entra ID. The entity has not yet handed over tenant, client and redirect
+    # (OQ-09), so the empty defaults leave the path off and the tests inject
+    # their own.
+    oidc_enabled: bool = False
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_uri: str = "http://localhost:3000/auth/callback"
+    # The group claim the provider asserts. Recorded in the login's audit row
+    # and never consulted by an authorisation decision (AC-0001-22).
+    oidc_claim_grupo: str = "groups"
+    # The window between starting a login and returning from the provider.
+    oidc_estado_ttl_minutos: int = 10
+
     # ── Local credentials (ADR-0010) ────────────────────────────────────────
     # Switchable: the honest production default is `False`, with OIDC as the
     # primary path. On here so that a fresh clone runs.

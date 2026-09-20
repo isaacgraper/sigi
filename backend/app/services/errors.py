@@ -104,3 +104,41 @@ class AttemptsExceeded(DomainError):
             f"Muitas tentativas. Tente novamente em {minutes} minutos.",
             retry_after=minutes * 60,
         )
+
+
+class InvalidState(DomainError):
+    """The OIDC callback carries a state that was never issued, or has expired."""
+
+    code = "INVALID_STATE"
+    http = 401
+
+    def __init__(self) -> None:
+        """Build the error. It says nothing about which of the two it was."""
+        super().__init__("A tentativa de entrada expirou. Comece novamente.")
+
+
+class InvalidAssertion(DomainError):
+    """The provider's identity token did not verify (AC-0001-20)."""
+
+    code = "INVALID_ASSERTION"
+    http = 401
+
+    def __init__(self) -> None:
+        """Build the error, naming no detail of why verification failed."""
+        super().__init__("Não foi possível validar a resposta do provedor.")
+
+
+class UnprovisionedUsuario(DomainError):
+    """The assertion verified, and no usuario matches it (AC-0001-21).
+
+    403 and not 404: the caller authenticated against the tenant, so they exist
+    as a person. What they lack is an account here, and saying so is what tells
+    them to ask the gestor rather than retry.
+    """
+
+    code = "USUARIO_NAO_PROVISIONADO"
+    http = 403
+
+    def __init__(self) -> None:
+        """Build the error, pointing the caller at the gestor who can fix it."""
+        super().__init__("Seu acesso ainda não foi liberado. Procure o gestor da sua unidade.")
