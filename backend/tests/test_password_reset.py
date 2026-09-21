@@ -44,7 +44,7 @@ def _member_with_reset(
     user = criar_usuario(email=f"membro-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=ANTIGA)
     response = application.post(f"{USUARIOS}/{user.id}/redefinir-senha", headers=headers)
     assert response.status_code == 200, response.text
-    return user, _token_from(response.json()["link_redefinicao"])
+    return user, _token_from(response.json()["reset_link"])
 
 
 def test_ac_0001_31_redeeming_replaces_the_credential(
@@ -175,7 +175,7 @@ def test_an_invitation_token_cannot_be_redeemed_as_a_reset(
         json={"email": f"conv-{uuid.uuid4().hex[:8]}@sc.gov.br", "perfil": "servidor"},
         headers=headers,
     )
-    token_de_convite = _token_from(convite.json()["link_ativacao"])
+    token_de_convite = _token_from(convite.json()["activation_link"])
 
     response = application.post(CONFIRMAR, json={"token": token_de_convite, "password": NOVA})
     assert response.status_code == 409
@@ -196,7 +196,7 @@ def test_ac_0001_32_the_gestor_triggers_and_the_act_is_audited(
 
     response = application.post(f"{USUARIOS}/{user.id}/redefinir-senha", headers=headers)
     assert response.status_code == 200, response.text
-    assert response.json()["link_redefinicao"]
+    assert response.json()["reset_link"]
 
     sessao.rollback()
     row = sessao.execute(

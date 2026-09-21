@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -781,7 +781,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
-| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` | 10, 13, 28 |
+| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` + `activation_link` | 10, 13, 28 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
 | POST | `/api/v1/convites/ativar` | `{token, password}` → session | 11, 25, 26 |
@@ -1062,6 +1062,32 @@ see two windows' allowance. Stated here because it is a known cost, not a
 discovered one; a sliding window would need per-request timestamps and a table
 to keep pruned.
 
+**v1.2 (2026-09-21)** — three defects found by auditing the merged code.
+
+**Two error codes for one condition.** `NOT_FOUND` and `NAO_ENCONTRADO` carried
+the identical message and the identical status. A client switching on `code`
+saw two values for one outcome and learned nothing from the difference.
+`NAO_ENCONTRADO` is gone; §5's row stands for both.
+
+**`/me` and `/usuarios` disagreed about the same field.** One returned `name`
+and the other `nome` for the same person's name. Introduced in v0.8's
+implementation and missed because each endpoint was reviewed on its own.
+
+**The migration named a script that does not exist.** On a database with no
+application role, `0001_baseline` told the operator to run
+`infra/postgres/init/01-papeis.sh`; the file is `01-roles.sh`. Read at
+deployment time by somebody already blocked, which is the worst moment for a
+wrong instruction. Same stale name corrected in `CLAUDE.md` and `.env.example`.
+
+Also brought into line with ADR-0013, since they were payload fields with no
+glossary noun behind them: `criado_em` → `created_at`, `link_ativacao` →
+`activation_link`, `link_redefinicao` → `reset_link`, `pseudonimo` →
+`pseudonym`, and `ActivationOutput.sessao` → `session`. `perfil` stays
+everywhere. The database columns are unchanged, so `pseudonym` now sits over
+`pseudonimo` by design.
+
+No acceptance criterion changed meaning and no route moved.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1076,3 +1102,4 @@ to keep pruned.
 | 0.8 | 2026-09-20 | AC-0001-10: the gestor receives and delivers the activation link, because there is no mail transport and every account is born from an invitation, so the original criterion blocked all login rather than one feature. The token also moves from the URL path to the request body (OQ-31) |
 | 1.0 | 2026-09-21 | Password reset implemented. AC-0001-32 loses its guarantee that a gestor cannot take over an account, because with no mail transport the gestor receives the link; the audit row and the session revocation make it detectable, not impossible (OQ-31). AC-0001-30 is blocked, not deferred: self-service reset has no channel to the requester. Reset token in the request body, matching v0.8 |
 | 1.1 | 2026-09-21 | Rate limiting implemented (AC-0001-33, ADR-0012), independent of the per-address lockout. No default ceiling, so `verify_ceilings` can actually fail; the source is the socket address and not `X-Forwarded-For`, with the trusted-proxy question recorded as OQ-32. Fixed window, whose boundary cost is stated rather than discovered |
+| 1.2 | 2026-09-21 | Three defects from auditing the merged code: two error codes for one condition (`NAO_ENCONTRADO` removed), `/me` and `/usuarios` disagreeing on `name` versus `nome`, and the migration telling an operator to run a script that does not exist. Remaining non-glossary payload fields anglicised per ADR-0013 |

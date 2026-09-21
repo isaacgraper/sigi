@@ -61,5 +61,5 @@ def activate(
     )
     _set_cookie(response, par.refresh_token)
     return ActivationOutput(
-        sessao=SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
+        session=SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
     )

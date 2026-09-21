@@ -2,8 +2,8 @@
 
 The contract, from `CLAUDE.md`: every mutation writes a history row **in the
 same transaction as the mutation**, and if the history write fails, the mutation
-fails. That is why this takes the caller's `UserSession` and never opens or commits
-one of its own — a writer with its own transaction could leave a mutation
+fails. That is why this takes the caller's `Session` and never opens or commits one
+of its own — a writer with its own transaction could leave a mutation
 without its record, which in an auditability product is the defect the product
 exists to prevent.
 """
@@ -27,7 +27,7 @@ from app.repositories.audit_log import insert_row
 class DadoPessoalNoHistorico(RuntimeError):
     """A caller tried to write personal data into an immutable table.
 
-    Not an `DomainError`: no user caused this and no message would help them.
+    Not a `DomainError`: no user caused this and no message would help them.
     It is a bug, and the right outcome is a 500 plus a fix.
     """
 

@@ -80,11 +80,13 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["status"] == "desativado"
-    assert body["nome"] is None
+    assert body["name"] is None
     assert body["email"] is None
-    # `pseudonimo` is a generated column, so the trail keeps resolving to one
-    # stable name without the history being rewritten (AC-0001-27 forbids that).
-    assert body["pseudonimo"]
+    # The column is `pseudonimo` and the payload field is `pseudonym`: they have
+    # different readers, so they need not match (ADR-0013). It is generated, so
+    # the trail keeps resolving to one stable name without the history being
+    # rewritten, which AC-0001-27 forbids anyway.
+    assert body["pseudonym"]
 
     sessao.rollback()
     row = sessao.execute(

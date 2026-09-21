@@ -27,8 +27,8 @@ class InviteOutput(BaseModel):
     email: str
     perfil: str
     status: str
-    criado_em: datetime.datetime
-    link_ativacao: str
+    created_at: datetime.datetime
+    activation_link: str
 
 
 class MemberOutput(BaseModel):
@@ -40,12 +40,12 @@ class MemberOutput(BaseModel):
     """
 
     id: uuid.UUID
-    nome: str | None
+    name: str | None
     email: str | None
     perfil: str
     status: str
-    criado_em: datetime.datetime
-    pseudonimo: str | None
+    created_at: datetime.datetime
+    pseudonym: str | None
 
 
 class MemberPage(BaseModel):
@@ -65,7 +65,7 @@ class ResetTriggerOutput(BaseModel):
     """
 
     id: uuid.UUID
-    link_redefinicao: str
+    reset_link: str
 
 
 class ResetConfirmInput(BaseModel):
