@@ -27,7 +27,7 @@ class TokenPair:
 
     access_token: str
     refresh_token: str
-    expira_em: datetime.datetime
+    expires_at: datetime.datetime
 
 
 def _now() -> datetime.datetime:
@@ -37,10 +37,10 @@ def _now() -> datetime.datetime:
 def open_session(
     session: Session,
     *,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     role: str,
     correlation_id: uuid.UUID,
-    mecanismo: str,
+    mechanism: str,
 ) -> TokenPair:
     """Open a session: a new family, generation one, and a token pair.
 
@@ -49,37 +49,37 @@ def open_session(
     """
     cfg = get_settings()
     now = _now()
-    family = repo.create_familia(session, usuario_id)
+    family = repo.create_family(session, user_id)
     value, token_hash = generate_refresh_token()
     expires = now + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
     repo.create(
         session,
-        usuario_id=usuario_id,
+        user_id=user_id,
         family=family,
         generation=1,
         token_hash=token_hash,
-        expira_em=expires,
+        expires_at=expires,
     )
     record(
         session,
         Event(
             entidade_tipo="usuario",
-            entidade_id=usuario_id,
+            entidade_id=user_id,
             acao="auth.login",
-            usuario_id=usuario_id,
-            dados_anteriores={"mecanismo": mecanismo},
+            user_id=user_id,
+            dados_anteriores={"mecanismo": mechanism},
         ),
         correlation_id=correlation_id,
     )
     return TokenPair(
-        access_token=issue_access_token(usuario_id=usuario_id, role=role, now=now),
+        access_token=issue_access_token(user_id=user_id, role=role, now=now),
         refresh_token=value,
-        expira_em=expires,
+        expires_at=expires,
     )
 
 
 def rotate(
-    session: Session, *, refresh_token: str, perfil_de: RoleResolver, correlation_id: uuid.UUID
+    session: Session, *, refresh_token: str, role_of: RoleResolver, correlation_id: uuid.UUID
 ) -> TokenPair:
     """Exchange a refresh token for a new pair, or detect a replay.
 
@@ -98,34 +98,34 @@ def rotate(
         # Someone is using a token that was already rotated, logged out or
         # revoked. Whoever holds the live one may be the thief, so the whole
         # family goes — that is what turns theft into a detectable event.
-        _revoke_familia_after_replay(
+        _revoke_family_after_replay(
             family=current.family,
-            usuario_id=current.usuario_id,
-            sessao_id=current.id,
+            user_id=current.user_id,
+            session_id=current.id,
             at=now,
             correlation_id=correlation_id,
         )
         raise InvalidRefresh()
 
-    if current.expira_em <= now:
+    if current.expires_at <= now:
         raise InvalidRefresh()
 
-    role = perfil_de(current.usuario_id)
+    role = role_of(current.user_id)
     value, token_hash = generate_refresh_token()
     current.revogado_em = now
     current.revogado_motivo = "rotacao"
-    nova = repo.create(
+    rotated = repo.create(
         session,
-        usuario_id=current.usuario_id,
+        user_id=current.user_id,
         family=current.family,
-        generation=repo.next_geracao(session, current.family),
+        generation=repo.next_generation(session, current.family),
         token_hash=token_hash,
-        expira_em=now + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
+        expires_at=now + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
     )
     return TokenPair(
-        access_token=issue_access_token(usuario_id=current.usuario_id, role=role, now=now),
+        access_token=issue_access_token(user_id=current.user_id, role=role, now=now),
         refresh_token=value,
-        expira_em=nova.expira_em,
+        expires_at=rotated.expires_at,
     )
 
 
@@ -140,24 +140,24 @@ def close(session: Session, *, refresh_token: str, correlation_id: uuid.UUID) ->
     if current is None:
         # Nothing to revoke, and saying so would confirm which tokens exist.
         return
-    repo.revoke_familia(session, current.family, reason="logout", at=now)
+    repo.revoke_family(session, current.family, reason="logout", at=now)
     record(
         session,
         Event(
             entidade_tipo="usuario",
-            entidade_id=current.usuario_id,
+            entidade_id=current.user_id,
             acao="auth.logout",
-            usuario_id=current.usuario_id,
+            user_id=current.user_id,
         ),
         correlation_id=correlation_id,
     )
 
 
-def _revoke_familia_after_replay(
+def _revoke_family_after_replay(
     *,
     family: uuid.UUID,
-    usuario_id: uuid.UUID,
-    sessao_id: uuid.UUID,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> None:
@@ -169,16 +169,16 @@ def _revoke_familia_after_replay(
     looks identical to a typo.
     """
     with standalone_transaction() as own_session:
-        revoked = repo.revoke_familia(own_session, family, reason="replay", at=at)
+        revoked = repo.revoke_family(own_session, family, reason="replay", at=at)
         record(
             own_session,
             Event(
                 entidade_tipo="usuario",
-                entidade_id=usuario_id,
+                entidade_id=user_id,
                 acao="auth.refresh_replay",
-                usuario_id=usuario_id,
+                user_id=user_id,
                 dados_anteriores={
-                    "sessao_id": str(sessao_id),
+                    "sessao_id": str(session_id),
                     "sessoes_derrubadas": revoked,
                 },
             ),
@@ -194,6 +194,6 @@ class RoleResolver:
     current role rather than the one minted at login.
     """
 
-    def __call__(self, usuario_id: uuid.UUID) -> str:  # pragma: no cover - protocol
+    def __call__(self, user_id: uuid.UUID) -> str:  # pragma: no cover - protocol
         """Return the role, or raise if the user may no longer hold one."""
         raise NotImplementedError

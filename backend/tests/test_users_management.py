@@ -268,7 +268,7 @@ def test_ac_0001_29_the_last_active_gestor_cannot_be_blocked(
             members.block(
                 session,
                 actor=actor,
-                usuario_id=ator,
+                user_id=ator,
                 at=datetime.datetime.now(datetime.UTC),
                 correlation_id=uuid.uuid4(),
             )
@@ -300,7 +300,7 @@ def test_ac_0001_29_the_second_of_two_gestores_may_be_removed(
         members.block(
             session,
             actor=actor,
-            usuario_id=outro,
+            user_id=outro,
             at=datetime.datetime.now(datetime.UTC),
             correlation_id=uuid.uuid4(),
         )
@@ -360,7 +360,7 @@ def test_ac_0001_29_under_concurrency_the_loser_gets_409_not_500(
                     members.block(
                         session,
                         actor=actor,
-                        usuario_id=alvo,
+                        user_id=alvo,
                         at=datetime.datetime.now(datetime.UTC),
                         correlation_id=uuid.uuid4(),
                     )

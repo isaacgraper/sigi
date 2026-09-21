@@ -57,10 +57,10 @@ class IssuedGrant:
 def issue(
     session: Session,
     *,
-    usuario_id: uuid.UUID,
-    tipo: str,
+    user_id: uuid.UUID,
+    kind: str,
     at: datetime.datetime,
-    criado_por: uuid.UUID | None,
+    created_by: uuid.UUID | None,
 ) -> IssuedGrant:
     """Issue a grant, cancelling any earlier one of the same type.
 
@@ -69,17 +69,17 @@ def issue(
     violation instead of superseding the first.
     """
     cfg = get_settings()
-    hours = cfg.convite_ttl_horas if tipo == INVITE else cfg.redefinicao_ttl_horas
-    repo.cancel_open(session, usuario_id=usuario_id, tipo=tipo, at=at)
+    hours = cfg.convite_ttl_horas if kind == INVITE else cfg.redefinicao_ttl_horas
+    repo.cancel_open(session, user_id=user_id, kind=kind, at=at)
 
     value = secrets.token_urlsafe(TOKEN_BYTES)
     row = repo.create(
         session,
-        usuario_id=usuario_id,
-        tipo=tipo,
+        user_id=user_id,
+        kind=kind,
         token_hash=digest_secret(value),
-        expira_em=at + datetime.timedelta(hours=hours),
-        criado_por=criado_por,
+        expires_at=at + datetime.timedelta(hours=hours),
+        created_by=created_by,
     )
     return IssuedGrant(token=row, value=value)
 
@@ -88,7 +88,7 @@ def redeem(
     session: Session,
     *,
     value: str,
-    tipo: str,
+    kind: str,
     at: datetime.datetime,
     already_used: Callable[[], DomainError] = InviteAlreadyUsed,
     expired: Callable[[], DomainError] = InviteExpired,
@@ -105,13 +105,13 @@ def redeem(
     calls `consume` only once it is going to succeed.
     """
     row = repo.by_hash(session, digest_secret(value))
-    if row is None or row.tipo != tipo:
+    if row is None or row.kind != kind:
         # Same answer for "no such token" and "a token of the other kind":
         # distinguishing them would say which grants exist.
         raise already_used()
     if row.utilizado_em is not None:
         raise already_used()
-    if row.cancelado_em is not None or row.expira_em <= at:
+    if row.cancelado_em is not None or row.expires_at <= at:
         # A superseded grant reads as expired, which is what it is from the
         # holder's point of view: the gestor issued a newer one.
         raise expired()

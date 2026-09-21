@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 from app.models.user_session import SessionFamily, UserSession
 
 
-def create_familia(session: Session, usuario_id: uuid.UUID) -> uuid.UUID:
+def create_family(session: Session, user_id: uuid.UUID) -> uuid.UUID:
     """Open a session family for one user, and return its id."""
     family = uuid.uuid4()
-    session.add(SessionFamily(family=family, usuario_id=usuario_id))
+    session.add(SessionFamily(family=family, user_id=user_id))
     session.flush()
     return family
 
@@ -23,19 +23,19 @@ def create_familia(session: Session, usuario_id: uuid.UUID) -> uuid.UUID:
 def create(
     session: Session,
     *,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     family: uuid.UUID,
     generation: int,
     token_hash: bytes,
-    expira_em: datetime.datetime,
+    expires_at: datetime.datetime,
 ) -> UserSession:
     """Insert one session row of a family, storing only the token HMAC."""
     row = UserSession(
-        usuario_id=usuario_id,
+        user_id=user_id,
         family=family,
         generation=generation,
         refresh_token_hash=token_hash,
-        expira_em=expira_em,
+        expires_at=expires_at,
     )
     session.add(row)
     session.flush()
@@ -54,7 +54,7 @@ def by_hash(session: Session, token_hash: bytes) -> UserSession | None:
     ).one_or_none()
 
 
-def next_geracao(session: Session, family: uuid.UUID) -> int:
+def next_generation(session: Session, family: uuid.UUID) -> int:
     """The next generation number in a family, counting from one."""
     current = session.scalar(
         select(func.max(UserSession.generation)).where(UserSession.family == family)
@@ -62,7 +62,7 @@ def next_geracao(session: Session, family: uuid.UUID) -> int:
     return int(current or 0) + 1
 
 
-def revoke_familia(
+def revoke_family(
     session: Session, family: uuid.UUID, *, reason: str, at: datetime.datetime
 ) -> int:
     """Revoke every live session descended from one login. Returns how many."""
@@ -81,12 +81,12 @@ def revoke_familia(
 
 
 def revoke_for_usuario(
-    session: Session, usuario_id: uuid.UUID, *, reason: str, at: datetime.datetime
+    session: Session, user_id: uuid.UUID, *, reason: str, at: datetime.datetime
 ) -> int:
     """Revoke every live session of one user. Returns how many."""
     result = session.execute(
         update(UserSession)
-        .where(UserSession.usuario_id == usuario_id, UserSession.revogado_em.is_(None))
+        .where(UserSession.user_id == user_id, UserSession.revogado_em.is_(None))
         .values(revogado_em=at, revogado_motivo=reason)
     )
     session.flush()

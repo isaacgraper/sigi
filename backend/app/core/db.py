@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import get_settings
 
 _engine: Engine | None = None
-_sessao_factory: sessionmaker[Session] | None = None
+_session_factory: sessionmaker[Session] | None = None
 
 
 def engine() -> Engine:
@@ -33,22 +33,22 @@ def engine() -> Engine:
     return _engine
 
 
-def sessao_factory() -> sessionmaker[Session]:
+def session_factory() -> sessionmaker[Session]:
     """The process-wide session factory, built on first use."""
-    global _sessao_factory
-    if _sessao_factory is None:
-        _sessao_factory = sessionmaker(bind=engine(), expire_on_commit=False)
-    return _sessao_factory
+    global _session_factory
+    if _session_factory is None:
+        _session_factory = sessionmaker(bind=engine(), expire_on_commit=False)
+    return _session_factory
 
 
-def get_sessao() -> Iterator[Session]:
+def get_session() -> Iterator[Session]:
     """FastAPI dependency: one session, one transaction, per request.
 
     The commit is here rather than in each service because the audit row and the
     mutation it describes must land together — a service that commits on its own
     would be able to leave one without the other.
     """
-    with sessao_factory()() as session:
+    with session_factory()() as session:
         try:
             yield session
             session.commit()
@@ -59,8 +59,8 @@ def get_sessao() -> Iterator[Session]:
 
 def reset_engine() -> None:
     """Drop the cached engine. Tests point the app at their own database."""
-    global _engine, _sessao_factory
+    global _engine, _session_factory
     if _engine is not None:
         _engine.dispose()
     _engine = None
-    _sessao_factory = None
+    _session_factory = None

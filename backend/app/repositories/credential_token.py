@@ -15,19 +15,19 @@ from app.models.credential_token import CredentialToken
 def create(
     session: Session,
     *,
-    usuario_id: uuid.UUID,
-    tipo: str,
+    user_id: uuid.UUID,
+    kind: str,
     token_hash: bytes,
-    expira_em: datetime.datetime,
-    criado_por: uuid.UUID | None,
+    expires_at: datetime.datetime,
+    created_by: uuid.UUID | None,
 ) -> CredentialToken:
     """Insert a grant row and flush it, so the caller has its id."""
     row = CredentialToken(
-        usuario_id=usuario_id,
-        tipo=tipo,
+        user_id=user_id,
+        kind=kind,
         token_hash=token_hash,
-        expira_em=expira_em,
-        criado_por=criado_por,
+        expires_at=expires_at,
+        created_by=created_by,
     )
     session.add(row)
     session.flush()
@@ -52,9 +52,7 @@ def mark_used(session: Session, token: CredentialToken, *, at: datetime.datetime
     session.flush()
 
 
-def cancel_open(
-    session: Session, *, usuario_id: uuid.UUID, tipo: str, at: datetime.datetime
-) -> int:
+def cancel_open(session: Session, *, user_id: uuid.UUID, kind: str, at: datetime.datetime) -> int:
     """Close any outstanding grant of this type for this usuario.
 
     `ux_token_credencial_aberto` allows exactly one open grant per usuario per
@@ -65,8 +63,8 @@ def cancel_open(
     result = session.execute(
         update(CredentialToken)
         .where(
-            CredentialToken.usuario_id == usuario_id,
-            CredentialToken.tipo == tipo,
+            CredentialToken.user_id == user_id,
+            CredentialToken.kind == kind,
             CredentialToken.utilizado_em.is_(None),
             CredentialToken.cancelado_em.is_(None),
         )

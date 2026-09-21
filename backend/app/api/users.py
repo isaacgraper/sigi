@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_sessao
+from app.core.db import get_session
 from app.models.user import User
 from app.schemas.user import (
     InviteInput,
@@ -24,7 +24,7 @@ from app.services import members
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
 
-SessaoDb = Annotated[Session, Depends(get_sessao)]
+DbSession = Annotated[Session, Depends(get_session)]
 
 # AC-0001-13: only a gestor manages members. Enforced server side on the route,
 # which is the only place it counts (A01).
@@ -42,7 +42,7 @@ def invite(
     body: InviteInput,
     actor: Gestor,
     request: Request,
-    session: SessaoDb,
+    session: DbSession,
 ) -> InviteOutput:
     """Invite a member (SPEC-0001 AC-0001-10, -13, -28).
 
@@ -81,7 +81,7 @@ def _correlation(request: Request) -> uuid.UUID:
 @router.get("", response_model=MemberPage)
 def list_members(
     actor: GestorOuAuditor,
-    session: SessaoDb,
+    session: DbSession,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> MemberPage:
@@ -110,18 +110,18 @@ def list_members(
     )
 
 
-@router.post("/{usuario_id}/bloquear", response_model=MemberOutput)
+@router.post("/{user_id}/bloquear", response_model=MemberOutput)
 def block(
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     actor: Gestor,
     request: Request,
-    session: SessaoDb,
+    session: DbSession,
 ) -> MemberOutput:
     """Block a member (SPEC-0001 AC-0001-12, -13, -29)."""
     user = members.block(
         session,
         actor=actor,
-        usuario_id=usuario_id,
+        user_id=user_id,
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )
@@ -136,18 +136,18 @@ def block(
     )
 
 
-@router.post("/{usuario_id}/desativar", response_model=MemberOutput)
+@router.post("/{user_id}/desativar", response_model=MemberOutput)
 def deactivate(
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     actor: Gestor,
     request: Request,
-    session: SessaoDb,
+    session: DbSession,
 ) -> MemberOutput:
     """Deactivate and anonymise a member (SPEC-0001 AC-0001-13, -14, -29)."""
     user = members.deactivate(
         session,
         actor=actor,
-        usuario_id=usuario_id,
+        user_id=user_id,
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )
@@ -162,12 +162,12 @@ def deactivate(
     )
 
 
-@router.post("/{usuario_id}/redefinir-senha", response_model=ResetTriggerOutput)
+@router.post("/{user_id}/redefinir-senha", response_model=ResetTriggerOutput)
 def trigger_reset(
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     actor: Gestor,
     request: Request,
-    session: SessaoDb,
+    session: DbSession,
 ) -> ResetTriggerOutput:
     """Trigger a password reset for a member (SPEC-0001 AC-0001-32).
 
@@ -178,7 +178,7 @@ def trigger_reset(
     user, link = members.trigger_reset(
         session,
         actor=actor,
-        usuario_id=usuario_id,
+        user_id=user_id,
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )

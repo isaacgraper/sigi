@@ -15,10 +15,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.authorization import Public, UsuarioAtual
+from app.core.authorization import CurrentUser, Public
 from app.core.config import get_settings
 from app.core.correlation import current
-from app.core.db import get_sessao
+from app.core.db import get_session
 from app.core.throttling import enforce
 from app.models.user import User
 from app.repositories import user as repo_usuario
@@ -39,9 +39,9 @@ OPEN = [Depends(Public())]
 # The cookie is scoped to the routes that consume it. A refresh token sent on
 # every request to every path is a refresh token exposed by every request; only
 # `/refresh` and `/logout` ever read it.
-CAMINHO_COOKIE = "/api/v1/auth"
+COOKIE_PATH = "/api/v1/auth"
 
-SessaoDb = Annotated[Session, Depends(get_sessao)]
+DbSession = Annotated[Session, Depends(get_session)]
 
 
 def _correlation_id(request: Request) -> uuid.UUID:
@@ -58,7 +58,7 @@ def _set_cookie(response: Response, value: str) -> None:
         httponly=True,
         secure=cfg.cookie_secure,
         samesite="lax",
-        path=CAMINHO_COOKIE,
+        path=COOKIE_PATH,
     )
 
 
@@ -71,7 +71,7 @@ def _read_cookie(request: Request) -> str:
 
 @router.post("/login", response_model=SessionOutput, dependencies=OPEN)
 def login(
-    body: LoginInput, request: Request, response: Response, session: SessaoDb
+    body: LoginInput, request: Request, response: Response, session: DbSession
 ) -> SessionOutput:
     """Local login, returning an access token and setting the refresh cookie.
 
@@ -81,35 +81,35 @@ def login(
     user = authenticate_local(
         session, email=str(body.email), password=body.password, correlation_id=correlation_id
     )
-    par = sessions.open_session(
+    pair = sessions.open_session(
         session,
-        usuario_id=user.id,
+        user_id=user.id,
         role=user.role,
         correlation_id=correlation_id,
-        mecanismo="local",
+        mechanism="local",
     )
-    _set_cookie(response, par.refresh_token)
-    return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
+    _set_cookie(response, pair.refresh_token)
+    return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 
 @router.post("/refresh", response_model=SessionOutput, dependencies=OPEN)
-def refresh(request: Request, response: Response, session: SessaoDb) -> SessionOutput:
+def refresh(request: Request, response: Response, session: DbSession) -> SessionOutput:
     """Rotate the token pair without asking for credentials.
 
     [SPEC-0001 AC-0001-06, -07]
     """
-    par = sessions.rotate(
+    pair = sessions.rotate(
         session,
         refresh_token=_read_cookie(request),
-        perfil_de=_RoleOfRecord(session),
+        role_of=_RoleOfRecord(session),
         correlation_id=_correlation_id(request),
     )
-    _set_cookie(response, par.refresh_token)
-    return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
+    _set_cookie(response, pair.refresh_token)
+    return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=OPEN)
-def logout(request: Request, response: Response, session: SessaoDb) -> None:
+def logout(request: Request, response: Response, session: DbSession) -> None:
     """Invalidate the whole refresh family.
 
     [SPEC-0001 AC-0001-07]
@@ -121,11 +121,11 @@ def logout(request: Request, response: Response, session: SessaoDb) -> None:
     )
     # Cleared even when nothing was revoked: a caller who asked to leave should
     # not keep a cookie that still looks like a session.
-    response.delete_cookie(get_settings().cookie_refresh_nome, path=CAMINHO_COOKIE)
+    response.delete_cookie(get_settings().cookie_refresh_nome, path=COOKIE_PATH)
 
 
 @router.get("/me", response_model=UserOutput)
-def me(user: UsuarioAtual) -> UserOutput:
+def me(user: CurrentUser) -> UserOutput:
     """Report the caller's identity.
 
     [SPEC-0001 AC-0001-08, -22]
@@ -154,8 +154,8 @@ class _RoleOfRecord(sessions.RoleResolver):
     def __init__(self, session: Session) -> None:
         self.sessao = session
 
-    def __call__(self, usuario_id: uuid.UUID) -> str:
-        user: User | None = repo_usuario.by_id(self.sessao, usuario_id)
+    def __call__(self, user_id: uuid.UUID) -> str:
+        user: User | None = repo_usuario.by_id(self.sessao, user_id)
         if user is None or not user.ativo:
             raise InactiveUser()
         return user.role
@@ -165,7 +165,7 @@ class _RoleOfRecord(sessions.RoleResolver):
 def confirm_reset(
     body: ResetConfirmInput,
     request: Request,
-    session: SessaoDb,
+    session: DbSession,
 ) -> None:
     """Redeem a reset link and replace the credential (SPEC-0001 AC-0001-31).
 

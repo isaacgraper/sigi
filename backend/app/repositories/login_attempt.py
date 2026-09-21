@@ -17,7 +17,7 @@ def by_hmac(session: Session, email_hmac: bytes) -> LoginAttempt | None:
 
 
 def count_attempt(
-    session: Session, *, email_hmac: bytes, now: datetime.datetime, janela: datetime.timedelta
+    session: Session, *, email_hmac: bytes, now: datetime.datetime, window: datetime.timedelta
 ) -> int:
     """Count one failure and return the running total.
 
@@ -31,19 +31,19 @@ def count_attempt(
     timestamp the column would express "five failures ever", which locks an
     address out over failures spread across months.
     """
-    dentro_da_janela = LoginAttempt.ultima_em > now - janela
+    within_window = LoginAttempt.ultima_em > now - window
     statement = (
         insert(LoginAttempt)
         .values(email_hmac=email_hmac, attempts=1, ultima_em=now)
         .on_conflict_do_update(
             index_elements=[LoginAttempt.email_hmac],
             set_={
-                "tentativas": case((dentro_da_janela, LoginAttempt.attempts + 1), else_=1),
+                "tentativas": case((within_window, LoginAttempt.attempts + 1), else_=1),
                 "ultima_em": now,
                 # A lock whose window has decayed is gone, not merely expired:
                 # leaving it set would make the next failure look like the
                 # sixth of a series that ended fifteen minutes ago.
-                "bloqueado_ate": case((dentro_da_janela, LoginAttempt.blocked_until), else_=None),
+                "bloqueado_ate": case((within_window, LoginAttempt.blocked_until), else_=None),
             },
         )
         .returning(LoginAttempt.attempts)

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import _set_cookie
 from app.core.authorization import Public
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_sessao
+from app.core.db import get_session
 from app.core.throttling import enforce
 from app.schemas.auth import SessionOutput
 from app.schemas.invite import ActivationInput, ActivationOutput
@@ -20,7 +20,7 @@ from app.services import members, sessions
 
 router = APIRouter(prefix="/api/v1/convites", tags=["convites"], dependencies=[Depends(enforce)])
 
-SessaoDb = Annotated[Session, Depends(get_sessao)]
+DbSession = Annotated[Session, Depends(get_session)]
 
 # Open by definition: whoever holds the link has no account yet, which is the
 # entire point. Declared rather than omitted, because AC-0001-23 refuses a write
@@ -33,7 +33,7 @@ def activate(
     body: ActivationInput,
     request: Request,
     response: Response,
-    session: SessaoDb,
+    session: DbSession,
 ) -> ActivationOutput:
     """Set the password and enter (SPEC-0001 AC-0001-11, -25, -26).
 
@@ -52,14 +52,14 @@ def activate(
         at=now,
         correlation_id=correlation_id,
     )
-    par = sessions.open_session(
+    pair = sessions.open_session(
         session,
-        usuario_id=user.id,
+        user_id=user.id,
         role=user.role,
         correlation_id=correlation_id,
-        mecanismo="convite",
+        mechanism="convite",
     )
-    _set_cookie(response, par.refresh_token)
+    _set_cookie(response, pair.refresh_token)
     return ActivationOutput(
-        session=SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
+        session=SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
     )

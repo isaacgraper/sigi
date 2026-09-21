@@ -37,17 +37,17 @@ def _source(request: Request) -> str:
 def enforce(request: Request) -> None:
     """Count this request against its source and route, or refuse it."""
     route = request.scope.get("route")
-    rota = getattr(route, "path", request.url.path)
+    route_path = getattr(route, "path", request.url.path)
     raw = request.scope.get("state", {}).get("correlation_id")
     correlation_id = raw if isinstance(raw, uuid.UUID) else current_correlation_id()
 
-    from app.core.db import sessao_factory
+    from app.core.db import session_factory
 
-    with sessao_factory()() as session:
+    with session_factory()() as session:
         throttle.check(
             session,
             source=_source(request),
-            rota=rota,
+            route_path=route_path,
             now=datetime.datetime.now(datetime.UTC),
             correlation_id=correlation_id,
         )

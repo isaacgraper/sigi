@@ -24,8 +24,8 @@ from app.core.config import get_settings
 from app.core.security import (
     ALGORITHM,
     AccessClaims,
-    TokenExpirado,
-    TokenInvalido,
+    TokenExpired,
+    TokenInvalid,
     generate_refresh_token,
     issue_access_token,
     verify_access_token,
@@ -37,15 +37,15 @@ SENHA = "SenhaCorreta-12345"
 
 
 def _issue(**kwargs: object) -> str:
-    return issue_access_token(usuario_id=uuid.uuid4(), role="servidor", **kwargs)  # type: ignore[arg-type]
+    return issue_access_token(user_id=uuid.uuid4(), role="servidor", **kwargs)  # type: ignore[arg-type]
 
 
 def test_token_valido_devolve_as_claims() -> None:
     """A token this service minted verifies, and its claims come back intact."""
     uid = uuid.uuid4()
-    claims = verify_access_token(issue_access_token(usuario_id=uid, role="gestor"))
+    claims = verify_access_token(issue_access_token(user_id=uid, role="gestor"))
     assert isinstance(claims, AccessClaims)
-    assert claims.usuario_id == uid
+    assert claims.user_id == uid
     assert claims.role == "gestor"
 
 
@@ -53,7 +53,7 @@ def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
     """RNF03 fixes the window; AC-0001-06 fixes what an expired one does."""
     now = datetime.datetime.now(datetime.UTC)
     claims = verify_access_token(_issue(now=now))
-    minutos = (claims.expira_em - now).total_seconds() / 60
+    minutos = (claims.expires_at - now).total_seconds() / 60
     assert 14.9 < minutos < 15.1
     assert minutos == pytest.approx(get_settings().access_token_ttl_minutos, abs=0.1)
 
@@ -61,7 +61,7 @@ def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
 def test_ac_0001_06_token_expirado_e_recusado() -> None:
     """AC-0001-06 — an expired token is refused."""
     passado = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
-    with pytest.raises(TokenExpirado) as exc:
+    with pytest.raises(TokenExpired) as exc:
         verify_access_token(_issue(now=passado))
     assert exc.value.code == "TOKEN_EXPIRED"
     assert exc.value.http == 401
@@ -89,7 +89,7 @@ def test_ac_0001_09_assinatura_de_outra_chave_e_recusada() -> None:
         pem,
         algorithm=ALGORITHM,
     )
-    with pytest.raises(TokenInvalido):
+    with pytest.raises(TokenInvalid):
         verify_access_token(forjado)
 
 
@@ -113,7 +113,7 @@ def test_ac_0001_09_alg_none_e_recusado() -> None:
         key="",
         algorithm="none",
     )
-    with pytest.raises(TokenInvalido):
+    with pytest.raises(TokenInvalid):
         verify_access_token(sem_assinatura)
 
 
@@ -134,7 +134,7 @@ def test_ac_0001_09_emissor_alheio_e_recusado() -> None:
         privada,
         algorithm=ALGORITHM,
     )
-    with pytest.raises(TokenInvalido):
+    with pytest.raises(TokenInvalid):
         verify_access_token(de_outro_sistema)
 
 
@@ -160,7 +160,7 @@ def test_token_de_outro_tipo_nao_passa_por_access() -> None:
         privada,
         algorithm=ALGORITHM,
     )
-    with pytest.raises(TokenInvalido):
+    with pytest.raises(TokenInvalid):
         verify_access_token(outro_tipo)
 
 
@@ -200,7 +200,7 @@ def test_ac_0001_06_token_expirado_e_refresh(
     assert refresh
 
     expirado = issue_access_token(
-        usuario_id=usuario.id,
+        user_id=usuario.id,
         role=usuario.role,
         now=datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
     )

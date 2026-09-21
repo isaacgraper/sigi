@@ -162,13 +162,13 @@ def test_ac_0001_33_a_route_without_a_ceiling_breaks_the_build() -> None:
     """
     app = FastAPI()
 
-    @app.post("/api/v1/auth/rota-nova", dependencies=[Depends(enforce)])
+    @app.post("/api/v1/auth/new-route", dependencies=[Depends(enforce)])
     def _sem_teto() -> None:  # pragma: no cover - never called
         return None
 
     with pytest.raises(RouteWithoutCeiling) as erro:
         verify_ceilings(app)
-    assert "/api/v1/auth/rota-nova" in str(erro.value)
+    assert "/api/v1/auth/new-route" in str(erro.value)
 
 
 def test_a_route_outside_the_throttled_prefixes_needs_no_ceiling() -> None:
@@ -274,11 +274,11 @@ def test_concurrent_requests_do_not_escape_the_ceiling(
 
     reset_engine()
 
-    # A route of its own: filtering the row back out by `rota` alone would
+    # A route of its own: filtering the row back out by `route_path` alone would
     # otherwise match whatever the HTTP tests above left under /auth/login.
-    rota = "/api/v1/auth/teste-concorrencia"
+    route_path = "/api/v1/auth/teste-concorrencia"
     cfg = get_settings()
-    monkeypatch.setitem(cfg.rate_limit_tetos, rota, 5)
+    monkeypatch.setitem(cfg.rate_limit_tetos, route_path, 5)
     source = "203.0.113.7"
     now = datetime.datetime.now(datetime.UTC)
 
@@ -292,7 +292,7 @@ def test_concurrent_requests_do_not_escape_the_ceiling(
                 throttle.check(
                     session,
                     source=source,
-                    rota=rota,
+                    route_path=route_path,
                     now=now,
                     correlation_id=uuid.uuid4(),
                 )
@@ -316,7 +316,9 @@ def test_concurrent_requests_do_not_escape_the_ceiling(
     assert served.count(True) == 5, served
 
     with psycopg.connect(banco[0], autocommit=True) as c:
-        total = c.execute("SELECT contador FROM limite_taxa WHERE rota = %s", (rota,)).fetchone()
+        total = c.execute(
+            "SELECT contador FROM limite_taxa WHERE rota = %s", (route_path,)
+        ).fetchone()
         assert total is not None and total[0] == 20
 
 

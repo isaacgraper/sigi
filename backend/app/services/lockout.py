@@ -27,7 +27,7 @@ from app.services.audit import Event, record
 from app.services.errors import AttemptsExceeded
 
 
-def verificar(session: Session, *, email: str, now: datetime.datetime) -> None:
+def check_lockout(session: Session, *, email: str, now: datetime.datetime) -> None:
     """Refuse a locked address **before** the password is even looked at.
 
     AC-0001-03 says the sixth attempt is refused "even with the correct
@@ -47,7 +47,7 @@ def count_failure(
     *,
     email: str,
     now: datetime.datetime,
-    usuario_id: uuid.UUID | None,
+    user_id: uuid.UUID | None,
     correlation_id: uuid.UUID,
 ) -> int:
     """Count the failure, lock the address on the fifth, and audit the lock.
@@ -62,7 +62,7 @@ def count_failure(
         session,
         email_hmac=hmac,
         now=now,
-        janela=datetime.timedelta(minutes=cfg.janela_tentativas_minutos),
+        window=datetime.timedelta(minutes=cfg.janela_tentativas_minutos),
     )
     if attempts < cfg.max_tentativas_login:
         return attempts
@@ -78,9 +78,9 @@ def count_failure(
             entidade_tipo="usuario",
             # AC-0001-21 and this path both produce rows for callers with no
             # account; SPEC-0001 §8 allows an audit row with no actor.
-            entidade_id=usuario_id or uuid.UUID(int=0),
+            entidade_id=user_id or uuid.UUID(int=0),
             acao="auth.bloqueio_tentativas",
-            usuario_id=usuario_id,
+            user_id=user_id,
             dados_anteriores={"tentativas": attempts},
         ),
         correlation_id=correlation_id,

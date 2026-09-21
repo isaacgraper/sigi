@@ -74,10 +74,10 @@ def invite(
     user = repo.create(session, email=address, role=role)
     grant = credentials.issue(
         session,
-        usuario_id=user.id,
-        tipo=credentials.INVITE,
+        user_id=user.id,
+        kind=credentials.INVITE,
         at=at,
-        criado_por=actor.id,
+        created_by=actor.id,
     )
     record(
         session,
@@ -85,7 +85,7 @@ def invite(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="usuario.convidado",
-            usuario_id=actor.id,
+            user_id=actor.id,
             # The perfil granted, never the token: this table can never be
             # corrected, and `lgpd.md` promises it carries no credential.
             dados_anteriores={"perfil": role},
@@ -110,10 +110,10 @@ def activate(
     grant is spent, so a password that fails the policy leaves the invitation
     usable. A typo must not burn it and force the gestor to issue another.
     """
-    row = credentials.redeem(session, value=token, tipo=credentials.INVITE, at=at)
+    row = credentials.redeem(session, value=token, kind=credentials.INVITE, at=at)
     credentials.require_strong_password(password)
 
-    user = repo.by_id(session, row.usuario_id)
+    user = repo.by_id(session, row.user_id)
     if user is None:  # pragma: no cover - the foreign key makes this unreachable
         raise UsuarioNotFound()
 
@@ -126,7 +126,7 @@ def activate(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="usuario.ativado",
-            usuario_id=user.id,
+            user_id=user.id,
             dados_anteriores={"status": "pendente"},
         ),
         correlation_id=correlation_id,
@@ -148,7 +148,7 @@ def block(
     session: Session,
     *,
     actor: User,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> User:
@@ -163,7 +163,7 @@ def block(
     return _change_status(
         session,
         actor=actor,
-        usuario_id=usuario_id,
+        user_id=user_id,
         new_status="bloqueado",
         acao="usuario.bloqueado",
         at=at,
@@ -175,7 +175,7 @@ def deactivate(
     session: Session,
     *,
     actor: User,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> User:
@@ -189,7 +189,7 @@ def deactivate(
     user = _change_status(
         session,
         actor=actor,
-        usuario_id=usuario_id,
+        user_id=user_id,
         new_status="desativado",
         acao="usuario.desativado",
         at=at,
@@ -215,7 +215,7 @@ def _change_status(
     session: Session,
     *,
     actor: User,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     new_status: str,
     acao: str,
     at: datetime.datetime,
@@ -224,7 +224,7 @@ def _change_status(
     # Before reading the count, never after: see `repo.lock_gestores`.
     repo.lock_gestores(session)
 
-    user = repo.by_id(session, usuario_id)
+    user = repo.by_id(session, user_id)
     if user is None:
         raise UsuarioNotFound()
 
@@ -258,7 +258,7 @@ def _change_status(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao=acao,
-            usuario_id=actor.id,
+            user_id=actor.id,
             dados_anteriores={"status": previous},
         ),
         correlation_id=correlation_id,
@@ -283,7 +283,7 @@ def _audit_last_gestor(
             entidade_tipo="usuario",
             entidade_id=actor.id,
             acao="usuario.ultimo_gestor",
-            usuario_id=actor.id,
+            user_id=actor.id,
             dados_anteriores={"alvo_id": str(target.id)},
         ),
         correlation_id=correlation_id,
@@ -301,7 +301,7 @@ def trigger_reset(
     session: Session,
     *,
     actor: User,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> tuple[User, str]:
@@ -314,16 +314,16 @@ def trigger_reset(
     with the gestor as actor and the member as target, and redeeming revokes
     every session, so the member sees it happen.
     """
-    user = repo.by_id(session, usuario_id)
+    user = repo.by_id(session, user_id)
     if user is None:
         raise UsuarioNotFound()
 
     grant = credentials.issue(
         session,
-        usuario_id=user.id,
-        tipo=credentials.RESET,
+        user_id=user.id,
+        kind=credentials.RESET,
         at=at,
-        criado_por=actor.id,
+        created_by=actor.id,
     )
     record(
         session,
@@ -331,7 +331,7 @@ def trigger_reset(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="usuario.redefinicao_solicitada",
-            usuario_id=actor.id,
+            user_id=actor.id,
             # Actor and target are different people here, which is the whole
             # reason this row has to exist.
             dados_anteriores={"alvo_id": str(user.id)},
@@ -361,7 +361,7 @@ def redeem_reset(
     row = credentials.redeem(
         session,
         value=token,
-        tipo=credentials.RESET,
+        kind=credentials.RESET,
         at=at,
         already_used=ResetAlreadyUsed,
         expired=ResetExpired,
@@ -370,7 +370,7 @@ def redeem_reset(
     # link usable (AC-0001-31's last clause).
     credentials.require_strong_password(password)
 
-    user = repo.by_id(session, row.usuario_id)
+    user = repo.by_id(session, row.user_id)
     if user is None:  # pragma: no cover - the foreign key makes this unreachable
         raise UsuarioNotFound()
 
@@ -383,7 +383,7 @@ def redeem_reset(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="usuario.redefinicao_concluida",
-            usuario_id=user.id,
+            user_id=user.id,
             dados_anteriores={"sessoes_revogadas": revoked},
         ),
         correlation_id=correlation_id,

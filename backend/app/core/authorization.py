@@ -20,24 +20,24 @@ from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_sessao
-from app.core.security import TokenInvalido, verify_access_token
+from app.core.db import get_session
+from app.core.security import TokenInvalid, verify_access_token
 from app.models.user import PERFIS, User
 from app.repositories import user as repo
 from app.services.errors import InactiveUser, UnauthorizedPerfil
 
-ESQUEMA = "bearer"
+SCHEME = "bearer"
 
 
 def _token_from_header(request: Request) -> str:
-    cabecalho = request.headers.get("authorization", "")
-    tipo, _, value = cabecalho.partition(" ")
-    if tipo.lower() != ESQUEMA or not value.strip():
-        raise TokenInvalido("Sua sessão não é válida. Entre novamente.")
+    header = request.headers.get("authorization", "")
+    kind, _, value = header.partition(" ")
+    if kind.lower() != SCHEME or not value.strip():
+        raise TokenInvalid("Sua sessão não é válida. Entre novamente.")
     return value.strip()
 
 
-def current_usuario(request: Request, session: Annotated[Session, Depends(get_sessao)]) -> User:
+def current_usuario(request: Request, session: Annotated[Session, Depends(get_session)]) -> User:
     """Resolve the bearer token to a user, and refuse one that is not ativo.
 
     The active check runs here, on every request, rather than only at login.
@@ -45,7 +45,7 @@ def current_usuario(request: Request, session: Annotated[Session, Depends(get_se
     the life of the access token (AC-0001-08).
     """
     claims = verify_access_token(_token_from_header(request))
-    user = repo.by_id(session, claims.usuario_id)
+    user = repo.by_id(session, claims.user_id)
     if user is None or not user.ativo:
         # Same response whether the account was deleted, blocked or deactivated:
         # the caller holds a valid signature, so they already know the account
@@ -54,7 +54,7 @@ def current_usuario(request: Request, session: Annotated[Session, Depends(get_se
     return user
 
 
-UsuarioAtual = Annotated[User, Depends(current_usuario)]
+CurrentUser = Annotated[User, Depends(current_usuario)]
 
 
 # ── The permission matrix (AC-0001-15 to -18, -23) ──────────────────────────
@@ -103,7 +103,7 @@ class Requires(Decision):
             raise ValueError(f"perfis absent from the matrix: {sorted(unknown)}")
         self.perfis = frozenset(perfis)
 
-    def __call__(self, request: Request, user: UsuarioAtual) -> User:
+    def __call__(self, request: Request, user: CurrentUser) -> User:
         """Refuse the call when the caller's perfil is not among the declared ones."""
         if self.perfis and user.role not in self.perfis:
             _audit_refusal(request, user)
@@ -131,7 +131,7 @@ def _audit_refusal(request: Request, user: User) -> None:
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="auth.negada",
-            usuario_id=user.id,
+            user_id=user.id,
             dados_anteriores={
                 # The declared path, not the concrete one: an id in the path is
                 # business data, and the audit table cannot be corrected later.

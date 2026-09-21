@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
-from app.services.audit import DadoPessoalNoHistorico, Event, record
+from app.services.audit import Event, PersonalDataInHistory, record
 
 
 def _criar_usuario(sessao: Session, nome: str = "Ana") -> uuid.UUID:
@@ -102,7 +102,7 @@ def test_linha_sem_ator_e_permitida(sessao: Session) -> None:
             entidade_tipo="usuario",
             entidade_id=alvo,
             acao="auth.oidc_recusada",
-            usuario_id=None,
+            user_id=None,
             dados_anteriores={"motivo": "sem_conta", "dominio": "sc.gov.br"},
         ),
         correlation_id=uuid.uuid4(),
@@ -145,7 +145,7 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
     The check is a heuristic, which is why the message names the remedy instead
     of only refusing.
     """
-    with pytest.raises(DadoPessoalNoHistorico) as exc:
+    with pytest.raises(PersonalDataInHistory) as exc:
         record(
             sessao,
             Event(

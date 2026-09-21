@@ -50,21 +50,21 @@ def authenticate_local(
     # Before the password is looked at, not after: AC-0001-03 refuses the sixth
     # attempt "even with the correct password", and a lockout a correct guess
     # walks through announces the moment the attacker got it right.
-    lockout.verificar(session, email=email, now=now)
+    lockout.check_lockout(session, email=email, now=now)
 
     user = (
         repo.by_email(session, email)
         if _institutional_domain(email, cfg.dominios_institucionais)
         else None
     )
-    armazenado = user.senha_hash if user and user.senha_hash else _HASH_SENTINEL
-    senha_confere = check_password(password, armazenado)
+    stored = user.senha_hash if user and user.senha_hash else _HASH_SENTINEL
+    password_matches = check_password(password, stored)
 
-    if user is None or not senha_confere:
+    if user is None or not password_matches:
         _record_failure(
             email,
             reason="credenciais_invalidas",
-            usuario_id=user.id if user else None,
+            user_id=user.id if user else None,
             correlation_id=correlation_id,
             now=now,
         )
@@ -80,7 +80,7 @@ def authenticate_local(
         _audit_failure(
             email,
             reason=f"status_{user.status}",
-            usuario_id=user.id,
+            user_id=user.id,
             correlation_id=correlation_id,
         )
         raise InactiveUser()
@@ -90,10 +90,10 @@ def authenticate_local(
     return user
 
 
-def _institutional_domain(email: str, permitidos: list[str]) -> bool:
-    _, _, dominio = email.strip().lower().rpartition("@")
-    return bool(dominio) and any(
-        dominio == d.lower() or dominio.endswith(f".{d.lower()}") for d in permitidos
+def _institutional_domain(email: str, allowed: list[str]) -> bool:
+    _, _, domain = email.strip().lower().rpartition("@")
+    return bool(domain) and any(
+        domain == d.lower() or domain.endswith(f".{d.lower()}") for d in allowed
     )
 
 
@@ -101,7 +101,7 @@ def _record_failure(
     email: str,
     *,
     reason: str,
-    usuario_id: uuid.UUID | None,
+    user_id: uuid.UUID | None,
     correlation_id: uuid.UUID,
     now: datetime.datetime,
 ) -> None:
@@ -116,16 +116,14 @@ def _record_failure(
             own_session,
             email=email,
             now=now,
-            usuario_id=usuario_id,
+            user_id=user_id,
             correlation_id=correlation_id,
         )
-        record(
-            own_session, _failure_event(email, reason, usuario_id), correlation_id=correlation_id
-        )
+        record(own_session, _failure_event(email, reason, user_id), correlation_id=correlation_id)
 
 
 def _audit_failure(
-    email: str, *, reason: str, usuario_id: uuid.UUID | None, correlation_id: uuid.UUID
+    email: str, *, reason: str, user_id: uuid.UUID | None, correlation_id: uuid.UUID
 ) -> None:
     """Record the failure in its own committed transaction, without counting it.
 
@@ -136,19 +134,19 @@ def _audit_failure(
     Never the address itself: `lgpd.md` promises this table carries no personal
     data, and it can never be corrected (SPEC-0001 §8).
     """
-    record_standalone(_failure_event(email, reason, usuario_id), correlation_id=correlation_id)
+    record_standalone(_failure_event(email, reason, user_id), correlation_id=correlation_id)
 
 
-def _failure_event(email: str, reason: str, usuario_id: uuid.UUID | None) -> Event:
-    _, _, dominio = email.strip().lower().rpartition("@")
+def _failure_event(email: str, reason: str, user_id: uuid.UUID | None) -> Event:
+    _, _, domain = email.strip().lower().rpartition("@")
     return Event(
         entidade_tipo="usuario",
-        entidade_id=usuario_id or uuid.UUID(int=0),
+        entidade_id=user_id or uuid.UUID(int=0),
         acao="auth.falha",
-        usuario_id=usuario_id,
+        user_id=user_id,
         dados_anteriores={
             "motivo": reason,
             "email_hmac": digest_secret(email).hex(),
-            "dominio": dominio,
+            "dominio": domain,
         },
     )

@@ -17,18 +17,18 @@ from contextvars import ContextVar
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-CABECALHO = "X-Correlation-Id"
+HEADER = "X-Correlation-Id"
 
-_atual: ContextVar[uuid.UUID | None] = ContextVar("correlation_id", default=None)
+_current: ContextVar[uuid.UUID | None] = ContextVar("correlation_id", default=None)
 
 
 def current() -> uuid.UUID:
     """The current request's correlation id, or a fresh one outside a request."""
-    value = _atual.get()
+    value = _current.get()
     return value if value is not None else uuid.uuid4()
 
 
-class CorrelacaoMiddleware:
+class CorrelationMiddleware:
     """Accept an inbound correlation id, or mint one, and echo it back.
 
     Accepting the caller's value is what lets a request be followed across the
@@ -43,29 +43,31 @@ class CorrelacaoMiddleware:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Put a correlation id on the request before anything else runs."""
         if scope["type"] != "http":
+            # The original `send`: there is no response to add a header to, and
+            # the wrapper is not defined yet at this point either.
             await self.app(scope, receive, send)
             return
 
-        entrada = _from_header(scope)
-        correlation_id = entrada or uuid.uuid4()
-        token = _atual.set(correlation_id)
+        incoming = _from_header(scope)
+        correlation_id = incoming or uuid.uuid4()
+        token = _current.set(correlation_id)
         scope.setdefault("state", {})["correlation_id"] = correlation_id
 
-        async def enviar(message: Message) -> None:
+        async def send_with_header(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
-                headers.append((CABECALHO.lower().encode(), str(correlation_id).encode()))
+                headers.append((HEADER.lower().encode(), str(correlation_id).encode()))
                 message = {**message, "headers": headers}
             await send(message)
 
         try:
-            await self.app(scope, receive, enviar)
+            await self.app(scope, receive, send_with_header)
         finally:
-            _atual.reset(token)
+            _current.reset(token)
 
 
 def _from_header(scope: Scope) -> uuid.UUID | None:
-    target = CABECALHO.lower().encode()
+    target = HEADER.lower().encode()
     for nome, value in scope.get("headers", []):
         if nome.lower() == target:
             try:

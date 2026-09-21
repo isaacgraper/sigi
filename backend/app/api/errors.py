@@ -21,19 +21,19 @@ def register_handlers(app: FastAPI) -> None:
     async def _handle(request: Request, exc: DomainError) -> JSONResponse:
         body: dict[str, object] = {
             "code": exc.code,
-            "message": exc.mensagem,
+            "message": exc.message_text,
             "correlation_id": str(current()),
         }
         # `fields` drives inline per-field errors in the UI, which is the stated
         # mitigation for the transcription errors that motivated the project. It
         # is omitted rather than sent empty so the client can branch on presence.
-        if exc.campos:
-            body["fields"] = exc.campos
+        if exc.fields:
+            body["fields"] = exc.fields
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
         return JSONResponse(status_code=exc.http, content={"error": body}, headers=headers)
 
     @app.exception_handler(RequestValidationError)
-    async def _tratar_validacao(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def _handle_validation(request: Request, exc: RequestValidationError) -> JSONResponse:
         """FastAPI's own 422 body has a different shape from every other error.
 
         `api-conventions.md` says errors *always* use one envelope, and `fields`
