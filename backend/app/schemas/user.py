@@ -29,3 +29,29 @@ class InviteOutput(BaseModel):
     status: str
     criado_em: datetime.datetime
     link_ativacao: str
+
+
+class MemberOutput(BaseModel):
+    """One member, as the member list shows them.
+
+    A deactivated usuario reads with `nome` and `email` null and `pseudonimo`
+    set: the record of what they did survives their identifying fields
+    (AC-0001-14).
+    """
+
+    id: uuid.UUID
+    nome: str | None
+    email: str | None
+    perfil: str
+    status: str
+    criado_em: datetime.datetime
+    pseudonimo: str | None
+
+
+class MemberPage(BaseModel):
+    """A page of members, in the envelope `api-conventions.md` fixes."""
+
+    items: list[MemberOutput]
+    total: int
+    page: int
+    size: int

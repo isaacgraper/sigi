@@ -227,3 +227,21 @@ class UsuarioNotFound(DomainError):
     def __init__(self) -> None:
         """Build the error. It says nothing about whether the id ever existed."""
         super().__init__("Recurso não encontrado.")
+
+
+class LastGestor(DomainError):
+    """The change would leave no active gestor (AC-0001-29, RN16).
+
+    Blocking or demoting the only active gestor locks the entity out of its own
+    member management, with no path back that does not involve database access.
+    """
+
+    code = "ULTIMO_GESTOR"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, naming the remedy rather than only refusing."""
+        super().__init__(
+            "Esta é a única conta de gestor ativa. Promova outro gestor antes de "
+            "bloquear ou desativar esta."
+        )
