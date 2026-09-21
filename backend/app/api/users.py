@@ -30,6 +30,12 @@ SessaoDb = Annotated[Session, Depends(get_sessao)]
 # which is the only place it counts (A01).
 Gestor = Annotated[User, Depends(Requires("gestor"))]
 
+# The member list is the one exception, and SPEC-0001 §6 states it plainly:
+# "View member list — gestor ✅, servidor ❌, auditor ✅ read-only". The auditor
+# exists to read the history and report on it, and a member list they cannot
+# open makes the actor column of every audit row unresolvable to them.
+GestorOuAuditor = Annotated[User, Depends(Requires("gestor", "auditor"))]
+
 
 @router.post("", response_model=InviteOutput, status_code=status.HTTP_201_CREATED)
 def invite(
@@ -74,12 +80,16 @@ def _correlation(request: Request) -> uuid.UUID:
 
 @router.get("", response_model=MemberPage)
 def list_members(
-    actor: Gestor,
+    actor: GestorOuAuditor,
     session: SessaoDb,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> MemberPage:
-    """List members (SPEC-0001 AC-0001-13, -15)."""
+    """List members (SPEC-0001 AC-0001-15, -17).
+
+    Open to an auditor as well as a gestor, per §6. Not AC-0001-13, which is
+    about *managing* members and stays gestor only.
+    """
     rows, total = members.list_members(session, page=page, size=size)
     return MemberPage(
         items=[
