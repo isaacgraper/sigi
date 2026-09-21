@@ -50,7 +50,7 @@ def test_ac_0001_10_a_gestor_invites_a_member(
     body = response.json()
     assert body["status"] == "pendente"
     assert body["perfil"] == "servidor"
-    assert body["link_ativacao"]
+    assert body["activation_link"]
 
     # Only the HMAC reaches the database, so "cannot be recovered afterwards" is
     # a fact about the schema rather than a promise about the code.
@@ -63,7 +63,7 @@ def test_ac_0001_10_a_gestor_invites_a_member(
         {"e": email},
     ).scalar_one()
     assert stored == 1
-    token = _token_from(body["link_ativacao"])
+    token = _token_from(body["activation_link"])
     raw = sessao.execute(text("SELECT token_hash::text FROM token_credencial")).scalars().all()
     assert all(token not in row for row in raw)
 
@@ -77,7 +77,7 @@ def test_ac_0001_10_the_audit_row_carries_no_token(
     response = application.post(
         USUARIOS, json={"email": email, "perfil": "auditor"}, headers=headers
     )
-    token = _token_from(response.json()["link_ativacao"])
+    token = _token_from(response.json()["activation_link"])
 
     sessao.rollback()
     row = sessao.execute(
@@ -99,11 +99,11 @@ def test_ac_0001_11_an_invited_user_activates_and_enters(
     convite = application.post(
         USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
     )
-    token = _token_from(convite.json()["link_ativacao"])
+    token = _token_from(convite.json()["activation_link"])
 
     ativacao = application.post(ATIVAR, json={"token": token, "password": SENHA_BOA})
     assert ativacao.status_code == 200, ativacao.text
-    assert ativacao.json()["sessao"]["access_token"]
+    assert ativacao.json()["session"]["access_token"]
 
     # And the credential works on its own, which is what makes the account real.
     entrada = application.post(LOGIN, json={"email": email, "password": SENHA_BOA})
@@ -119,7 +119,7 @@ def test_ac_0001_25_an_invitation_is_single_use(
     convite = application.post(
         USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
     )
-    token = _token_from(convite.json()["link_ativacao"])
+    token = _token_from(convite.json()["activation_link"])
 
     assert application.post(ATIVAR, json={"token": token, "password": SENHA_BOA}).status_code == 200
 
@@ -146,7 +146,7 @@ def test_ac_0001_25_reinviting_supersedes_the_first_link(
     primeiro = application.post(
         USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
     )
-    token_velho = _token_from(primeiro.json()["link_ativacao"])
+    token_velho = _token_from(primeiro.json()["activation_link"])
 
     # The account now exists, so a re-invite is refused by AC-0001-28. The
     # supersede path is exercised through the service instead, which is where it
@@ -178,7 +178,7 @@ def test_ac_0001_26_a_weak_password_does_not_burn_the_invitation(
     convite = application.post(
         USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
     )
-    token = _token_from(convite.json()["link_ativacao"])
+    token = _token_from(convite.json()["activation_link"])
 
     fraca = application.post(ATIVAR, json={"token": token, "password": "curta"})
     assert fraca.status_code == 422

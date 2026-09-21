@@ -48,7 +48,7 @@ authentication. No `app/services/` content, no `app/api/auth.py`.
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee
 is void with a single role, because an owner can `ALTER TABLE ... DISABLE
-TRIGGER`. `infra/postgres/init/01-papeis.sh` provisions the app role and the
+TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
 **Specs:** `SPEC-0001` is at **v0.5**, `Approved`, and is the one being

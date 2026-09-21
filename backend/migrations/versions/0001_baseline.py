@@ -90,7 +90,7 @@ def _exigir_papel_de_aplicacao() -> None:
         BEGIN
           IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{_papel()}') THEN
             RAISE EXCEPTION
-              'papel de aplicação "%" não existe; rode infra/postgres/init/01-papeis.sh',
+              'papel de aplicação "%" não existe; rode infra/postgres/init/01-roles.sh',
               '{_papel()}'
               USING ERRCODE = '{ERRO_PAPEL_AUSENTE}';
           END IF;

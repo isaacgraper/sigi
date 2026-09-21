@@ -62,8 +62,8 @@ def invite(
         email=user.email or "",
         perfil=user.role,
         status=user.status,
-        criado_em=user.criado_em,
-        link_ativacao=link,
+        created_at=user.criado_em,
+        activation_link=link,
     )
 
 
@@ -85,12 +85,12 @@ def list_members(
         items=[
             MemberOutput(
                 id=u.id,
-                nome=u.nome,
+                name=u.nome,
                 email=u.email,
                 perfil=u.role,
                 status=u.status,
-                criado_em=u.criado_em,
-                pseudonimo=u.pseudonimo,
+                created_at=u.criado_em,
+                pseudonym=u.pseudonimo,
             )
             for u in rows
         ],
@@ -117,12 +117,12 @@ def block(
     )
     return MemberOutput(
         id=user.id,
-        nome=user.nome,
+        name=user.nome,
         email=user.email,
         perfil=user.role,
         status=user.status,
-        criado_em=user.criado_em,
-        pseudonimo=user.pseudonimo,
+        created_at=user.criado_em,
+        pseudonym=user.pseudonimo,
     )
 
 
@@ -143,12 +143,12 @@ def deactivate(
     )
     return MemberOutput(
         id=user.id,
-        nome=user.nome,
+        name=user.nome,
         email=user.email,
         perfil=user.role,
         status=user.status,
-        criado_em=user.criado_em,
-        pseudonimo=user.pseudonimo,
+        created_at=user.criado_em,
+        pseudonym=user.pseudonimo,
     )
 
 
@@ -172,4 +172,4 @@ def trigger_reset(
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )
-    return ResetTriggerOutput(id=user.id, link_redefinicao=link)
+    return ResetTriggerOutput(id=user.id, reset_link=link)

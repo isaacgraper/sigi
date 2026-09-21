@@ -26,4 +26,4 @@ class ActivationInput(BaseModel):
 class ActivationOutput(BaseModel):
     """Activation and first login are one step (AC-0001-11)."""
 
-    sessao: SessionOutput
+    session: SessionOutput

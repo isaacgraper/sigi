@@ -1,6 +1,6 @@
 """Domain exceptions.
 
-Services raise these; `app/api/erros.py` maps them to the envelope in
+Services raise these; `app/api/errors.py` maps them to the envelope in
 `api-conventions.md`. `CLAUDE.md` forbids raising `HTTPException` below the API
 layer, which is what keeps the domain rules testable without a request.
 """
@@ -219,9 +219,16 @@ class NonInstitutionalDomain(DomainError):
 
 
 class UsuarioNotFound(DomainError):
-    """No usuario matches the identifier supplied."""
+    """No usuario matches the identifier supplied.
 
-    code = "NAO_ENCONTRADO"
+    Shares `NOT_FOUND` with `RouteUnavailable` on purpose. Both mean "there is
+    nothing here" and both carry the same message, so two codes would give a
+    client switching on `code` two values for one outcome while telling it
+    nothing extra. The distinction that matters to a caller is the status, and
+    that is identical too.
+    """
+
+    code = "NOT_FOUND"
     http = 404
 
     def __init__(self) -> None:
