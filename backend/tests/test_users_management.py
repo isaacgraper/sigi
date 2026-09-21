@@ -164,7 +164,13 @@ def test_paging_never_repeats_a_row(
 def test_ac_0001_13_a_servidor_or_auditor_cannot_manage_members(
     application: TestClient, criar_usuario: Callable[..., User], perfil: str
 ) -> None:
-    """AC-0001-13 — every member route refuses a non-gestor, including the read."""
+    """AC-0001-13 — managing members refuses a non-gestor.
+
+    Managing, not reading. This test used to include `GET /usuarios` and assert
+    403 for both perfis, which contradicted SPEC-0001 §6: the matrix grants the
+    member list to "auditor ✅ read-only". The test was asserting the bug, so it
+    kept the bug alive. The read is checked separately below.
+    """
     email = f"{perfil}-{uuid.uuid4().hex[:8]}@sc.gov.br"
     criar_usuario(email=email, perfil=perfil, senha=SENHA)
     entrada = application.post(LOGIN, json={"email": email, "password": SENHA})
@@ -172,12 +178,30 @@ def test_ac_0001_13_a_servidor_or_auditor_cannot_manage_members(
     alvo = criar_usuario(email=f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
 
     for response in (
-        application.get(USUARIOS, headers=headers),
         application.post(f"{USUARIOS}/{alvo.id}/bloquear", headers=headers),
         application.post(f"{USUARIOS}/{alvo.id}/desativar", headers=headers),
+        application.post(f"{USUARIOS}/{alvo.id}/redefinir-senha", headers=headers),
     ):
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
+
+
+def test_ac_0001_17_an_auditor_reads_the_member_list_and_a_servidor_does_not(
+    application: TestClient, criar_usuario: Callable[..., User]
+) -> None:
+    """SPEC-0001 §6 — the member list is the auditor's one member route.
+
+    An auditor who cannot open the member list cannot resolve the actor column
+    of any audit row, which is the job the perfil exists for.
+    """
+    for perfil, expected in (("auditor", 200), ("servidor", 403)):
+        email = f"{perfil}-lista-{uuid.uuid4().hex[:8]}@sc.gov.br"
+        criar_usuario(email=email, perfil=perfil, senha=SENHA)
+        entrada = application.post(LOGIN, json={"email": email, "password": SENHA})
+        headers = {"Authorization": f"Bearer {entrada.json()['access_token']}"}
+
+        response = application.get(USUARIOS, headers=headers)
+        assert response.status_code == expected, f"{perfil}: {response.text}"
 
 
 def test_an_unknown_id_is_404(application: TestClient, criar_usuario: Callable[..., User]) -> None:
