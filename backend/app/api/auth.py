@@ -19,6 +19,7 @@ from app.core.authorization import Public, UsuarioAtual
 from app.core.config import get_settings
 from app.core.correlation import current
 from app.core.db import get_sessao
+from app.core.throttling import enforce
 from app.models.user import User
 from app.repositories import user as repo_usuario
 from app.schemas.auth import LoginInput, SessionOutput, UserOutput
@@ -27,7 +28,7 @@ from app.services import sessions
 from app.services.authentication import authenticate_local
 from app.services.errors import InactiveUser, InvalidRefresh
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"], dependencies=[Depends(enforce)])
 
 # These three are open by definition: the caller has no session yet, or is
 # handing back the one they have. Declared rather than omitted, because

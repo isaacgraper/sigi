@@ -8,6 +8,7 @@ from app.api.errors import register_handlers
 from app.core.authorization import verify_coverage
 from app.core.config import get_settings
 from app.core.correlation import CorrelacaoMiddleware
+from app.core.throttling import verify_ceilings
 
 
 def create_app() -> FastAPI:
@@ -45,6 +46,9 @@ def create_app() -> FastAPI:
     # Every router is included above first, or this would inspect a partial
     # route table and pass over what it never saw.
     verify_coverage(app)
+    # AC-0001-33's last clause, also at assembly: a throttled route with no
+    # ceiling breaks here rather than being served unprotected.
+    verify_ceilings(app)
     return app
 
 

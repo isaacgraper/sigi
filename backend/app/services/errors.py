@@ -267,3 +267,22 @@ class ResetExpired(DomainError):
     def __init__(self) -> None:
         """Build the error, pointing at requesting another."""
         super().__init__("Este link de redefinição expirou. Solicite outro.")
+
+
+class RateLimited(DomainError):
+    """The source exceeded this route's ceiling for the window (AC-0001-33).
+
+    The message carries no count and names no throttle. Telling the caller how
+    close they were, or which of the two limits fired, is a measuring instrument
+    handed to whoever is probing (ADR-0012 §5). `Retry-After` is the only
+    signal, and it reaches the client through the envelope handler.
+    """
+
+    code = "RATE_LIMITED"
+    http = 429
+
+    def __init__(self, *, retry_after: int) -> None:
+        """Build the error, carrying only when to try again."""
+        super().__init__(
+            "Muitas requisições. Tente novamente em instantes.", retry_after=retry_after
+        )
