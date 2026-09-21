@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 import secrets
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -24,7 +25,12 @@ from app.core.config import get_settings
 from app.core.secrets_hmac import digest_secret
 from app.models.credential_token import CredentialToken
 from app.repositories import credential_token as repo
-from app.services.errors import InviteAlreadyUsed, InviteExpired, WeakPassword
+from app.services.errors import (
+    DomainError,
+    InviteAlreadyUsed,
+    InviteExpired,
+    WeakPassword,
+)
 
 INVITE = "convite"
 RESET = "redefinicao"
@@ -78,8 +84,20 @@ def issue(
     return IssuedGrant(token=row, value=value)
 
 
-def redeem(session: Session, *, value: str, tipo: str, at: datetime.datetime) -> CredentialToken:
+def redeem(
+    session: Session,
+    *,
+    value: str,
+    tipo: str,
+    at: datetime.datetime,
+    already_used: Callable[[], DomainError] = InviteAlreadyUsed,
+    expired: Callable[[], DomainError] = InviteExpired,
+) -> CredentialToken:
     """Validate a grant and return it, or raise. Does **not** spend it.
+
+    The error classes are parameters because an invitation and a reset are the
+    same object with different codes: AC-0001-25 wants INVITE_*, AC-0001-31
+    wants RESET_*, and one shared default would report the wrong one.
 
     Spending is separate because AC-0001-26 requires a rejected password to
     leave the grant usable: a typo must not burn an invitation and force the
@@ -90,13 +108,13 @@ def redeem(session: Session, *, value: str, tipo: str, at: datetime.datetime) ->
     if row is None or row.tipo != tipo:
         # Same answer for "no such token" and "a token of the other kind":
         # distinguishing them would say which grants exist.
-        raise InviteAlreadyUsed()
+        raise already_used()
     if row.utilizado_em is not None:
-        raise InviteAlreadyUsed()
+        raise already_used()
     if row.cancelado_em is not None or row.expira_em <= at:
         # A superseded grant reads as expired, which is what it is from the
         # holder's point of view: the gestor issued a newer one.
-        raise InviteExpired()
+        raise expired()
     return row
 
 

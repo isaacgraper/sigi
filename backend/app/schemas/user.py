@@ -55,3 +55,26 @@ class MemberPage(BaseModel):
     total: int
     page: int
     size: int
+
+
+class ResetTriggerOutput(BaseModel):
+    """The reset link, returned to the gestor who asked for it.
+
+    Returned exactly once. Only the HMAC reaches the database, so no endpoint
+    can recover it afterwards (AC-0001-32, as amended in v1.0).
+    """
+
+    id: uuid.UUID
+    link_redefinicao: str
+
+
+class ResetConfirmInput(BaseModel):
+    """The body of a reset confirmation.
+
+    The token is a field rather than a path segment (OQ-30), for the same reason
+    as activation: a single-use credential in a path lands in access logs,
+    proxies and browser history.
+    """
+
+    token: str = Field(min_length=1)
+    password: str = Field(min_length=1)

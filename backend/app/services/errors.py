@@ -245,3 +245,25 @@ class LastGestor(DomainError):
             "Esta é a única conta de gestor ativa. Promova outro gestor antes de "
             "bloquear ou desativar esta."
         )
+
+
+class ResetAlreadyUsed(DomainError):
+    """The reset grant was already redeemed, or never existed (AC-0001-31)."""
+
+    code = "RESET_ALREADY_USED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, which does not distinguish spent from unknown."""
+        super().__init__("Este link de redefinição já foi usado. Solicite outro.")
+
+
+class ResetExpired(DomainError):
+    """The reset grant timed out, or a newer one superseded it (AC-0001-31)."""
+
+    code = "RESET_EXPIRED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, pointing at requesting another."""
+        super().__init__("Este link de redefinição expirou. Solicite outro.")

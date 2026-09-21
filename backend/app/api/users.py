@@ -13,7 +13,13 @@ from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_sessao
 from app.models.user import User
-from app.schemas.user import InviteInput, InviteOutput, MemberOutput, MemberPage
+from app.schemas.user import (
+    InviteInput,
+    InviteOutput,
+    MemberOutput,
+    MemberPage,
+    ResetTriggerOutput,
+)
 from app.services import members
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
@@ -144,3 +150,26 @@ def deactivate(
         criado_em=user.criado_em,
         pseudonimo=user.pseudonimo,
     )
+
+
+@router.post("/{usuario_id}/redefinir-senha", response_model=ResetTriggerOutput)
+def trigger_reset(
+    usuario_id: uuid.UUID,
+    actor: Gestor,
+    request: Request,
+    session: SessaoDb,
+) -> ResetTriggerOutput:
+    """Trigger a password reset for a member (SPEC-0001 AC-0001-32).
+
+    The link comes back to the gestor, which v1.0 of the spec records as a
+    deliberate loss: with no mail transport there is no channel to the member.
+    The gestor cannot set the password; whoever opens the link does.
+    """
+    user, link = members.trigger_reset(
+        session,
+        actor=actor,
+        usuario_id=usuario_id,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
+    )
+    return ResetTriggerOutput(id=user.id, link_redefinicao=link)
