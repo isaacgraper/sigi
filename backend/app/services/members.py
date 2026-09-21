@@ -27,6 +27,8 @@ from app.services.errors import (
     EmailAlreadyRegistered,
     LastGestor,
     NonInstitutionalDomain,
+    ResetAlreadyUsed,
+    ResetExpired,
     UsuarioNotFound,
 )
 
@@ -293,3 +295,98 @@ def _sqlstate(exc: DBAPIError) -> str | None:
     if isinstance(original, pgerrors.Error):
         return original.sqlstate
     return getattr(getattr(original, "diag", None), "sqlstate", None)
+
+
+def trigger_reset(
+    session: Session,
+    *,
+    actor: User,
+    usuario_id: uuid.UUID,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> tuple[User, str]:
+    """Issue a reset grant for a member, at a gestor's request (AC-0001-32).
+
+    Returns the usuario and the link. **The gestor receives the link**, which is
+    a deliberate loss of a property the criterion originally had: with no mail
+    transport there is no channel to the member, and a reset that reaches nobody
+    is not a reset. SPEC-0001 v1.0 records what this costs. The act is audited
+    with the gestor as actor and the member as target, and redeeming revokes
+    every session, so the member sees it happen.
+    """
+    user = repo.by_id(session, usuario_id)
+    if user is None:
+        raise UsuarioNotFound()
+
+    grant = credentials.issue(
+        session,
+        usuario_id=user.id,
+        tipo=credentials.RESET,
+        at=at,
+        criado_por=actor.id,
+    )
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.redefinicao_solicitada",
+            usuario_id=actor.id,
+            # Actor and target are different people here, which is the whole
+            # reason this row has to exist.
+            dados_anteriores={"alvo_id": str(user.id)},
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user, grant.link("/redefinir-senha")
+
+
+def redeem_reset(
+    session: Session,
+    *,
+    token: str,
+    password: str,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User:
+    """Replace the credential and end every session (AC-0001-31).
+
+    Revoking every session is the criterion rather than hygiene, and it cuts
+    both ways on purpose. If the person reset because they suspect theft, it
+    evicts the thief; if a thief holding the link did the reset, it evicts the
+    owner, who then notices. Leaving old sessions alive would make the reset
+    cosmetic in exactly the case that matters.
+    """
+    row = credentials.redeem(
+        session,
+        value=token,
+        tipo=credentials.RESET,
+        at=at,
+        already_used=ResetAlreadyUsed,
+        expired=ResetExpired,
+    )
+    # Before spending the grant, so a password that fails the policy leaves the
+    # link usable (AC-0001-31's last clause).
+    credentials.require_strong_password(password)
+
+    user = repo.by_id(session, row.usuario_id)
+    if user is None:  # pragma: no cover - the foreign key makes this unreachable
+        raise UsuarioNotFound()
+
+    user.senha_hash = hash_password(password)
+    credentials.consume(session, row, at=at)
+    revoked = repo_session.revoke_for_usuario(session, user.id, reason="redefinicao", at=at)
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.redefinicao_concluida",
+            usuario_id=user.id,
+            dados_anteriores={"sessoes_revogadas": revoked},
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user

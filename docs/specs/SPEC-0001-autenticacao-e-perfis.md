@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 0.8
+version: 1.0
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -472,6 +472,13 @@ And   in all three cases the response does not wait on the e-mail transport,
 The uniform 202 is the whole point: a reset form that answers differently for a
 known address is an account-enumeration endpoint with a helpful error message.
 
+*(v1.0)* **Not implemented, and blocked rather than deferred.** Self-service
+reset requires a channel to the person who asked, and there is none. Returning
+the token in the response would let anyone reset anyone's password, which is
+worse than having no self-service reset at all. The endpoint is not built; a
+gestor-triggered reset (AC-0001-32) is the only path today. This criterion
+becomes implementable the moment SMTP exists and needs no other change.
+
 **AC-0001-31** — Redeeming a reset token replaces the credential and ends every session
 ```gherkin
 Given a valid, unredeemed reset token for an "ativo" usuario holding two active sessions
@@ -499,16 +506,37 @@ The exposure window should match the intent.
 ```gherkin
 Given a gestor and an "ativo" member with a local credential
 When  the gestor triggers a reset for that member
-Then  a single-use token valid 1 hour is sent to the member's own address
-And   the response carries no token
+Then  a single-use reset link valid 1 hour is returned to the triggering gestor
+And   the link is returned exactly once, and no endpoint can recover it afterwards
 And   an audit row records the gestor as actor and the member as target
 When  a servidor or an auditor triggers a reset for another member
 Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 ```
-The token still goes only to the member's own address — a gestor triggers the
-reset, never learns the token, and cannot set the password. That keeps the
-support path (a servidor telephones the gestor, which is what actually happens)
-without turning a gestor into someone who can take over an account silently.
+*(v1.0)* **This criterion loses a property, and the loss is the point of this
+note.** Until v0.9 the token went only to the member's own address: a gestor
+triggered the reset, never learned the token, and so could not take over an
+account silently. There is no mail transport in this project and the entity has
+never supplied SMTP, so there is no channel to the member and a reset that
+reaches nobody is not a reset.
+
+The gestor therefore receives the link. **A gestor can now reset a member's
+credential, open the link, choose a password and log in as them.** That is a
+real capability this spec previously denied them, and nothing in the code
+prevents it.
+
+What stands in its place is detection rather than prevention. The trigger writes
+an audit row with the gestor as actor and the member as target, so the act is
+attributable and cannot be corrected away (AC-0001-27). Redeeming revokes every
+session of that usuario, so the member is logged out and has to set a new
+password to return — which is how they find out. Neither of those stops the
+takeover; they make it visible afterwards.
+
+Restore the original property when SMTP exists: see OQ-31. Until then a gestor
+is trusted not to do this, and the audit trail is what that trust rests on.
+
+The support path this was written for (a servidor telephones the gestor) still
+works, and the gestor still cannot choose the password without using the link
+themselves, which is the part the audit row records.
 
 ### 4.7 Rate limiting *(new in v0.5)*
 
@@ -758,7 +786,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
 | POST | `/api/v1/convites/ativar` | `{token, password}` → session | 11, 25, 26 |
 | POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
-| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | `{password}` → 204, sessions revoked | 31 |
+| POST | `/api/v1/auth/redefinicoes/confirmar` | `{token, password}` → 204, sessions revoked | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | — → 202 | 32 |
 
 Errors use the envelope in `api-conventions.md`; `code` from §5, `message` pt-BR.
@@ -988,6 +1016,27 @@ cannot set the other person's password.
 credential in a URL path lands in access logs, proxies and browser history. Free
 to change now, expensive once a client binds to it.
 
+**v1.0 (2026-09-21)** — password reset, and an honest account of what it costs.
+
+AC-0001-31 is implemented as written. AC-0001-32 is implemented with one
+property removed, and AC-0001-30 is not implemented at all. Both because there
+is no mail transport and the entity has never supplied SMTP.
+
+**AC-0001-32 previously guaranteed that a gestor could not take over an
+account.** The token went only to the member's own address. With no channel to
+the member, the gestor receives the link instead, so a gestor can now reset a
+member's credential and use the link themselves. Detection replaces prevention:
+the trigger is audited with gestor as actor and member as target, and redeeming
+revokes every session so the member notices. Neither stops it. OQ-31 records
+restoring the original property when SMTP exists.
+
+**AC-0001-30 is blocked.** Self-service reset needs a channel to the requester;
+returning the token in the response would let anyone reset anyone's password.
+Not built, not faked.
+
+Also here: the reset token travels in the request body rather than the URL path,
+matching the invitation change in v0.8.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1000,3 +1049,4 @@ to change now, expensive once a client binds to it.
 | 0.6 | 2026-09-20 | API surface renamed to English per ADR-0013, which replaces ADR-0006's glossary test with a reader test: `senha`/`expira_em`/`nome` become `password`/`expires_at`/`name`, and seventeen of twenty-one error codes are anglicised. `USUARIO_INATIVO`, `USUARIO_NAO_PROVISIONADO`, `PERFIL_NAO_AUTORIZADO` and `ULTIMO_GESTOR` keep Portuguese names because each is built on a glossary noun. Database columns are unchanged, so a payload field and its column no longer share a name |
 | 0.7 | 2026-09-20 | `INVALID_ASSERTION` added to §5. AC-0001-20 requires refusing a provider token that does not verify, and no code existed for it, so the implementation would have invented one |
 | 0.8 | 2026-09-20 | AC-0001-10: the gestor receives and delivers the activation link, because there is no mail transport and every account is born from an invitation, so the original criterion blocked all login rather than one feature. The token also moves from the URL path to the request body (OQ-31) |
+| 1.0 | 2026-09-21 | Password reset implemented. AC-0001-32 loses its guarantee that a gestor cannot take over an account, because with no mail transport the gestor receives the link; the audit row and the session revocation make it detectable, not impossible (OQ-31). AC-0001-30 is blocked, not deferred: self-service reset has no channel to the requester. Reset token in the request body, matching v0.8 |

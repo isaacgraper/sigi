@@ -8,6 +8,7 @@ criterion rather than an implementation note.
 
 from __future__ import annotations
 
+import datetime
 import uuid
 from typing import Annotated
 
@@ -21,6 +22,7 @@ from app.core.db import get_sessao
 from app.models.user import User
 from app.repositories import user as repo_usuario
 from app.schemas.auth import LoginInput, SessionOutput, UserOutput
+from app.schemas.user import ResetConfirmInput
 from app.services import sessions
 from app.services.authentication import authenticate_local
 from app.services.errors import InactiveUser, InvalidRefresh
@@ -156,3 +158,27 @@ class _RoleOfRecord(sessions.RoleResolver):
         if user is None or not user.ativo:
             raise InactiveUser()
         return user.role
+
+
+@router.post("/redefinicoes/confirmar", status_code=status.HTTP_204_NO_CONTENT, dependencies=OPEN)
+def confirm_reset(
+    body: ResetConfirmInput,
+    request: Request,
+    session: SessaoDb,
+) -> None:
+    """Redeem a reset link and replace the credential (SPEC-0001 AC-0001-31).
+
+    Open by definition: whoever holds the link cannot log in, which is why they
+    are here. 204 rather than a session, deliberately — unlike activation, a
+    reset may have been triggered by someone who is not the account owner, so
+    handing back a session would hand it to whoever redeemed the link.
+    """
+    from app.services import members
+
+    members.redeem_reset(
+        session,
+        token=body.token,
+        password=body.password,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation_id(request),
+    )
