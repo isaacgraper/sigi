@@ -6,14 +6,14 @@ import datetime
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_sessao
 from app.models.user import User
-from app.schemas.user import InviteInput, InviteOutput
+from app.schemas.user import InviteInput, InviteOutput, MemberOutput, MemberPage
 from app.services import members
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
@@ -58,4 +58,89 @@ def invite(
         status=user.status,
         criado_em=user.criado_em,
         link_ativacao=link,
+    )
+
+
+def _correlation(request: Request) -> uuid.UUID:
+    raw = request.scope.get("state", {}).get("correlation_id")
+    return raw if isinstance(raw, uuid.UUID) else current_correlation_id()
+
+
+@router.get("", response_model=MemberPage)
+def list_members(
+    actor: Gestor,
+    session: SessaoDb,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> MemberPage:
+    """List members (SPEC-0001 AC-0001-13, -15)."""
+    rows, total = members.list_members(session, page=page, size=size)
+    return MemberPage(
+        items=[
+            MemberOutput(
+                id=u.id,
+                nome=u.nome,
+                email=u.email,
+                perfil=u.role,
+                status=u.status,
+                criado_em=u.criado_em,
+                pseudonimo=u.pseudonimo,
+            )
+            for u in rows
+        ],
+        total=total,
+        page=page,
+        size=size,
+    )
+
+
+@router.post("/{usuario_id}/bloquear", response_model=MemberOutput)
+def block(
+    usuario_id: uuid.UUID,
+    actor: Gestor,
+    request: Request,
+    session: SessaoDb,
+) -> MemberOutput:
+    """Block a member (SPEC-0001 AC-0001-12, -13, -29)."""
+    user = members.block(
+        session,
+        actor=actor,
+        usuario_id=usuario_id,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
+    )
+    return MemberOutput(
+        id=user.id,
+        nome=user.nome,
+        email=user.email,
+        perfil=user.role,
+        status=user.status,
+        criado_em=user.criado_em,
+        pseudonimo=user.pseudonimo,
+    )
+
+
+@router.post("/{usuario_id}/desativar", response_model=MemberOutput)
+def deactivate(
+    usuario_id: uuid.UUID,
+    actor: Gestor,
+    request: Request,
+    session: SessaoDb,
+) -> MemberOutput:
+    """Deactivate and anonymise a member (SPEC-0001 AC-0001-13, -14, -29)."""
+    user = members.deactivate(
+        session,
+        actor=actor,
+        usuario_id=usuario_id,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
+    )
+    return MemberOutput(
+        id=user.id,
+        nome=user.nome,
+        email=user.email,
+        perfil=user.role,
+        status=user.status,
+        criado_em=user.criado_em,
+        pseudonimo=user.pseudonimo,
     )
