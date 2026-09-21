@@ -16,9 +16,9 @@ def by_email(session: Session, email: str) -> User | None:
     return session.scalars(select(User).where(User.email == email.strip().lower())).one_or_none()
 
 
-def by_id(session: Session, usuario_id: uuid.UUID) -> User | None:
+def by_id(session: Session, user_id: uuid.UUID) -> User | None:
     """Find a user by id, or None."""
-    return session.get(User, usuario_id)
+    return session.get(User, user_id)
 
 
 def by_oidc_subject(session: Session, subject: str) -> User | None:

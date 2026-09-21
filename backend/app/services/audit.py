@@ -24,7 +24,7 @@ from app.models.audit_log import AuditLog
 from app.repositories.audit_log import insert_row
 
 
-class DadoPessoalNoHistorico(RuntimeError):
+class PersonalDataInHistory(RuntimeError):
     """A caller tried to write personal data into an immutable table.
 
     Not a `DomainError`: no user caused this and no message would help them.
@@ -39,7 +39,7 @@ class Event:
     entidade_tipo: str
     entidade_id: uuid.UUID
     acao: str
-    usuario_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
     dados_anteriores: Mapping[str, Any] | None = field(default=None)
     justificativa: str | None = None
 
@@ -48,12 +48,12 @@ class Event:
 # payload, not validate one. `lgpd.md` promises the audit table carries no
 # personal data, and that table can never be corrected — so the promise is
 # worth enforcing mechanically rather than in prose that decays.
-_PARECE_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+_LOOKS_LIKE_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 def record(
     session: Session,
-    evento: Event,
+    event: Event,
     *,
     correlation_id: uuid.UUID,
     at: datetime.datetime | None = None,
@@ -64,19 +64,19 @@ def record(
     the same transaction as the write, so if the history fails the write fails
     with it (RN06).
     """
-    _refuse_personal_data(evento.dados_anteriores)
+    _refuse_personal_data(event.dados_anteriores)
     insert_row(
         session,
         AuditLog(
             ocorrido_em=at or datetime.datetime.now(datetime.UTC),
-            entidade_tipo=evento.entidade_tipo,
-            entidade_id=evento.entidade_id,
-            acao=evento.acao,
-            usuario_id=evento.usuario_id,
-            dados_anteriores=dict(evento.dados_anteriores)
-            if evento.dados_anteriores is not None
+            entidade_tipo=event.entidade_tipo,
+            entidade_id=event.entidade_id,
+            acao=event.acao,
+            user_id=event.user_id,
+            dados_anteriores=dict(event.dados_anteriores)
+            if event.dados_anteriores is not None
             else None,
-            justificativa=evento.justificativa,
+            justificativa=event.justificativa,
             correlation_id=correlation_id,
         ),
     )
@@ -86,8 +86,8 @@ def _refuse_personal_data(data: Mapping[str, Any] | None) -> None:
     if data is None:
         return
     for path, value in _walk(data):
-        if isinstance(value, str) and _PARECE_EMAIL.search(value):
-            raise DadoPessoalNoHistorico(
+        if isinstance(value, str) and _LOOKS_LIKE_EMAIL.search(value):
+            raise PersonalDataInHistory(
                 f"dados_anteriores[{path}] looks like it carries an e-mail address. "
                 "The audit table can never be corrected, so it carries no "
                 "personal data: use app.core.secrets_hmac.digest_secret() and write "
@@ -120,9 +120,9 @@ def standalone_transaction() -> Iterator[Session]:
     must share that mutation's transaction, and a writer that commits on its own
     could leave one without the other.
     """
-    from app.core.db import sessao_factory
+    from app.core.db import session_factory
 
-    with sessao_factory()() as own_session:
+    with session_factory()() as own_session:
         try:
             yield own_session
             own_session.commit()
@@ -131,7 +131,7 @@ def standalone_transaction() -> Iterator[Session]:
             raise
 
 
-def record_standalone(evento: Event, *, correlation_id: uuid.UUID) -> None:
+def record_standalone(event: Event, *, correlation_id: uuid.UUID) -> None:
     """Write a single audit row in a transaction of its own, and commit it.
 
     For the failure path, which is the path that rolls back. A failed login
@@ -142,4 +142,4 @@ def record_standalone(evento: Event, *, correlation_id: uuid.UUID) -> None:
     Use `standalone_transaction` directly when more than one row has to land together.
     """
     with standalone_transaction() as own_session:
-        record(own_session, evento, correlation_id=correlation_id)
+        record(own_session, event, correlation_id=correlation_id)

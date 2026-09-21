@@ -29,8 +29,8 @@ class DomainError(Exception):
     ) -> None:
         """Build the error with its pt-BR message, field detail and retry hint."""
         super().__init__(message)
-        self.mensagem = message
-        self.campos = fields or {}
+        self.message_text = message
+        self.fields = fields or {}
         # Seconds for a `Retry-After` header. A 429 whose only statement of
         # "when" is inside a pt-BR sentence is a 429 no client can obey.
         self.retry_after = retry_after

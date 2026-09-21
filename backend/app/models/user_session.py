@@ -46,7 +46,7 @@ class SessionFamily(Base):
     __tablename__ = "sessao_familia"
 
     family: Mapped[uuid.UUID] = mapped_column("familia", Uuid, primary_key=True)
-    usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("usuario.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column("usuario_id", Uuid, ForeignKey("usuario.id"))
     criada_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
     )
@@ -67,7 +67,7 @@ class UserSession(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, server_default="gen_random_uuid()"
     )
-    usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column("usuario_id", Uuid)
     family: Mapped[uuid.UUID] = mapped_column("familia", Uuid)
     # Replaced a `substituido_por_id` self-reference, which was a second
     # representation of what `family` already carried and could disagree with
@@ -77,7 +77,7 @@ class UserSession(Base):
     emitido_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
     )
-    expira_em: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime.datetime] = mapped_column("expira_em", DateTime(timezone=True))
     revogado_em: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
     # Not cosmetic: `revogado_em` alone cannot tell the replay handler whether
     # it is looking at a rotated token or a logged-out one, and SPEC-0001 §8's

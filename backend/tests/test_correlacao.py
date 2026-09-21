@@ -11,14 +11,14 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app.core.correlation import CABECALHO
+from app.core.correlation import HEADER
 
 
 def test_resposta_sempre_carrega_correlation_id(client: TestClient) -> None:
     """RNF12 — every response carries one, whether or not the caller sent it."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert uuid.UUID(response.headers[CABECALHO])
+    assert uuid.UUID(response.headers[HEADER])
 
 
 def test_valor_recebido_e_preservado(client: TestClient) -> None:
@@ -28,8 +28,8 @@ def test_valor_recebido_e_preservado(client: TestClient) -> None:
     the API and into the audit trail.
     """
     meu = uuid.uuid4()
-    response = client.get("/health", headers={CABECALHO: str(meu)})
-    assert response.headers[CABECALHO] == str(meu)
+    response = client.get("/health", headers={HEADER: str(meu)})
+    assert response.headers[HEADER] == str(meu)
 
 
 def test_valor_malformado_e_substituido_e_nao_rejeitado(client: TestClient) -> None:
@@ -38,6 +38,6 @@ def test_valor_malformado_e_substituido_e_nao_rejeitado(client: TestClient) -> N
     It is a tracing convenience, not an authorisation input, so a bad value
     earns a fresh id rather than a 400.
     """
-    response = client.get("/health", headers={CABECALHO: "nao-e-um-uuid"})
+    response = client.get("/health", headers={HEADER: "nao-e-um-uuid"})
     assert response.status_code == 200
-    assert uuid.UUID(response.headers[CABECALHO]) != "nao-e-um-uuid"
+    assert uuid.UUID(response.headers[HEADER]) != "nao-e-um-uuid"

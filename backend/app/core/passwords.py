@@ -33,10 +33,10 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(_prepare(password), bcrypt.gensalt(rounds=cost)).decode()
 
 
-def check_password(password: str, hash_armazenado: str) -> bool:
+def check_password(password: str, stored_hash: str) -> bool:
     """Check a password against a stored hash. A malformed hash verifies nobody."""
     try:
-        return bcrypt.checkpw(_prepare(password), hash_armazenado.encode())
+        return bcrypt.checkpw(_prepare(password), stored_hash.encode())
     except ValueError:
         # A malformed stored hash must not authenticate anyone, and must not
         # crash the login route either — a 500 here would tell an attacker they

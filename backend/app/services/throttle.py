@@ -24,7 +24,7 @@ from app.services.errors import RateLimited
 PREFIXES = ("/api/v1/auth", "/api/v1/convites")
 
 
-def ceiling_for(rota: str, *, institutional: bool) -> int:
+def ceiling_for(route_path: str, *, institutional: bool) -> int:
     """The ceiling this route allows this source in one window.
 
     A route with no configured ceiling cannot start, so the fallback below is
@@ -37,7 +37,7 @@ def ceiling_for(rota: str, *, institutional: bool) -> int:
     if institutional:
         return cfg.rate_limit_teto_institucional
     try:
-        return cfg.rate_limit_tetos[rota]
+        return cfg.rate_limit_tetos[route_path]
     except KeyError:  # pragma: no cover - verify_ceilings refuses to start
         return min(cfg.rate_limit_tetos.values(), default=1)
 
@@ -52,9 +52,9 @@ def is_institutional(source: str) -> bool:
         # direction matters: guessing "institutional" would hand the higher
         # ceiling to anyone who can make the source unreadable.
         return False
-    for faixa in cfg.rate_limit_faixas_institucionais:
+    for cidr in cfg.rate_limit_faixas_institucionais:
         try:
-            if address in ipaddress.ip_network(faixa, strict=False):
+            if address in ipaddress.ip_network(cidr, strict=False):
                 return True
         except ValueError:  # pragma: no cover - a malformed CIDR in settings
             continue
@@ -76,7 +76,12 @@ def window_start(now: datetime.datetime, *, seconds: int) -> datetime.datetime:
 
 
 def check(
-    session: Session, *, source: str, rota: str, now: datetime.datetime, correlation_id: uuid.UUID
+    session: Session,
+    *,
+    source: str,
+    route_path: str,
+    now: datetime.datetime,
+    correlation_id: uuid.UUID,
 ) -> None:
     """Count this request and refuse it if the source is over the ceiling.
 
@@ -89,11 +94,11 @@ def check(
     seconds = cfg.rate_limit_janela_segundos
     start = window_start(now, seconds=seconds)
     institutional = is_institutional(source)
-    limit = ceiling_for(rota, institutional=institutional)
+    limit = ceiling_for(route_path, institutional=institutional)
     key = digest_secret(source)
 
     with standalone_transaction() as own:
-        total = repo.count_hit(own, key=key, rota=rota, window_start=start)
+        total = repo.count_hit(own, key=key, route_path=route_path, window_start=start)
 
     if total > limit:
         retry_after = max(
@@ -104,11 +109,11 @@ def check(
                 entidade_tipo="rota",
                 entidade_id=uuid.UUID(int=0),
                 acao="auth.limite_excedido",
-                usuario_id=None,
+                user_id=None,
                 # The HMAC, never the address: this table can never be
                 # corrected and `lgpd.md` promises it carries no personal data.
                 dados_anteriores={
-                    "rota": rota,
+                    "rota": route_path,
                     "origem_hmac": key.hex(),
                     "institucional": institutional,
                 },

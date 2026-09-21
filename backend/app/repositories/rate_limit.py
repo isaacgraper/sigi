@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.models.rate_limit import RateLimit
 
 
-def count_hit(session: Session, *, key: bytes, rota: str, window_start: datetime.datetime) -> int:
+def count_hit(
+    session: Session, *, key: bytes, route_path: str, window_start: datetime.datetime
+) -> int:
     """Count one request in this window and return the running total.
 
     One statement, for the same reason `login_attempt.count_attempt` is one:
@@ -24,9 +26,9 @@ def count_hit(session: Session, *, key: bytes, rota: str, window_start: datetime
     """
     statement = (
         insert(RateLimit)
-        .values(chave=key, rota=rota, janela_inicio=window_start, contador=1)
+        .values(chave=key, route_path=route_path, janela_inicio=window_start, contador=1)
         .on_conflict_do_update(
-            index_elements=[RateLimit.key, RateLimit.rota, RateLimit.janela_inicio],
+            index_elements=[RateLimit.key, RateLimit.route_path, RateLimit.janela_inicio],
             set_={"contador": RateLimit.contador + 1},
         )
         .returning(RateLimit.contador)

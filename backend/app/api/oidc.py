@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import _set_cookie
 from app.core.config import get_settings
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_sessao
+from app.core.db import get_session
 from app.core.throttling import enforce
 from app.repositories import user as repo_user
 from app.schemas.auth import SessionOutput
@@ -23,7 +23,7 @@ from app.services.errors import RouteUnavailable, UnprovisionedUsuario
 
 router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"], dependencies=[Depends(enforce)])
 
-SessaoDb = Annotated[Session, Depends(get_sessao)]
+DbSession = Annotated[Session, Depends(get_session)]
 
 STATE_COOKIE = "sigi_oidc_estado"
 
@@ -43,14 +43,14 @@ def authorize(response: Response) -> RedirectResponse:
     """Start institutional login (SPEC-0001 AC-0001-19)."""
     _require_oidc()
     cfg = get_settings()
-    pedido = oidc.start(now=datetime.datetime.now(datetime.UTC))
+    request_to_provider = oidc.start(now=datetime.datetime.now(datetime.UTC))
 
-    redirect = RedirectResponse(pedido.url, status_code=302)
+    redirect = RedirectResponse(request_to_provider.url, status_code=302)
     # The state travels in an httpOnly cookie, which is what binds it to this
     # caller: a state lifted from a URL is useless without it.
     redirect.set_cookie(
         STATE_COOKIE,
-        pedido.signed_state,
+        request_to_provider.signed_state,
         max_age=cfg.oidc_estado_ttl_minutos * 60,
         httponly=True,
         secure=cfg.cookie_secure,
@@ -62,7 +62,7 @@ def authorize(response: Response) -> RedirectResponse:
 
 @router.get("/callback", response_model=SessionOutput)
 def callback(
-    code: str, state: str, request: Request, response: Response, session: SessaoDb
+    code: str, state: str, request: Request, response: Response, session: DbSession
 ) -> SessionOutput:
     """Complete institutional login (SPEC-0001 AC-0001-19, -20, -21, -22)."""
     _require_oidc()
@@ -99,14 +99,14 @@ def callback(
     if user.oidc_subject is None:
         user.oidc_subject = assertion.subject
 
-    par = sessions.open_session(
+    pair = sessions.open_session(
         session,
-        usuario_id=user.id,
+        user_id=user.id,
         # From the usuario record. The asserted group claim is recorded below
         # and consulted by nothing (AC-0001-22, I2).
         role=user.role,
         correlation_id=correlation_id,
-        mecanismo="oidc",
+        mechanism="oidc",
     )
     record(
         session,
@@ -114,7 +114,7 @@ def callback(
             entidade_tipo="usuario",
             entidade_id=user.id,
             acao="auth.oidc_claim",
-            usuario_id=user.id,
+            user_id=user.id,
             dados_anteriores={
                 "claim_asserido": assertion.asserted_group,
                 "perfil_aplicado": user.role,
@@ -124,9 +124,9 @@ def callback(
         at=now,
     )
 
-    _set_cookie(response, par.refresh_token)
+    _set_cookie(response, pair.refresh_token)
     response.delete_cookie(STATE_COOKIE, path="/api/v1/auth/oidc")
-    return SessionOutput(access_token=par.access_token, expires_at=par.expira_em)
+    return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 
 def _audit_refusal(*, reason: str, email: str | None, correlation_id: uuid.UUID) -> None:
@@ -141,7 +141,7 @@ def _audit_refusal(*, reason: str, email: str | None, correlation_id: uuid.UUID)
             entidade_tipo="usuario",
             entidade_id=oidc.null_uuid(),
             acao="auth.oidc_recusada",
-            usuario_id=None,
+            user_id=None,
             dados_anteriores={
                 "motivo": reason,
                 "email_hmac": oidc.digest_for_audit(email),

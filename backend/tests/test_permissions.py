@@ -166,10 +166,10 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("GET", "/health"): None,
     # "Invite / activate / block / deactivate members" — gestor only.
     ("POST", "/api/v1/usuarios"): frozenset({"gestor"}),
-    ("POST", "/api/v1/usuarios/{usuario_id}/bloquear"): frozenset({"gestor"}),
-    ("POST", "/api/v1/usuarios/{usuario_id}/desativar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/bloquear"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/desativar"): frozenset({"gestor"}),
     # "Trigger a password reset for another member" — gestor only.
-    ("POST", "/api/v1/usuarios/{usuario_id}/redefinir-senha"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/redefinir-senha"): frozenset({"gestor"}),
     # "View member list" — gestor, and auditor read-only.
     ("GET", "/api/v1/usuarios"): frozenset({"gestor", "auditor"}),
 }
@@ -219,7 +219,7 @@ def _call(
 ) -> httpx2.Response:
     # A real id in the placeholder, and an empty body. A route that gets past
     # authorisation then fails validation with 422, and 422 means "authorised".
-    concrete = path.replace("{usuario_id}", str(uuid.uuid4()))
+    concrete = path.replace("{user_id}", str(uuid.uuid4()))
     if method == "GET":
         return application.get(concrete, headers=headers)
     return application.request(method, concrete, json={}, headers=headers)

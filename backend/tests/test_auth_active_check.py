@@ -110,7 +110,7 @@ def test_token_sem_conta_e_recusado(application: TestClient) -> None:
     It really happens after restoring an old backup, and the cheap failure mode
     is what decides whether somebody investigates or restarts the service.
     """
-    token = issue_access_token(usuario_id=uuid.uuid4(), role="gestor")
+    token = issue_access_token(user_id=uuid.uuid4(), role="gestor")
     response = application.get(ME, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "USUARIO_INATIVO"

@@ -45,7 +45,7 @@ class AuditLog(Base):
     # Nullable: AC-0001-20 and AC-0001-21 both audit callers with no account.
     # `ON DELETE` stays at NO ACTION, which is what makes invariant I4 a
     # database fact rather than a promise.
-    usuario_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("usuario.id"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column("usuario_id", Uuid, ForeignKey("usuario.id"))
     dados_anteriores: Mapped[dict | None] = mapped_column(JSONB)
     justificativa: Mapped[str | None] = mapped_column(Text)
     correlation_id: Mapped[uuid.UUID] = mapped_column(Uuid)

@@ -7,7 +7,7 @@ from app.api import auth, health, invites, oidc, users
 from app.api.errors import register_handlers
 from app.core.authorization import verify_coverage
 from app.core.config import get_settings
-from app.core.correlation import CorrelacaoMiddleware
+from app.core.correlation import CorrelationMiddleware
 from app.core.throttling import verify_ceilings
 
 
@@ -23,7 +23,7 @@ def create_app() -> FastAPI:
     # Outermost, so every response carries it — including the ones produced by
     # error handlers, which are exactly the responses somebody will be trying to
     # trace back to an audit row.
-    app.add_middleware(CorrelacaoMiddleware)
+    app.add_middleware(CorrelationMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

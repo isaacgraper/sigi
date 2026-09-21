@@ -31,16 +31,18 @@ class CredentialToken(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, server_default="gen_random_uuid()"
     )
-    usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("usuario.id"))
-    tipo: Mapped[str] = mapped_column(String(20))
+    user_id: Mapped[uuid.UUID] = mapped_column("usuario_id", Uuid, ForeignKey("usuario.id"))
+    kind: Mapped[str] = mapped_column("tipo", String(20))
     # Only the hash. A leaked database must not yield a usable grant.
     token_hash: Mapped[bytes] = mapped_column(LargeBinary, unique=True)
     # Null for a self-service reset, which has no other actor (AC-0001-30).
-    criado_por: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("usuario.id"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        "criado_por", Uuid, ForeignKey("usuario.id")
+    )
     criado_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
     )
-    expira_em: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime.datetime] = mapped_column("expira_em", DateTime(timezone=True))
     utilizado_em: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
     cancelado_em: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
 

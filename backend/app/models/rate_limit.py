@@ -26,7 +26,7 @@ class RateLimit(Base):
     __tablename__ = "limite_taxa"
 
     key: Mapped[bytes] = mapped_column("chave", LargeBinary, primary_key=True)
-    rota: Mapped[str] = mapped_column(String(120), primary_key=True)
+    route_path: Mapped[str] = mapped_column("rota", String(120), primary_key=True)
     janela_inicio: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True
     )

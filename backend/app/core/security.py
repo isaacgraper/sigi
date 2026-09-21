@@ -38,14 +38,14 @@ ACCESS_TYPE = "access"
 BYTES_REFRESH = 32
 
 
-class TokenExpirado(DomainError):
+class TokenExpired(DomainError):
     """The access token is past its `exp`."""
 
     code = "TOKEN_EXPIRED"
     http = 401
 
 
-class TokenInvalido(DomainError):
+class TokenInvalid(DomainError):
     """The access token did not verify, or is not an access token."""
 
     code = "TOKEN_INVALID"
@@ -56,9 +56,9 @@ class TokenInvalido(DomainError):
 class AccessClaims:
     """What a verified access token asserts."""
 
-    usuario_id: uuid.UUID
+    user_id: uuid.UUID
     role: str
-    expira_em: datetime.datetime
+    expires_at: datetime.datetime
 
 
 @lru_cache
@@ -78,14 +78,14 @@ def _key_pair() -> tuple[bytes, bytes]:
             "jwt_private_key and jwt_public_key are required outside development: "
             "an ephemeral pair would invalidate every session on each restart."
         )
-    privada = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     return (
-        privada.private_bytes(
+        private_key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
             serialization.NoEncryption(),
         ),
-        privada.public_key().public_bytes(
+        private_key.public_key().public_bytes(
             serialization.Encoding.PEM,
             serialization.PublicFormat.SubjectPublicKeyInfo,
         ),
@@ -99,7 +99,7 @@ def reset_keys() -> None:
 
 def issue_access_token(
     *,
-    usuario_id: uuid.UUID,
+    user_id: uuid.UUID,
     role: str,
     now: datetime.datetime | None = None,
 ) -> str:
@@ -116,7 +116,7 @@ def issue_access_token(
             # what a log line, an audit correlation or a future revocation list
             # need in order to mean anything.
             "jti": str(uuid.uuid4()),
-            "sub": str(usuario_id),
+            "sub": str(user_id),
             "perfil": role,
             "typ": ACCESS_TYPE,
             "iss": cfg.jwt_issuer,
@@ -147,20 +147,20 @@ def verify_access_token(token: str) -> AccessClaims:
             options={"require": ["exp", "iat", "sub", "iss"]},
         )
     except jwt.ExpiredSignatureError as exc:
-        raise TokenExpirado("Sua sessão expirou. Entre novamente.") from exc
+        raise TokenExpired("Sua sessão expirou. Entre novamente.") from exc
     except jwt.InvalidTokenError as exc:
-        raise TokenInvalido("Sua sessão não é válida. Entre novamente.") from exc
+        raise TokenInvalid("Sua sessão não é válida. Entre novamente.") from exc
 
     if payload.get("typ") != ACCESS_TYPE:
         # A refresh token is opaque and could never arrive here, but a future
         # token kind could — and accepting one as an access token would be a
         # privilege escalation with no signature error to notice it.
-        raise TokenInvalido("Sua sessão não é válida. Entre novamente.")
+        raise TokenInvalid("Sua sessão não é válida. Entre novamente.")
 
     return AccessClaims(
-        usuario_id=uuid.UUID(payload["sub"]),
+        user_id=uuid.UUID(payload["sub"]),
         role=payload["perfil"],
-        expira_em=datetime.datetime.fromtimestamp(payload["exp"], datetime.UTC),
+        expires_at=datetime.datetime.fromtimestamp(payload["exp"], datetime.UTC),
     )
 
 
