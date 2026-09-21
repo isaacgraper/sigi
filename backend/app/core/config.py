@@ -79,6 +79,37 @@ class Settings(BaseSettings):
 
     # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
     max_tentativas_login: int = 5
+    # ── Per-source rate limiting (AC-0001-33, ADR-0012) ────────────────────
+    # Configuration rather than constants, so the entity can tune these against
+    # its real traffic without a deploy (ADR-0012 §3).
+    rate_limit_janela_segundos: int = 60
+    # **Every** route under the throttled prefixes needs an entry here. There is
+    # deliberately no default to fall back on: a default would make
+    # `verify_ceilings` vacuous, since every route would always "have" a
+    # ceiling, and AC-0001-33's last clause asks for the opposite. Adding a
+    # route under those prefixes breaks the build until its ceiling is chosen,
+    # which is the same bargain `verify_coverage` makes for authorisation.
+    rate_limit_tetos: dict[str, int] = {
+        "/api/v1/auth/login": 20,
+        "/api/v1/auth/refresh": 60,
+        "/api/v1/auth/logout": 60,
+        "/api/v1/auth/me": 120,
+        "/api/v1/auth/oidc/authorize": 30,
+        "/api/v1/auth/oidc/callback": 30,
+        "/api/v1/auth/redefinicoes/confirmar": 10,
+        "/api/v1/convites/ativar": 10,
+    }
+    # A higher ceiling, never an exemption (ADR-0012 §4). Whole unidades sit
+    # behind one NAT address, so an internet-tuned ceiling locks out a building
+    # on its first busy morning — while an exemption would leave an attacker who
+    # reached the internal network facing no limit at all.
+    rate_limit_faixas_institucionais: list[str] = [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+    ]
+    rate_limit_teto_institucional: int = 600
+
     janela_tentativas_minutos: int = 15
     bloqueio_minutos: int = 15
 

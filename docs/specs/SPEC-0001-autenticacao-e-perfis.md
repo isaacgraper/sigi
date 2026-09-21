@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -1037,6 +1037,31 @@ Not built, not faked.
 Also here: the reset token travels in the request body rather than the URL path,
 matching the invitation change in v0.8.
 
+**v1.1 (2026-09-21)** — rate limiting, the last criterion.
+
+AC-0001-33 implemented per ADR-0012: keyed on an HMAC of the source, applied to
+every route under `/api/v1/auth` and `/api/v1/convites`, independent of
+AC-0001-03's per-address lockout. Tests assert that independence in both
+directions, because a single throttle dressed up as two satisfies the
+criterion's words while missing its point.
+
+**There is deliberately no default ceiling.** Every throttled route carries an
+explicit one, and `verify_ceilings` refuses to start the application if a route
+under those prefixes lacks it. With a default, that check could never fail: a
+route would always "have" a ceiling, and the criterion's "a route without one is
+reported by name" would be unreachable. A check that cannot fail is
+indistinguishable from no check.
+
+**The source is the socket address, not `X-Forwarded-For`.** Honouring that
+header unconditionally makes the throttle bypassable by setting a header, which
+is worse than no throttle because it still looks like one. A deployment behind a
+reverse proxy needs an explicit trusted-proxy setting first: OQ-32.
+
+The window is fixed rather than sliding, so a burst straddling a boundary can
+see two windows' allowance. Stated here because it is a known cost, not a
+discovered one; a sliding window would need per-request timestamps and a table
+to keep pruned.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1050,3 +1075,4 @@ matching the invitation change in v0.8.
 | 0.7 | 2026-09-20 | `INVALID_ASSERTION` added to §5. AC-0001-20 requires refusing a provider token that does not verify, and no code existed for it, so the implementation would have invented one |
 | 0.8 | 2026-09-20 | AC-0001-10: the gestor receives and delivers the activation link, because there is no mail transport and every account is born from an invitation, so the original criterion blocked all login rather than one feature. The token also moves from the URL path to the request body (OQ-31) |
 | 1.0 | 2026-09-21 | Password reset implemented. AC-0001-32 loses its guarantee that a gestor cannot take over an account, because with no mail transport the gestor receives the link; the audit row and the session revocation make it detectable, not impossible (OQ-31). AC-0001-30 is blocked, not deferred: self-service reset has no channel to the requester. Reset token in the request body, matching v0.8 |
+| 1.1 | 2026-09-21 | Rate limiting implemented (AC-0001-33, ADR-0012), independent of the per-address lockout. No default ceiling, so `verify_ceilings` can actually fail; the source is the socket address and not `X-Forwarded-For`, with the trusted-proxy question recorded as OQ-32. Fixed window, whose boundary cost is stated rather than discovered |

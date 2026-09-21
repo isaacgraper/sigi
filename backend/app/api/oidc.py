@@ -14,13 +14,14 @@ from app.api.auth import _set_cookie
 from app.core.config import get_settings
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_sessao
+from app.core.throttling import enforce
 from app.repositories import user as repo_user
 from app.schemas.auth import SessionOutput
 from app.services import oidc, sessions
 from app.services.audit import Event, record, record_standalone
 from app.services.errors import RouteUnavailable, UnprovisionedUsuario
 
-router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"], dependencies=[Depends(enforce)])
 
 SessaoDb = Annotated[Session, Depends(get_sessao)]
 

@@ -13,11 +13,12 @@ from app.api.auth import _set_cookie
 from app.core.authorization import Public
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_sessao
+from app.core.throttling import enforce
 from app.schemas.auth import SessionOutput
 from app.schemas.invite import ActivationInput, ActivationOutput
 from app.services import members, sessions
 
-router = APIRouter(prefix="/api/v1/convites", tags=["convites"])
+router = APIRouter(prefix="/api/v1/convites", tags=["convites"], dependencies=[Depends(enforce)])
 
 SessaoDb = Annotated[Session, Depends(get_sessao)]
 

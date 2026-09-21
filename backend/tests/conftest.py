@@ -225,6 +225,17 @@ def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iter
     get_settings.cache_clear()
     reset_engine()
     reset_keys()
+
+    # AC-0001-33 counts per source, and every test in the suite shares one
+    # source and one database, so without this each test inherits the traffic of
+    # all the ones before it and the throttle fires on whichever happens to run
+    # late. That is an artifact of the harness, not a property of the system:
+    # tests are independent scenarios, not one long session. Clearing the
+    # counters is the honest fix — raising the ceilings until the suite passes
+    # would be weakening the feature to suit the test runner.
+    with psycopg.connect(banco[0], autocommit=True) as limpeza:
+        limpeza.execute("DELETE FROM limite_taxa")
+
     try:
         with TestClient(create_app()) as c:
             yield c
