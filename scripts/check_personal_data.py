@@ -29,7 +29,7 @@ from pathlib import Path
 
 # The institutional domains. An address at one of these is a real person unless
 # it is plainly synthetic — see ENDERECO_INSTITUCIONAL.
-DOMINIOS_INSTITUCIONAIS = ("sc.gov.br", "saude.sc.gov.br")
+INSTITUTIONAL_DOMAINS = ("sc.gov.br", "saude.sc.gov.br")
 
 #: A CPF is eleven digits, written with or without punctuation.
 #:
@@ -63,7 +63,7 @@ JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
 #: thing this rule flagged, on its own source.
 ENDERECO_INSTITUCIONAL = re.compile(
     r"\b[A-Za-z0-9_%+-]+\.[A-Za-z0-9._%+-]+@(?:" + "|".join(
-        d.replace(".", r"\.") for d in DOMINIOS_INSTITUCIONAIS
+        d.replace(".", r"\.") for d in INSTITUTIONAL_DOMAINS
     ) + r")\b"
 )
 

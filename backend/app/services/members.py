@@ -63,7 +63,7 @@ def invite(
     """
     cfg = get_settings()
     address = email.strip().lower()
-    _require_institutional_domain(address, cfg.dominios_institucionais)
+    _require_institutional_domain(address, cfg.institutional_domains)
 
     if repo.by_email(session, address) is not None:
         # In any status, `desativado` included. A second account for one person

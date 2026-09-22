@@ -46,13 +46,13 @@ class Settings(BaseSettings):
     jwt_private_key: str = ""
     jwt_public_key: str = ""
     jwt_issuer: str = "sigi"
-    access_token_ttl_minutos: int = 15
-    refresh_token_ttl_dias: int = 7
+    access_token_ttl_minutes: int = 15
+    refresh_token_ttl_days: int = 7
     # AC-0001-01 requires the refresh cookie to be Secure. Configurable only so
     # that a developer serving over plain http can flip it; leaving it False in
     # production ships the refresh token over the wire in clear.
     cookie_secure: bool = True
-    cookie_refresh_nome: str = "sigi_refresh"
+    cookie_refresh_name: str = "sigi_refresh"
 
     # ── Institutional OIDC (ADR-0010, AC-0001-19 to -22) ────────────────────
     # Entra ID. The entity has not yet handed over tenant, client and redirect
@@ -65,31 +65,31 @@ class Settings(BaseSettings):
     oidc_redirect_uri: str = "http://localhost:3000/auth/callback"
     # The group claim the provider asserts. Recorded in the login's audit row
     # and never consulted by an authorisation decision (AC-0001-22).
-    oidc_claim_grupo: str = "groups"
+    oidc_claim_group: str = "groups"
     # The window between starting a login and returning from the provider.
-    oidc_estado_ttl_minutos: int = 10
+    oidc_state_ttl_minutes: int = 10
 
     # ── Local credentials (ADR-0010) ────────────────────────────────────────
     # Switchable: the honest production default is `False`, with OIDC as the
     # primary path. On here so that a fresh clone runs.
     local_login_enabled: bool = True
-    dominios_institucionais: list[str] = ["sc.gov.br"]
+    institutional_domains: list[str] = ["sc.gov.br"]
     bcrypt_cost: int = 12
-    senha_tamanho_minimo: int = 12
+    password_min_length: int = 12
 
     # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
-    max_tentativas_login: int = 5
+    max_login_attempts: int = 5
     # ── Per-source rate limiting (AC-0001-33, ADR-0012) ────────────────────
     # Configuration rather than constants, so the entity can tune these against
     # its real traffic without a deploy (ADR-0012 §3).
-    rate_limit_janela_segundos: int = 60
+    rate_limit_window_seconds: int = 60
     # **Every** route under the throttled prefixes needs an entry here. There is
     # deliberately no default to fall back on: a default would make
     # `verify_ceilings` vacuous, since every route would always "have" a
     # ceiling, and AC-0001-33's last clause asks for the opposite. Adding a
     # route under those prefixes breaks the build until its ceiling is chosen,
     # which is the same bargain `verify_coverage` makes for authorisation.
-    rate_limit_tetos: dict[str, int] = {
+    rate_limit_ceilings: dict[str, int] = {
         "/api/v1/auth/login": 20,
         "/api/v1/auth/refresh": 60,
         "/api/v1/auth/logout": 60,
@@ -103,25 +103,25 @@ class Settings(BaseSettings):
     # behind one NAT address, so an internet-tuned ceiling locks out a building
     # on its first busy morning — while an exemption would leave an attacker who
     # reached the internal network facing no limit at all.
-    rate_limit_faixas_institucionais: list[str] = [
+    rate_limit_institutional_ranges: list[str] = [
         "10.0.0.0/8",
         "172.16.0.0/12",
         "192.168.0.0/16",
     ]
-    rate_limit_teto_institucional: int = 600
+    rate_limit_institutional_ceiling: int = 600
 
-    janela_tentativas_minutos: int = 15
-    bloqueio_minutos: int = 15
+    login_attempt_window_minutes: int = 15
+    lockout_minutes: int = 15
 
     # ── Invitations and resets (AC-0001-11, -25, -31) ───────────────────────
     # Where an activation or reset link points. The token travels as a query
     # parameter on the frontend route, which then posts it in a request body:
     # a link has to be openable, but our API never takes it in a path.
-    url_base_frontend: str = "http://localhost:3000"
-    convite_ttl_horas: int = 72
+    frontend_base_url: str = "http://localhost:3000"
+    invite_ttl_hours: int = 72
     # One hour against the invitation's 72: an invitation waits for somebody to
     # find the time, a reset is asked for by someone sitting at the screen.
-    redefinicao_ttl_horas: int = 1
+    reset_ttl_hours: int = 1
 
 
 @lru_cache

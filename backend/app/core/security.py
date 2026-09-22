@@ -106,7 +106,7 @@ def issue_access_token(
     """Mint an access token for this user and role."""
     cfg = get_settings()
     now = now or datetime.datetime.now(datetime.UTC)
-    expires = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutos)
+    expires = now + datetime.timedelta(minutes=cfg.access_token_ttl_minutes)
     return jwt.encode(
         {
             # RS256 is deterministic: with no unique claim, two tokens minted

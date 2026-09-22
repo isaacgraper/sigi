@@ -111,7 +111,7 @@ def _sign_state(state: str, nonce: str, verifier: str, now: datetime.datetime) -
     from app.core.security import _key_pair
 
     cfg = get_settings()
-    expires = now + datetime.timedelta(minutes=cfg.oidc_estado_ttl_minutos)
+    expires = now + datetime.timedelta(minutes=cfg.oidc_state_ttl_minutes)
     return jwt.encode(
         {
             "typ": STATE_TYPE,
@@ -230,7 +230,7 @@ def _verify(id_token: str, *, nonce: str, now: datetime.datetime) -> Assertion:
         # be replayable into this one.
         raise InvalidAssertion()
 
-    group = content.get(cfg.oidc_claim_grupo)
+    group = content.get(cfg.oidc_claim_group)
     if isinstance(group, list):
         group = group[0] if group else None
 

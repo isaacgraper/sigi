@@ -50,7 +50,7 @@ class IssuedGrant:
 
     def link(self, path: str) -> str:
         """Build the URL the person opens to use this grant."""
-        base = get_settings().url_base_frontend.rstrip("/")
+        base = get_settings().frontend_base_url.rstrip("/")
         return f"{base}{path}?token={self.value}"
 
 
@@ -69,7 +69,7 @@ def issue(
     violation instead of superseding the first.
     """
     cfg = get_settings()
-    hours = cfg.convite_ttl_horas if kind == INVITE else cfg.redefinicao_ttl_horas
+    hours = cfg.invite_ttl_hours if kind == INVITE else cfg.reset_ttl_hours
     repo.cancel_open(session, user_id=user_id, kind=kind, at=at)
 
     value = secrets.token_urlsafe(TOKEN_BYTES)
@@ -131,6 +131,6 @@ def require_strong_password(password: str) -> None:
     NIST dropped them for that reason. If the entity's own policy demands them,
     that is a spec change, not something to add here quietly.
     """
-    minimum = get_settings().senha_tamanho_minimo
+    minimum = get_settings().password_min_length
     if len(password) < minimum:
         raise WeakPassword(minimum)
