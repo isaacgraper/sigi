@@ -24,12 +24,15 @@ the wiring diagram.
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
 | Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` | push · PR |
 | Frontend lint, tests and build | — | `frontend-ci` | PR |
-| **Tests run on real PostgreSQL** | CLAUDE.md | — **no database test exists yet** | never |
-| **Models and schema agree (`alembic check`)** | definition-of-done | — **no migration exists yet** | never |
-| **Audit trail is append-only (RN06)** | CLAUDE.md · ADR-0004 | — **the table does not exist yet** | never |
+| Tests run on real PostgreSQL | CLAUDE.md | `pre-push` hook · `backend-ci` | push · PR |
+| Models and schema agree (`alembic check`) | definition-of-done | `test_migration_baseline.py` | push · PR |
+| Audit trail is append-only (RN06) | CLAUDE.md · ADR-0004 | database triggers · `test_audit_immutability.py` | always · push · PR |
 | **Every AC has a test that names it** | `requirements/traceability.md` | `/trace` — **run by a person** | never, unasked |
 | **Spec is `Approved` before code** | CLAUDE.md | — **a reviewer, reading** | never |
 | **A new dependency is justified in the spec's plan** | CLAUDE.md | — **a reviewer, reading** | never |
+| **A human other than the author approved the PR** | definition-of-done | — **GitHub, and the team's discipline** | never, automatically |
+| **Backward compatibility against consuming modules** | definition-of-done | — **a reviewer, reading** | never |
+| **The product owner used the change on a running system** | definition-of-done | — **a person, on a deployment** | never |
 | **p95 under 300 ms (RNF01)** | `requirements/non-functional.md` | — **the k6 job does not exist yet** | never |
 
 The rows in bold are the reason this document exists. They are real rules that
@@ -38,21 +41,26 @@ way to describe the state of the project.
 
 They are not all the same kind of nothing:
 
-- **Two should stay human.** A reviewer deciding whether a spec is ready, or
-  whether a new dependency is justified, is not automatable and should not be.
+- **Five should stay human, and always will.** A reviewer deciding whether a
+  spec is ready or a dependency is justified; a second pair of eyes approving
+  the diff; someone asking what else consumes the module that changed; and the
+  product owner opening the thing and using it. None of these is automatable,
+  and a pipeline that claimed to cover them would be lying.
 - **Two are debt with no excuse.** `/trace` exists and could run in CI; RNF01's
   performance job is named in `traceability.md` against a file nobody has
   written.
-- **Three are waiting on code that does not exist yet.** There is no migration,
-  no audit table and no database-backed test on this branch, so there is nothing
-  for `alembic check`, the append-only trigger or testcontainers to be asserted
-  against. They arrive with SPEC-0001, and the commit that brings them moves
-  these rows up into the enforced half of the table.
 
-The first draft of this file listed those last three as enforced, because they
-are enforced on the branch the author had open. That is exactly the failure this
-document is written against, caught by reading the table against the repository
-instead of against memory — which is the check the closing section asks for.
+*(2026-09-22)* **Three rows moved up into the enforced half.** They used to read
+"no migration exists yet", "no database test exists yet" and "the table does not
+exist yet". SPEC-0001 brought all three: `0001_baseline`, 15 test files against
+a real PostgreSQL, and the audit table with its `ENABLE ALWAYS` triggers. The
+rows stayed stale for weeks after the commit that should have moved them.
+
+The first draft of this file listed those three as enforced when they were not,
+because they were enforced on the branch the author had open. It then listed
+them as absent long after they arrived. Both failures are the same one, and both
+were caught by reading the table against the repository instead of against
+memory — which is the check the closing section asks for.
 
 ## What runs when, and why there
 

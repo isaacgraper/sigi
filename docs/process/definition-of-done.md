@@ -43,6 +43,31 @@ rather than mistaken for a pipeline.
 - [ ] No personal data (CPF, SIAPE, e-mail) in logs, fixtures or error messages.
 - [ ] Anything new touching personal data reflected in `docs/security/lgpd.md`.
 
+## Acceptance
+
+What "finished" means. The first is mechanical and the rest are not, which is
+the point: a green pipeline says the code does what the tests say, never that
+the feature exists for anybody.
+
+- [ ] **Every automated gate is green, not just the backend ones.** `ruff`,
+      `ruff format`, `mypy` over `app migrations tests`, the personal-data and
+      commit-message hooks, `pytest` with coverage, `alembic check`, and the
+      frontend's lint, test and build. A gate that is installed and never run is
+      not a gate.
+- [ ] **A human other than the author has reviewed the diff and approved the
+      pull request.** The author cannot approve their own work, and a tool
+      cannot stand in for this. `/spec-review` checks a spec's shape; it does
+      not read a diff.
+- [ ] **Backward compatibility checked against the modules that consume this
+      one.** Name them in the pull request, and say what you checked. A shared
+      service, an error code, a payload field, an environment variable and a
+      database column each have callers, and "the suite is green" only covers
+      the callers that have tests.
+- [ ] **The product owner has used the change on a running system.** Not read
+      the diff, not seen the tests pass: opened it and done the thing it was
+      built for. This is the gate that catches a complete backend nobody can
+      reach, and it is the one that decides whether a spec is finished.
+
 ## Observability
 
 - [ ] Structured log on every state transition, including actor and reason.
