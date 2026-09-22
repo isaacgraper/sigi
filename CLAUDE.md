@@ -24,26 +24,20 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-*(Rewritten 2026-09-10. The previous text claimed there was no code, which had
-stopped being true.)*
+*(Rewritten 2026-09-22, after SPEC-0001 finished. The previous text said "the
+behaviour does not exist" and called `app/services/` empty weeks after ten
+modules landed there, and pinned the spec at v0.5 when it was at v1.2. This
+section ages faster than any other: check a sentence here before acting on it.)*
 
-*(This section went stale within one session on 2026-09-10, which is what a
-"current state" section does. If you are about to trust a sentence here, check
-it.)*
+**SPEC-0001 is implemented.** `backend/` serves local login with refresh
+rotation and logout, per-address lockout, institutional OIDC, member invitations
+and activation, member management with anonymised deactivation,
+gestor-triggered password reset, a permission matrix checked when the app is
+assembled, and per-source rate limiting. The audit trail is written in the
+caller's transaction and is append-only at the database level. 157 tests run
+against a real PostgreSQL 16.
 
-**The substrate exists; the behaviour does not.** `backend/` runs a FastAPI app
-factory with `/health`, a `Settings` object carrying **two database URLs**, and
-migration `0001_baseline`, which creates `usuario`, `token_credencial`,
-`tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
-`historico_movimentacao` with seven yearly partitions. Every table has a
-SQLAlchemy model, and `alembic check` is asserted by a test — so a divergence
-between models and schema fails the suite rather than producing a migration
-that drops tables.
-
-`frontend/` is still a Next.js App Router skeleton with a placeholder page.
-
-**What does not exist yet:** any endpoint beyond `/health`, any service, any
-authentication. No `app/services/` content, no `app/api/auth.py`.
+`frontend/` is still a Next.js skeleton. Nothing consumes the API yet.
 
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee
@@ -51,21 +45,35 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Specs:** `SPEC-0001` is at **v0.5**, `Approved`, and is the one being
-implemented — 33 acceptance criteria covering local and OIDC authentication,
-invitations, password reset, the permission matrix and rate limiting. Everything
-else is `Draft`, and **a spec at `Draft` may not be implemented**.
+**One migration.** `0001_baseline` creates `usuario`, `token_credencial`,
+`tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
+`historico_movimentacao` with seven yearly partitions to 2032. `alembic check`
+is asserted by a test, so a model that drifts from the schema fails the suite
+instead of producing a migration that drops tables. Nothing since the baseline
+has needed a second one.
 
-*(2026-09-10)* Of the gates `docs/GETTING-STARTED.md` sets before code, the data
-closed **OQ-05** (an NE covers many insumos — 27,8%, up to 37; ADR-0007) and
-**OQ-04** (the "área de competência" is unidade + grupo de materiais, which
-SPEC-0003 will enforce). `Assumed` and implemented: **OQ-07** (AC-0004-16),
-**OQ-09** and **OQ-10** (ADR-0010). Still open: **OQ-17**, the live prototype
-JWT published in RFC Appendix 9.1, which must be revoked — this one blocks
-nothing mechanically and everything ethically. **OQ-28** stands too:
-`docs/rfc-sigi-v1.7.md` is marked superseded but still defines a second `RF05`
-and `RN11`, so no test may be named after either until its disposition is
-settled.
+**Specs:** `SPEC-0001` is at **v1.2**, `Approved`. Everything else is `Draft`,
+and **a spec at `Draft` may not be implemented** — audited: no test references
+an AC from SPEC-0002 to SPEC-0009.
+
+**What is left:**
+
+- **AC-0001-30**, self-service reset — blocked by design, not missed. No mail
+  transport, so no channel to the requester; returning the token in the response
+  would let anyone reset anyone's password.
+- **OQ-17** — the live prototype JWT in RFC Appendix 9.1 is still unrevoked.
+  Blocks nothing mechanically and everything ethically.
+- **OQ-28** — superseded `rfc-sigi-v1.7.md` still defines a second `RF05` and
+  `RN11`, so no test may be named after either.
+- **OQ-31** — AC-0001-32 no longer guarantees a gestor cannot take over an
+  account; with no mail transport they receive the reset link. Detectable
+  through the audit row and the session revocation, not impossible.
+- **OQ-32** — the throttle ignores `X-Forwarded-For`, so behind a reverse proxy
+  every request shares one ceiling. Needs the deployment topology.
+- Traceability gaps nobody has closed: `RN07` is meant to land in SPEC-0003 but
+  its `satisfies` does not claim it, `RF15` is implemented in SPEC-0002's body
+  but absent from its `satisfies` and from `traceability.md`, and `RF16` maps to
+  no spec.
 
 ## Non-negotiable domain rules
 
