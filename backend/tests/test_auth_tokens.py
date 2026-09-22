@@ -55,7 +55,7 @@ def test_ac_0001_06_expiracao_de_quinze_minutos() -> None:
     claims = verify_access_token(_issue(now=now))
     minutos = (claims.expires_at - now).total_seconds() / 60
     assert 14.9 < minutos < 15.1
-    assert minutos == pytest.approx(get_settings().access_token_ttl_minutos, abs=0.1)
+    assert minutos == pytest.approx(get_settings().access_token_ttl_minutes, abs=0.1)
 
 
 def test_ac_0001_06_token_expirado_e_recusado() -> None:

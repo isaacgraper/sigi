@@ -51,7 +51,7 @@ def authorize(response: Response) -> RedirectResponse:
     redirect.set_cookie(
         STATE_COOKIE,
         request_to_provider.signed_state,
-        max_age=cfg.oidc_estado_ttl_minutos * 60,
+        max_age=cfg.oidc_state_ttl_minutes * 60,
         httponly=True,
         secure=cfg.cookie_secure,
         samesite="lax",

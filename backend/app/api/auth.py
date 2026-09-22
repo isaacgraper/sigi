@@ -52,9 +52,9 @@ def _correlation_id(request: Request) -> uuid.UUID:
 def _set_cookie(response: Response, value: str) -> None:
     cfg = get_settings()
     response.set_cookie(
-        cfg.cookie_refresh_nome,
+        cfg.cookie_refresh_name,
         value,
-        max_age=cfg.refresh_token_ttl_dias * 24 * 60 * 60,
+        max_age=cfg.refresh_token_ttl_days * 24 * 60 * 60,
         httponly=True,
         secure=cfg.cookie_secure,
         samesite="lax",
@@ -63,7 +63,7 @@ def _set_cookie(response: Response, value: str) -> None:
 
 
 def _read_cookie(request: Request) -> str:
-    value = request.cookies.get(get_settings().cookie_refresh_nome)
+    value = request.cookies.get(get_settings().cookie_refresh_name)
     if not value:
         raise InvalidRefresh()
     return value
@@ -116,12 +116,12 @@ def logout(request: Request, response: Response, session: DbSession) -> None:
     """
     sessions.close(
         session,
-        refresh_token=request.cookies.get(get_settings().cookie_refresh_nome) or "",
+        refresh_token=request.cookies.get(get_settings().cookie_refresh_name) or "",
         correlation_id=_correlation_id(request),
     )
     # Cleared even when nothing was revoked: a caller who asked to leave should
     # not keep a cookie that still looks like a session.
-    response.delete_cookie(get_settings().cookie_refresh_nome, path=COOKIE_PATH)
+    response.delete_cookie(get_settings().cookie_refresh_name, path=COOKIE_PATH)
 
 
 @router.get("/me", response_model=UserOutput)

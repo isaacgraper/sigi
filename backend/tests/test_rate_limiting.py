@@ -34,7 +34,7 @@ def teto_baixo(monkeypatch: pytest.MonkeyPatch) -> Iterator[int]:
     from app.core.config import get_settings
 
     cfg = get_settings()
-    monkeypatch.setitem(cfg.rate_limit_tetos, LOGIN, 3)
+    monkeypatch.setitem(cfg.rate_limit_ceilings, LOGIN, 3)
     yield 3
 
 
@@ -278,7 +278,7 @@ def test_concurrent_requests_do_not_escape_the_ceiling(
     # otherwise match whatever the HTTP tests above left under /auth/login.
     route_path = "/api/v1/auth/teste-concorrencia"
     cfg = get_settings()
-    monkeypatch.setitem(cfg.rate_limit_tetos, route_path, 5)
+    monkeypatch.setitem(cfg.rate_limit_ceilings, route_path, 5)
     source = "203.0.113.7"
     now = datetime.datetime.now(datetime.UTC)
 

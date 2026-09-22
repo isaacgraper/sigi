@@ -35,11 +35,11 @@ def ceiling_for(route_path: str, *, institutional: bool) -> int:
     """
     cfg = get_settings()
     if institutional:
-        return cfg.rate_limit_teto_institucional
+        return cfg.rate_limit_institutional_ceiling
     try:
-        return cfg.rate_limit_tetos[route_path]
+        return cfg.rate_limit_ceilings[route_path]
     except KeyError:  # pragma: no cover - verify_ceilings refuses to start
-        return min(cfg.rate_limit_tetos.values(), default=1)
+        return min(cfg.rate_limit_ceilings.values(), default=1)
 
 
 def is_institutional(source: str) -> bool:
@@ -52,7 +52,7 @@ def is_institutional(source: str) -> bool:
         # direction matters: guessing "institutional" would hand the higher
         # ceiling to anyone who can make the source unreadable.
         return False
-    for cidr in cfg.rate_limit_faixas_institucionais:
+    for cidr in cfg.rate_limit_institutional_ranges:
         try:
             if address in ipaddress.ip_network(cidr, strict=False):
                 return True
@@ -91,7 +91,7 @@ def check(
     anyone whose requests all fail.
     """
     cfg = get_settings()
-    seconds = cfg.rate_limit_janela_segundos
+    seconds = cfg.rate_limit_window_seconds
     start = window_start(now, seconds=seconds)
     institutional = is_institutional(source)
     limit = ceiling_for(route_path, institutional=institutional)

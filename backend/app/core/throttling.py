@@ -67,12 +67,12 @@ def verify_ceilings(app: Starlette) -> None:
     missing = [
         path
         for path, _ in application_routes(app)
-        if path.startswith(throttle.PREFIXES) and path not in cfg.rate_limit_tetos
+        if path.startswith(throttle.PREFIXES) and path not in cfg.rate_limit_ceilings
     ]
     if missing:
         raise RouteWithoutCeiling(
             "throttled routes with no ceiling: "
             + ", ".join(sorted(missing))
-            + ". Add one to rate_limit_tetos. There is no default to fall back"
+            + ". Add one to rate_limit_ceilings. There is no default to fall back"
             " on, deliberately: with one, this check could never fail."
         )

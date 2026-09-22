@@ -54,7 +54,7 @@ def authenticate_local(
 
     user = (
         repo.by_email(session, email)
-        if _institutional_domain(email, cfg.dominios_institucionais)
+        if _institutional_domain(email, cfg.institutional_domains)
         else None
     )
     stored = user.senha_hash if user and user.senha_hash else _HASH_SENTINEL

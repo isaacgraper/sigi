@@ -62,15 +62,15 @@ def count_failure(
         session,
         email_hmac=hmac,
         now=now,
-        window=datetime.timedelta(minutes=cfg.janela_tentativas_minutos),
+        window=datetime.timedelta(minutes=cfg.login_attempt_window_minutes),
     )
-    if attempts < cfg.max_tentativas_login:
+    if attempts < cfg.max_login_attempts:
         return attempts
 
     repo.block(
         session,
         email_hmac=hmac,
-        until=now + datetime.timedelta(minutes=cfg.bloqueio_minutos),
+        until=now + datetime.timedelta(minutes=cfg.lockout_minutes),
     )
     record(
         session,

@@ -51,7 +51,7 @@ def open_session(
     now = _now()
     family = repo.create_family(session, user_id)
     value, token_hash = generate_refresh_token()
-    expires = now + datetime.timedelta(days=cfg.refresh_token_ttl_dias)
+    expires = now + datetime.timedelta(days=cfg.refresh_token_ttl_days)
     repo.create(
         session,
         user_id=user_id,
@@ -120,7 +120,7 @@ def rotate(
         family=current.family,
         generation=repo.next_generation(session, current.family),
         token_hash=token_hash,
-        expires_at=now + datetime.timedelta(days=cfg.refresh_token_ttl_dias),
+        expires_at=now + datetime.timedelta(days=cfg.refresh_token_ttl_days),
     )
     return TokenPair(
         access_token=issue_access_token(user_id=current.user_id, role=role, now=now),
