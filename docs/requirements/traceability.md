@@ -47,7 +47,7 @@ Requirements with no spec. This list must be empty before M5.
 | RNF09 | CI job `compose-smoke` |
 | RNF10 | CI job `coverage` |
 | RNF15 | `tests/test_money_precision.py` |
-| RNF16 | `tests/test_limite_taxa.py` *(2026-09-10, ADR-0012)* |
+| RNF16 | `tests/test_rate_limiting.py` *(2026-09-10, ADR-0012)* |
 
 ## Acceptance criteria added or revised *(2026-09-02, 2026-09-10)*
 

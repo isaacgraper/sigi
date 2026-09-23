@@ -37,8 +37,8 @@ from app.core.passwords import hash_password
 from app.main import create_app
 from app.models.user import User
 
-PAPEL_APP = "sigi_app_test"
-SENHA_APP = "sigi_app_test"
+APP_ROLE = "sigi_app_test"
+APP_ROLE_PASSWORD = "sigi_app_test"
 
 
 @pytest.fixture
@@ -52,11 +52,11 @@ def client() -> TestClient:
 
 
 @pytest.fixture(scope="session")
-def servidor_postgres() -> Iterator[str]:
+def postgres_server() -> Iterator[str]:
     """A libpq connection string for a superuser on a running PostgreSQL."""
-    externo = os.environ.get("TEST_DATABASE_URL_ADMIN")
-    if externo:
-        yield externo
+    foreign = os.environ.get("TEST_DATABASE_URL_ADMIN")
+    if foreign:
+        yield foreign
         return
 
     from testcontainers.postgres import PostgresContainer
@@ -68,104 +68,106 @@ def servidor_postgres() -> Iterator[str]:
         )
 
 
-def _sem_dbname(dsn: str) -> str:
+def _without_dbname(dsn: str) -> str:
     return " ".join(p for p in dsn.split() if not p.startswith("dbname="))
 
 
 @contextmanager
-def _banco_novo(servidor_postgres: str) -> Iterator[tuple[str, str]]:
+def _new_database(postgres_server: str) -> Iterator[tuple[str, str]]:
     """Create a throwaway database with the schema applied, and drop it after.
 
     Yields `(dsn_admin, dsn_app)` — the owner and the restricted role, which
     the privilege tests need to hold at the same time.
     """
-    nome = f"sigi_test_{uuid.uuid4().hex[:12]}"
-    base = _sem_dbname(servidor_postgres)
+    dbname = f"sigi_test_{uuid.uuid4().hex[:12]}"
+    base = _without_dbname(postgres_server)
 
     # DDL takes no bind parameters in PostgreSQL, so identifiers and literals
     # are composed rather than interpolated.
-    with psycopg.connect(servidor_postgres, autocommit=True) as c:
-        c.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(nome)))
+    with psycopg.connect(postgres_server, autocommit=True) as c:
+        c.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname)))
 
-    dsn_admin = f"{base} dbname={nome}"
+    dsn_admin = f"{base} dbname={dbname}"
     hostinfo = " ".join(p for p in base.split() if p.startswith(("host=", "port=")))
-    dsn_app = f"{hostinfo} user={PAPEL_APP} password={SENHA_APP} dbname={nome}"
+    dsn_app = f"{hostinfo} user={APP_ROLE} password={APP_ROLE_PASSWORD} dbname={dbname}"
 
     try:
         with psycopg.connect(dsn_admin, autocommit=True) as c:
-            papel = sql.Identifier(PAPEL_APP)
-            existe = c.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (PAPEL_APP,)).fetchone()
-            if existe is None:
+            db_role = sql.Identifier(APP_ROLE)
+            exists = c.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (APP_ROLE,)).fetchone()
+            if exists is None:
                 c.execute(
                     sql.SQL("CREATE ROLE {} LOGIN PASSWORD {} NOINHERIT").format(
-                        papel, sql.Literal(SENHA_APP)
+                        db_role, sql.Literal(APP_ROLE_PASSWORD)
                     )
                 )
             c.execute(
-                sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(sql.Identifier(nome), papel)
+                sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                    sql.Identifier(dbname), db_role
+                )
             )
-            c.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(papel))
-            c.execute(sql.SQL("REVOKE CREATE ON SCHEMA public FROM {}").format(papel))
+            c.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(db_role))
+            c.execute(sql.SQL("REVOKE CREATE ON SCHEMA public FROM {}").format(db_role))
             c.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
 
-        _aplicar_migracoes(dsn_admin)
+        _apply_migrations(dsn_admin)
         yield dsn_admin, dsn_app
     finally:
-        with psycopg.connect(servidor_postgres, autocommit=True) as c:
+        with psycopg.connect(postgres_server, autocommit=True) as c:
             c.execute(
-                sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(nome))
+                sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(dbname))
             )
 
 
-def _aplicar_migracoes(dsn_admin: str) -> None:
+def _apply_migrations(dsn_admin: str) -> None:
     """Run Alembic against the throwaway database.
 
     The application role name is passed through the environment because the
     migration reads it from settings — it is what the migration grants to, and
     what it refuses to run without.
     """
-    anterior = os.environ.get("DB_APP_ROLE")
-    os.environ["DB_APP_ROLE"] = PAPEL_APP
+    previous = os.environ.get("DB_APP_ROLE")
+    os.environ["DB_APP_ROLE"] = APP_ROLE
     try:
         from app.core.config import get_settings
 
         get_settings.cache_clear()
         cfg = Config("alembic.ini")
         cfg.set_main_option("script_location", "migrations")
-        cfg.set_main_option("sqlalchemy.url", _para_sqlalchemy(dsn_admin))
+        cfg.set_main_option("sqlalchemy.url", _to_sqlalchemy(dsn_admin))
         command.upgrade(cfg, "head")
     finally:
-        if anterior is None:
+        if previous is None:
             os.environ.pop("DB_APP_ROLE", None)
         else:
-            os.environ["DB_APP_ROLE"] = anterior
+            os.environ["DB_APP_ROLE"] = previous
         from app.core.config import get_settings
 
         get_settings.cache_clear()
 
 
-def _para_sqlalchemy(dsn: str) -> str:
-    partes = dict(p.split("=", 1) for p in dsn.split() if "=" in p)
-    senha = f":{partes['password']}" if "password" in partes else ""
+def _to_sqlalchemy(dsn: str) -> str:
+    parts = dict(p.split("=", 1) for p in dsn.split() if "=" in p)
+    password = f":{parts['password']}" if "password" in parts else ""
     return (
-        f"postgresql+psycopg://{partes['user']}{senha}"
-        f"@{partes['host']}:{partes.get('port', '5432')}/{partes['dbname']}"
+        f"postgresql+psycopg://{parts['user']}{password}"
+        f"@{parts['host']}:{parts.get('port', '5432')}/{parts['dbname']}"
     )
 
 
 @pytest.fixture(scope="session")
-def banco(servidor_postgres: str) -> Iterator[tuple[str, str]]:
+def database(postgres_server: str) -> Iterator[tuple[str, str]]:
     """One database for the whole session.
 
     Cheap, and enough for tests whose assertions are scoped to rows they
     created themselves.
     """
-    with _banco_novo(servidor_postgres) as dsns:
+    with _new_database(postgres_server) as dsns:
         yield dsns
 
 
 @pytest.fixture
-def banco_isolado(servidor_postgres: str) -> Iterator[tuple[str, str]]:
+def isolated_database(postgres_server: str) -> Iterator[tuple[str, str]]:
     """A database of its own, for tests of a *global* invariant.
 
     "At least one active gestor exists" is a property of the whole table, so a
@@ -173,32 +175,32 @@ def banco_isolado(servidor_postgres: str) -> Iterator[tuple[str, str]]:
     of their own — they would interfere in both directions. Paying for a fresh
     schema is cheaper than making every other test clean up after itself.
     """
-    with _banco_novo(servidor_postgres) as dsns:
+    with _new_database(postgres_server) as dsns:
         yield dsns
 
 
 @pytest.fixture
-def conexao_admin(banco: tuple[str, str]) -> Iterator[psycopg.Connection]:
+def admin_connection(database: tuple[str, str]) -> Iterator[psycopg.Connection]:
     """Owner connection. Can do DDL; the triggers still refuse it."""
-    with psycopg.connect(banco[0], autocommit=True) as c:
+    with psycopg.connect(database[0], autocommit=True) as c:
         yield c
 
 
 @pytest.fixture
-def conexao_app(banco: tuple[str, str]) -> Iterator[psycopg.Connection]:
+def app_connection(database: tuple[str, str]) -> Iterator[psycopg.Connection]:
     """Application connection. What production actually runs as."""
-    with psycopg.connect(banco[1], autocommit=True) as c:
+    with psycopg.connect(database[1], autocommit=True) as c:
         yield c
 
 
 @pytest.fixture
-def sessao(banco: tuple[str, str]) -> Iterator[Session]:
+def db_session(database: tuple[str, str]) -> Iterator[Session]:
     """A SQLAlchemy session as the *application* role.
 
     Not autocommit: the point of most of these tests is what happens at the
     transaction boundary, so the boundary has to be real.
     """
-    engine = create_engine(_para_sqlalchemy(banco[1]))
+    engine = create_engine(_to_sqlalchemy(database[1]))
     try:
         with sessionmaker(bind=engine, expire_on_commit=False)() as s:
             yield s
@@ -207,7 +209,7 @@ def sessao(banco: tuple[str, str]) -> Iterator[Session]:
 
 
 @pytest.fixture
-def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def application(database: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     """A `TestClient` whose application really talks to the test database.
 
     The engine is pointed at the restricted role rather than the dependency
@@ -220,8 +222,8 @@ def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iter
     from app.core.db import reset_engine
     from app.core.security import reset_keys
 
-    monkeypatch.setenv("DATABASE_URL", _para_sqlalchemy(banco[1]))
-    monkeypatch.setenv("DB_APP_ROLE", PAPEL_APP)
+    monkeypatch.setenv("DATABASE_URL", _to_sqlalchemy(database[1]))
+    monkeypatch.setenv("DB_APP_ROLE", APP_ROLE)
     get_settings.cache_clear()
     reset_engine()
     reset_keys()
@@ -233,8 +235,8 @@ def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iter
     # tests are independent scenarios, not one long session. Clearing the
     # counters is the honest fix — raising the ceilings until the suite passes
     # would be weakening the feature to suit the test runner.
-    with psycopg.connect(banco[0], autocommit=True) as limpeza:
-        limpeza.execute("DELETE FROM limite_taxa")
+    with psycopg.connect(database[0], autocommit=True) as cleanup:
+        cleanup.execute("DELETE FROM limite_taxa")
 
     try:
         with TestClient(create_app()) as c:
@@ -247,55 +249,55 @@ def application(banco: tuple[str, str], monkeypatch: pytest.MonkeyPatch) -> Iter
 
 
 @pytest.fixture
-def criar_usuario(sessao: Session) -> Callable[..., User]:
+def create_user(db_session: Session) -> Callable[..., User]:
     """Insert a usuario directly.
 
     Member management is a later step (AC-0001-10 onwards); until it exists the
     only honest way to arrange "given an ativo usuario" is to write the row.
     """
 
-    def criar(
+    def create(
         *,
         email: str | None = None,
-        senha: str | None = "SenhaCorreta-12345",
+        password: str | None = "SenhaCorreta-12345",
         perfil: str = "servidor",
         status: str = "ativo",
-        nome: str = "Pessoa de Teste",
+        name: str = "Pessoa de Teste",
     ) -> User:
-        usuario = User(
-            nome=nome,
+        user = User(
+            nome=name,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
-            senha_hash=hash_password(senha) if senha else None,
+            senha_hash=hash_password(password) if password else None,
             role=perfil,
             status=status,
         )
-        sessao.add(usuario)
-        sessao.commit()
-        sessao.refresh(usuario)
-        return usuario
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
+        return user
 
-    return criar
+    return create
 
 
-def cookie_from(response: object, nome: str) -> str | None:
+def cookie_from(response: object, name: str) -> str | None:
     """Read a Set-Cookie value from the raw headers.
 
     Not `response.cookies`: the refresh cookie is `Secure` (AC-0001-01) and the
     test client speaks plain http, so the cookie jar discards it — the flag
     under test would make the test that checks it unable to see it.
     """
-    for bruto in response.headers.get_list("set-cookie"):  # type: ignore[attr-defined]
-        atributo, _, resto = bruto.partition("=")
-        if atributo.strip() == nome:
-            return resto.split(";")[0]
+    for raw in response.headers.get_list("set-cookie"):  # type: ignore[attr-defined]
+        attribute, _, rest = raw.partition("=")
+        if attribute.strip() == name:
+            return rest.split(";")[0]
     return None
 
 
-def use_refresh(cliente: TestClient, valor: str) -> None:
+def use_refresh(client: TestClient, value: str) -> None:
     """Put a refresh token in the client's jar.
 
     Necessary because the cookie the application sets is `Secure` and the test
     client speaks plain http, so the jar drops it on arrival — the flag under
     test would otherwise make every flow that uses the cookie untestable.
     """
-    cliente.cookies.set("sigi_refresh", valor)
+    client.cookies.set("sigi_refresh", value)

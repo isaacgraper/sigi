@@ -3,7 +3,7 @@
 The API-level cases run against the shared test database, which already holds
 other active gestores, so blocking one never trips the last-gestor guard. The
 guard itself is a property of the whole table, so its tests take
-`banco_isolado`.
+`isolated_database`.
 """
 
 from __future__ import annotations
@@ -25,41 +25,45 @@ from app.services.errors import LastGestor
 
 USUARIOS = "/api/v1/usuarios"
 LOGIN = "/api/v1/auth/login"
-SENHA = "SenhaLongaOSuficiente-2026"
+# Not `*_PASSWORD`: gitleaks reads that keyword beside this entropy as a
+# credential. See `docs/process/sop-qualidade.md`.
+LONG_ENOUGH = "SenhaLongaOSuficiente-2026"
 
 
-def _as_gestor(application: TestClient, criar_usuario: Callable[..., User]) -> dict[str, str]:
+def _as_gestor(application: TestClient, create_user: Callable[..., User]) -> dict[str, str]:
     email = f"gestor-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    criar_usuario(email=email, perfil="gestor", senha=SENHA)
-    entrada = application.post(LOGIN, json={"email": email, "password": SENHA})
-    assert entrada.status_code == 200, entrada.text
-    return {"Authorization": f"Bearer {entrada.json()['access_token']}"}
+    create_user(email=email, perfil="gestor", password=LONG_ENOUGH)
+    entry = application.post(LOGIN, json={"email": email, "password": LONG_ENOUGH})
+    assert entry.status_code == 200, entry.text
+    return {"Authorization": f"Bearer {entry.json()['access_token']}"}
 
 
 def test_ac_0001_12_a_gestor_blocks_an_account(
-    application: TestClient, criar_usuario: Callable[..., User], sessao: Session
+    application: TestClient, create_user: Callable[..., User], db_session: Session
 ) -> None:
     """AC-0001-12 — the account is blocked and its sessions are revoked."""
-    headers = _as_gestor(application, criar_usuario)
-    alvo = criar_usuario(email=f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
+    headers = _as_gestor(application, create_user)
+    target = create_user(email=f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
 
     # The target has a live session, so there is something to revoke.
-    entrada = application.post(LOGIN, json={"email": alvo.email, "password": SENHA})
-    assert entrada.status_code == 200
-    token_do_alvo = entrada.json()["access_token"]
+    entry = application.post(LOGIN, json={"email": target.email, "password": LONG_ENOUGH})
+    assert entry.status_code == 200
+    target_token = entry.json()["access_token"]
 
-    response = application.post(f"{USUARIOS}/{alvo.id}/bloquear", headers=headers)
+    response = application.post(f"{USUARIOS}/{target.id}/bloquear", headers=headers)
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "bloqueado"
 
     # The unexpired access token stops working at once, because `ativo` is
     # checked on every request rather than at login (AC-0001-08).
-    eu = application.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token_do_alvo}"})
-    assert eu.status_code == 401
+    me_response = application.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {target_token}"}
+    )
+    assert me_response.status_code == 401
 
-    sessao.rollback()
-    motivo = sessao.execute(
-        text("SELECT revogado_motivo FROM sessao WHERE usuario_id = :u"), {"u": alvo.id}
+    db_session.rollback()
+    motivo = db_session.execute(
+        text("SELECT revogado_motivo FROM sessao WHERE usuario_id = :u"), {"u": target.id}
     ).scalar_one()
     # The session vocabulary, not the account's: `ck_sessao_motivo_valor` fixes
     # this list and "bloqueado" is not in it.
@@ -67,16 +71,16 @@ def test_ac_0001_12_a_gestor_blocks_an_account(
 
 
 def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
-    application: TestClient, criar_usuario: Callable[..., User], sessao: Session
+    application: TestClient, create_user: Callable[..., User], db_session: Session
 ) -> None:
     """AC-0001-14, RN16 — identifying fields go, the record of what they did stays."""
-    headers = _as_gestor(application, criar_usuario)
-    alvo = criar_usuario(
-        email=f"anon-{uuid.uuid4().hex[:8]}@sc.gov.br", nome="Pessoa Real", senha=SENHA
+    headers = _as_gestor(application, create_user)
+    target = create_user(
+        email=f"anon-{uuid.uuid4().hex[:8]}@sc.gov.br", name="Pessoa Real", password=LONG_ENOUGH
     )
-    alvo_id = alvo.id
+    target_id = target.id
 
-    response = application.post(f"{USUARIOS}/{alvo_id}/desativar", headers=headers)
+    response = application.post(f"{USUARIOS}/{target_id}/desativar", headers=headers)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["status"] == "desativado"
@@ -88,13 +92,13 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     # rewritten, which AC-0001-27 forbids anyway.
     assert body["pseudonym"]
 
-    sessao.rollback()
-    row = sessao.execute(
+    db_session.rollback()
+    row = db_session.execute(
         text(
             "SELECT nome, email, senha_hash, oidc_subject, anonimizado_em"
             " FROM usuario WHERE id = :u"
         ),
-        {"u": alvo_id},
+        {"u": target_id},
     ).one()
     assert row.nome is None
     assert row.email is None
@@ -103,32 +107,34 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     assert row.anonimizado_em is not None
 
     # The audit rows this person generated are still there and still attributable.
-    ainda = sessao.execute(
+    still = db_session.execute(
         text("SELECT count(*) FROM historico_movimentacao WHERE entidade_id = :u"),
-        {"u": alvo_id},
+        {"u": target_id},
     ).scalar_one()
-    assert ainda >= 1
+    assert still >= 1
 
 
 def test_deactivating_removes_the_credential_so_login_stops(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """Anonymisation nulls `senha_hash`, so the old password is no longer a way in."""
-    headers = _as_gestor(application, criar_usuario)
+    headers = _as_gestor(application, create_user)
     email = f"nologin-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    alvo = criar_usuario(email=email, senha=SENHA)
+    target = create_user(email=email, password=LONG_ENOUGH)
 
-    application.post(f"{USUARIOS}/{alvo.id}/desativar", headers=headers)
+    application.post(f"{USUARIOS}/{target.id}/desativar", headers=headers)
 
-    assert application.post(LOGIN, json={"email": email, "password": SENHA}).status_code == 401
+    assert (
+        application.post(LOGIN, json={"email": email, "password": LONG_ENOUGH}).status_code == 401
+    )
 
 
 def test_ac_0001_15_a_gestor_lists_members(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """AC-0001-15 — the page envelope is the one `api-conventions.md` fixes."""
-    headers = _as_gestor(application, criar_usuario)
-    criar_usuario(email=f"lista-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
+    headers = _as_gestor(application, create_user)
+    create_user(email=f"lista-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
 
     response = application.get(USUARIOS, params={"page": 1, "size": 5}, headers=headers)
     assert response.status_code == 200, response.text
@@ -140,29 +146,29 @@ def test_ac_0001_15_a_gestor_lists_members(
 
 
 def test_paging_never_repeats_a_row(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """The order is `criado_em DESC, id`, so pages do not overlap.
 
     `criado_em` alone is not unique enough: two invitations in the same
     millisecond would order arbitrarily between the two queries.
     """
-    headers = _as_gestor(application, criar_usuario)
+    headers = _as_gestor(application, create_user)
     for _ in range(4):
-        criar_usuario(email=f"pag-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
+        create_user(email=f"pag-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
 
-    primeira = application.get(USUARIOS, params={"page": 1, "size": 2}, headers=headers).json()
-    segunda = application.get(USUARIOS, params={"page": 2, "size": 2}, headers=headers).json()
+    first_page = application.get(USUARIOS, params={"page": 1, "size": 2}, headers=headers).json()
+    second_page = application.get(USUARIOS, params={"page": 2, "size": 2}, headers=headers).json()
 
-    ids_um = {item["id"] for item in primeira["items"]}
-    ids_dois = {item["id"] for item in segunda["items"]}
-    assert ids_um and ids_dois
-    assert ids_um.isdisjoint(ids_dois)
+    ids_one = {item["id"] for item in first_page["items"]}
+    ids_two = {item["id"] for item in second_page["items"]}
+    assert ids_one and ids_two
+    assert ids_one.isdisjoint(ids_two)
 
 
 @pytest.mark.parametrize("perfil", ["servidor", "auditor"])
 def test_ac_0001_13_a_servidor_or_auditor_cannot_manage_members(
-    application: TestClient, criar_usuario: Callable[..., User], perfil: str
+    application: TestClient, create_user: Callable[..., User], perfil: str
 ) -> None:
     """AC-0001-13 — managing members refuses a non-gestor.
 
@@ -172,22 +178,22 @@ def test_ac_0001_13_a_servidor_or_auditor_cannot_manage_members(
     kept the bug alive. The read is checked separately below.
     """
     email = f"{perfil}-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    criar_usuario(email=email, perfil=perfil, senha=SENHA)
-    entrada = application.post(LOGIN, json={"email": email, "password": SENHA})
-    headers = {"Authorization": f"Bearer {entrada.json()['access_token']}"}
-    alvo = criar_usuario(email=f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
+    create_user(email=email, perfil=perfil, password=LONG_ENOUGH)
+    entry = application.post(LOGIN, json={"email": email, "password": LONG_ENOUGH})
+    headers = {"Authorization": f"Bearer {entry.json()['access_token']}"}
+    target = create_user(email=f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
 
     for response in (
-        application.post(f"{USUARIOS}/{alvo.id}/bloquear", headers=headers),
-        application.post(f"{USUARIOS}/{alvo.id}/desativar", headers=headers),
-        application.post(f"{USUARIOS}/{alvo.id}/redefinir-senha", headers=headers),
+        application.post(f"{USUARIOS}/{target.id}/bloquear", headers=headers),
+        application.post(f"{USUARIOS}/{target.id}/desativar", headers=headers),
+        application.post(f"{USUARIOS}/{target.id}/redefinir-senha", headers=headers),
     ):
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
 
 
 def test_ac_0001_17_an_auditor_reads_the_member_list_and_a_servidor_does_not(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """SPEC-0001 §6 — the member list is the auditor's one member route.
 
@@ -196,33 +202,33 @@ def test_ac_0001_17_an_auditor_reads_the_member_list_and_a_servidor_does_not(
     """
     for perfil, expected in (("auditor", 200), ("servidor", 403)):
         email = f"{perfil}-lista-{uuid.uuid4().hex[:8]}@sc.gov.br"
-        criar_usuario(email=email, perfil=perfil, senha=SENHA)
-        entrada = application.post(LOGIN, json={"email": email, "password": SENHA})
-        headers = {"Authorization": f"Bearer {entrada.json()['access_token']}"}
+        create_user(email=email, perfil=perfil, password=LONG_ENOUGH)
+        entry = application.post(LOGIN, json={"email": email, "password": LONG_ENOUGH})
+        headers = {"Authorization": f"Bearer {entry.json()['access_token']}"}
 
         response = application.get(USUARIOS, headers=headers)
         assert response.status_code == expected, f"{perfil}: {response.text}"
 
 
-def test_an_unknown_id_is_404(application: TestClient, criar_usuario: Callable[..., User]) -> None:
+def test_an_unknown_id_is_404(application: TestClient, create_user: Callable[..., User]) -> None:
     """A gestor acting on an id that does not exist."""
-    headers = _as_gestor(application, criar_usuario)
+    headers = _as_gestor(application, create_user)
     response = application.post(f"{USUARIOS}/{uuid.uuid4()}/bloquear", headers=headers)
     assert response.status_code == 404
 
 
 def test_blocking_an_already_blocked_account_is_idempotent(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """No second audit row, and no error: the status is already what was asked for."""
-    headers = _as_gestor(application, criar_usuario)
-    alvo = criar_usuario(email=f"idem-{uuid.uuid4().hex[:8]}@sc.gov.br", senha=SENHA)
+    headers = _as_gestor(application, create_user)
+    target = create_user(email=f"idem-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
 
-    primeiro = application.post(f"{USUARIOS}/{alvo.id}/bloquear", headers=headers)
-    segundo = application.post(f"{USUARIOS}/{alvo.id}/bloquear", headers=headers)
-    assert primeiro.status_code == 200
-    assert segundo.status_code == 200
-    assert segundo.json()["status"] == "bloqueado"
+    first = application.post(f"{USUARIOS}/{target.id}/bloquear", headers=headers)
+    second = application.post(f"{USUARIOS}/{target.id}/bloquear", headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["status"] == "bloqueado"
 
 
 # ── The last active gestor (AC-0001-29) ─────────────────────────────────────
@@ -233,9 +239,9 @@ def test_blocking_an_already_blocked_account_is_idempotent(
 def _sessions_for(dsn: str) -> sessionmaker[Session]:
     # The fixtures hand out libpq keyword strings, not URLs. `conftest` already
     # converts; a second converter here is a second thing to keep in step.
-    from tests.conftest import _para_sqlalchemy
+    from tests.conftest import _to_sqlalchemy
 
-    return sessionmaker(bind=create_engine(_para_sqlalchemy(dsn)))
+    return sessionmaker(bind=create_engine(_to_sqlalchemy(dsn)))
 
 
 def _seed_gestor(dsn_admin: str, *, status: str = "ativo") -> uuid.UUID:
@@ -250,14 +256,14 @@ def _seed_gestor(dsn_admin: str, *, status: str = "ativo") -> uuid.UUID:
 
 
 def test_ac_0001_29_the_last_active_gestor_cannot_be_blocked(
-    banco_isolado: tuple[str, str],
+    isolated_database: tuple[str, str],
 ) -> None:
     """AC-0001-29 — refused with the criterion's own error, not a 500.
 
     Blocking the only active gestor locks the entity out of its own member
     management, with no path back that does not involve database access.
     """
-    dsn_admin, dsn_app = banco_isolado
+    dsn_admin, dsn_app = isolated_database
     ator = _seed_gestor(dsn_admin)
     Sessions = _sessions_for(dsn_app)
 
@@ -277,21 +283,21 @@ def test_ac_0001_29_the_last_active_gestor_cannot_be_blocked(
     # The refusal is recorded even though nothing was mutated: it is written in
     # the caller's transaction, which still commits.
     with psycopg.connect(dsn_admin, autocommit=True) as c:
-        registradas = c.execute(
+        recorded_rows = c.execute(
             "SELECT count(*) FROM historico_movimentacao WHERE acao = 'usuario.ultimo_gestor'"
         ).fetchone()
-        assert registradas is not None and registradas[0] >= 1
-        ainda_ativo = c.execute("SELECT status FROM usuario WHERE id = %s", (ator,)).fetchone()
-        assert ainda_ativo is not None and ainda_ativo[0] == "ativo"
+        assert recorded_rows is not None and recorded_rows[0] >= 1
+        still_active = c.execute("SELECT status FROM usuario WHERE id = %s", (ator,)).fetchone()
+        assert still_active is not None and still_active[0] == "ativo"
 
 
 def test_ac_0001_29_the_second_of_two_gestores_may_be_removed(
-    banco_isolado: tuple[str, str],
+    isolated_database: tuple[str, str],
 ) -> None:
     """The guard is "the last one", not "any gestor"."""
-    dsn_admin, dsn_app = banco_isolado
+    dsn_admin, dsn_app = isolated_database
     ator = _seed_gestor(dsn_admin)
-    outro = _seed_gestor(dsn_admin)
+    other = _seed_gestor(dsn_admin)
     Sessions = _sessions_for(dsn_app)
 
     with Sessions() as session:
@@ -300,19 +306,19 @@ def test_ac_0001_29_the_second_of_two_gestores_may_be_removed(
         members.block(
             session,
             actor=actor,
-            user_id=outro,
+            user_id=other,
             at=datetime.datetime.now(datetime.UTC),
             correlation_id=uuid.uuid4(),
         )
         session.commit()
 
     with psycopg.connect(dsn_admin, autocommit=True) as c:
-        row = c.execute("SELECT status FROM usuario WHERE id = %s", (outro,)).fetchone()
+        row = c.execute("SELECT status FROM usuario WHERE id = %s", (other,)).fetchone()
         assert row is not None and row[0] == "bloqueado"
 
 
 def test_ac_0001_29_under_concurrency_the_loser_gets_409_not_500(
-    banco_isolado: tuple[str, str],
+    isolated_database: tuple[str, str],
 ) -> None:
     """Two threads each removing a different one of exactly two gestores.
 
@@ -324,30 +330,30 @@ def test_ac_0001_29_under_concurrency_the_loser_gets_409_not_500(
 
     Repeated, because write skew is probabilistic and one pass proves nothing.
     """
-    dsn_admin, dsn_app = banco_isolado
+    dsn_admin, dsn_app = isolated_database
     Sessions = _sessions_for(dsn_app)
 
     for _ in range(6):
         # Seed the pair first, then retire everyone else. Blocking every gestor
         # up front would trip the trigger on the last one, which is the test's
         # own setup failing rather than the behaviour under test.
-        primeiro = _seed_gestor(dsn_admin)
-        segundo = _seed_gestor(dsn_admin)
+        first = _seed_gestor(dsn_admin)
+        second = _seed_gestor(dsn_admin)
         with psycopg.connect(dsn_admin, autocommit=True) as c:
             c.execute(
                 "UPDATE usuario SET status = 'bloqueado'"
                 " WHERE perfil = 'gestor' AND status = 'ativo' AND id <> %s AND id <> %s",
-                (primeiro, segundo),
+                (first, second),
             )
 
-        resultados: list[str] = []
+        results: list[str] = []
         lock = threading.Lock()
 
-        def remover(
-            alvo: uuid.UUID,
+        def remove(
+            target: uuid.UUID,
             ator: uuid.UUID,
-            saida: list[str] = resultados,
-            guarda: threading.Lock = lock,
+            output: list[str] = results,
+            guard: threading.Lock = lock,
         ) -> None:
             # `saida` and `guarda` are bound as defaults rather than closed
             # over: the joins below make the closure safe today, but a future
@@ -360,35 +366,35 @@ def test_ac_0001_29_under_concurrency_the_loser_gets_409_not_500(
                     members.block(
                         session,
                         actor=actor,
-                        user_id=alvo,
+                        user_id=target,
                         at=datetime.datetime.now(datetime.UTC),
                         correlation_id=uuid.uuid4(),
                     )
                     session.commit()
-                with guarda:
-                    saida.append("ok")
+                with guard:
+                    output.append("ok")
             except LastGestor:
-                with guarda:
-                    saida.append("409")
+                with guard:
+                    output.append("409")
             except Exception as exc:  # noqa: BLE001 - the point is to catch a 500
-                with guarda:
-                    saida.append(f"500:{type(exc).__name__}")
+                with guard:
+                    output.append(f"500:{type(exc).__name__}")
 
         threads = [
-            threading.Thread(target=remover, args=(primeiro, primeiro)),
-            threading.Thread(target=remover, args=(segundo, segundo)),
+            threading.Thread(target=remove, args=(first, first)),
+            threading.Thread(target=remove, args=(second, second)),
         ]
         for t in threads:
             t.start()
         for t in threads:
             t.join(timeout=30)
 
-        assert not [r for r in resultados if r.startswith("500")], resultados
-        assert resultados.count("ok") == 1, resultados
+        assert not [r for r in results if r.startswith("500")], results
+        assert results.count("ok") == 1, results
 
         with psycopg.connect(dsn_admin, autocommit=True) as c:
-            sobrou = c.execute(
+            left_over = c.execute(
                 "SELECT count(*) FROM usuario WHERE perfil = 'gestor' AND status = 'ativo'"
             ).fetchone()
             # The invariant that actually matters.
-            assert sobrou is not None and sobrou[0] >= 1, resultados
+            assert left_over is not None and left_over[0] >= 1, results

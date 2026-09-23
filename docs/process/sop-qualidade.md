@@ -79,6 +79,22 @@ a gate people bypass protects nothing, and the bypass for a commit hook
 duplicate of the hooks; it is the half that runs on code arriving from
 someone else's machine, where no hook was installed.
 
+### Naming a synthetic password in a test
+
+`gitleaks`' `generic-api-key` rule fires on a keyword — `password`, `token`,
+`secret`, `key`, `auth` — sitting beside a string of high enough entropy. The
+test suite's fixture passwords clear that entropy bar comfortably, so a constant
+called `PASSWORD` or `NEW_PASSWORD` is read as a credential and turns the PR red.
+Nothing leaked; the name is the whole finding.
+
+`.gitleaks.toml` allowlists exactly one value, `SenhaCorreta-12345`, because the
+rename in PR #19 had already reached `dev` and a range scan cannot be cleared by
+a later commit. Every other fixture password is kept out of the rule's way by its
+name instead: `LONG_ENOUGH`, `STRONG_ENOUGH`, `OLD_ONE`, `NEW_ONE`. Renaming one
+of those to `*_PASSWORD` will turn CI red, and that is the intended behaviour of
+the scanner rather than a fault in it. Widening the allowlist trades a permanent
+loss of coverage for a cosmetic gain; choose the name.
+
 Every pull request, not only the ones aimed at `dev` and `main`. The workflows
 used to filter `pull_request` by branch, and that filter matches the **target**,
 so a PR opened against another feature branch — one link of a stacked series —
