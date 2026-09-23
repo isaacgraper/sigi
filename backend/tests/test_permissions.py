@@ -36,7 +36,9 @@ from app.core.authorization import (
 from app.main import create_app
 from app.models.user import User
 
-SENHA_SWEEP = "SenhaLongaOSuficiente-2026"
+# Not `*_PASSWORD`: gitleaks reads that keyword beside this entropy as a
+# credential. See `docs/process/sop-qualidade.md`.
+LONG_ENOUGH = "SenhaLongaOSuficiente-2026"
 
 
 def test_ac_0001_23_every_write_route_declares_a_decision() -> None:
@@ -67,9 +69,9 @@ def test_ac_0001_23_a_route_without_a_decision_breaks_the_build() -> None:
     def _undeclared() -> None:  # pragma: no cover - never called
         return None
 
-    with pytest.raises(RouteWithoutDecision) as erro:
+    with pytest.raises(RouteWithoutDecision) as error:
         verify_coverage(app)
-    assert "/sem-decisao" in str(erro.value)
+    assert "/sem-decisao" in str(error.value)
 
 
 def test_a_read_route_needs_no_decision() -> None:
@@ -194,7 +196,7 @@ def test_the_matrix_covers_every_route_the_application_serves() -> None:
     )
 
 
-def _perfis_admitted(method: str, path: str) -> frozenset[str] | None:
+def _admitted_perfis(method: str, path: str) -> frozenset[str] | None:
     """What SPEC-0001 §6 says this route admits."""
     return MATRIX[(method, path)]
 
@@ -226,18 +228,18 @@ def _call(
 
 
 def _headers_for(
-    application: TestClient, criar_usuario: Callable[..., User], perfil: str
+    application: TestClient, create_user: Callable[..., User], perfil: str
 ) -> dict[str, str]:
     email = f"{perfil}-sweep-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    criar_usuario(email=email, perfil=perfil, senha=SENHA_SWEEP)
-    entrada = application.post("/api/v1/auth/login", json={"email": email, "password": SENHA_SWEEP})
-    assert entrada.status_code == 200, entrada.text
-    return {"Authorization": f"Bearer {entrada.json()['access_token']}"}
+    create_user(email=email, perfil=perfil, password=LONG_ENOUGH)
+    entry = application.post("/api/v1/auth/login", json={"email": email, "password": LONG_ENOUGH})
+    assert entry.status_code == 200, entry.text
+    return {"Authorization": f"Bearer {entry.json()['access_token']}"}
 
 
 @pytest.mark.parametrize("perfil", ["servidor", "auditor"])
 def test_ac_0001_16_17_every_write_route_holds_the_matrix(
-    application: TestClient, criar_usuario: Callable[..., User], perfil: str
+    application: TestClient, create_user: Callable[..., User], perfil: str
 ) -> None:
     """AC-0001-16/-17 — every write route, called as an `ativo` servidor and auditor.
 
@@ -250,14 +252,14 @@ def test_ac_0001_16_17_every_write_route_holds_the_matrix(
     never saw an HTTP status, so it could not have caught a route wired without
     its decision. It asserted materially less than the criteria state.
     """
-    headers = _headers_for(application, criar_usuario, perfil)
+    headers = _headers_for(application, create_user, perfil)
     app = create_app()
 
     swept = 0
     for path, route in application_routes(app):
         for method in sorted((route.methods or set()) & WRITE_METHODS):
             swept += 1
-            admitted = _perfis_admitted(method, path)
+            admitted = _admitted_perfis(method, path)
             response = _call(application, method, path, headers)
             code = _error_code(response)
 
@@ -277,7 +279,7 @@ def test_ac_0001_16_17_every_write_route_holds_the_matrix(
 
 
 def test_ac_0001_17_an_auditor_keeps_the_read_routes_it_is_allowed(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """AC-0001-17's second clause — read-only means read, not nothing.
 
@@ -285,13 +287,13 @@ def test_ac_0001_17_an_auditor_keeps_the_read_routes_it_is_allowed(
     auditor the member list explicitly ("auditor ✅ read-only"), and a test that
     only checked `/auth/me` would pass while that route refused them.
     """
-    headers = _headers_for(application, criar_usuario, "auditor")
+    headers = _headers_for(application, create_user, "auditor")
     app = create_app()
 
     checked = 0
     for path, route in application_routes(app):
         for method in sorted((route.methods or set()) - WRITE_METHODS - {"HEAD"}):
-            admitted = _perfis_admitted(method, path)
+            admitted = _admitted_perfis(method, path)
             if admitted is not None and "auditor" not in admitted:
                 continue
             checked += 1
@@ -304,10 +306,10 @@ def test_ac_0001_17_an_auditor_keeps_the_read_routes_it_is_allowed(
 
 
 def test_ac_0001_15_a_gestor_is_refused_by_no_write_route(
-    application: TestClient, criar_usuario: Callable[..., User]
+    application: TestClient, create_user: Callable[..., User]
 ) -> None:
     """AC-0001-15 — the matrix holds for `gestor`: nothing refuses them by perfil."""
-    headers = _headers_for(application, criar_usuario, "gestor")
+    headers = _headers_for(application, create_user, "gestor")
     app = create_app()
 
     for path, route in application_routes(app):

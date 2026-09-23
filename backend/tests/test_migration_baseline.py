@@ -15,26 +15,26 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from tests.conftest import _para_sqlalchemy
+from tests.conftest import _to_sqlalchemy
 
-ANOS = range(2026, 2033)
-PAPEL = "sigi_app_test"
+YEARS = range(2026, 2033)
+APP_ROLE = "sigi_app_test"
 
 
-def _um(cur: psycopg.Cursor) -> tuple:
-    linha = cur.fetchone()
-    assert linha is not None
-    return linha
+def _one(cur: psycopg.Cursor) -> tuple:
+    row = cur.fetchone()
+    assert row is not None
+    return row
 
 
 # ── shape ───────────────────────────────────────────────────────────────────
 
 
-def test_tabelas_e_particoes_existem(conexao_admin: psycopg.Connection) -> None:
+def test_the_tables_and_partitions_exist(admin_connection: psycopg.Connection) -> None:
     """Every table the spec names exists, with the seven yearly partitions."""
-    tabelas = {
+    tables = {
         r[0]
-        for r in conexao_admin.execute(
+        for r in admin_connection.execute(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
         ).fetchall()
     }
@@ -46,12 +46,12 @@ def test_tabelas_e_particoes_existem(conexao_admin: psycopg.Connection) -> None:
         "sessao_familia",
         "sessao",
         "historico_movimentacao",
-    } <= tabelas
-    assert {f"historico_movimentacao_{ano}" for ano in ANOS} <= tabelas
+    } <= tables
+    assert {f"historico_movimentacao_{year}" for year in YEARS} <= tables
 
 
-def test_chave_primaria_do_historico_inclui_a_coluna_de_particao(
-    conexao_admin: psycopg.Connection,
+def test_the_historico_primary_key_includes_the_partition_column(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """The documented `id UUID PK` was illegal.
 
@@ -59,9 +59,9 @@ def test_chave_primaria_do_historico_inclui_a_coluna_de_particao(
     partitioning column, so the first migration would have failed at CREATE
     TABLE. This pins the correction so nobody "tidies" it back.
     """
-    colunas = [
+    columns = [
         r[0]
-        for r in conexao_admin.execute("""
+        for r in admin_connection.execute("""
             SELECT a.attname
             FROM pg_index i
             JOIN pg_class c ON c.oid = i.indrelid
@@ -70,10 +70,10 @@ def test_chave_primaria_do_historico_inclui_a_coluna_de_particao(
             ORDER BY a.attname
         """).fetchall()
     ]
-    assert colunas == ["id", "ocorrido_em"]
+    assert columns == ["id", "ocorrido_em"]
 
 
-def test_limites_da_particao_estao_em_utc(conexao_admin: psycopg.Connection) -> None:
+def test_the_partition_bounds_are_in_utc(admin_connection: psycopg.Connection) -> None:
     """Partition bounds are written in explicit UTC.
 
     A bare date literal against TIMESTAMPTZ resolves in the session's TimeZone,
@@ -82,91 +82,93 @@ def test_limites_da_particao_estao_em_utc(conexao_admin: psycopg.Connection) -> 
 
     Read back in São Paulo time on purpose: that is where the bug would show.
     """
-    conexao_admin.execute("SET TimeZone = 'America/Sao_Paulo'")
-    limite = _um(
-        conexao_admin.execute("""
+    admin_connection.execute("SET TimeZone = 'America/Sao_Paulo'")
+    bound = _one(
+        admin_connection.execute("""
             SELECT pg_get_expr(relpartbound, oid) FROM pg_class
             WHERE relname = 'historico_movimentacao_2026'
         """)
     )[0]
-    assert "2025-12-31 21:00:00-03" in limite
-    assert "2026-12-31 21:00:00-03" in limite
+    assert "2025-12-31 21:00:00-03" in bound
+    assert "2026-12-31 21:00:00-03" in bound
 
 
 # ── append-only mechanics ───────────────────────────────────────────────────
 
 
-def test_trigger_esta_clonado_em_todas_as_particoes_e_sempre_ativo(
-    conexao_admin: psycopg.Connection,
+def test_the_trigger_is_cloned_on_every_partition_and_always_enabled(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """Every audit trigger is ENABLE ALWAYS, not merely enabled.
 
     `tgenabled = 'A'` is ENABLE ALWAYS, which is what survives
     `session_replication_role = 'replica'`.
     """
-    linhas = conexao_admin.execute("""
+    rows = admin_connection.execute("""
         SELECT c.relname, t.tgenabled
         FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
         WHERE t.tgname = 'trg_historico_imutavel' AND NOT t.tgisinternal
     """).fetchall()
-    nomes = {r[0] for r in linhas}
-    assert nomes == {"historico_movimentacao"} | {f"historico_movimentacao_{ano}" for ano in ANOS}
-    assert {r[1] for r in linhas} == {"A"}
+    names = {r[0] for r in rows}
+    assert names == {"historico_movimentacao"} | {
+        f"historico_movimentacao_{year}" for year in YEARS
+    }
+    assert {r[1] for r in rows} == {"A"}
 
 
-def test_acl_da_particao_e_apenas_select_e_insert(
-    conexao_admin: psycopg.Connection,
+def test_the_partition_acl_is_select_and_insert_only(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """No partition grants the app role more than SELECT and INSERT.
 
     Privileges are per-partition, not inherited, so a partition granting more
     would be the hole a `GRANT ... ON ALL TABLES` opens.
     """
-    acl = _um(
-        conexao_admin.execute(
+    acl = _one(
+        admin_connection.execute(
             "SELECT relacl::text FROM pg_class WHERE relname = 'historico_movimentacao_2032'"
         )
     )[0]
-    concedido = next(p for p in acl.strip("{}").split(",") if p.startswith(f"{PAPEL}="))
-    privilegios = concedido.split("=", 1)[1].split("/", 1)[0]
-    assert sorted(privilegios) == ["a", "r"]  # INSERT, SELECT — nothing else
+    granted = next(p for p in acl.strip("{}").split(",") if p.startswith(f"{APP_ROLE}="))
+    privileges = granted.split("=", 1)[1].split("/", 1)[0]
+    assert sorted(privileges) == ["a", "r"]  # INSERT, SELECT — nothing else
 
 
-def test_criar_particao_aplica_grant_e_enable_always(
-    conexao_admin: psycopg.Connection,
+def test_criar_particao_applies_the_grant_and_enable_always(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """A partition made later carries the same trigger and the same grants.
 
     The routine that creates next year's partition must reapply both, rather
     than trusting the clone to carry them.
     """
-    conexao_admin.execute("SELECT criar_particao_historico(2099)")
+    admin_connection.execute("SELECT criar_particao_historico(2099)")
     try:
-        acl = _um(
-            conexao_admin.execute(
+        acl = _one(
+            admin_connection.execute(
                 "SELECT relacl::text FROM pg_class WHERE relname = 'historico_movimentacao_2099'"
             )
         )[0]
-        assert f"{PAPEL}=ar/" in acl
-        estado = _um(
-            conexao_admin.execute("""
+        assert f"{APP_ROLE}=ar/" in acl
+        state = _one(
+            admin_connection.execute("""
                 SELECT t.tgenabled FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
                 WHERE c.relname = 'historico_movimentacao_2099'
                   AND t.tgname = 'trg_historico_imutavel'
             """)
         )[0]
-        assert estado == "A"
+        assert state == "A"
         # Idempotent: the scheduled job will call it repeatedly.
-        conexao_admin.execute("SELECT criar_particao_historico(2099)")
+        admin_connection.execute("SELECT criar_particao_historico(2099)")
     finally:
-        conexao_admin.execute("DROP TABLE historico_movimentacao_2099")
+        admin_connection.execute("DROP TABLE historico_movimentacao_2099")
 
 
 # ── generated columns ───────────────────────────────────────────────────────
 
 
-def test_pseudonimo_sobrevive_a_anonimizacao(
-    conexao_admin: psycopg.Connection,
+def test_the_pseudonym_survives_anonymisation(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """`pseudonimo` is a generated column, which is what makes AC-0001-14 work.
 
@@ -177,34 +179,34 @@ def test_pseudonimo_sobrevive_a_anonimizacao(
     the immutability needs no trigger.
     """
     uid = uuid.uuid4()
-    conexao_admin.execute(
+    admin_connection.execute(
         "INSERT INTO usuario (id, nome, email, perfil, status)"
         " VALUES (%s, 'Bruno', %s, 'servidor', 'ativo')",
         (uid, f"bruno-{uid.hex[:8]}@sc.gov.br"),
     )
-    before = _um(
-        conexao_admin.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
+    before = _one(
+        admin_connection.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
     )
     assert before[0].startswith("USR-")
     assert before[1] is True
 
-    conexao_admin.execute(
+    admin_connection.execute(
         "UPDATE usuario SET nome = NULL, email = NULL, senha_hash = NULL,"
         " oidc_subject = NULL, status = 'desativado', anonimizado_em = now()"
         " WHERE id = %s",
         (uid,),
     )
-    after = _um(
-        conexao_admin.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
+    after = _one(
+        admin_connection.execute("SELECT pseudonimo, ativo FROM usuario WHERE id = %s", (uid,))
     )
     assert after[0] == before[0]
     assert after[1] is False
 
 
-def test_coluna_gerada_nao_aceita_update(conexao_admin: psycopg.Connection) -> None:
+def test_a_generated_column_refuses_an_update(admin_connection: psycopg.Connection) -> None:
     """PostgreSQL itself refuses an UPDATE of `pseudonimo`."""
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute("UPDATE usuario SET pseudonimo = 'USR-FALSO'")
+        admin_connection.execute("UPDATE usuario SET pseudonimo = 'USR-FALSO'")
     assert exc.value.sqlstate == "428C9"
 
 
@@ -239,69 +241,69 @@ def test_coluna_gerada_nao_aceita_update(conexao_admin: psycopg.Connection) -> N
         ),
     ],
 )
-def test_constraints_recusam_dado_invalido(
-    conexao_admin: psycopg.Connection, label: str, sql_texto: str
+def test_the_constraints_refuse_invalid_data(
+    admin_connection: psycopg.Connection, label: str, sql_texto: str
 ) -> None:
     """Each CHECK refuses the shape it exists to refuse."""
     with pytest.raises(psycopg.errors.Error):
-        conexao_admin.execute(sql_texto)
+        admin_connection.execute(sql_texto)
 
 
-def test_anonimizacao_pela_metade_e_recusada(conexao_admin: psycopg.Connection) -> None:
+def test_a_half_done_anonymisation_is_refused(admin_connection: psycopg.Connection) -> None:
     """A half-finished anonymisation is refused.
 
     Blanking `nome` and `email` while leaving a live credential would be an
     account with no owner, so the constraint refuses a partial job.
     """
     uid = uuid.uuid4()
-    conexao_admin.execute(
+    admin_connection.execute(
         "INSERT INTO usuario (id, nome, email, perfil, status, senha_hash)"
         " VALUES (%s, 'Carla', %s, 'servidor', 'ativo', 'hash')",
         (uid, f"carla-{uid.hex[:8]}@sc.gov.br"),
     )
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute("UPDATE usuario SET anonimizado_em = now() WHERE id = %s", (uid,))
+        admin_connection.execute("UPDATE usuario SET anonimizado_em = now() WHERE id = %s", (uid,))
     assert exc.value.sqlstate == "23514"
 
 
-def test_familia_de_sessao_nao_atravessa_usuarios(
-    conexao_admin: psycopg.Connection,
+def test_a_sessao_familia_does_not_span_usuarios(
+    admin_connection: psycopg.Connection,
 ) -> None:
     """DB11 — a session family belongs to exactly one usuario.
 
     Without the composite FK one family could span two users, and revoking it
     would revoke another person's sessions.
     """
-    dono, intruder, familia = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    for uid, nome in ((dono, "Dono"), (intruder, "Intruso")):
-        conexao_admin.execute(
+    owner, intruder, family = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    for uid, nome in ((owner, "Dono"), (intruder, "Intruso")):
+        admin_connection.execute(
             "INSERT INTO usuario (id, nome, email, perfil, status)"
             " VALUES (%s, %s, %s, 'servidor', 'ativo')",
             (uid, nome, f"{nome.lower()}-{uid.hex[:8]}@sc.gov.br"),
         )
-    conexao_admin.execute(
+    admin_connection.execute(
         "INSERT INTO sessao_familia (familia, usuario_id) VALUES (%s, %s)",
-        (familia, dono),
+        (family, owner),
     )
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute(
+        admin_connection.execute(
             "INSERT INTO sessao (usuario_id, familia, geracao, refresh_token_hash, expira_em)"
             " VALUES (%s, %s, 1, %s, now() + interval '7 days')",
-            (intruder, familia, uuid.uuid4().bytes),
+            (intruder, family, uuid.uuid4().bytes),
         )
     assert exc.value.sqlstate == "23503"  # foreign_key_violation
 
 
-def test_apenas_um_token_aberto_por_tipo(conexao_admin: psycopg.Connection) -> None:
+def test_only_one_open_token_per_kind(admin_connection: psycopg.Connection) -> None:
     """The partial index allows one open token per usuario per `tipo`."""
     uid = uuid.uuid4()
-    conexao_admin.execute(
+    admin_connection.execute(
         "INSERT INTO usuario (id, nome, email, perfil, status)"
         " VALUES (%s, 'Dora', %s, 'servidor', 'pendente')",
         (uid, f"dora-{uid.hex[:8]}@sc.gov.br"),
     )
     gestor = uuid.uuid4()
-    conexao_admin.execute(
+    admin_connection.execute(
         "INSERT INTO usuario (id, nome, email, perfil, status)"
         " VALUES (%s, 'G', %s, 'gestor', 'ativo')",
         (gestor, f"g-{gestor.hex[:8]}@sc.gov.br"),
@@ -310,22 +312,22 @@ def test_apenas_um_token_aberto_por_tipo(conexao_admin: psycopg.Connection) -> N
         "INSERT INTO token_credencial (usuario_id, tipo, token_hash, criado_por, expira_em)"
         " VALUES (%s, 'convite', %s, %s, now() + interval '72 hours')"
     )
-    conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
+    admin_connection.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
+        admin_connection.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
     assert exc.value.sqlstate == "23505"  # unique_violation
 
     # Cancelling is what makes reissue possible — AC-0001-25's remedy.
-    conexao_admin.execute(
+    admin_connection.execute(
         "UPDATE token_credencial SET cancelado_em = now() WHERE usuario_id = %s", (uid,)
     )
-    conexao_admin.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
+    admin_connection.execute(insert_row, (uid, uuid.uuid4().bytes, gestor))
 
 
 # ── the last gestor ─────────────────────────────────────────────────────────
 
 
-def _criar_gestor(conn: psycopg.Connection) -> uuid.UUID:
+def _create_gestor(conn: psycopg.Connection) -> uuid.UUID:
     uid = uuid.uuid4()
     conn.execute(
         "INSERT INTO usuario (id, nome, email, perfil, status)"
@@ -335,13 +337,13 @@ def _criar_gestor(conn: psycopg.Connection) -> uuid.UUID:
     return uid
 
 
-def _gestores_ativos(conn: psycopg.Connection) -> int:
-    return _um(
+def _active_gestores(conn: psycopg.Connection) -> int:
+    return _one(
         conn.execute("SELECT count(*) FROM usuario WHERE perfil = 'gestor' AND status = 'ativo'")
     )[0]
 
 
-def test_ultimo_gestor_nao_pode_ser_removido(banco_isolado: tuple[str, str]) -> None:
+def test_the_last_gestor_cannot_be_removed(isolated_database: tuple[str, str]) -> None:
     """DB13 / AC-0001-29 — the last active gestor cannot be removed.
 
     Demotion counts: changing the last gestor's perfil empties the role exactly
@@ -352,26 +354,26 @@ def test_ultimo_gestor_nao_pode_ser_removido(banco_isolado: tuple[str, str]) -> 
     version of this test tried to drain the table down to one gestor and could
     not, since the trigger forbids reaching zero.
     """
-    with psycopg.connect(banco_isolado[0], autocommit=True) as conn:
-        assert _gestores_ativos(conn) == 0
-        unico = _criar_gestor(conn)
+    with psycopg.connect(isolated_database[0], autocommit=True) as conn:
+        assert _active_gestores(conn) == 0
+        only_one = _create_gestor(conn)
 
-        for tentativa in (
+        for attempt in (
             "UPDATE usuario SET status = 'desativado' WHERE id = %s",
             "UPDATE usuario SET status = 'bloqueado' WHERE id = %s",
             "UPDATE usuario SET perfil = 'servidor' WHERE id = %s",
         ):
             with pytest.raises(psycopg.errors.Error) as exc:
-                conn.execute(tentativa, (unico,))
+                conn.execute(attempt, (only_one,))
             assert exc.value.sqlstate == "SI005"
 
         # With a second gestor, removing one is allowed.
-        outro = _criar_gestor(conn)
-        conn.execute("UPDATE usuario SET status = 'desativado' WHERE id = %s", (outro,))
-        assert _gestores_ativos(conn) == 1
+        other = _create_gestor(conn)
+        conn.execute("UPDATE usuario SET status = 'desativado' WHERE id = %s", (other,))
+        assert _active_gestores(conn) == 1
 
 
-def test_ultimo_gestor_sob_concorrencia(banco_isolado: tuple[str, str]) -> None:
+def test_the_last_gestor_under_concurrency(isolated_database: tuple[str, str]) -> None:
     """Two requests, each removing a different one of exactly two gestores.
 
     The invariant that matters is that an active gestor survives. Note what the
@@ -389,9 +391,9 @@ def test_ultimo_gestor_sob_concorrencia(banco_isolado: tuple[str, str]) -> None:
 
     Repeated, because write skew is probabilistic and one pass proves nothing.
     """
-    dsn_admin = banco_isolado[0]
+    dsn_admin = isolated_database[0]
 
-    def desativar(uid: uuid.UUID) -> bool:
+    def deactivate(uid: uuid.UUID) -> bool:
         with psycopg.connect(dsn_admin, autocommit=True) as c:
             try:
                 c.execute("UPDATE usuario SET status = 'desativado' WHERE id = %s", (uid,))
@@ -404,35 +406,35 @@ def test_ultimo_gestor_sob_concorrencia(banco_isolado: tuple[str, str]) -> None:
             # Top up to exactly two active gestores. The trigger forbids
             # reaching zero, so a survivor from the previous round is kept and
             # only the shortfall is created.
-            for _ in range(max(2 - _gestores_ativos(prep), 0)):
-                _criar_gestor(prep)
-            alvos = [
+            for _ in range(max(2 - _active_gestores(prep), 0)):
+                _create_gestor(prep)
+            targets = [
                 r[0]
                 for r in prep.execute(
                     "SELECT id FROM usuario WHERE perfil = 'gestor' AND status = 'ativo'"
                     " ORDER BY id"
                 ).fetchall()
             ]
-            assert len(alvos) == 2
+            assert len(targets) == 2
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            resultados = list(pool.map(desativar, alvos))
+            results = list(pool.map(deactivate, targets))
 
         with psycopg.connect(dsn_admin, autocommit=True) as check:
-            assert _gestores_ativos(check) >= 1, "nenhum gestor ativo sobrou"
+            assert _active_gestores(check) >= 1, "nenhum gestor ativo sobrou"
             # Exactly one, not "at most one": `<=` would also pass if both
             # failed, which satisfies the invariant while proving no progress.
-            assert sum(resultados) == 1, f"esperava exatamente uma, obtive {resultados}"
+            assert sum(results) == 1, f"esperava exatamente uma, obtive {results}"
 
 
-def test_guarda_de_downgrade_recusa_com_auditoria(banco: tuple[str, str]) -> None:
+def test_the_downgrade_guard_refuses_and_audits(database: tuple[str, str]) -> None:
     """`alembic downgrade` must refuse rather than destroy the audit trail.
 
     The guard is asserted directly instead of by running the downgrade: this
     database is shared by the session, and tearing its schema down would take
     every other test with it.
     """
-    guarda = sql.SQL("""
+    guard = sql.SQL("""
         DO $$
         DECLARE n bigint;
         BEGIN
@@ -447,19 +449,19 @@ def test_guarda_de_downgrade_recusa_com_auditoria(banco: tuple[str, str]) -> Non
           END IF;
         END $$;
     """)
-    with psycopg.connect(banco[1], autocommit=True) as app:
+    with psycopg.connect(database[1], autocommit=True) as app:
         app.execute(
             "INSERT INTO historico_movimentacao"
             " (ocorrido_em, entidade_tipo, entidade_id, acao, correlation_id)"
             " VALUES (now(), 'usuario', gen_random_uuid(), 'auth.login', gen_random_uuid())"
         )
-    with psycopg.connect(banco[0], autocommit=True) as adm:
+    with psycopg.connect(database[0], autocommit=True) as admin:
         with pytest.raises(psycopg.errors.Error) as exc:
-            adm.execute(guarda)
+            admin.execute(guard)
         assert exc.value.sqlstate == "SI002"
 
 
-def test_modelos_nao_divergem_do_esquema(banco: tuple[str, str]) -> None:
+def test_the_models_do_not_drift_from_the_schema(database: tuple[str, str]) -> None:
     """`alembic check` must report nothing.
 
     This is the guard against the most expensive mistake available here. With an
@@ -478,7 +480,7 @@ def test_modelos_nao_divergem_do_esquema(banco: tuple[str, str]) -> None:
 
     cfg = Config("alembic.ini")
     cfg.set_main_option("script_location", "migrations")
-    cfg.set_main_option("sqlalchemy.url", _para_sqlalchemy(banco[0]))
+    cfg.set_main_option("sqlalchemy.url", _to_sqlalchemy(database[0]))
     try:
         command.check(cfg)
     except AutogenerateDiffsDetected as exc:  # pragma: no cover - only on drift

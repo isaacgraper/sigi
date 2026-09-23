@@ -19,9 +19,9 @@ from sqlalchemy.orm import Session
 from app.services.audit import Event, PersonalDataInHistory, record
 
 
-def _criar_usuario(sessao: Session, nome: str = "Ana") -> uuid.UUID:
+def _create_user(db_session: Session, nome: str = "Ana") -> uuid.UUID:
     uid = uuid.uuid4()
-    sessao.execute(
+    db_session.execute(
         text(
             "INSERT INTO usuario (id, nome, email, perfil, status)"
             " VALUES (:id, :nome, :email, 'servidor', 'ativo')"
@@ -31,100 +31,100 @@ def _criar_usuario(sessao: Session, nome: str = "Ana") -> uuid.UUID:
     return uid
 
 
-def _contar(sessao: Session, uid: uuid.UUID) -> int:
+def _count(db_session: Session, uid: uuid.UUID) -> int:
     return int(
-        sessao.execute(
+        db_session.execute(
             text("SELECT count(*) FROM historico_movimentacao WHERE entidade_id = :i"),
             {"i": uid},
         ).scalar_one()
     )
 
 
-def test_linha_e_gravada_na_transacao_de_quem_chama(sessao: Session) -> None:
+def test_the_row_is_written_in_the_callers_transaction(db_session: Session) -> None:
     """RN06 — the row lands in the caller's transaction, not one of its own."""
-    uid = _criar_usuario(sessao)
+    uid = _create_user(db_session)
     record(
-        sessao,
+        db_session,
         Event(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
         correlation_id=uuid.uuid4(),
     )
-    sessao.commit()
-    assert _contar(sessao, uid) == 1
+    db_session.commit()
+    assert _count(db_session, uid) == 1
 
 
-def test_rollback_da_mutacao_leva_a_auditoria_junto(sessao: Session) -> None:
+def test_rolling_the_mutation_back_takes_the_audit_with_it(db_session: Session) -> None:
     """The first half of the promise: no orphan audit row."""
-    uid = _criar_usuario(sessao)
+    uid = _create_user(db_session)
     record(
-        sessao,
+        db_session,
         Event(entidade_tipo="usuario", entidade_id=uid, acao="usuario.convidado"),
         correlation_id=uuid.uuid4(),
     )
-    sessao.rollback()
-    assert _contar(sessao, uid) == 0
-    existe = sessao.execute(
+    db_session.rollback()
+    assert _count(db_session, uid) == 0
+    exists = db_session.execute(
         text("SELECT count(*) FROM usuario WHERE id = :i"), {"i": uid}
     ).scalar_one()
-    assert existe == 0
+    assert exists == 0
 
 
-def test_falha_da_auditoria_derruba_a_mutacao(sessao: Session) -> None:
+def test_a_failed_audit_brings_the_mutation_down(db_session: Session) -> None:
     r"""The second half, and the one that is easy to leave untested.
 
     `acao` must match `^[a-z_]+\\.[a-z_]+$`, so a malformed one is refused by the
     database. What this asserts is not the refusal — that is the migration's
     test — but that the mutation made moments earlier does **not** survive it.
     """
-    uid = _criar_usuario(sessao, "Bruno")
+    uid = _create_user(db_session, "Bruno")
     with pytest.raises(DBAPIError):
         record(
-            sessao,
+            db_session,
             Event(entidade_tipo="usuario", entidade_id=uid, acao="UsuarioConvidado"),
             correlation_id=uuid.uuid4(),
         )
-    sessao.rollback()
-    sobrou = sessao.execute(
+    db_session.rollback()
+    left_over = db_session.execute(
         text("SELECT count(*) FROM usuario WHERE id = :i"), {"i": uid}
     ).scalar_one()
-    assert sobrou == 0, "a mutação sobreviveu à falha da auditoria"
+    assert left_over == 0, "a mutação sobreviveu à falha da auditoria"
 
 
-def test_linha_sem_ator_e_permitida(sessao: Session) -> None:
+def test_a_row_without_an_ator_is_allowed(db_session: Session) -> None:
     """A row with no actor is allowed.
 
     AC-0001-20 and AC-0001-21 both audit callers who have no account at all,
     which is why `usuario_id` is nullable.
     """
-    alvo = uuid.uuid4()
+    target = uuid.uuid4()
     record(
-        sessao,
+        db_session,
         Event(
             entidade_tipo="usuario",
-            entidade_id=alvo,
+            entidade_id=target,
             acao="auth.oidc_recusada",
             user_id=None,
             dados_anteriores={"motivo": "sem_conta", "dominio": "sc.gov.br"},
         ),
         correlation_id=uuid.uuid4(),
     )
-    sessao.commit()
-    assert _contar(sessao, alvo) == 1
+    db_session.commit()
+    assert _count(db_session, target) == 1
 
 
-def test_correlation_id_e_gravado(sessao: Session) -> None:
+def test_the_correlation_id_is_recorded(db_session: Session) -> None:
     """RNF12 — the correlation id reaches the row, so a log line can be tied to it."""
-    uid, correlacao = uuid.uuid4(), uuid.uuid4()
+    uid, correlation = uuid.uuid4(), uuid.uuid4()
     record(
-        sessao,
+        db_session,
         Event(entidade_tipo="usuario", entidade_id=uid, acao="auth.login"),
-        correlation_id=correlacao,
+        correlation_id=correlation,
     )
-    sessao.commit()
-    gravado = sessao.execute(
+    db_session.commit()
+    recorded = db_session.execute(
         text("SELECT correlation_id FROM historico_movimentacao WHERE entidade_id = :i"),
         {"i": uid},
     ).scalar_one()
-    assert gravado == correlacao
+    assert recorded == correlation
 
 
 @pytest.mark.parametrize(
@@ -136,7 +136,9 @@ def test_correlation_id_e_gravado(sessao: Session) -> None:
     ],
     ids=["raso", "aninhado", "dentro-de-lista"],
 )
-def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: dict) -> None:
+def test_the_guard_refuses_an_address_in_dados_anteriores(
+    db_session: Session, payload: dict
+) -> None:
     """An address in `dados_anteriores` is refused.
 
     `lgpd.md` promises the audit table carries no personal data, and the table
@@ -147,7 +149,7 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
     """
     with pytest.raises(PersonalDataInHistory) as exc:
         record(
-            sessao,
+            db_session,
             Event(
                 entidade_tipo="usuario",
                 entidade_id=uuid.uuid4(),
@@ -159,12 +161,12 @@ def test_guarda_recusa_endereco_em_dados_anteriores(sessao: Session, payload: di
     assert "secrets_hmac.digest_secret" in str(exc.value)
 
 
-def test_guarda_deixa_passar_o_payload_correto(sessao: Session) -> None:
+def test_the_guard_lets_the_correct_payload_through(db_session: Session) -> None:
     """What SPEC-0001 §8 actually prescribes: the HMAC and the bare domain."""
     from app.core.secrets_hmac import digest_secret
 
     record(
-        sessao,
+        db_session,
         Event(
             entidade_tipo="usuario",
             entidade_id=uuid.uuid4(),
@@ -177,4 +179,4 @@ def test_guarda_deixa_passar_o_payload_correto(sessao: Session) -> None:
         ),
         correlation_id=uuid.uuid4(),
     )
-    sessao.commit()
+    db_session.commit()

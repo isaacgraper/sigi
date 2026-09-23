@@ -198,7 +198,7 @@ def test_ac_0001_19_a_state_never_issued_is_refused(
 def test_ac_0001_20_the_id_token_is_verified(
     application: TestClient,
     provider: FakeProvider,
-    sessao: Session,
+    db_session: Session,
     label: str,
     overrides: dict[str, Any],
 ) -> None:
@@ -211,8 +211,8 @@ def test_ac_0001_20_the_id_token_is_verified(
     assert response.status_code == 401, f"{label}: {response.text}"
     assert response.json()["error"]["code"] == "INVALID_ASSERTION"
 
-    sessao.rollback()
-    refusals = sessao.execute(
+    db_session.rollback()
+    refusals = db_session.execute(
         text("SELECT count(*) FROM historico_movimentacao WHERE acao = 'auth.oidc_recusada'")
     ).scalar_one()
     assert refusals >= 1
@@ -244,11 +244,11 @@ def test_ac_0001_20_a_swapped_nonce(application: TestClient, provider: FakeProvi
 
 
 def test_ac_0001_21_no_just_in_time_provisioning(
-    application: TestClient, provider: FakeProvider, sessao: Session
+    application: TestClient, provider: FakeProvider, db_session: Session
 ) -> None:
     """AC-0001-21 — a valid assertion with no account: 403, and no row created."""
-    sessao.rollback()
-    before = sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one()
+    db_session.rollback()
+    before = db_session.execute(text("SELECT count(*) FROM usuario")).scalar_one()
 
     state, nonce, cookie = _start(application)
     provider.id_token = provider.sign(nonce=nonce, sub="ninguem-aqui", email="ninguem@sc.gov.br")
@@ -257,12 +257,12 @@ def test_ac_0001_21_no_just_in_time_provisioning(
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "USUARIO_NAO_PROVISIONADO"
 
-    sessao.rollback()
-    assert sessao.execute(text("SELECT count(*) FROM usuario")).scalar_one() == before
+    db_session.rollback()
+    assert db_session.execute(text("SELECT count(*) FROM usuario")).scalar_one() == before
 
     # The asserted address is recorded as an HMAC: whoever was refused has no
     # account to anonymise later, and the table can never be corrected.
-    row = sessao.execute(
+    row = db_session.execute(
         text(
             "SELECT dados_anteriores::text FROM historico_movimentacao"
             " WHERE acao = 'auth.oidc_recusada' ORDER BY ocorrido_em DESC LIMIT 1"
@@ -276,16 +276,16 @@ def test_ac_0001_21_no_just_in_time_provisioning(
 def test_ac_0001_21_an_inactive_account_does_not_enter(
     application: TestClient,
     provider: FakeProvider,
-    criar_usuario: Callable[..., User],
+    create_user: Callable[..., User],
     status: str,
 ) -> None:
     """An account that exists but is not `ativo` also receives 403."""
     subject = f"sub-{status}-{uuid.uuid4().hex[:6]}"
     email = f"{status}-{uuid.uuid4().hex[:6]}@sc.gov.br"
-    criar_usuario(
+    create_user(
         email=email,
         status=status,
-        senha=None if status == "pendente" else "SenhaCorreta-12345",
+        password=None if status == "pendente" else "SenhaCorreta-12345",
     )
 
     state, nonce, cookie = _start(application)
@@ -299,12 +299,12 @@ def test_ac_0001_21_an_inactive_account_does_not_enter(
 def test_ac_0001_22_the_perfil_comes_from_the_record(
     application: TestClient,
     provider: FakeProvider,
-    criar_usuario: Callable[..., User],
-    sessao: Session,
+    create_user: Callable[..., User],
+    db_session: Session,
 ) -> None:
     """AC-0001-22 — the provider asserts "Gestores-TI"; the session is `servidor`."""
     email = f"perfil-{uuid.uuid4().hex[:6]}@sc.gov.br"
-    user = criar_usuario(email=email, perfil="servidor")
+    user = create_user(email=email, perfil="servidor")
 
     state, nonce, cookie = _start(application)
     provider.id_token = provider.sign(nonce=nonce, sub=f"sub-{user.id}", email=email)
@@ -315,8 +315,8 @@ def test_ac_0001_22_the_perfil_comes_from_the_record(
     claims = json.loads(jwt.utils.base64url_decode(access.split(".")[1] + "==").decode())
     assert claims["perfil"] == "servidor"
 
-    sessao.rollback()
-    claim = sessao.execute(
+    db_session.rollback()
+    claim = db_session.execute(
         text(
             "SELECT dados_anteriores::text FROM historico_movimentacao"
             " WHERE acao = 'auth.oidc_claim' AND entidade_id = :u"
@@ -331,7 +331,7 @@ def test_ac_0001_22_the_perfil_comes_from_the_record(
 def test_ac_0001_03_oidc_is_not_affected(
     application: TestClient,
     provider: FakeProvider,
-    criar_usuario: Callable[..., User],
+    create_user: Callable[..., User],
 ) -> None:
     """AC-0001-03, last clause — the per-address lockout does not reach OIDC.
 
@@ -340,7 +340,7 @@ def test_ac_0001_03_oidc_is_not_affected(
     exists to prevent, reached through a route it does not guard.
     """
     email = f"travado-{uuid.uuid4().hex[:6]}@sc.gov.br"
-    criar_usuario(email=email, perfil="gestor")
+    create_user(email=email, perfil="gestor")
 
     for _ in range(6):
         application.post(

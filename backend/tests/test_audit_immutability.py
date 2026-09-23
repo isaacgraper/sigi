@@ -13,12 +13,12 @@ import uuid
 import psycopg
 import pytest
 
-SQLSTATE_PRIVILEGIO = "42501"
-SQLSTATE_IMUTAVEL = "SI001"
-SQLSTATE_SEM_PARTICAO = "23514"
+SQLSTATE_PRIVILEGE = "42501"
+SQLSTATE_IMMUTABLE = "SI001"
+SQLSTATE_NO_PARTITION = "23514"
 
 
-def _semear(admin: psycopg.Connection, app: psycopg.Connection) -> uuid.UUID:
+def _seed(admin: psycopg.Connection, app: psycopg.Connection) -> uuid.UUID:
     """Create one usuario and one audit row, and return the usuario's id.
 
     The e-mail is unique per call and every assertion below is scoped to the
@@ -45,16 +45,16 @@ def _semear(admin: psycopg.Connection, app: psycopg.Connection) -> uuid.UUID:
     return uid
 
 
-def test_ac_0001_27_aplicacao_consegue_inserir(
-    conexao_admin: psycopg.Connection, conexao_app: psycopg.Connection
+def test_ac_0001_27_the_application_can_insert(
+    admin_connection: psycopg.Connection, app_connection: psycopg.Connection
 ) -> None:
     """The guard must not be so tight that the trail cannot be written."""
-    uid = _semear(conexao_admin, conexao_app)
-    linha = conexao_app.execute(
+    uid = _seed(admin_connection, app_connection)
+    row = app_connection.execute(
         "SELECT count(*) FROM historico_movimentacao WHERE usuario_id = %s", (uid,)
     ).fetchone()
-    assert linha is not None
-    assert linha[0] == 1
+    assert row is not None
+    assert row[0] == 1
 
 
 @pytest.mark.parametrize(
@@ -76,8 +76,8 @@ def test_ac_0001_27_aplicacao_consegue_inserir(
         "drop-da-particao",
     ],
 )
-def test_ac_0001_27_aplicacao_nao_reescreve(
-    conexao_admin: psycopg.Connection, conexao_app: psycopg.Connection, sql: str
+def test_ac_0001_27_the_application_cannot_rewrite(
+    admin_connection: psycopg.Connection, app_connection: psycopg.Connection, sql: str
 ) -> None:
     """Privileges stop the application, on the parent *and* on a named partition.
 
@@ -85,14 +85,14 @@ def test_ac_0001_27_aplicacao_nao_reescreve(
     rather than inherited, so a `GRANT ... ON ALL TABLES IN SCHEMA public` in
     somebody's convenience script would open exactly these holes.
     """
-    _semear(conexao_admin, conexao_app)
+    _seed(admin_connection, app_connection)
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_app.execute(sql)
-    assert exc.value.sqlstate == SQLSTATE_PRIVILEGIO
+        app_connection.execute(sql)
+    assert exc.value.sqlstate == SQLSTATE_PRIVILEGE
 
 
-def test_ac_0001_27_dono_tambem_e_recusado(
-    conexao_admin: psycopg.Connection, conexao_app: psycopg.Connection
+def test_ac_0001_27_the_owner_is_refused_too(
+    admin_connection: psycopg.Connection, app_connection: psycopg.Connection
 ) -> None:
     """The owner has the privilege, so only the trigger can refuse it.
 
@@ -100,47 +100,47 @@ def test_ac_0001_27_dono_tambem_e_recusado(
     the application connected as the owner, the privilege half of ADR-0004
     would be doing nothing at all.
     """
-    _semear(conexao_admin, conexao_app)
+    _seed(admin_connection, app_connection)
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute("UPDATE historico_movimentacao SET acao = 'x.y'")
-    assert exc.value.sqlstate == SQLSTATE_IMUTAVEL
+        admin_connection.execute("UPDATE historico_movimentacao SET acao = 'x.y'")
+    assert exc.value.sqlstate == SQLSTATE_IMMUTABLE
 
 
-def test_ac_0001_27_replica_nao_desliga_o_trigger(
-    conexao_admin: psycopg.Connection, conexao_app: psycopg.Connection
+def test_ac_0001_27_replica_does_not_disable_the_trigger(
+    admin_connection: psycopg.Connection, app_connection: psycopg.Connection
 ) -> None:
     """The documented way to bypass a trigger does not work here.
 
     `session_replication_role = 'replica'` is that documented way, and
     `ENABLE ALWAYS` is why it has no effect.
     """
-    _semear(conexao_admin, conexao_app)
-    conexao_admin.execute("SET session_replication_role = 'replica'")
+    _seed(admin_connection, app_connection)
+    admin_connection.execute("SET session_replication_role = 'replica'")
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_admin.execute("UPDATE historico_movimentacao SET acao = 'x.y'")
-    assert exc.value.sqlstate == SQLSTATE_IMUTAVEL
+        admin_connection.execute("UPDATE historico_movimentacao SET acao = 'x.y'")
+    assert exc.value.sqlstate == SQLSTATE_IMMUTABLE
 
 
-def test_ac_0001_27_linha_sobrevive_a_todas_as_tentativas(
-    conexao_admin: psycopg.Connection, conexao_app: psycopg.Connection
+def test_ac_0001_27_the_row_survives_every_attempt(
+    admin_connection: psycopg.Connection, app_connection: psycopg.Connection
 ) -> None:
     """AC-0001-27 — the row is still there, unchanged, after every attempt."""
-    uid = _semear(conexao_admin, conexao_app)
-    consulta = "SELECT id, acao, usuario_id FROM historico_movimentacao WHERE usuario_id = %s"
-    before = conexao_app.execute(consulta, (uid,)).fetchone()
-    for tentativa in (
+    uid = _seed(admin_connection, app_connection)
+    query = "SELECT id, acao, usuario_id FROM historico_movimentacao WHERE usuario_id = %s"
+    before = app_connection.execute(query, (uid,)).fetchone()
+    for attempt in (
         "UPDATE historico_movimentacao SET acao = 'x.y'",
         "DELETE FROM historico_movimentacao",
     ):
         with pytest.raises(psycopg.errors.Error):
-            conexao_app.execute(tentativa)
-    after = conexao_app.execute(consulta, (uid,)).fetchone()
+            app_connection.execute(attempt)
+    after = app_connection.execute(query, (uid,)).fetchone()
     assert before == after
     assert after is not None and after[2] == uid
 
 
-def test_ano_sem_particao_falha_de_forma_conhecida(
-    conexao_app: psycopg.Connection,
+def test_a_year_without_a_partition_fails_in_a_known_way(
+    app_connection: psycopg.Connection,
 ) -> None:
     """The January outage, asserted rather than discovered.
 
@@ -151,10 +151,10 @@ def test_ano_sem_particao_falha_de_forma_conhecida(
     preventing.
     """
     with pytest.raises(psycopg.errors.Error) as exc:
-        conexao_app.execute(
+        app_connection.execute(
             "INSERT INTO historico_movimentacao"
             " (ocorrido_em, entidade_tipo, entidade_id, acao, correlation_id)"
             " VALUES ('2033-06-01T00:00:00Z', 'usuario', gen_random_uuid(),"
             " 'auth.login', gen_random_uuid())"
         )
-    assert exc.value.sqlstate == SQLSTATE_SEM_PARTICAO
+    assert exc.value.sqlstate == SQLSTATE_NO_PARTITION

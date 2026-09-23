@@ -14,25 +14,25 @@ from fastapi.testclient import TestClient
 from app.core.correlation import HEADER
 
 
-def test_resposta_sempre_carrega_correlation_id(client: TestClient) -> None:
+def test_every_response_carries_a_correlation_id(client: TestClient) -> None:
     """RNF12 — every response carries one, whether or not the caller sent it."""
     response = client.get("/health")
     assert response.status_code == 200
     assert uuid.UUID(response.headers[HEADER])
 
 
-def test_valor_recebido_e_preservado(client: TestClient) -> None:
+def test_a_received_value_is_preserved(client: TestClient) -> None:
     """A value the caller supplies is kept.
 
     Accepting it is what lets one request be followed from the frontend through
     the API and into the audit trail.
     """
-    meu = uuid.uuid4()
-    response = client.get("/health", headers={HEADER: str(meu)})
-    assert response.headers[HEADER] == str(meu)
+    mine = uuid.uuid4()
+    response = client.get("/health", headers={HEADER: str(mine)})
+    assert response.headers[HEADER] == str(mine)
 
 
-def test_valor_malformado_e_substituido_e_nao_rejeitado(client: TestClient) -> None:
+def test_a_malformed_value_is_replaced_not_rejected(client: TestClient) -> None:
     """A malformed value is replaced, never rejected.
 
     It is a tracing convenience, not an authorisation input, so a bad value
