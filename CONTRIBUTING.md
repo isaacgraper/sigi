@@ -86,17 +86,24 @@ PR, and check the [definition of done](docs/process/definition-of-done.md).
 
 ## Commit convention
 
-[Conventional Commits](https://www.conventionalcommits.org/), with the spec
-referenced:
+[Conventional Commits](https://www.conventionalcommits.org/) without a module
+scope, with the spec referenced:
 
 ```
-feat(ne): validate saldo before pré-empenho [SPEC-0004]
-fix(nf): correct orphaned NF binding [SPEC-0005]
-chore(ci): add frontend lint workflow
-docs(adr): record CSV import decision
+feat: include local login [SPEC-0001]
+fix: correct orphaned NF binding [SPEC-0005]
+chore: add frontend lint workflow
+docs: record CSV import decision
 ```
 
 Accepted types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`.
+
+**Atomic commits.** One logical change per commit, never a squash of several.
+A spec fix, a new spec, new open questions and the traceability rows that follow
+are four commits, not one.
+
+**Short messages.** The subject says what the commit does. A body, when needed,
+says why in a few lines. No dashes used as punctuation.
 
 ## Pull request descriptions
 
