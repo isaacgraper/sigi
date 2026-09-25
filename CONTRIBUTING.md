@@ -118,10 +118,15 @@ Three parts, and nothing else:
 
 **3. `## Technical Details`** — what a reviewer cannot read off the diff: why an
 approach was chosen over the alternative, what was measured, what broke during
-implementation and how. Short paragraphs, each opening with the subject in bold.
+implementation and how. Short bullets.
 
 Keep it dry. No summaries of the summary, no restating the diff in prose, no
 closing paragraph that repeats the opening one.
+
+- **No questions, and nothing addressed to the reader.** The description states
+  what was done. An open decision goes in `docs/open-questions.md`, and the PR
+  only references its ID.
+- **No signature.** No generated-by footer, no session link.
 
 ### Worked example
 
@@ -136,12 +141,8 @@ Replaces uv with Poetry and adds pre-commit hooks.
 
 ## Technical Details
 
-**Poetry.** `pyproject.toml` keeps its PEP 621 tables unchanged.
-`package-mode = false` replaces `[build-system]`: no wheel is ever built, and
-the Dockerfile already installed dependencies only.
-
-**Hooks.** All `repo: local`, so ruff and mypy come from `poetry.lock` rather
-than a second pin that drifts from it.
+- `package-mode = false` replaces `[build-system]`: no wheel is ever built.
+- Hooks are `repo: local`, so ruff and mypy come from `poetry.lock`.
 ```
 
 ### What a PR is expected to satisfy
