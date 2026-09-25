@@ -24,6 +24,8 @@ on an `Approved` spec is a merge blocker.
 | RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
+| RF01, RF02, RF18 (screens) | SPEC-0010 v0.2 | AC-0010-01..42, AC-0010-46..51 | _pending_ | Draft |
+| RNF06, RNF14 | SPEC-0010 v0.2 | AC-0010-43..45 | _pending_ | Draft |
 
 ## Unmapped
 
@@ -42,10 +44,11 @@ Requirements with no spec. This list must be empty before M5.
 | RNF01 | `tests/perf/k6_hot_endpoints.js` |
 | RNF03 | `tests/test_auth_tokens.py` |
 | RNF05 | `tests/perf/k6_concurrency.js` |
-| RNF06 | `frontend/e2e/responsive.spec.ts` |
+| RNF06 | `frontend/e2e/responsive.spec.ts` *(SPEC-0010, AC-0010-43)* |
 | RNF08 | `tests/test_audit_immutability.py` |
 | RNF09 | CI job `compose-smoke` |
 | RNF10 | CI job `coverage` |
+| RNF14 | `frontend/e2e/accessibility.spec.ts` *(SPEC-0010, AC-0010-44, -45)* |
 | RNF15 | `tests/test_money_precision.py` |
 | RNF16 | `tests/test_rate_limiting.py` *(2026-09-10, ADR-0012)* |
 

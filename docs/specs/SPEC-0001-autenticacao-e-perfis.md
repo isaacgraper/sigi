@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -642,9 +642,9 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | GET\|POST | `/api/v1/usuarios` | List members; invite a member | 10, 13, 15–17, 28 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | Block | 12, 13, 29 |
 | POST | `/api/v1/usuarios/{id}/desativar` | Deactivate and anonymise | 13, 14, 29 |
-| POST | `/api/v1/convites/{token}/ativar` | Redeem an invitation | 11, 25, 26 |
-| POST | `/api/v1/auth/redefinicoes` | Request a reset; always 202 | 30, 33 |
-| POST | `/api/v1/auth/redefinicoes/{token}/confirmar` | Set a new password | 31 |
+| POST | `/api/v1/convites/ativar` | Redeem an invitation; `{token, password}` in the body (OQ-30) | 11, 25, 26 |
+| POST | `/api/v1/auth/redefinicoes` | Request a reset; always 202. **Not served** while AC-0001-30 is blocked (OQ-31) | 30, 33 |
+| POST | `/api/v1/auth/redefinicoes/confirmar` | Set a new password; `{token, password}` in the body (OQ-30) | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | Gestor triggers a reset | 32 |
 
 All auth routes live under `/api/v1`, resolving a divergence in v0.2, which
@@ -1103,3 +1103,4 @@ No acceptance criterion changed meaning and no route moved.
 | 1.0 | 2026-09-21 | Password reset implemented. AC-0001-32 loses its guarantee that a gestor cannot take over an account, because with no mail transport the gestor receives the link; the audit row and the session revocation make it detectable, not impossible (OQ-31). AC-0001-30 is blocked, not deferred: self-service reset has no channel to the requester. Reset token in the request body, matching v0.8 |
 | 1.1 | 2026-09-21 | Rate limiting implemented (AC-0001-33, ADR-0012), independent of the per-address lockout. No default ceiling, so `verify_ceilings` can actually fail; the source is the socket address and not `X-Forwarded-For`, with the trusted-proxy question recorded as OQ-32. Fixed window, whose boundary cost is stated rather than discovered |
 | 1.2 | 2026-09-21 | Three defects from auditing the merged code: two error codes for one condition (`NAO_ENCONTRADO` removed), `/me` and `/usuarios` disagreeing on `name` versus `nome`, and the migration telling an operator to run a script that does not exist. Remaining non-glossary payload fields anglicised per ADR-0013 |
+| 1.3 | 2026-09-25 | §7 brought in line with the served API, which SPEC-0010 cites. Activation and reset confirmation had kept the token-in-path routes that OQ-30 moved into the body in v0.8, and the self-service reset request was listed without saying it is not served while AC-0001-30 is blocked. No behaviour changes. |
