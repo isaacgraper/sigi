@@ -86,17 +86,24 @@ PR, and check the [definition of done](docs/process/definition-of-done.md).
 
 ## Commit convention
 
-[Conventional Commits](https://www.conventionalcommits.org/), with the spec
-referenced:
+[Conventional Commits](https://www.conventionalcommits.org/) without a module
+scope, with the spec referenced:
 
 ```
-feat(ne): validate saldo before pré-empenho [SPEC-0004]
-fix(nf): correct orphaned NF binding [SPEC-0005]
-chore(ci): add frontend lint workflow
-docs(adr): record CSV import decision
+feat: include local login [SPEC-0001]
+fix: correct orphaned NF binding [SPEC-0005]
+chore: add frontend lint workflow
+docs: record CSV import decision
 ```
 
 Accepted types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`.
+
+**Atomic commits.** One logical change per commit, never a squash of several.
+A spec fix, a new spec, new open questions and the traceability rows that follow
+are four commits, not one.
+
+**Short messages.** The subject says what the commit does. A body, when needed,
+says why in a few lines. No dashes used as punctuation.
 
 ## Pull request descriptions
 
@@ -111,10 +118,15 @@ Three parts, and nothing else:
 
 **3. `## Technical Details`** — what a reviewer cannot read off the diff: why an
 approach was chosen over the alternative, what was measured, what broke during
-implementation and how. Short paragraphs, each opening with the subject in bold.
+implementation and how. Short bullets.
 
 Keep it dry. No summaries of the summary, no restating the diff in prose, no
 closing paragraph that repeats the opening one.
+
+- **No questions, and nothing addressed to the reader.** The description states
+  what was done. An open decision goes in `docs/open-questions.md`, and the PR
+  only references its ID.
+- **No signature.** No generated-by footer, no session link.
 
 ### Worked example
 
@@ -129,12 +141,8 @@ Replaces uv with Poetry and adds pre-commit hooks.
 
 ## Technical Details
 
-**Poetry.** `pyproject.toml` keeps its PEP 621 tables unchanged.
-`package-mode = false` replaces `[build-system]`: no wheel is ever built, and
-the Dockerfile already installed dependencies only.
-
-**Hooks.** All `repo: local`, so ruff and mypy come from `poetry.lock` rather
-than a second pin that drifts from it.
+- `package-mode = false` replaces `[build-system]`: no wheel is ever built.
+- Hooks are `repo: local`, so ruff and mypy come from `poetry.lock`.
 ```
 
 ### What a PR is expected to satisfy

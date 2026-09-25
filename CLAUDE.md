@@ -203,10 +203,23 @@ per ADR-0009. The loop no longer starts from a frozen document.
   criteria written as Given/When/Then.
 - Every acceptance criterion has an ID: `AC-XXXX-NN`.
 - Every test references the AC it verifies in its docstring or test name.
-- Every commit message references the spec: `feat(ne): ... [SPEC-0004]`.
+- Every commit message references the spec: `feat: ... [SPEC-0004]`.
 - Changing behaviour means changing the spec **first**, then the code.
 
 Useful commands: `/spec-new`, `/spec-review`, `/plan`, `/implement`, `/trace`, `/adr-new`.
+
+## Commits and pull requests
+
+Full version: `CONTRIBUTING.md`.
+
+- **Atomic commits**, one logical change each, never a squash. Short message,
+  `type: subject`, no module scope, no dashes as punctuation.
+- Work on a branch cut from `dev`. Push once with `git push -u origin HEAD`.
+  Never merge, never force.
+- PR against `dev`, reviewers `PauloVomScheidt` and `theisgui`.
+- **PR description:** one line, then `## Key Changes` and `## Technical Details`
+  as short bullets. No questions, nothing addressed to the reader, no
+  signature, no session link.
 
 ## Code conventions
 
