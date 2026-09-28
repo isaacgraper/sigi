@@ -1,8 +1,8 @@
 ---
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
-status: Draft
-version: 0.3
+status: Approved
+version: 1.0
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -662,3 +662,4 @@ by `/plan` after approval.
 | 0.1 | 2026-09-25 | First draft. Scope set by what SPEC-0001 serves; style from the Lovable design reference, with its signup, Gov.br, session checkbox and admin gate rejected against SPEC-0001 and ADR-0010. OQ-33 and OQ-34 opened. |
 | 0.2 | 2026-09-25 | `/spec-review` of 0.1. C4: `name` is null for every invited account, so three criteria that showed it would have shown blanks. AC-0010-46/47: the API treats a second refresh with one token as a replay and revokes the family, so parallel requests or two tabs would log the user out and write false `auth.refresh_replay` rows. AC-0010-48 (provider returns an error), -49 (`INVALID_DATA`), -50 (`RATE_LIMITED`), -51 (signed-in user at /login). AC-0010-27 made observable. Unauthenticated pages added to §6. OQ-35, -36, -37 opened. |
 | 0.3 | 2026-09-28 | `/dashboard` is the single entry point, by the product owner's decision: every landing that was `/` is now `/dashboard`, `/` only redirects (AC-0010-52), and the navigation label is "Painel". |
+| 1.0 | 2026-09-28 | Approved by the product owner. |
