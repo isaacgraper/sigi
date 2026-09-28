@@ -3,10 +3,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // Scrolls sideways inside its own border, so a wide table never widens the page
-// (SPEC-0010 AC-0010-43).
+// (SPEC-0010 AC-0010-43). `relative` matters: without it an absolutely
+// positioned cell child, such as an sr-only header, escapes the scroll frame
+// and widens the document.
 export function Table({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-auto rounded-md border border-border">
+    <div className="relative w-full overflow-auto rounded-md border border-border">
       <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );
