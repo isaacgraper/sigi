@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.3
+version: 1.5
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -584,6 +584,89 @@ Enforced twice on purpose (ADR-0004): the privilege stops the application, and
 the trigger stops whatever the privilege does not — a superuser session, or a
 `GRANT` someone adds later. RN06 and RNF08.
 
+### 4.9 The first gestor and the trusted proxy *(new in v1.4)*
+
+Every account comes from a gestor's invitation (I3), so a fresh install has
+nobody who can invite anybody (OQ-38). The first gestor is created by whoever
+operates the server, from the command line, and never through the API: an HTTP
+route that creates a gestor would be the most valuable route in the system to
+attack.
+
+**AC-0001-34** — The operator creates the first gestor
+```gherkin
+Given no usuario with perfil "gestor" and status "ativo"
+When  the operator runs the bootstrap command with an institutional e-mail
+Then  a usuario with that e-mail, perfil "gestor" and status "ativo" exists
+And   an audit row "usuario.gestor_inicial" records it, with no actor
+```
+
+**AC-0001-35** — The bootstrap refuses once a gestor exists
+```gherkin
+Given at least one usuario with perfil "gestor" and status "ativo"
+When  the operator runs the bootstrap command
+Then  it exits with an error naming "GESTOR_ALREADY_EXISTS"
+And   no usuario is created
+```
+
+**AC-0001-36** — The bootstrap holds the same rules as an invitation
+```gherkin
+Given no active gestor
+When  the bootstrap command is given an e-mail outside the institutional
+      domains, an e-mail already registered, or a password below the minimum
+Then  it exits with "NON_INSTITUTIONAL_DOMAIN", "EMAIL_ALREADY_REGISTERED" or
+      "WEAK_PASSWORD" respectively
+And   no usuario is created
+```
+
+The password is read from the terminal, never from an argument, so it does not
+land in shell history or the process list. An install that runs with local
+login disabled creates the gestor without a password; the first institutional
+login binds the account by e-mail (AC-0001-21).
+
+SPEC-0010 puts the frontend in front of the API as a same-origin proxy, so the
+source address of every request is the frontend's. AC-0001-33 would then count
+every servidor as one source (OQ-32).
+
+**AC-0001-37** — A trusted proxy's forwarded address is the source
+```gherkin
+Given a request whose peer address is in the configured trusted proxies
+And   an "X-Forwarded-For" header
+When  the rate limit counts the request
+Then  it counts against the right-most forwarded address that is not itself a
+      trusted proxy
+```
+
+**AC-0001-38** — Anyone else's forwarded address is ignored
+```gherkin
+Given a request whose peer address is not a configured trusted proxy
+When  it carries an "X-Forwarded-For" header
+Then  the rate limit counts it against the peer address
+```
+
+**AC-0001-39** — A development install has a known gestor
+```gherkin
+Given the application running with APP_ENV "development"
+When  the operator runs the development seed command
+Then  a usuario "admin@sc.gov.br", perfil "gestor", status "ativo" exists
+And   it logs in with the password "admin"
+And   running the command again changes nothing
+```
+
+**AC-0001-40** — The development seed refuses anywhere else
+```gherkin
+Given APP_ENV is anything other than "development"
+When  the operator runs the development seed command
+Then  it exits with "DEVELOPMENT_ONLY"
+And   no usuario is created
+```
+
+The seed skips the password policy on purpose, and that is why it cannot run
+outside development: a shared, known credential is the first thing an attacker
+tries.
+
+The trusted-proxy list is empty by default, which is the v1.1 behaviour: nothing
+forwarded is believed until a deployment names who may forward.
+
 ## 5. Errors and edge cases
 
 | Condition | HTTP | Error code | Message (pt-BR) |
@@ -605,6 +688,7 @@ the trigger stops whatever the privilege does not — a superuser session, or a
 | Rate limit exceeded | 429 | `RATE_LIMITED` | "Muitas requisições. Tente novamente em instantes." |
 | E-mail already invited or registered | 409 | `EMAIL_ALREADY_REGISTERED` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
 | Invited e-mail outside the institutional domains | 422 | `NON_INSTITUTIONAL_DOMAIN` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
+| Bootstrap with an active gestor already present (command line only) | — | `GESTOR_ALREADY_EXISTS` | "Já existe um gestor ativo. Use o convite a partir da conta dele." |
 | Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
 Every `message` is addressed to a servidor, not to a developer, and says what to
@@ -671,6 +755,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Reset completed | `usuario` | `auth.redefinicao_concluida` | `{sessoes_revogadas}` |
 | Reset triggered by a gestor | `usuario` | `usuario.redefinicao_disparada` | `{alvo_id}` |
 | Rate limit exceeded | `usuario` | `auth.limite_excedido` | `{rota, origem_hmac}` |
+| First gestor created by the operator | `usuario` | `usuario.gestor_inicial` | `{perfil, mecanismo}` |
 
 No row carries a password, a token value, or a `nome` in `dados_anteriores` —
 `lgpd.md`'s resolution of the erasure/immutability tension depends on it.
@@ -1104,3 +1189,5 @@ No acceptance criterion changed meaning and no route moved.
 | 1.1 | 2026-09-21 | Rate limiting implemented (AC-0001-33, ADR-0012), independent of the per-address lockout. No default ceiling, so `verify_ceilings` can actually fail; the source is the socket address and not `X-Forwarded-For`, with the trusted-proxy question recorded as OQ-32. Fixed window, whose boundary cost is stated rather than discovered |
 | 1.2 | 2026-09-21 | Three defects from auditing the merged code: two error codes for one condition (`NAO_ENCONTRADO` removed), `/me` and `/usuarios` disagreeing on `name` versus `nome`, and the migration telling an operator to run a script that does not exist. Remaining non-glossary payload fields anglicised per ADR-0013 |
 | 1.3 | 2026-09-25 | §7 brought in line with the served API, which SPEC-0010 cites. Activation and reset confirmation had kept the token-in-path routes that OQ-30 moved into the body in v0.8, and the self-service reset request was listed without saying it is not served while AC-0001-30 is blocked. No behaviour changes. |
+| 1.4 | 2026-09-28 | AC-0001-34/35/36: the first gestor is created from the command line, because every account comes from an invitation and a fresh install had nobody to invite (OQ-38). AC-0001-37/38: a configured trusted proxy's `X-Forwarded-For` is the throttle's source, because SPEC-0010's same-origin proxy would otherwise make every servidor one source (OQ-32). |
+| 1.5 | 2026-09-28 | AC-0001-39/40: a development-only seed creates the gestor `admin@sc.gov.br` with password `admin`, by the product owner's request, so a local install can be used at once. It refuses outside `APP_ENV=development`. |
