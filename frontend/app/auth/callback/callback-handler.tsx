@@ -19,11 +19,16 @@ export function CallbackHandler() {
   const [failure, setFailure] = useState<string | null>(null);
   const started = useRef(false);
 
-  const code = params.get("code");
-  const state = params.get("state");
+  // Read once: the address bar loses them below, and a refusal must still show
+  // the API's reason rather than looking like a cancellation.
+  const [{ code, state, providerError }] = useState(() => ({
+    code: params.get("code"),
+    state: params.get("state"),
+    providerError: params.get("error"),
+  }));
   // The provider sent the browser back without a code: nothing to exchange,
   // and the API is not called (AC-0010-48).
-  const cancelled = Boolean(params.get("error")) || !code || !state;
+  const cancelled = Boolean(providerError) || !code || !state;
   const error = cancelled ? CANCELLED : failure;
 
   useEffect(() => {
