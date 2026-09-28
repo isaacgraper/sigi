@@ -3,7 +3,7 @@
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
 
-import { FormMessage } from "@/components/auth/auth-layout";
+import { ErrorNotice } from "@/components/error-notice";
 import { CopyLink } from "@/components/members/copy-link";
 import { useSession } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ApiError, GENERIC_FAILURE } from "@/lib/errors";
+import { ApiError, unavailable } from "@/lib/errors";
 import { PERFIL_LABEL, type Perfil } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
@@ -29,7 +29,7 @@ export function InviteDialog({ onInvited }: { onInvited: () => void }) {
   const [email, setEmail] = useState("");
   const [perfil, setPerfil] = useState<Perfil>("servidor");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ export function InviteDialog({ onInvited }: { onInvited: () => void }) {
       if (err instanceof ApiError && err.fields.email) {
         setFieldError(err.fields.email);
       } else {
-        setError(err instanceof ApiError ? err.message : GENERIC_FAILURE);
+        setError(err instanceof ApiError ? err : unavailable());
       }
     } finally {
       setPending(false);
@@ -136,7 +136,7 @@ export function InviteDialog({ onInvited }: { onInvited: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            {error && <FormMessage>{error}</FormMessage>}
+            {error && <ErrorNotice error={error} />}
             <DialogFooter>
               <Button type="submit" disabled={pending}>
                 {pending ? "Enviando..." : "Convidar"}

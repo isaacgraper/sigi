@@ -4,12 +4,13 @@ import { Building2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { FormMessage, Notice } from "@/components/auth/auth-layout";
+import { Notice } from "@/components/auth/auth-layout";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/errors";
+import { ErrorNotice } from "@/components/error-notice";
+import { ApiError, unavailable } from "@/lib/errors";
 import { rememberNext, takeFlash } from "@/lib/flash";
 import { safeReturnPath } from "@/lib/return-path";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -29,7 +30,7 @@ export function LoginForm({
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [lockedFor, setLockedFor] = useState(0);
@@ -71,7 +72,7 @@ export function LoginForm({
       router.replace(next);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : null;
-      setError(apiError?.message ?? "Não foi possível concluir. Tente novamente em instantes.");
+      setError(apiError ?? unavailable());
       if (apiError?.code === "ATTEMPTS_EXCEEDED" && apiError.retryAfter) {
         setLockedFor(apiError.retryAfter);
       }
@@ -142,7 +143,7 @@ export function LoginForm({
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {error && <FormMessage id="login-error">{error}</FormMessage>}
+          {error && <ErrorNotice id="login-error" error={error} />}
           <Button type="submit" className="w-full" disabled={!hydrated || pending || lockedFor > 0}>
             {pending ? "Entrando..." : "Entrar"}
           </Button>

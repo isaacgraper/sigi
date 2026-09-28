@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { FormMessage } from "@/components/auth/auth-layout";
+import { ErrorNotice } from "@/components/error-notice";
 import { InviteDialog } from "@/components/members/invite-dialog";
 import { MemberActions } from "@/components/members/member-actions";
 import { type MemberPage, STATUS_LABEL, STATUS_TONE } from "@/components/members/types";
@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ApiError, GENERIC_FAILURE } from "@/lib/errors";
+import { ApiError, unavailable } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { PERFIL_LABEL } from "@/lib/me";
 import { apiJson } from "@/lib/session";
@@ -37,8 +37,8 @@ export default function MembersPage() {
   const page = pageFrom(useSearchParams().get("page"));
 
   const [data, setData] = useState<MemberPage | null>(null);
-  const [refusal, setRefusal] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<ApiError | null>(null);
+  const [actionError, setActionError] = useState<ApiError | null>(null);
   const [version, setVersion] = useState(0);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
@@ -56,7 +56,7 @@ export default function MembersPage() {
       })
       .catch((err: unknown) => {
         if (cancelled || handleSessionError(err)) return;
-        setRefusal(err instanceof ApiError ? err.message : GENERIC_FAILURE);
+        setRefusal(err instanceof ApiError ? err : unavailable());
       });
     return () => {
       cancelled = true;
@@ -75,10 +75,10 @@ export default function MembersPage() {
         {manages && !refusal && <InviteDialog onInvited={reload} />}
       </div>
 
-      {refusal && <FormMessage>{refusal}</FormMessage>}
+      {refusal && <ErrorNotice error={refusal} />}
       {actionError && (
         <div data-testid="page-error">
-          <FormMessage>{actionError}</FormMessage>
+          <ErrorNotice error={actionError} />
         </div>
       )}
 

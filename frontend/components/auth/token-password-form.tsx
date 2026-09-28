@@ -3,11 +3,11 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { FormMessage } from "@/components/auth/auth-layout";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { ApiError, GENERIC_FAILURE, readError, unavailable } from "@/lib/errors";
+import { ErrorNotice, localError } from "@/components/error-notice";
+import { ApiError, readError, unavailable } from "@/lib/errors";
 import { useHydrated } from "@/lib/use-hydrated";
 
 const MISMATCH = "As senhas não conferem.";
@@ -40,7 +40,7 @@ export function TokenPasswordForm({
   const [token] = useState(() => params.get("token"));
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [final, setFinal] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -54,7 +54,7 @@ export function TokenPasswordForm({
     event.preventDefault();
     if (pending || !token) return;
     if (password !== confirmation) {
-      setError(MISMATCH);
+      setError(localError("PASSWORD_MISMATCH", MISMATCH));
       return;
     }
     setPending(true);
@@ -76,7 +76,7 @@ export function TokenPasswordForm({
       await onSuccess(response);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : null;
-      setError(apiError?.message ?? GENERIC_FAILURE);
+      setError(apiError ?? unavailable());
       if (apiError && finalCodes.includes(apiError.code)) setFinal(true);
       setPassword("");
       setConfirmation("");
@@ -91,8 +91,8 @@ export function TokenPasswordForm({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
-      {!token && <FormMessage>{missingToken}</FormMessage>}
-      {token && final && error && <FormMessage>{error}</FormMessage>}
+      {!token && <ErrorNotice error={localError("MISSING_TOKEN", missingToken)} />}
+      {token && final && error && <ErrorNotice error={error} />}
 
       {token && !final && (
         <form className="space-y-4" method="post" onSubmit={onSubmit} noValidate>
@@ -116,7 +116,7 @@ export function TokenPasswordForm({
               onChange={(e) => setConfirmation(e.target.value)}
             />
           </div>
-          {error && <FormMessage>{error}</FormMessage>}
+          {error && <ErrorNotice error={error} />}
           <Button type="submit" className="w-full" disabled={!hydrated || pending}>
             {pending ? "Enviando..." : submitLabel}
           </Button>

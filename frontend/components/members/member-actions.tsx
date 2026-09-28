@@ -29,7 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ApiError, GENERIC_FAILURE } from "@/lib/errors";
+import { ApiError, unavailable } from "@/lib/errors";
 import { displayName } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
@@ -70,7 +70,7 @@ export function MemberActions({
 }: {
   member: Member;
   onChanged: () => void;
-  onError: (message: string) => void;
+  onError: (error: ApiError) => void;
 }) {
   const { handleSessionError } = useSession();
   const [action, setAction] = useState<Action | null>(null);
@@ -93,7 +93,7 @@ export function MemberActions({
       onChanged();
     } catch (err) {
       if (handleSessionError(err)) return;
-      onError(err instanceof ApiError ? err.message : GENERIC_FAILURE);
+      onError(err instanceof ApiError ? err : unavailable());
     }
   }
 
