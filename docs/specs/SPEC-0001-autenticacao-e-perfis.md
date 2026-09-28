@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.4
+version: 1.5
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -643,6 +643,27 @@ When  it carries an "X-Forwarded-For" header
 Then  the rate limit counts it against the peer address
 ```
 
+**AC-0001-39** — A development install has a known gestor
+```gherkin
+Given the application running with APP_ENV "development"
+When  the operator runs the development seed command
+Then  a usuario "admin@sc.gov.br", perfil "gestor", status "ativo" exists
+And   it logs in with the password "admin"
+And   running the command again changes nothing
+```
+
+**AC-0001-40** — The development seed refuses anywhere else
+```gherkin
+Given APP_ENV is anything other than "development"
+When  the operator runs the development seed command
+Then  it exits with "DEVELOPMENT_ONLY"
+And   no usuario is created
+```
+
+The seed skips the password policy on purpose, and that is why it cannot run
+outside development: a shared, known credential is the first thing an attacker
+tries.
+
 The trusted-proxy list is empty by default, which is the v1.1 behaviour: nothing
 forwarded is believed until a deployment names who may forward.
 
@@ -1169,3 +1190,4 @@ No acceptance criterion changed meaning and no route moved.
 | 1.2 | 2026-09-21 | Three defects from auditing the merged code: two error codes for one condition (`NAO_ENCONTRADO` removed), `/me` and `/usuarios` disagreeing on `name` versus `nome`, and the migration telling an operator to run a script that does not exist. Remaining non-glossary payload fields anglicised per ADR-0013 |
 | 1.3 | 2026-09-25 | §7 brought in line with the served API, which SPEC-0010 cites. Activation and reset confirmation had kept the token-in-path routes that OQ-30 moved into the body in v0.8, and the self-service reset request was listed without saying it is not served while AC-0001-30 is blocked. No behaviour changes. |
 | 1.4 | 2026-09-28 | AC-0001-34/35/36: the first gestor is created from the command line, because every account comes from an invitation and a fresh install had nobody to invite (OQ-38). AC-0001-37/38: a configured trusted proxy's `X-Forwarded-For` is the throttle's source, because SPEC-0010's same-origin proxy would otherwise make every servidor one source (OQ-32). |
+| 1.5 | 2026-09-28 | AC-0001-39/40: a development-only seed creates the gestor `admin@sc.gov.br` with password `admin`, by the product owner's request, so a local install can be used at once. It refuses outside `APP_ENV=development`. |
