@@ -76,5 +76,5 @@ class ResetConfirmInput(BaseModel):
     proxies and browser history.
     """
 
-    token: str = Field(min_length=1)
-    password: str = Field(min_length=1)
+    token: str = Field(min_length=1, max_length=512)
+    password: str = Field(min_length=1, max_length=128)

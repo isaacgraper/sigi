@@ -15,12 +15,12 @@ class ActivationInput(BaseModel):
     history, none of which this project controls.
     """
 
-    token: str = Field(min_length=1)
+    token: str = Field(min_length=1, max_length=512)
     # No `min_length` on the password on purpose. The policy lives in
     # `credentials.require_strong_password`, which raises WEAK_PASSWORD with the
     # rule in the message. AC-0001-26 asks for that code, not a generic 422, and
     # two places stating the minimum is how they come to disagree.
-    password: str = Field(min_length=1)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class ActivationOutput(BaseModel):
