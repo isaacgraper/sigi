@@ -9,6 +9,8 @@ export function SkipLink() {
   return (
     <a
       href="#content"
+      // Explicit, so Safari reaches it with Tab too: by default it skips plain links.
+      tabIndex={0}
       onClick={(event) => {
         const target = document.getElementById("content");
         if (!target) return;
