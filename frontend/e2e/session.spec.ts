@@ -1,0 +1,36 @@
+import { expect, test } from "@playwright/test";
+
+import { GESTOR, signIn } from "./helpers";
+
+test.describe("session", () => {
+  test("AC-0010-11 a reload keeps the session", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.reload();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByTestId("me-email")).toHaveText(GESTOR.email);
+  });
+
+  test("AC-0010-14 logout ends the session and leaves nothing behind", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.getByRole("button", { name: "Menu do usuário" }).click();
+    await page.getByRole("menuitem", { name: "Sair" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    // Logout replaces the history entry, so Back cannot land on the dashboard.
+    await page.goBack();
+    await expect(page).not.toHaveURL(/\/dashboard/);
+    await expect(page.getByTestId("me-email")).toHaveCount(0);
+  });
+
+  test("AC-0010-47 two tabs do not log each other out", async ({ context }) => {
+    const first = await context.newPage();
+    await signIn(first, GESTOR.email, GESTOR.password);
+    const second = await context.newPage();
+    await second.goto("/dashboard");
+    await expect(second.getByTestId("me-email")).toHaveText(GESTOR.email);
+
+    await Promise.all([first.reload(), second.reload()]);
+
+    await expect(first.getByTestId("me-email")).toHaveText(GESTOR.email);
+    await expect(second.getByTestId("me-email")).toHaveText(GESTOR.email);
+  });
+});

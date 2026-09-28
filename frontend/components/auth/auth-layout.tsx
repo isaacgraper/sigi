@@ -31,6 +31,7 @@ export function FormMessage({ children, id }: { children: React.ReactNode; id?: 
     <p
       id={id}
       role="alert"
+      data-testid="form-error"
       className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
     >
       {children}
