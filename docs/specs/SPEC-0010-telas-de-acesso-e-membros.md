@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -207,9 +207,9 @@ And   pressing Back shows /login, not the page they left
 **AC-0010-15** — A protected page asks for login and returns afterwards
 ```gherkin
 Given no session
-When  "/membros?page=2" is opened
+When  "/members?page=2" is opened
 Then  the browser is at /login
-And   after a successful login it is at "/membros?page=2"
+And   after a successful login it is at "/members?page=2"
 ```
 
 **AC-0010-16** — The return address cannot leave SIGI
@@ -229,15 +229,15 @@ Then  none of them contains the access token
 
 ### 4.4 Activating an invitation
 
-The gestor hands the invited person a link to `/convite?token=…` (AC-0001-10).
+The gestor hands the invited person a link to `/invite?token=…` (AC-0001-10).
 The token stays a query parameter by decision (OQ-30); this page limits where it
 travels next.
 
 **AC-0010-18** — The token leaves the address bar as soon as it is read
 ```gherkin
 Given an invitation link
-When  /convite?token=… loads
-Then  the address bar shows "/convite" without the token
+When  /invite?token=… loads
+Then  the address bar shows "/invite" without the token
 And   the response carries "Referrer-Policy: no-referrer"
 ```
 
@@ -275,7 +275,7 @@ And   the form is no longer shown
 **AC-0010-23** — A link without a token is explained
 ```gherkin
 Given no "token" in the address
-When  /convite is opened
+When  /invite is opened
 Then  the page shows "Link de convite incompleto. Peça um novo ao gestor."
 And   no form is shown
 ```
@@ -285,8 +285,8 @@ And   no form is shown
 **AC-0010-24** — The reset token leaves the address bar as soon as it is read
 ```gherkin
 Given a reset link
-When  /redefinir-senha?token=… loads
-Then  the address bar shows "/redefinir-senha" without the token
+When  /reset-password?token=… loads
+Then  the address bar shows "/reset-password" without the token
 And   the response carries "Referrer-Policy: no-referrer"
 ```
 
@@ -345,7 +345,7 @@ there, and every missing or expired session is sent from there to /login and bac
 **AC-0010-29** — The gestor sees the member list
 ```gherkin
 Given a signed-in gestor and at least one member
-When  /membros is opened
+When  /members is opened
 Then  a table shows, per member, Nome, E-mail, Perfil, Status and Criado em
 And   a null name shows "—" in the Nome cell
 And   Criado em is formatted "dd/MM/yyyy" in America/Sao_Paulo
@@ -369,7 +369,7 @@ Then  the Nome cell shows their pseudonym and the E-mail cell shows "—"
 **AC-0010-32** — The auditor reads without acting
 ```gherkin
 Given a signed-in auditor
-When  /membros is opened
+When  /members is opened
 Then  the member table shows
 And   no invite, block, deactivate or reset control exists on the page
 ```
@@ -377,7 +377,7 @@ And   no invite, block, deactivate or reset control exists on the page
 **AC-0010-33** — The servidor is told why, not shown an empty page
 ```gherkin
 Given a signed-in servidor
-When  /membros is opened directly
+When  /members is opened directly
 Then  the page shows "Seu perfil não permite esta ação."
 And   no member data is shown
 ```
@@ -473,7 +473,7 @@ Then  there is no violation of impact "serious" or "critical"
 
 **AC-0010-45** — Login and activation work from the keyboard alone (RNF14)
 ```gherkin
-Given /login and /convite?token=…
+Given /login and /invite?token=…
 When  each is completed using only Tab, Shift+Tab, Enter and Space
 Then  the same outcome as AC-0010-01 and AC-0010-19 is reached
 And   the focused element is visibly marked at every step
@@ -516,7 +516,7 @@ And   the dialog stays open with the values entered
 
 **AC-0010-50** — The per-source ceiling is explained
 ```gherkin
-Given /login, /convite or /redefinir-senha
+Given /login, /invite or /reset-password
 When  a submission is refused with 429 "RATE_LIMITED"
 Then  the page shows "Muitas requisições. Tente novamente em instantes."
 And   the form keeps its values, except any password field
@@ -537,9 +537,9 @@ displayed verbatim (C3). The strings the screens own:
 | Condition | Where | Message (pt-BR) |
 | --- | --- | --- |
 | 5xx, or no response | any | "Não foi possível concluir. Tente novamente em instantes." (+ "Código: {correlation_id}") |
-| Confirmation differs | `/convite`, `/redefinir-senha` | "As senhas não conferem." |
-| Invitation link without token | `/convite` | "Link de convite incompleto. Peça um novo ao gestor." |
-| Reset link without token | `/redefinir-senha` | "Link de redefinição incompleto. Peça um novo ao gestor." |
+| Confirmation differs | `/invite`, `/reset-password` | "As senhas não conferem." |
+| Invitation link without token | `/invite` | "Link de convite incompleto. Peça um novo ao gestor." |
+| Reset link without token | `/reset-password` | "Link de redefinição incompleto. Peça um novo ao gestor." |
 | Reset confirmed | `/login` | "Senha redefinida. Entre com a nova senha." |
 | Forgotten password | `/login` | "Esqueceu a senha? Procure o gestor da sua unidade." |
 | Provider returned an error instead of a code | `/auth/callback` | "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente." |
@@ -566,17 +566,15 @@ API enforces it (C2).
 | Invite, block, deactivate, trigger reset | ✅ | ❌ | ❌ |
 | Dashboard, logout | ✅ | ✅ | ✅ |
 
-`/login`, `/auth/callback`, `/convite` and `/redefinir-senha` need no session.
+`/login`, `/auth/callback`, `/invite` and `/reset-password` need no session.
 The last two are usable by whoever holds the link, which is what the link is
 for; the API decides whether its token is still good. A signed-in usuario who
 opens `/login` is sent to `/dashboard` (AC-0010-51).
 
 ## 7. Pages
 
-The paths are pt-BR: the servidor reads them in the address bar and receives
-two of them in a link (ADR-0013's reader test). Two exceptions: `/auth/callback`
-is the API's configured OIDC redirect URI and no person types or reads it, and
-`/dashboard` is the product owner's explicit choice for the single entry point.
+The paths are English, like every route and identifier in the code
+(ADR-0013); only what the servidor reads on the page is pt-BR.
 
 | Page | Purpose | API routes called | AC |
 | --- | --- | --- | --- |
@@ -584,9 +582,9 @@ is the API's configured OIDC redirect URI and no person types or reads it, and
 | `/auth/callback` | Complete institutional login | `GET /api/v1/auth/oidc/callback` | 09, 10, 48 |
 | `/` | Redirect only | none | 52 |
 | `/dashboard` | Single entry point | `GET /api/v1/auth/me` | 27, 28, 52 |
-| `/convite` | Activate an invitation | `POST /api/v1/convites/ativar` | 18–23, 45, 50 |
-| `/redefinir-senha` | Confirm a reset | `POST /api/v1/auth/redefinicoes/confirmar` | 24–26, 50 |
-| `/membros` | List and manage members | `GET\|POST /api/v1/usuarios`, `POST /api/v1/usuarios/{id}/bloquear`, `…/desativar`, `…/redefinir-senha` | 29–41, 49 |
+| `/invite` | Activate an invitation | `POST /api/v1/convites/ativar` | 18–23, 45, 50 |
+| `/reset-password` | Confirm a reset | `POST /api/v1/auth/redefinicoes/confirmar` | 24–26, 50 |
+| `/members` | List and manage members | `GET\|POST /api/v1/usuarios`, `POST /api/v1/usuarios/{id}/bloquear`, `…/desativar`, `…/redefinir-senha` | 29–41, 49 |
 | every authenticated page | Session upkeep | `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` | 11–14, 17, 46, 47 |
 
 ## 8. Audit events
@@ -704,9 +702,9 @@ every page makes at most two calls.
 | `app/auth/callback/page.tsx` | Calls the API callback with `code` and `state`, or shows the provider's error without calling it (AC-48) |
 | `app/(app)/layout.tsx` | Auth guard and shell for every authenticated page; restores the session on load (AC-11) |
 | `app/(app)/dashboard/page.tsx` | Identity from `/auth/me` (AC-28) |
-| `app/(app)/membros/page.tsx` and its dialogs | List, paging, invite, block, deactivate, reset link (AC-29 to 41, 49) |
-| `app/convite/page.tsx`, `app/redefinir-senha/page.tsx` | Read the token, `history.replaceState` it away (AC-18, 24) |
-| `next.config.ts` | `Referrer-Policy: no-referrer` on `/convite` and `/redefinir-senha` |
+| `app/(app)/members/page.tsx` and its dialogs | List, paging, invite, block, deactivate, reset link (AC-29 to 41, 49) |
+| `app/invite/page.tsx`, `app/reset-password/page.tsx` | Read the token, `history.replaceState` it away (AC-18, 24) |
+| `next.config.ts` | `Referrer-Policy: no-referrer` on `/invite` and `/reset-password` |
 | `app/globals.css` | Tokens: dark institutional green `primary`, accent, amber, slate, destructive; `oklch` values checked for AA |
 | `docker-compose.yml` | `API_ORIGIN=http://backend:8000` replaces `NEXT_PUBLIC_API_URL`; the browser never calls `:8000` |
 
@@ -771,3 +769,4 @@ One commit per step, split into two PRs after step 5.
 | 0.3 | 2026-09-28 | `/dashboard` is the single entry point, by the product owner's decision: every landing that was `/` is now `/dashboard`, `/` only redirects (AC-0010-52), and the navigation label is "Painel". |
 | 1.0 | 2026-09-28 | Approved by the product owner. |
 | 1.1 | 2026-09-28 | Implementation plan added (§11). No behaviour changes. |
+| 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |

@@ -1,9 +1,8 @@
-export default function Home() {
-  return (
-    <main>
-      <h1>SIGI</h1>
-      <p>Sistema Integrado de Governança de Insumos</p>
-      <p>Em construção.</p>
-    </main>
-  );
+import { redirect } from "next/navigation";
+
+import { HOME } from "@/lib/return-path";
+
+// `/dashboard` is the single entry point (AC-0010-52).
+export default function Root(): never {
+  redirect(HOME);
 }
