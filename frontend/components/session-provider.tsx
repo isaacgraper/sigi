@@ -3,11 +3,13 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
+import { AppShell, Content } from "@/components/app-shell";
+import { PageSkeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/errors";
 import { setFlash } from "@/lib/flash";
 import type { Me } from "@/lib/me";
 import { apiJson, logout } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 interface SessionContext {
   me: Me;
@@ -27,7 +29,13 @@ export function useSession(): SessionContext {
 // stopped being active mid-session (AC-0010-13, §5).
 const SESSION_OVER = new Set(["INVALID_REFRESH", "USUARIO_INATIVO"]);
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
+export function SessionProvider({
+  sidebarCollapsed,
+  children,
+}: {
+  sidebarCollapsed: boolean;
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
@@ -74,18 +82,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
-  if (!me) {
-    return (
-      <p role="status" className="p-6 text-sm text-muted-foreground">
-        Carregando...
-      </p>
-    );
-  }
+  if (!me) return <ShellSkeleton sidebarCollapsed={sidebarCollapsed} />;
   return (
     <Context.Provider value={{ me, handleSessionError }}>
-      <AppShell me={me} onLogout={onLogout}>
+      <AppShell me={me} onLogout={onLogout} sidebarCollapsed={sidebarCollapsed}>
         {children}
       </AppShell>
     </Context.Provider>
+  );
+}
+
+/**
+ * While the session is restored nobody knows the perfil yet, so the frame is
+ * drawn without entries and the page as placeholders (AC-0011-18). Same widths
+ * as the real shell, so nothing jumps when it arrives.
+ */
+function ShellSkeleton({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
+  return (
+    <div className="flex min-h-dvh">
+      <div
+        aria-hidden
+        className={cn("sticky top-0 hidden h-dvh shrink-0 bg-sidebar lg:block", sidebarCollapsed ? "w-16" : "w-60")}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div aria-hidden className="h-14 border-b bg-card" />
+        <Content>
+          <PageSkeleton />
+        </Content>
+      </div>
+    </div>
   );
 }

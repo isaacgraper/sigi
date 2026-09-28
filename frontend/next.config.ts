@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { version } from "./package.json";
+
 // The invitation and reset links carry their token as a query parameter
 // (OQ-30). The pages strip it from the address bar, and no-referrer stops it
 // leaving in a Referer header in the meantime (AC-0010-18, -24).
@@ -17,6 +19,8 @@ const everywhere = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // The footer names the version this bundle was built from (AC-0011-10).
+  env: { NEXT_PUBLIC_SIGI_VERSION: version },
   headers() {
     // Later entries win for the same header, so the two stricter
     // Referrer-Policy values come after the general one.
