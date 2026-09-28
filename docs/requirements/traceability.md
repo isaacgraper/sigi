@@ -24,8 +24,8 @@ on an `Approved` spec is a merge blocker.
 | RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
-| RF01, RF02, RF18 (screens) | SPEC-0010 v1.1 | AC-0010-01..42, AC-0010-46..52 | _pending_ | **Approved** |
-| RNF06, RNF14 | SPEC-0010 v1.1 | AC-0010-43..45 | _pending_ | **Approved** |
+| RF01, RF02, RF18 (screens) | SPEC-0010 v1.1 | AC-0010-01..42, AC-0010-46..52 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Approved** |
+| RNF06, RNF14 | SPEC-0010 v1.1 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Approved** |
 
 ## Unmapped
 
