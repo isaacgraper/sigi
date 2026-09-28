@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -655,7 +655,114 @@ by `/plan` after approval.
 - **The 12-character password rule** is SPEC-0001's assumption; these screens
   show whatever the API refuses and hard-code no length.
 
-## 11. Changelog
+## 11. Implementation plan
+
+Added by `/plan` after approval. Names files, libraries and mechanisms, which the
+behavioural sections above deliberately do not.
+
+### Prerequisite
+
+A SPEC-0001 revision (v1.4) and its backend branch land first:
+
+- **OQ-38**: a bootstrap command that creates the first gestor. Without it, no
+  fresh install and no e2e run has anyone who can log in.
+- **OQ-32**: a trusted-proxy list, so the throttle reads `X-Forwarded-For` only
+  from the frontend hop. The proxy below otherwise collapses every user into one
+  source.
+
+### Migration
+
+None. This spec owns no persistence.
+
+### New dependencies
+
+| Package | Why |
+| --- | --- |
+| `tailwindcss`, `@tailwindcss/postcss` | The design reference's tokens are Tailwind v4 `@theme` tokens |
+| `@radix-ui/react-dialog`, `-alert-dialog`, `-dropdown-menu`, `-label`, `-select`, `-slot` | Primitives behind the shadcn/ui components the pages use; accessible dialogs and menus (AC-44, -45) |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | shadcn/ui component variants |
+| `lucide-react` | Icons, as the reference specifies |
+| `sonner` | Toasts, as the reference specifies |
+| `@axe-core/playwright` (dev) | AC-0010-44 |
+
+No state library and no data-fetching library: session state is one module, and
+every page makes at most two calls.
+
+### Modules
+
+| File | Purpose |
+| --- | --- |
+| `app/api/v1/[...path]/route.ts` | Same-origin proxy to `API_ORIGIN`, read at runtime. Passes status, body, `Set-Cookie` and 302 through unchanged; sets `X-Forwarded-For`. A route handler, not `next.config` rewrites, because rewrites are fixed at build time under `output: "standalone"` |
+| `lib/session.ts` | Access token in module memory (C1). `apiFetch` adds the bearer, retries once after a refresh (AC-12); one refresh promise per tab (AC-46); `navigator.locks` serialises refresh across tabs (AC-47), so the waiting tab uses the already-rotated cookie |
+| `lib/errors.ts` | Reads the API error envelope; `message` verbatim (C3); generic message plus `correlation_id` on 5xx or no response (AC-42) |
+| `lib/return-path.ts` | Accepts only same-origin paths starting with a single `/` (AC-16) |
+| `lib/format.ts` | `dd/MM/yyyy` in `America/Sao_Paulo` |
+| `components/ui/*` | shadcn/ui components, copied in |
+| `components/app-shell.tsx`, `components/user-menu.tsx` | Sidebar with "Painel" and "Membros", header with identity (C4) and "Sair" |
+| `app/page.tsx` | Redirects to `/dashboard` (AC-52) |
+| `app/login/page.tsx` | Server Component reading `LOCAL_LOGIN_ENABLED` and `OIDC_ENABLED` at runtime (OQ-33); renders the client login form |
+| `app/auth/callback/page.tsx` | Calls the API callback with `code` and `state`, or shows the provider's error without calling it (AC-48) |
+| `app/(app)/layout.tsx` | Auth guard and shell for every authenticated page; restores the session on load (AC-11) |
+| `app/(app)/dashboard/page.tsx` | Identity from `/auth/me` (AC-28) |
+| `app/(app)/membros/page.tsx` and its dialogs | List, paging, invite, block, deactivate, reset link (AC-29 to 41, 49) |
+| `app/convite/page.tsx`, `app/redefinir-senha/page.tsx` | Read the token, `history.replaceState` it away (AC-18, 24) |
+| `next.config.ts` | `Referrer-Policy: no-referrer` on `/convite` and `/redefinir-senha` |
+| `app/globals.css` | Tokens: dark institutional green `primary`, accent, amber, slate, destructive; `oklch` values checked for AA |
+| `docker-compose.yml` | `API_ORIGIN=http://backend:8000` replaces `NEXT_PUBLIC_API_URL`; the browser never calls `:8000` |
+
+Authenticated pages are client components, an exception to "Server Components
+by default" that C1 forces: the token exists only in the browser's memory.
+
+### Tests
+
+Unit tests are Vitest under `frontend/tests/`; end-to-end tests are Playwright
+under `frontend/e2e/`, against the real backend. Each test name starts with its
+AC, e.g. `AC-0010-12 renews an expired token once`.
+
+| AC | File |
+| --- | --- |
+| 01–08, 50, 51 | `e2e/login.spec.ts` |
+| 09, 10, 48 | `e2e/callback.spec.ts`, intercepting the API callback with `page.route`; the provider handshake is covered by the backend suite |
+| 11, 13, 14, 15, 47 | `e2e/session.spec.ts` |
+| 12, 17, 46 | `tests/session.test.ts` |
+| 16 | `tests/return-path.test.ts` |
+| 18–23 | `e2e/invitation.spec.ts` |
+| 24–26 | `e2e/reset.spec.ts` |
+| 27, 28, 52 | `e2e/shell.spec.ts` |
+| 29–41, 49 | `e2e/members.spec.ts` |
+| 42 | `tests/errors.test.ts` |
+| 43 | `e2e/responsive.spec.ts`, at 360, 768 and 1440 px |
+| 44, 45 | `e2e/accessibility.spec.ts` |
+
+`playwright.config.ts` gains the Chromium, Firefox and WebKit projects (RNF06).
+`frontend-ci` gains an e2e job: Postgres 16 service, backend migrated and
+started, the bootstrap command seeding a gestor, the frontend built and started,
+then `npm run test:e2e`.
+
+### Sequence
+
+1. Prerequisite SPEC-0001 v1.4 branch (bootstrap command, trusted proxy).
+2. Dependencies and design tokens.
+3. Proxy and `lib/session.ts`, with their unit tests.
+4. Login and callback pages.
+5. Shell, `/` redirect and dashboard.
+6. Invitation and reset pages.
+7. Members page and dialogs.
+8. Accessibility and responsive suites.
+9. CI e2e job.
+
+One commit per step, split into two PRs after step 5.
+
+### Risks
+
+| Risk | Cheapest early check |
+| --- | --- |
+| The entity's TI will not run a Node proxy in front of the API | Ask with the deployment topology (OQ-32); if refused, the reverse proxy does the same-origin routing and the route handler is deleted |
+| Web Locks behaves differently across the three engines | AC-47 runs on all three in CI from step 3 |
+| Colour values drawn from rules, not the Lovable source, look wrong | The acceptance gate: the product owner adjusts tokens while using the screens |
+| `SameSite=Lax` refresh cookie through the proxy in a non-HTTPS dev setup | `cookie_secure=false` in development only, asserted by the session e2e |
+
+## 12. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
@@ -663,3 +770,4 @@ by `/plan` after approval.
 | 0.2 | 2026-09-25 | `/spec-review` of 0.1. C4: `name` is null for every invited account, so three criteria that showed it would have shown blanks. AC-0010-46/47: the API treats a second refresh with one token as a replay and revokes the family, so parallel requests or two tabs would log the user out and write false `auth.refresh_replay` rows. AC-0010-48 (provider returns an error), -49 (`INVALID_DATA`), -50 (`RATE_LIMITED`), -51 (signed-in user at /login). AC-0010-27 made observable. Unauthenticated pages added to §6. OQ-35, -36, -37 opened. |
 | 0.3 | 2026-09-28 | `/dashboard` is the single entry point, by the product owner's decision: every landing that was `/` is now `/dashboard`, `/` only redirects (AC-0010-52), and the navigation label is "Painel". |
 | 1.0 | 2026-09-28 | Approved by the product owner. |
+| 1.1 | 2026-09-28 | Implementation plan added (§11). No behaviour changes. |
