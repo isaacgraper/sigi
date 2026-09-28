@@ -46,3 +46,109 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  e2e:
+    name: End to end (SPEC-0010)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sigi
+          POSTGRES_PASSWORD: sigi
+          POSTGRES_DB: sigi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigi -d sigi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POETRY_VERSION: 2.3.3
+      PGHOST: localhost
+      PGPASSWORD: sigi
+      POSTGRES_USER: sigi
+      POSTGRES_DB: sigi
+      APP_DB_ROLE: sigi_app
+      APP_DB_PASSWORD: sigi_app
+      DB_APP_ROLE: sigi_app
+      DATABASE_URL: postgresql+psycopg://sigi_app:sigi_app@localhost:5432/sigi
+      DATABASE_URL_ADMIN: postgresql+psycopg://sigi:sigi@localhost:5432/sigi
+      COOKIE_SECURE: "false"
+      # The suite logs in dozens of times from one address; production ceilings
+      # would throttle the harness, not the feature under test.
+      RATE_LIMIT_CEILINGS: >-
+        {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
+      E2E_GESTOR_EMAIL: gestor@sc.gov.br
+      E2E_GESTOR_PASSWORD: SenhaLongaOSuficiente-2026
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      PLAYWRIGHT_OIDC_ONLY_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Poetry
+        run: |
+          pipx install "poetry==${POETRY_VERSION}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Provision the application role
+        run: sh infra/postgres/init/01-roles.sh
+
+      - name: Migrate, seed the first gestor, start the API
+        working-directory: backend
+        run: |
+          poetry sync --only main
+          poetry run alembic upgrade head
+          printf '%s\n%s\n' "$E2E_GESTOR_PASSWORD" "$E2E_GESTOR_PASSWORD" \
+            | poetry run python -m app.cli bootstrap-gestor --email "$E2E_GESTOR_EMAIL"
+          nohup poetry run uvicorn app.main:app --port 8000 > ../api.log 2>&1 &
+
+      - name: Build and start the frontend, local and OIDC-only
+        working-directory: frontend
+        env:
+          API_ORIGIN: http://localhost:8000
+        run: |
+          npm ci
+          npm run build
+          nohup npx next start --port 3000 > ../web.log 2>&1 &
+          LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
+          for url in http://localhost:8000/health http://localhost:3000/login http://localhost:3001/login; do
+            for i in $(seq 1 60); do curl -sf -o /dev/null "$url" && break; sleep 1; done
+            curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
+          done
+
+      - name: Install browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Playwright on Chromium, Firefox and WebKit (RNF06)
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Server logs
+        if: failure()
+        run: tail -n 100 api.log web.log web-oidc.log
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
