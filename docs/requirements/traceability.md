@@ -15,6 +15,8 @@ on an `Approved` spec is a merge blocker.
 | RN06 (enforcement) | SPEC-0001 v0.5 | AC-0001-27 | _pending_ | **Approved** |
 | RF01 (redefinição) | SPEC-0001 v0.5 | AC-0001-30..32 | _pending_ | **Approved** |
 | RNF16 | SPEC-0001 v0.5 | AC-0001-33 | _pending_ | **Approved** |
+| RF02 (first gestor) | SPEC-0001 v1.4 | AC-0001-34..36 | `tests/test_bootstrap.py` | **Approved** |
+| RNF16 (trusted proxy) | SPEC-0001 v1.4 | AC-0001-37, -38 | `tests/test_rate_limiting.py` | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v0.2 | AC-0002-01..12 | _pending_ | Draft |
 | RN11, RN13, RN15 | SPEC-0002 v0.2 | AC-0002-13..17 | _pending_ | Draft |
 | RF03, RF07, RN14 | SPEC-0003 v0.2 | AC-0003-01..10 | _pending_ | Draft |
