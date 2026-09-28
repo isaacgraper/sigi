@@ -95,6 +95,14 @@ of those to `*_PASSWORD` will turn CI red, and that is the intended behaviour of
 the scanner rather than a fault in it. Widening the allowlist trades a permanent
 loss of coverage for a cosmetic gain; choose the name.
 
+When a finding is already committed on a pull request's branch, removing the
+line in a later commit does not clear it, because the scan covers the whole
+range and rewriting the branch is not allowed. Remove the literal going
+forward, then add that one finding's fingerprint (`commit:file:rule:line`,
+printed by the scan) to `.gitleaksignore` with a comment saying why. A
+fingerprint names a single line in a single commit, so, unlike an allowlist
+entry, it cannot hide anything else.
+
 Every pull request, not only the ones aimed at `dev` and `main`. The workflows
 used to filter `pull_request` by branch, and that filter matches the **target**,
 so a PR opened against another feature branch — one link of a stacked series —

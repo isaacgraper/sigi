@@ -1,14 +1,11 @@
 import { type APIRequestContext, expect, type Page, request } from "@playwright/test";
 
 /**
- * The seeded gestor, created by the bootstrap command before the suite runs
- * (AC-0001-34). Every other account is invited through the API, the way a
- * real one is, so the suite never writes to the database behind its back.
+ * The development gestor, seeded before the suite runs (AC-0001-39). Every
+ * other account is invited through the API, the way a real one is, so the
+ * suite never writes to the database behind its back.
  */
-export const GESTOR = {
-  email: process.env.E2E_GESTOR_EMAIL ?? "gestor@sc.gov.br",
-  password: process.env.E2E_GESTOR_PASSWORD ?? "SenhaLongaOSuficiente-2026",
-};
+export const GESTOR = { email: "admin@sc.gov.br", password: "admin" };
 export const LONG_ENOUGH = "SenhaLongaOSuficiente-2026";
 
 export type Perfil = "gestor" | "servidor" | "auditor";

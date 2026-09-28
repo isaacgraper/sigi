@@ -1,0 +1,6 @@
+# One finding, by exact fingerprint (commit:file:rule:line), so nothing else can
+# hide behind it. The e2e job once carried a synthetic test password in
+# frontend-ci.yml; the next commit removed it, but gitleaks scans a pull
+# request's whole commit range, and rewriting the branch is not allowed. See
+# docs/process/sop-qualidade.md.
+8b2293412c1a723e6d59f0c49e0f48de394c056b:.github/workflows/frontend-ci.yml:generic-api-key:87
