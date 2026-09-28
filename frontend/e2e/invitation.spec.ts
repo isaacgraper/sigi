@@ -13,7 +13,7 @@ test.describe("invitation", () => {
     const { link } = await invite("servidor");
     const response = await page.goto(pathOf(link));
     expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
-    await expect(page).toHaveURL(/\/convite$/);
+    await expect(page).toHaveURL(/\/invite$/);
   });
 
   test("AC-0010-19 activation opens a session", async ({ page }) => {
@@ -65,7 +65,7 @@ test.describe("invitation", () => {
   });
 
   test("AC-0010-23 a link without a token is explained", async ({ page }) => {
-    await page.goto("/convite");
+    await page.goto("/invite");
     await expect(page.getByTestId("form-error")).toHaveText(
       "Link de convite incompleto. Peça um novo ao gestor.",
     );
