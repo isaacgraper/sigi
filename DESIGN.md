@@ -47,14 +47,17 @@ column and never hard-code a colour.
 | `--sidebar` | `0.26 0.065 262` | `#122343` | `bg-sidebar` | Sidebar background |
 | `--sidebar-foreground` | `1 0 0` | `#ffffff` | `text-sidebar-foreground` | Active and hovered sidebar items |
 | `--sidebar-muted` | `0.80 0.03 262` | `#b3bed2` | `text-sidebar-muted` | Idle sidebar items |
+| `--sidebar-accent` | `0.33 0.07 262` | `#213459` | `bg-sidebar-accent` | Active and hovered sidebar item background (white on it 12.3:1) |
 | `--success` | `0.50 0.12 152` | `#1a763f` | `text-success` | `ativo`, `vigente`, `aprovada`, completion |
-| `--attention` | `0.55 0.13 70` | `#a16100` | `text-attention` | `bloqueado`, "a vencer", pending action |
+| `--attention` | `0.52 0.12 70` | `#945a00` | `text-attention` | `bloqueado`, "a vencer", pending action |
 | `--danger` | `0.53 0.2 27` | `#c51e21` | `text-danger` | Errors, destructive actions, `vencida` |
 | `--neutral` | `0.50 0.03 262` | `#5a6475` | `text-neutral` | `pendente`, in progress, waiting |
 
 Measured contrast (WCAG 2.1): foreground on background 15.8:1; white on primary
 12.3:1; white on sidebar 15.6:1; idle sidebar items 8.4:1; muted text 5.8:1;
-every status colour on white between 5.0:1 and 6.0:1. Any new colour is checked
+every status colour between 5.6:1 and 6.0:1 on white and at least 4.9:1 on
+its own 10 % badge tint (amber was darkened from `0.55 0.13 70` because it
+failed there at 4.4:1). Any new colour is checked
 the same way before it is used, and the axe suite (AC-0010-44) guards the result.
 
 ### Type
