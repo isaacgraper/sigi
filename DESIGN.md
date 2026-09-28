@@ -165,17 +165,26 @@ tokens above. Prefer extending one of these to adding a new one.
 
 ## 5. Illustrations
 
-From [unDraw](https://undraw.co), exported as SVG with the accent colour set to
-the brand navy `#1e345e`, stored in `frontend/public/illustrations/`, and shown
-with `alt=""` because they are decorative. unDraw's licence allows commercial
-use without attribution and forbids only redistributing the collection.
+From [unDraw](https://undraw.co), stored as static SVG in
+`frontend/public/illustrations/` and shown with `alt=""` because they are
+decorative. The accent colour is the brand navy `#1e345e`, except on the navy
+login panel, where it is `--sidebar-muted` `#b3bed2` so the drawing stays
+visible.
 
-| Where | unDraw subject | File |
-| --- | --- | --- |
-| Login panel | secure login / authentication | `login.svg` |
-| Not found | page not found | `not-found.svg` |
-| Error page | server down / fixing bugs | `error.svg` |
-| Empty table or list | empty / no data | `empty.svg` |
+**Source.** undraw.co is not reachable from the build environment, so the files
+were rendered once from [`react-undraw-illustrations`](https://www.npmjs.com/package/react-undraw-illustrations)
+2.0.3, MIT licensed, which republishes unDraw's illustrations from when the
+collection itself was MIT. The package is not a dependency. A newer file from
+undraw.co may replace any of these under unDraw's current licence, which allows
+commercial use without attribution and forbids only redistributing the
+collection.
+
+| Where | Illustration | File | Accent |
+| --- | --- | --- | --- |
+| Login panel | Secure data | `login.svg` | `#b3bed2` |
+| Not found | Lost | `not-found.svg` | `#1e345e` |
+| Error page | Maintenance | `error.svg` | `#1e345e` |
+| Empty table or list | No data | `empty.svg` | `#1e345e` |
 
 One illustration per screen, at most 240 px tall on status pages and 160 px in
 empty states, never above the page title. Illustrations are never used as the
