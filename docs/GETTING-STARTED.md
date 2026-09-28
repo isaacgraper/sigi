@@ -44,6 +44,26 @@ OIDC as primary, local credentials as a switchable contingency, Gov.br cut, CPF
 not collected. OQ-09 leaves one ask for the entity's TI: tenant ID, client ID
 and redirect URI. It blocks the first real login, not the build.
 
+**The first gestor** is created on the server, once, after the migrations run
+(AC-0001-34). Every other account comes from that gestor's invitations.
+
+```bash
+docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.gov.br
+# add --no-password when local login is disabled and OIDC is the only way in
+```
+
+**On a development install**, skip the bootstrap and seed the known gestor
+`admin@sc.gov.br` / `admin` (AC-0001-39). It refuses outside
+`APP_ENV=development`.
+
+```bash
+docker compose exec backend python -m app.cli seed-dev-admin
+```
+
+**Behind a proxy**, set `TRUSTED_PROXIES` to the proxy's network, e.g.
+`["172.20.0.0/16"]`, or the rate limit counts every user as one source
+(AC-0001-37).
+
 ## 3. First session with Claude Code
 
 ```
