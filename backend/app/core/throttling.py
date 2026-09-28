@@ -8,6 +8,7 @@ nothing looks exactly like one that works.
 from __future__ import annotations
 
 import datetime
+import ipaddress
 import uuid
 
 from fastapi import Request
@@ -22,16 +23,42 @@ class RouteWithoutCeiling(RuntimeError):
     """A throttled prefix carries a route with no configured ceiling."""
 
 
-def _source(request: Request) -> str:
-    """The address this request is counted against.
+def _is_trusted(
+    address: str, networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network]
+) -> bool:
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(parsed in network for network in networks)
 
-    `request.client.host` and deliberately **not** `X-Forwarded-For`. Honouring
-    that header unconditionally would let anyone bypass the throttle by setting
-    it, which is worse than having no throttle because it still looks like one.
-    A deployment behind a reverse proxy needs an explicit trusted-proxy setting
-    first; OQ-32 records that.
+
+def source_of(peer: str | None, forwarded_for: str | None) -> str:
+    """The address a request is counted against (AC-0001-37, -38).
+
+    The peer, unless the peer is a configured trusted proxy. Then the right-most
+    forwarded address that is not itself trusted: the right end is what the
+    nearest trusted hop saw, and everything to the left of it was written by
+    the client and proves nothing. Believing `X-Forwarded-For` from anyone would
+    let each request choose its own source, which is worse than no throttle
+    because it still looks like one.
     """
-    return request.client.host if request.client else "desconhecido"
+    if peer is None:
+        return "desconhecido"
+    networks = [ipaddress.ip_network(cidr, strict=False) for cidr in get_settings().trusted_proxies]
+    if not forwarded_for or not _is_trusted(peer, networks):
+        return peer
+    for hop in reversed([part.strip() for part in forwarded_for.split(",")]):
+        if hop and not _is_trusted(hop, networks):
+            return hop
+    return peer
+
+
+def _source(request: Request) -> str:
+    return source_of(
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+    )
 
 
 def enforce(request: Request) -> None:
