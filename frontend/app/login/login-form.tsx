@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/errors";
 import { rememberNext, takeFlash } from "@/lib/flash";
 import { safeReturnPath } from "@/lib/return-path";
+import { useHydrated } from "@/lib/use-hydrated";
 import { login, refresh } from "@/lib/session";
 
 export function LoginForm({
@@ -23,6 +24,7 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const hydrated = useHydrated();
   const next = safeReturnPath(params.get("next"));
 
   const [email, setEmail] = useState("");
@@ -114,7 +116,7 @@ export function LoginForm({
       )}
 
       {localEnabled && (
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+        <form className="space-y-4" method="post" onSubmit={onSubmit} noValidate>
           <div className="space-y-2">
             <Label htmlFor="email">E-mail institucional</Label>
             <Input
@@ -141,7 +143,7 @@ export function LoginForm({
             />
           </div>
           {error && <FormMessage id="login-error">{error}</FormMessage>}
-          <Button type="submit" className="w-full" disabled={pending || lockedFor > 0}>
+          <Button type="submit" className="w-full" disabled={!hydrated || pending || lockedFor > 0}>
             {pending ? "Entrando..." : "Entrar"}
           </Button>
         </form>
