@@ -1,8 +1,8 @@
 ---
 id: SPEC-0011
 title: Estrutura da interface
-status: Draft
-version: 0.1
+status: Approved
+version: 1.0
 owner: Isaac Kleimann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -321,3 +321,4 @@ _Filled by `/plan`. Empty until the spec is Approved._
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-09-28 | Initial draft from ADR-0014 and the product owner's references: navy sidebar shell, page template, dashboard tiles, signed-out frame, unDraw illustrations, loading and empty states, reduced motion. |
+| 1.0 | 2026-09-28 | Approved by the product owner after #46 merged. No criterion changed. |
