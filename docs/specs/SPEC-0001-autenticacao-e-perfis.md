@@ -3,7 +3,7 @@ id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
 version: 1.6
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
 milestone: M2

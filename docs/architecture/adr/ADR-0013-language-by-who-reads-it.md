@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-19
-- **Deciders:** Isaac Kleimann Graper
+- **Deciders:** Isaac Kleimmann Graper
 - **Supersedes:** ADR-0006
 - **Related:** SPEC-0001, invariant 1, `docs/product/glossary.md`
 

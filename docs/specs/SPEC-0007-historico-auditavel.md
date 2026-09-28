@@ -3,7 +3,7 @@ id: SPEC-0007
 title: Histórico auditável imutável
 status: Draft
 version: 0.1
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF06, RF10, RN06, RNF08]
 depends_on: [SPEC-0001]
 milestone: M2

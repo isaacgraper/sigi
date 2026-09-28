@@ -2,7 +2,7 @@
 
 - **Status:** Superseded by ADR-0013
 - **Date:** 2026-08-20
-- **Deciders:** Isaac Kleimann Graper
+- **Deciders:** Isaac Kleimmann Graper
 - **Related:** SPEC-0003, SPEC-0004, A01
 
 > **Superseded on 2026-09-19 by ADR-0013.** The rule below chooses a

@@ -87,8 +87,8 @@ export function TokenPasswordForm({
   return (
     <div className="space-y-6">
       <div className="space-y-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <h1 className="text-2xl font-normal tracking-tight">{title}</h1>
+        <p className="text-sm font-light text-muted-foreground">{description}</p>
       </div>
 
       {!token && <ErrorNotice error={localError("MISSING_TOKEN", missingToken)} />}

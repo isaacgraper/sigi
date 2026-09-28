@@ -1,9 +1,9 @@
 ---
 id: SPEC-0011
 title: Estrutura da interface
-status: Draft
-version: 0.1
-owner: Isaac Kleimann Graper
+status: Approved
+version: 1.0
+owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
 milestone: M2
@@ -314,10 +314,115 @@ by `/plan` after approval.
 
 ## 11. Implementation plan
 
-_Filled by `/plan`. Empty until the spec is Approved._
+### Migration
+
+None. No backend change.
+
+### New dependencies
+
+None. The drawer is the dialog primitive already installed, and the collapsed
+sidebar's names are a CSS tooltip, so no tooltip package is added. The
+illustrations are static files (below), not a package.
+
+### Font
+
+Inter replaces the system stack (product owner, 2026-09-28). One variable
+woff2, Latin subset, committed to `frontend/app/fonts/` with its OFL licence and
+loaded with `next/font/local`; no package is installed and nothing is fetched
+at build or run time.
+
+### Illustrations
+
+undraw.co is not reachable from the build environment. The four files come from
+`react-undraw-illustrations` 2.0.3 on npm, MIT licensed, which republishes
+unDraw's illustrations from when the collection itself was MIT. The package is
+not installed: each component was rendered once to a static SVG, with the
+accent colour set, and committed to `frontend/public/illustrations/`. The source
+and licence are recorded in `DESIGN.md` §5.
+
+| File | Illustration | Accent |
+| --- | --- | --- |
+| `login.svg` | Secure data | `#b3bed2`, because it sits on the navy panel |
+| `not-found.svg` | Lost | `#1e345e` |
+| `error.svg` | Maintenance | `#1e345e` |
+| `empty.svg` | No data | `#1e345e` |
+
+### Modules
+
+| Module | Change | AC |
+| --- | --- | --- |
+| `app/globals.css` | Navy tokens from `DESIGN.md` §2, sidebar and status tokens, easing variables, the dialog, menu and drawer keyframes, and their reduced-motion variants | 21 |
+| `lib/modules.ts` | One list of modules (path, name, description, icon, who sees it), read by the sidebar, the breadcrumb and the dashboard, so the three cannot disagree | 01, 07, 13 |
+| `components/shell/sidebar.tsx` | Navy sidebar, collapse control, CSS tooltip when collapsed | 01–03 |
+| `components/shell/mobile-nav.tsx` | Menu button and the drawer, built on the dialog primitive, which traps focus, closes on Escape and the backdrop, and returns focus to its trigger | 04–06 |
+| `components/shell/breadcrumb.tsx`, `user-menu.tsx`, `footer.tsx` | Header and footer parts | 07, 08, 10 |
+| `components/app-shell.tsx` | Assembles the above; `<main id="content">` | 01–10 |
+| `components/skip-link.tsx` | First element of `<body>` in the root layout; focuses the element with id `content` | 09 |
+| `components/page-header.tsx` | `h1`, description and primary action; every authenticated page uses it | 11, 12 |
+| `components/illustration.tsx`, `empty-state.tsx` | The illustration with `alt=""`; the empty table row | 16, 17, 19 |
+| `components/skeleton.tsx`, `app/(app)/*/loading.tsx` | Page-shaped placeholders with `role="status"` | 18 |
+| `components/session-provider.tsx` | While the session is restored, render the shell's frame with a skeleton instead of a bare "Carregando..." | 18 |
+| `app/(app)/dashboard`, `app/(app)/members` | `page.tsx` becomes a server component that exports the page's title and renders the existing client component, so the document title comes from the router's metadata and not from an effect | 11 |
+| `app/layout.tsx` | Title template `%s · SIGI`; the skip link | 09, 11 |
+| `components/auth/auth-layout.tsx`, `components/status-page.tsx` | Illustration in the navy panel and on the status pages; `<main id="content">` | 15–17 |
+| `next.config.ts` | Exposes `package.json`'s version at build time for the footer | 10 |
+
+**The collapse preference is a cookie, not `localStorage`.** The authenticated
+layout is a server component, so it reads the cookie and renders the sidebar
+in the right state on the first paint. `localStorage` is only readable after
+hydration, so a collapsed sidebar would flash open on every page load. The
+cookie holds `collapsed` or nothing, carries no token and is not httpOnly
+because the page writes it (C1 is about credentials).
+
+### Tests
+
+One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
+
+| AC | How |
+| --- | --- |
+| 01 | Sidebar links in order per perfil; `aria-current` on the current one |
+| 02 | Collapse; link text hidden, accessible name kept, tooltip visible on hover |
+| 03 | Collapse, reload, still collapsed |
+| 04–06 | At 360 px: no sidebar, "Abrir menu" opens the drawer; Escape and the backdrop close it and focus returns; following a link closes it; Tab cycles inside |
+| 07 | Breadcrumb items on `/dashboard` and `/members`; the last is not a link |
+| 08 | User menu shows identity and perfil; "Sair" ends at `/login` |
+| 09 | First Tab on `/login` and `/dashboard` focuses the skip link; Enter focuses `#content` |
+| 10 | Footer text contains "SIGI", the version and the contact |
+| 11 | One `h1`; `document.title` is the `h1` followed by " · SIGI" |
+| 12 | "Convidar membro" is inside `[data-testid=page-header]` |
+| 13, 14 | Tiles for a gestor; the message for a servidor |
+| 15 | Panel with illustration at 1440 px, hidden at 360 px |
+| 16, 17 | Status pages show their illustration; every illustration has `alt=""` |
+| 18 | The members request is held with `page.route`; the skeleton's status is announced inside the shell |
+| 19 | The members request answers an empty page; the empty illustration, the sentence and the invite action show |
+| 20 | On `/login`, no loaded script contains "Convidar membro"; on `/members`, one does (the control) |
+| 21 | Under `reducedMotion: "reduce"`, open a dialog, the drawer and the user menu; every running animation's keyframes touch only `opacity` |
+| 22 | After following a sidebar link, no animation is running on `main` |
+| 23 | The whole SPEC-0010 suite passes; `shell.spec.ts` keeps its assertions |
+| 24 | `responsive.spec.ts` and `accessibility.spec.ts` extended to the collapsed sidebar and the open drawer |
+
+### Sequence
+
+1. Illustrations and tokens.
+2. The shell parts and the skip link.
+3. Page header, titles, dashboard tiles.
+4. Signed-out frame and status pages.
+5. Skeletons and the empty state.
+6. Motion.
+7. Tests, and the SPEC-0010 suite on the new shell.
+
+### Risks
+
+- A test in the SPEC-0010 suite that relied on the old shell's markup changes
+  its selector, never its assertion (AC-0011-23).
+- The illustrations are a 2019 snapshot of unDraw. A newer one, fetched from
+  undraw.co by someone who can reach it, replaces a file without touching code.
 
 ## 12. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-09-28 | Initial draft from ADR-0014 and the product owner's references: navy sidebar shell, page template, dashboard tiles, signed-out frame, unDraw illustrations, loading and empty states, reduced motion. |
+| 1.0 | 2026-09-28 | Approved by the product owner after #46 merged. No criterion changed. |
+| 1.0 | 2026-09-28 | §11 implementation plan added. |
+| 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |

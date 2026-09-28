@@ -1,30 +1,38 @@
 @import "tailwindcss";
 
 /*
- * Tokens from docs/product/design-reference.md. Green is reserved for brand,
- * primary actions and completion; anything in progress is slate, attention is
- * amber, failure is destructive. Values chosen for WCAG AA against --background
- * (SPEC-0010 AC-0010-44).
+ * Tokens from DESIGN.md §2 (ADR-0014). Navy is the identity; green only means
+ * success, amber attention, red error, slate in progress. Every pair was
+ * measured for WCAG AA (AC-0010-44), including each status colour on its own
+ * 10 % badge tint.
  */
 :root {
-  --background: oklch(0.99 0.003 150);
-  --foreground: oklch(0.22 0.02 160);
+  --background: oklch(0.985 0.004 255);
+  --foreground: oklch(0.24 0.03 262);
   --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
-  --primary: oklch(0.42 0.09 158);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.01 158);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.96 0.005 160);
-  --muted-foreground: oklch(0.47 0.015 160);
-  --accent: oklch(0.52 0.12 152);
-  --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.53 0.2 27);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.008 160);
-  --input: oklch(0.86 0.01 160);
-  --ring: oklch(0.42 0.09 158);
+  --primary: oklch(0.33 0.08 262);
+  --primary-hover: oklch(0.39 0.09 262);
+  --primary-foreground: oklch(1 0 0);
+  --muted: oklch(0.965 0.006 262);
+  --muted-foreground: oklch(0.5 0.025 262);
+  --border: oklch(0.91 0.01 262);
+  --input: oklch(0.86 0.012 262);
+  --ring: oklch(0.33 0.08 262);
+  --sidebar: oklch(0.26 0.065 262);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-muted: oklch(0.8 0.03 262);
+  --sidebar-accent: oklch(0.33 0.07 262);
+  --success: oklch(0.5 0.12 152);
+  --attention: oklch(0.52 0.12 70);
+  --danger: oklch(0.53 0.2 27);
+  --neutral: oklch(0.5 0.03 262);
   --radius: 0.5rem;
+
+  /* DESIGN.md §7, from the emil-design-eng skill. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @theme inline {
@@ -33,22 +41,90 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-success: var(--success);
+  --color-attention: var(--attention);
+  --color-danger: var(--danger);
+  --color-neutral: var(--neutral);
+  /* The shadcn primitives say "destructive"; DESIGN.md says "danger". Same colour. */
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: oklch(1 0 0);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 0.25rem);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/*
+ * Motion (DESIGN.md §7). Only occasional surfaces move: dialogs, menus and the
+ * drawer. Radix waits for the exit animation before unmounting, so these are
+ * keyframes rather than transitions. Exits are shorter than entrances.
+ */
+@theme {
+  --animate-overlay-in: fade-in 200ms var(--ease-out);
+  --animate-overlay-out: fade-out 150ms var(--ease-out);
+  --animate-dialog-in: dialog-in 200ms var(--ease-out);
+  --animate-dialog-out: dialog-out 150ms var(--ease-out);
+  --animate-menu-in: dialog-in 150ms var(--ease-out);
+  --animate-menu-out: fade-out 100ms var(--ease-out);
+  --animate-drawer-in: drawer-in 250ms var(--ease-drawer);
+  --animate-drawer-out: drawer-out 200ms var(--ease-drawer);
+  --animate-label-in: fade-in 150ms var(--ease-out);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  /* Never from scale(0): nothing in the real world appears from nothing. */
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  @keyframes drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes drawer-out {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+/* AC-0011-21: under reduced motion nothing moves or resizes; it only fades. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-dialog-in: fade-in 200ms var(--ease-out);
+    --animate-dialog-out: fade-out 150ms var(--ease-out);
+    --animate-menu-in: fade-in 150ms var(--ease-out);
+    --animate-drawer-in: fade-in 200ms var(--ease-out);
+    --animate-drawer-out: fade-out 150ms var(--ease-out);
+  }
 }
 
 @layer base {

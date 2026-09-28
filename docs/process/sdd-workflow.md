@@ -1,6 +1,6 @@
 # Spec-Driven Development Workflow
 
-Status: Approved · Owner: Isaac Kleimann Graper
+Status: Approved · Owner: Isaac Kleimmann Graper
 
 ## Principle
 

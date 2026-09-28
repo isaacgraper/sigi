@@ -74,3 +74,11 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
+
+/**
+ * Follow a sidebar entry. The dashboard's tiles link to the same modules
+ * (AC-0011-13), so a link found by name alone is no longer unique.
+ */
+export async function openFromSidebar(page: Page, name: string) {
+  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name }).click();
+}

@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
-import { GESTOR, invite, LONG_ENOUGH, pathOf, signIn } from "./helpers";
+import { GESTOR, invite, LONG_ENOUGH, member, openFromSidebar, pathOf, signIn } from "./helpers";
 
 async function noSeriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -37,10 +37,55 @@ test.describe("AC-0010-44 no serious accessibility violation", () => {
   test("dashboard, members and the invite dialog", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
     await noSeriousViolations(page);
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
     await noSeriousViolations(page);
     await page.getByRole("button", { name: "Convidar membro" }).click();
+    await noSeriousViolations(page);
+  });
+});
+
+test.describe("AC-0011-24 no serious violation in the shell's states", () => {
+  test("collapsed sidebar", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.getByRole("button", { name: "Recolher menu lateral" }).click();
+    await noSeriousViolations(page);
+  });
+
+  test("open drawer", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.getByRole("button", { name: "Abrir menu" }).click();
+    await expect(page.getByTestId("drawer")).toBeVisible();
+    await noSeriousViolations(page);
+  });
+
+  test("user menu and the not-found page", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.getByRole("button", { name: "Menu do usuário" }).click();
+    await noSeriousViolations(page);
+    await page.goto("/nao-existe");
+    await noSeriousViolations(page);
+  });
+
+  test("a servidor's dashboard", async ({ page }) => {
+    const servidor = await member("servidor");
+    await signIn(page, servidor.email, servidor.password);
+    await expect(page.getByTestId("no-modules")).toBeVisible();
+    await noSeriousViolations(page);
+  });
+
+  test("empty table", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.route("**/api/v1/usuarios?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [], total: 0, page: 1, size: 20 }),
+      }),
+    );
+    await openFromSidebar(page, "Membros");
+    await expect(page.getByTestId("empty-state")).toBeVisible();
     await noSeriousViolations(page);
   });
 });

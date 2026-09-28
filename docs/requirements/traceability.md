@@ -20,7 +20,7 @@ on an `Approved` spec is a merge blocker.
 | RNF04, A05 (hardening) | SPEC-0001 v1.6 | AC-0001-41..43 | `tests/test_hardening.py` | **Approved** |
 | A03, A05 (page headers) | SPEC-0010 v1.3 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Approved** |
 | RNF14 (errors) | SPEC-0010 v1.4 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Approved** |
-| RNF06, RNF14 (shell) | SPEC-0011 v0.1 | AC-0011-01..24 | _pending_ | Draft |
+| RNF06, RNF14 (shell) | SPEC-0011 v1.0 | AC-0011-01..24 | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v0.2 | AC-0002-01..12 | _pending_ | Draft |
 | RN11, RN13, RN15 | SPEC-0002 v0.2 | AC-0002-13..17 | _pending_ | Draft |
 | RF03, RF07, RN14 | SPEC-0003 v0.2 | AC-0003-01..10 | _pending_ | Draft |
@@ -50,11 +50,11 @@ Requirements with no spec. This list must be empty before M5.
 | RNF01 | `tests/perf/k6_hot_endpoints.js` |
 | RNF03 | `tests/test_auth_tokens.py` |
 | RNF05 | `tests/perf/k6_concurrency.js` |
-| RNF06 | `frontend/e2e/responsive.spec.ts` *(SPEC-0010, AC-0010-43)* |
+| RNF06 | `frontend/e2e/responsive.spec.ts` *(SPEC-0010, AC-0010-43; SPEC-0011, AC-0011-24)* |
 | RNF08 | `tests/test_audit_immutability.py` |
 | RNF09 | CI job `compose-smoke` |
 | RNF10 | CI job `coverage` |
-| RNF14 | `frontend/e2e/accessibility.spec.ts` *(SPEC-0010, AC-0010-44, -45)* |
+| RNF14 | `frontend/e2e/accessibility.spec.ts` *(SPEC-0010, AC-0010-44, -45; SPEC-0011, AC-0011-24)*, `frontend/e2e/interface.spec.ts` *(AC-0011-09, -17, -21)* |
 | RNF15 | `tests/test_money_precision.py` |
 | RNF16 | `tests/test_rate_limiting.py` *(2026-09-10, ADR-0012)* |
 

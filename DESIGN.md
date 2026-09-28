@@ -47,28 +47,43 @@ column and never hard-code a colour.
 | `--sidebar` | `0.26 0.065 262` | `#122343` | `bg-sidebar` | Sidebar background |
 | `--sidebar-foreground` | `1 0 0` | `#ffffff` | `text-sidebar-foreground` | Active and hovered sidebar items |
 | `--sidebar-muted` | `0.80 0.03 262` | `#b3bed2` | `text-sidebar-muted` | Idle sidebar items |
+| `--sidebar-accent` | `0.33 0.07 262` | `#213459` | `bg-sidebar-accent` | Active and hovered sidebar item background (white on it 12.3:1) |
 | `--success` | `0.50 0.12 152` | `#1a763f` | `text-success` | `ativo`, `vigente`, `aprovada`, completion |
-| `--attention` | `0.55 0.13 70` | `#a16100` | `text-attention` | `bloqueado`, "a vencer", pending action |
+| `--attention` | `0.52 0.12 70` | `#945a00` | `text-attention` | `bloqueado`, "a vencer", pending action |
 | `--danger` | `0.53 0.2 27` | `#c51e21` | `text-danger` | Errors, destructive actions, `vencida` |
 | `--neutral` | `0.50 0.03 262` | `#5a6475` | `text-neutral` | `pendente`, in progress, waiting |
 
 Measured contrast (WCAG 2.1): foreground on background 15.8:1; white on primary
 12.3:1; white on sidebar 15.6:1; idle sidebar items 8.4:1; muted text 5.8:1;
-every status colour on white between 5.0:1 and 6.0:1. Any new colour is checked
+every status colour between 5.6:1 and 6.0:1 on white and at least 4.9:1 on
+its own 10 % badge tint (amber was darkened from `0.55 0.13 70` because it
+failed there at 4.4:1). Any new colour is checked
 the same way before it is used, and the axe suite (AC-0010-44) guards the result.
 
 ### Type
 
-The system sans-serif stack: no web font to download, and it matches the
-operating system the servidor already reads all day. Monospace for codes, links,
-Processo SEI, NE and NF numbers.
+[Inter](https://rsms.me/inter/), variable, Latin subset (every pt-BR
+character, 48 KB), bundled in `frontend/app/fonts/` and loaded with
+`next/font/local`. Bundled rather than fetched, because an on-premise build may
+have no internet and the CSP allows fonts only from `'self'`. Taken from
+`@fontsource-variable/inter` 5.3.0; licence SIL OFL 1.1, kept beside the file.
+The system sans-serif stack is the fallback. Chosen by the product owner over
+the system stack, which drew a different face on every machine. Monospace for
+codes, links, Processo SEI, NE and NF numbers.
+
+Two weights only (product owner, 2026-09-28): **regular (400)** for titles and
+anything important (names, identities, labels, buttons, badges, the brand) and
+**light (300)** for the minor line under a title. No semibold or bold: hierarchy
+comes from size and colour.
 
 | Role | Classes |
 | --- | --- |
-| Page title (one per page, `h1`) | `text-2xl font-semibold tracking-tight` |
-| Section and card title | `text-base font-semibold` |
+| Page title (one per page, `h1`) | `text-2xl font-normal tracking-tight` |
+| Section, card and dialog title | `text-base font-normal` (dialogs `text-lg`) |
+| Subtitle under a title, descriptions, secondary lines | `text-sm font-light text-muted-foreground` |
 | Body and table text | `text-sm` |
-| Caption, metadata, table header | `text-xs` or `text-sm text-muted-foreground` |
+| Table header, labels, buttons, badges | `font-normal` |
+| Caption, footer, the perfil under a name | `text-xs font-light text-muted-foreground` |
 | Figures in tables and stats | `tabular-nums` |
 | Codes and identifiers | `font-mono text-xs` |
 
@@ -155,6 +170,7 @@ tokens above. Prefer extending one of these to adding a new one.
 | **Card** | White, border, `shadow-sm`, `rounded-lg`. Title `text-base font-semibold`, optional muted description. |
 | **Module tile** | Dashboard entry point: card with a line icon in navy, the module name and one line of description; the whole tile is the link. Hover raises the border to navy, never scales. |
 | **Stat tile** | Number in `text-3xl font-semibold tabular-nums`, label above in muted text, optional change below. Only for figures the API provides. |
+| **Menu** | Opens from its trigger and is not modal: the page behind stays readable by assistive technology, and Escape, Tab or a click outside closes it. Row actions and the user menu use it. |
 | **Dialog** | Centred, `max-w-xl` for forms, `max-w-md` for confirmations. Destructive confirmations use `AlertDialog` and name the consequence ("não pode ser desfeita"). |
 | **Error notice** | Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
 | **Notice** | Success or information after an action, in a tinted box with `role="status"`. |
@@ -165,17 +181,26 @@ tokens above. Prefer extending one of these to adding a new one.
 
 ## 5. Illustrations
 
-From [unDraw](https://undraw.co), exported as SVG with the accent colour set to
-the brand navy `#1e345e`, stored in `frontend/public/illustrations/`, and shown
-with `alt=""` because they are decorative. unDraw's licence allows commercial
-use without attribution and forbids only redistributing the collection.
+From [unDraw](https://undraw.co), stored as static SVG in
+`frontend/public/illustrations/` and shown with `alt=""` because they are
+decorative. The accent colour is the brand navy `#1e345e`, except on the navy
+login panel, where it is `--sidebar-muted` `#b3bed2` so the drawing stays
+visible.
 
-| Where | unDraw subject | File |
-| --- | --- | --- |
-| Login panel | secure login / authentication | `login.svg` |
-| Not found | page not found | `not-found.svg` |
-| Error page | server down / fixing bugs | `error.svg` |
-| Empty table or list | empty / no data | `empty.svg` |
+**Source.** undraw.co is not reachable from the build environment, so the files
+were rendered once from [`react-undraw-illustrations`](https://www.npmjs.com/package/react-undraw-illustrations)
+2.0.3, MIT licensed, which republishes unDraw's illustrations from when the
+collection itself was MIT. The package is not a dependency. A newer file from
+undraw.co may replace any of these under unDraw's current licence, which allows
+commercial use without attribution and forbids only redistributing the
+collection.
+
+| Where | Illustration | File | Accent |
+| --- | --- | --- | --- |
+| Login panel | Secure data | `login.svg` | `#b3bed2` |
+| Not found | Lost | `not-found.svg` | `#1e345e` |
+| Error page | Maintenance | `error.svg` | `#1e345e` |
+| Empty table or list | No data | `empty.svg` | `#1e345e` |
 
 One illustration per screen, at most 240 px tall on status pages and 160 px in
 empty states, never above the page title. Illustrations are never used as the

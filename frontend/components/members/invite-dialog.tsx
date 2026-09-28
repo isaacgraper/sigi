@@ -23,7 +23,16 @@ import { ApiError, unavailable } from "@/lib/errors";
 import { PERFIL_LABEL, type Perfil } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
-export function InviteDialog({ onInvited }: { onInvited: () => void }) {
+export function InviteDialog({
+  onInvited,
+  label = "Convidar membro",
+  variant = "default",
+}: {
+  onInvited: () => void;
+  /** The trigger's words; the empty table offers the same dialog in its own words. */
+  label?: string;
+  variant?: "default" | "outline";
+}) {
   const { handleSessionError } = useSession();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -75,9 +84,9 @@ export function InviteDialog({ onInvited }: { onInvited: () => void }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button>
+        <Button variant={variant}>
           <UserPlus aria-hidden />
-          Convidar membro
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent>

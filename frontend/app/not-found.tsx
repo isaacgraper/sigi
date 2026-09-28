@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 export default function NotFound() {
   return (
     <StatusPage
+      illustration="not-found"
       title="Página não encontrada"
       description="O endereço que você abriu não existe ou foi alterado."
     >

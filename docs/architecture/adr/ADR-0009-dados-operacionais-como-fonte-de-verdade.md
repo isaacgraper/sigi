@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-02
-- **Deciders:** Isaac Kleimann Graper (product owner)
+- **Deciders:** Isaac Kleimmann Graper (product owner)
 - **Related:** ADR-0002, ADR-0003, ADR-0007, ADR-0008, `docs/architecture/data-sources.md`, `CLAUDE.md`
 
 ## Context

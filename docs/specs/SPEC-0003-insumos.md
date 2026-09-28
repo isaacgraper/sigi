@@ -3,7 +3,7 @@ id: SPEC-0003
 title: Catálogo de insumos
 status: Draft
 version: 0.2
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RN14]
 depends_on: [SPEC-0001, SPEC-0002]
 milestone: M2
