@@ -158,6 +158,7 @@ tokens above. Prefer extending one of these to adding a new one.
 | **Card** | White, border, `shadow-sm`, `rounded-lg`. Title `text-base font-semibold`, optional muted description. |
 | **Module tile** | Dashboard entry point: card with a line icon in navy, the module name and one line of description; the whole tile is the link. Hover raises the border to navy, never scales. |
 | **Stat tile** | Number in `text-3xl font-semibold tabular-nums`, label above in muted text, optional change below. Only for figures the API provides. |
+| **Menu** | Opens from its trigger and is not modal: the page behind stays readable by assistive technology, and Escape, Tab or a click outside closes it. Row actions and the user menu use it. |
 | **Dialog** | Centred, `max-w-xl` for forms, `max-w-md` for confirmations. Destructive confirmations use `AlertDialog` and name the consequence ("não pode ser desfeita"). |
 | **Error notice** | Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
 | **Notice** | Success or information after an action, in a tinted box with `role="status"`. |

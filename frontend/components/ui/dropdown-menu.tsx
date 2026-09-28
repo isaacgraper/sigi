@@ -5,7 +5,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-export const DropdownMenu = DropdownMenuPrimitive.Root;
+// Not modal: a menu button needs no modality (WAI-ARIA menu button pattern),
+// and a modal menu hides the whole page with aria-hidden while a focusable skip
+// link stays inside it, which axe reports as aria-hidden-focus (AC-0011-24).
+// Escape, Tab and an outside click still close it, and focus still returns to
+// the trigger.
+export function DropdownMenu({
+  modal = false,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root modal={modal} {...props} />;
+}
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
 export function DropdownMenuContent({
