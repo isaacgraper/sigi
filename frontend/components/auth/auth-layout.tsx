@@ -41,7 +41,7 @@ export function FormMessage({ children, id }: { children: React.ReactNode; id?: 
 
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <p role="status" className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
+    <p role="status" className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-primary">
       {children}
     </p>
   );
