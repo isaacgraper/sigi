@@ -71,12 +71,19 @@ The system sans-serif stack is the fallback. Chosen by the product owner over
 the system stack, which drew a different face on every machine. Monospace for
 codes, links, Processo SEI, NE and NF numbers.
 
+Two weights only (product owner, 2026-09-28): **regular (400)** for titles and
+anything important (names, identities, labels, buttons, badges, the brand) and
+**light (300)** for the minor line under a title. No semibold or bold: hierarchy
+comes from size and colour.
+
 | Role | Classes |
 | --- | --- |
-| Page title (one per page, `h1`) | `text-2xl font-semibold tracking-tight` |
-| Section and card title | `text-base font-semibold` |
+| Page title (one per page, `h1`) | `text-2xl font-normal tracking-tight` |
+| Section, card and dialog title | `text-base font-normal` (dialogs `text-lg`) |
+| Subtitle under a title, descriptions, secondary lines | `text-sm font-light text-muted-foreground` |
 | Body and table text | `text-sm` |
-| Caption, metadata, table header | `text-xs` or `text-sm text-muted-foreground` |
+| Table header, labels, buttons, badges | `font-normal` |
+| Caption, footer, the perfil under a name | `text-xs font-light text-muted-foreground` |
 | Figures in tables and stats | `tabular-nums` |
 | Codes and identifiers | `font-mono text-xs` |
 
