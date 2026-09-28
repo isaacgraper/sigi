@@ -3,7 +3,7 @@ id: SPEC-0009
 title: Relatórios e exportações
 status: Draft
 version: 0.1
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF12]
 depends_on: [SPEC-0006, SPEC-0007]
 milestone: M4

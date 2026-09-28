@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-02
-- **Deciders:** Isaac Kleimann Graper, pending confirmation by Anderson Viebranz
+- **Deciders:** Isaac Kleimmann Graper, pending confirmation by Anderson Viebranz
 - **Related:** SPEC-0004, SPEC-0006, OQ-05, OQ-06, RF13, RN09, ADR-0003
 
 ## Context

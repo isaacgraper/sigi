@@ -1,6 +1,6 @@
 # Product Vision
 
-Status: Approved · Author: Isaac Kleimann Graper
+Status: Approved · Author: Isaac Kleimmann Graper
 Source: the entity's operational data and stakeholder statements (ADR-0009).
 RFC SIGI v1.6 (22/05/2026) is retained as historical context.
 Revised 2026-09-02.

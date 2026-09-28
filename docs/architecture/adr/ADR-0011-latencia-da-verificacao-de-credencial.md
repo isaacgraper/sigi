@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-10
-- **Deciders:** Isaac Kleimann Graper (product owner), 2026-09-10
+- **Deciders:** Isaac Kleimmann Graper (product owner), 2026-09-10
 - **Related:** RNF01, RNF05, AC-0001-05, SPEC-0001, ADR-0010
 
 ## Context

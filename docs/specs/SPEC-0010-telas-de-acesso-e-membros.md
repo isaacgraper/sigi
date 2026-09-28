@@ -3,7 +3,7 @@ id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
 version: 1.4
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
 milestone: M2

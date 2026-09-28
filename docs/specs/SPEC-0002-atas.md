@@ -3,7 +3,7 @@ id: SPEC-0002
 title: ATAs de Registro de Preços
 status: Draft
 version: 0.2
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
 milestone: M2

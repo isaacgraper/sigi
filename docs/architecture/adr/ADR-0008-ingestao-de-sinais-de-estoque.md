@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (by ADR-0009, 2026-09-02)
 - **Date:** 2026-09-02
-- **Deciders:** Isaac Kleimann Graper (product owner), 2026-09-02
+- **Deciders:** Isaac Kleimmann Graper (product owner), 2026-09-02
 - **Related:** ADR-0002, ADR-0003, ADR-0009, RF20, RF21, OQ-25, `docs/architecture/data-sources.md`
 
 ## Context

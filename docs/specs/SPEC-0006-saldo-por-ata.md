@@ -3,7 +3,7 @@ id: SPEC-0006
 title: Saldo por ATA (visão derivada)
 status: Draft
 version: 0.3
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF14, RN10, RN15]
 depends_on: [SPEC-0002, SPEC-0004]
 milestone: M2

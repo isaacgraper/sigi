@@ -3,7 +3,7 @@ id: SPEC-0004
 title: Fluxo de Notas de Empenho
 status: Draft
 version: 0.3
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN11]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0006, SPEC-0007]
 milestone: M2

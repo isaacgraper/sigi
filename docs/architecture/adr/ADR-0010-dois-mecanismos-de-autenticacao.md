@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-10
-- **Deciders:** Isaac Kleimann Graper (product owner), 2026-09-10
+- **Deciders:** Isaac Kleimmann Graper (product owner), 2026-09-10
 - **Related:** SPEC-0001, RF01, RN01, RNF03, OQ-09, OQ-10, ADR-0002, ADR-0009
 
 ## Context

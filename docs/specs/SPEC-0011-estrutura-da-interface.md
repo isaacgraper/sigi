@@ -3,7 +3,7 @@ id: SPEC-0011
 title: Estrutura da interface
 status: Approved
 version: 1.0
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
 milestone: M2

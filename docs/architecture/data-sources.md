@@ -1,6 +1,6 @@
 # Data Sources
 
-Status: Draft · Owner: Isaac Kleimann Graper · Date: 2026-09-02
+Status: Draft · Owner: Isaac Kleimmann Graper · Date: 2026-09-02
 
 > **This document is a source of truth, not a report about one.** Under
 > `ADR-0009` the entity's operational data outranks the specs and the RFC. Where

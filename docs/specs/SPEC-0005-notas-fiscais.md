@@ -3,7 +3,7 @@ id: SPEC-0005
 title: Notas Fiscais e conferência
 status: Draft
 version: 0.2
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
 milestone: M4

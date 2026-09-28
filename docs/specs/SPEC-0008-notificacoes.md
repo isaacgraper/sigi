@@ -3,7 +3,7 @@ id: SPEC-0008
 title: Notificações por e-mail
 status: Draft
 version: 0.2
-owner: Isaac Kleimann Graper
+owner: Isaac Kleimmann Graper
 satisfies: [RF09]
 depends_on: [SPEC-0004, SPEC-0005]
 milestone: M4
