@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
-import { GESTOR, invite, LONG_ENOUGH, pathOf, signIn } from "./helpers";
+import { GESTOR, invite, LONG_ENOUGH, openFromSidebar, pathOf, signIn } from "./helpers";
 
 async function noSeriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -37,7 +37,7 @@ test.describe("AC-0010-44 no serious accessibility violation", () => {
   test("dashboard, members and the invite dialog", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
     await noSeriousViolations(page);
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
     await noSeriousViolations(page);
     await page.getByRole("button", { name: "Convidar membro" }).click();

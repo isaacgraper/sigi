@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { asGestor, GESTOR, invite, member, signIn, uniqueEmail } from "./helpers";
+import { asGestor, GESTOR, invite, member, openFromSidebar, signIn, uniqueEmail } from "./helpers";
 
 function row(page: Page, email: string) {
   return page.getByTestId("member-row").filter({ hasText: email });
@@ -13,7 +13,7 @@ async function rowAction(page: Page, email: string, action: string) {
 
 async function openMembers(page: Page) {
   await signIn(page, GESTOR.email, GESTOR.password);
-  await page.getByRole("link", { name: "Membros" }).click();
+  await openFromSidebar(page, "Membros");
   await expect(page.getByRole("heading", { name: "Membros" })).toBeVisible();
 }
 
@@ -55,7 +55,7 @@ test.describe("members", () => {
   test("AC-0010-32 the auditor reads without acting", async ({ page }) => {
     const auditor = await member("auditor");
     await signIn(page, auditor.email, auditor.password);
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Convidar membro" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Ações para/ })).toHaveCount(0);
@@ -188,7 +188,7 @@ test.describe("session, through the members page", () => {
         body: JSON.stringify({ error: { code: "TOKEN_EXPIRED", message: "Sua sessão expirou." } }),
       }),
     );
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("status")).toHaveText("Sua sessão não é mais válida. Entre novamente.");
   });

@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { GESTOR, signIn } from "./helpers";
+import { GESTOR, openFromSidebar, signIn } from "./helpers";
 
 // The test frontend runs with SUPPORT_CONTACT_EMAIL=suporte@sc.gov.br; the
 // OIDC-only one has none, which is the fallback case.
@@ -34,7 +34,7 @@ test.describe("when something goes wrong", () => {
         body: JSON.stringify({ items: null, total: 0, page: 1, size: 20 }),
       }),
     );
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
 
     await expect(page.getByRole("heading", { name: "Algo deu errado" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Tentar novamente" })).toBeVisible();
@@ -104,7 +104,7 @@ test.describe("when something goes wrong", () => {
       Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
     });
     await signIn(page, GESTOR.email, GESTOR.password);
-    await page.getByRole("link", { name: "Membros" }).click();
+    await openFromSidebar(page, "Membros");
     await page.getByRole("button", { name: "Convidar membro" }).click();
     await page.getByLabel("E-mail institucional").fill(`copia${Date.now().toString(36)}@sc.gov.br`);
     await page.getByRole("button", { name: "Convidar", exact: true }).click();
