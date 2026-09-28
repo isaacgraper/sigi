@@ -94,7 +94,7 @@ def invite(
         correlation_id=correlation_id,
         at=at,
     )
-    return user, grant.link("/convite")
+    return user, grant.link("/invite")
 
 
 def bootstrap_gestor(
@@ -393,7 +393,7 @@ def trigger_reset(
         correlation_id=correlation_id,
         at=at,
     )
-    return user, grant.link("/redefinir-senha")
+    return user, grant.link("/reset-password")
 
 
 def redeem_reset(
