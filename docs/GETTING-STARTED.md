@@ -52,6 +52,14 @@ docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.go
 # add --no-password when local login is disabled and OIDC is the only way in
 ```
 
+**On a development install**, skip the bootstrap and seed the known gestor
+`admin@sc.gov.br` / `admin` (AC-0001-39). It refuses outside
+`APP_ENV=development`.
+
+```bash
+docker compose exec backend python -m app.cli seed-dev-admin
+```
+
 **Behind a proxy**, set `TRUSTED_PROXIES` to the proxy's network, e.g.
 `["172.20.0.0/16"]`, or the rate limit counts every user as one source
 (AC-0001-37).
