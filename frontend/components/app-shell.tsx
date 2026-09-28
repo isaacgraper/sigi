@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 // Only what has an Approved spec behind it (AC-0010-27).
 function navigation(me: Me) {
   const items = [{ href: "/dashboard", label: "Painel", icon: LayoutDashboard }];
-  if (canSeeMembers(me.perfil)) items.push({ href: "/membros", label: "Membros", icon: Users });
+  if (canSeeMembers(me.perfil)) items.push({ href: "/members", label: "Membros", icon: Users });
   return items;
 }
 

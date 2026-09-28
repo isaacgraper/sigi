@@ -33,22 +33,29 @@ import { ApiError, GENERIC_FAILURE } from "@/lib/errors";
 import { displayName } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
-type Action = "bloquear" | "desativar" | "redefinir-senha";
+type Action = "block" | "deactivate" | "resetPassword";
+
+// The API's route segments (SPEC-0001 §7), kept in one place.
+const ENDPOINT: Record<Action, string> = {
+  block: "bloquear",
+  deactivate: "desativar",
+  resetPassword: "redefinir-senha",
+};
 
 const CONFIRM: Record<Action, { title: string; body: string; label: string; destructive: boolean }> = {
-  bloquear: {
+  block: {
     title: "Bloquear membro?",
     body: "As sessões abertas desta pessoa são encerradas e ela não consegue mais entrar.",
     label: "Bloquear",
     destructive: true,
   },
-  desativar: {
+  deactivate: {
     title: "Desativar membro?",
     body: "Nome e e-mail serão apagados e esta ação não pode ser desfeita. O histórico do que a pessoa fez é mantido.",
     label: "Desativar",
     destructive: true,
   },
-  "redefinir-senha": {
+  resetPassword: {
     title: "Redefinir senha?",
     body: "Um link de redefinição será gerado para você entregar à pessoa.",
     label: "Gerar link",
@@ -72,17 +79,17 @@ export function MemberActions({
   // A deactivated account has nothing left to act on (AC-0010-41); block and
   // reset apply only to an active one (AC-0010-37, -40).
   const available: Action[] = [];
-  if (member.status === "ativo") available.push("bloquear", "redefinir-senha");
-  if (member.status !== "desativado") available.push("desativar");
+  if (member.status === "ativo") available.push("block", "resetPassword");
+  if (member.status !== "desativado") available.push("deactivate");
   if (available.length === 0) return null;
 
   async function run(chosen: Action) {
     try {
       const result = await apiJson<{ reset_link?: string }>(
-        `/api/v1/usuarios/${member.id}/${chosen}`,
+        `/api/v1/usuarios/${member.id}/${ENDPOINT[chosen]}`,
         { method: "POST" },
       );
-      if (chosen === "redefinir-senha" && result.reset_link) setResetLink(result.reset_link);
+      if (chosen === "resetPassword" && result.reset_link) setResetLink(result.reset_link);
       onChanged();
     } catch (err) {
       if (handleSessionError(err)) return;
@@ -100,20 +107,20 @@ export function MemberActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {available.includes("bloquear") && (
-            <DropdownMenuItem onSelect={() => setAction("bloquear")}>
+          {available.includes("block") && (
+            <DropdownMenuItem onSelect={() => setAction("block")}>
               <Ban aria-hidden />
               Bloquear
             </DropdownMenuItem>
           )}
-          {available.includes("redefinir-senha") && (
-            <DropdownMenuItem onSelect={() => setAction("redefinir-senha")}>
+          {available.includes("resetPassword") && (
+            <DropdownMenuItem onSelect={() => setAction("resetPassword")}>
               <KeyRound aria-hidden />
               Redefinir senha
             </DropdownMenuItem>
           )}
-          {available.includes("desativar") && (
-            <DropdownMenuItem onSelect={() => setAction("desativar")} className="text-destructive">
+          {available.includes("deactivate") && (
+            <DropdownMenuItem onSelect={() => setAction("deactivate")} className="text-destructive">
               <UserX aria-hidden />
               Desativar
             </DropdownMenuItem>

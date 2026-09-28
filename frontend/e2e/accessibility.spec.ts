@@ -28,7 +28,7 @@ test.describe("AC-0010-44 no serious accessibility violation", () => {
     const { link } = await invite("servidor");
     await page.goto(pathOf(link));
     await noSeriousViolations(page);
-    await page.goto("/redefinir-senha");
+    await page.goto("/reset-password");
     await noSeriousViolations(page);
     await page.goto("/auth/callback?error=access_denied");
     await noSeriousViolations(page);

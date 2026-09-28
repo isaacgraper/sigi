@@ -37,7 +37,7 @@ test.describe("members", () => {
     for (let i = 0; i < 21; i += 1) await invite("servidor");
     await openMembers(page);
     await page.getByRole("button", { name: "Próxima" }).click();
-    await expect(page).toHaveURL(/\/membros\?page=2$/);
+    await expect(page).toHaveURL(/\/members\?page=2$/);
     await page.reload();
     await expect(page.getByText(/^Página 2 de/)).toBeVisible();
   });
@@ -64,14 +64,14 @@ test.describe("members", () => {
   test("AC-0010-33 the servidor is told why, not shown an empty page", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
-    await page.goto("/membros");
+    await page.goto("/members");
     await expect(page.getByText("Seu perfil não permite esta ação.")).toBeVisible();
     await expect(page.getByTestId("member-row")).toHaveCount(0);
   });
 
   test("AC-0010-34 an empty page is stated", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
-    await page.goto("/membros?page=9999");
+    await page.goto("/members?page=9999");
     await expect(page.getByRole("cell", { name: "Nenhum membro encontrado." })).toBeVisible();
   });
 
@@ -85,7 +85,7 @@ test.describe("members", () => {
     await expect(
       page.getByText("Este link não será mostrado de novo. Envie-o agora à pessoa convidada."),
     ).toBeVisible();
-    await expect(page.getByTestId("one-time-link")).toContainText("/convite?token=");
+    await expect(page.getByTestId("one-time-link")).toContainText("/invite?token=");
     await expect(page.getByRole("button", { name: "Copiar" })).toBeVisible();
     await page.getByRole("button", { name: "Concluir" }).click();
     await expect(row(page, email).getByTestId("cell-status")).toHaveText("Pendente");
@@ -152,7 +152,7 @@ test.describe("members", () => {
     // The seeded gestor is the oldest account, so it sits on the last page.
     const summary = await page.getByText(/^Página \d+ de \d+/).textContent();
     const last = summary?.match(/de (\d+)/)?.[1] ?? "1";
-    await page.goto(`/membros?page=${last}`);
+    await page.goto(`/members?page=${last}`);
     await rowAction(page, GESTOR.email, "Bloquear");
     await page.getByRole("button", { name: "Bloquear" }).click();
     await expect(page.getByTestId("page-error")).toContainText("Esta é a única conta de gestor ativa.");
@@ -165,7 +165,7 @@ test.describe("members", () => {
     await rowAction(page, target.email, "Redefinir senha");
     await page.getByRole("button", { name: "Gerar link" }).click();
     await expect(page.getByText("Este link não será mostrado de novo e expira em 1 hora.")).toBeVisible();
-    await expect(page.getByTestId("one-time-link")).toContainText("/redefinir-senha?token=");
+    await expect(page.getByTestId("one-time-link")).toContainText("/reset-password?token=");
   });
 
   test("AC-0010-41 a deactivated member offers no actions", async ({ page }) => {
@@ -194,11 +194,11 @@ test.describe("session, through the members page", () => {
   });
 
   test("AC-0010-15 a protected page asks for login and returns afterwards", async ({ page }) => {
-    await page.goto("/membros?page=2");
+    await page.goto("/members?page=2");
     await expect(page).toHaveURL(/\/login\?next=/);
     await page.getByLabel("E-mail institucional").fill(GESTOR.email);
     await page.getByLabel("Senha", { exact: true }).fill(GESTOR.password);
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
-    await expect(page).toHaveURL(/\/membros\?page=2$/);
+    await expect(page).toHaveURL(/\/members\?page=2$/);
   });
 });

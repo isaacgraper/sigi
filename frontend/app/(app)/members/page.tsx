@@ -145,7 +145,7 @@ export default function MembersPage() {
                 variant="outline"
                 size="sm"
                 disabled={page <= 1}
-                onClick={() => router.push(`/membros?page=${page - 1}`)}
+                onClick={() => router.push(`/members?page=${page - 1}`)}
               >
                 <ChevronLeft aria-hidden />
                 Anterior
@@ -154,7 +154,7 @@ export default function MembersPage() {
                 variant="outline"
                 size="sm"
                 disabled={page >= lastPage}
-                onClick={() => router.push(`/membros?page=${page + 1}`)}
+                onClick={() => router.push(`/members?page=${page + 1}`)}
               >
                 Próxima
                 <ChevronRight aria-hidden />
