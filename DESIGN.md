@@ -90,7 +90,7 @@ Processo SEI, NE and NF numbers.
 
 ```
 ┌──────────────┬───────────────────────────────────────────┐
-│  SIGI        │  Início / Membros                 [● Ana] │  white header, sticky
+│  SIGI        │  Painel / Membros                 [● Ana] │  white header, sticky
 │              ├───────────────────────────────────────────┤
 │  ▣ Painel    │                                           │
 │  ▣ Membros   │  <main>                                   │
@@ -214,9 +214,9 @@ crisp, fast, and only where it explains something.
 
 | Rule | Value |
 | --- | --- |
-| Should it animate? | Only occasional actions: dialogs, drawers, menus, toasts, the sidebar collapse. Never navigation between pages, table rows, or anything keyboard-driven. |
+| Should it animate? | Only occasional actions: dialogs, drawers, menus, toasts. Never navigation between pages, table rows, or anything keyboard-driven. |
 | Easing | `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)` for entering and exiting; `--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement. Never `ease-in`. |
-| Duration | Button press 120 ms; menus and selects 150–200 ms; dialogs 200 ms; drawer and sidebar collapse 250 ms. Nothing over 300 ms. |
+| Duration | Button press 120 ms; menus and selects 150–200 ms; dialogs 200 ms; the mobile drawer 250 ms. Nothing over 300 ms. The desktop collapse changes the sidebar's width, so it snaps; only the labels fade, in 150 ms. |
 | Properties | `transform` and `opacity` only. Never `transition: all`, never width or height. |
 | Entrances | From `scale(0.97)` and `opacity: 0`, never from `scale(0)`. Menus scale from their trigger; dialogs from the centre. |
 | Exits | Faster than entrances. |
