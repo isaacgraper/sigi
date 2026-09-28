@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   headers() {
     return Promise.resolve([
-      { source: "/convite", headers: noReferrer },
-      { source: "/redefinir-senha", headers: noReferrer },
+      { source: "/invite", headers: noReferrer },
+      { source: "/reset-password", headers: noReferrer },
     ]);
   },
 };

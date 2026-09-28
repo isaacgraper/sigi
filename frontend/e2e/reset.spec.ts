@@ -22,7 +22,7 @@ test.describe("reset", () => {
     const { link } = await resetLink();
     const response = await page.goto(pathOf(link));
     expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
-    await expect(page).toHaveURL(/\/redefinir-senha$/);
+    await expect(page).toHaveURL(/\/reset-password$/);
   });
 
   test("AC-0010-25 a confirmed reset returns to login, without a session", async ({ page }) => {
