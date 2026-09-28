@@ -33,11 +33,18 @@ LONG_ENOUGH = "SenhaLongaOSuficiente-2026"
 
 @pytest.fixture
 def low_ceiling(monkeypatch: pytest.MonkeyPatch) -> Iterator[int]:
-    """Drop the login ceiling to something a test can reach in a few requests."""
+    """Drop the login ceiling to something a test can reach in a few requests.
+
+    The window is widened as well. It is fixed and floored to the clock, so with
+    the real 60 s a burst that crosses a minute boundary starts a fresh count and
+    the request meant to be refused is let through. 2**31 s puts the next
+    boundary in 2038.
+    """
     from app.core.config import get_settings
 
     cfg = get_settings()
     monkeypatch.setitem(cfg.rate_limit_ceilings, LOGIN, 3)
+    monkeypatch.setattr(cfg, "rate_limit_window_seconds", 2**31)
     yield 3
 
 

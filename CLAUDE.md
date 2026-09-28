@@ -242,6 +242,9 @@ Full version: `CONTRIBUTING.md`.
 - Server Components by default; `"use client"` only when interactivity requires it.
 - No business rule is re-implemented in the frontend. Ask the API.
 - Currency formatted `pt-BR` / `BRL`; dates `dd/MM/yyyy`.
+- Every screen follows `DESIGN.md` (ADR-0014): the navy shell, the page
+  template, the components, the states and the motion rules. Read it before
+  building one.
 
 **Both**
 

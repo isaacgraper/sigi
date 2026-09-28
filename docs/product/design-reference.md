@@ -1,6 +1,9 @@
 <!--
 Design reference: Lovable prototype
 
+SUPERSEDED (2026-09-28) by DESIGN.md at the repository root, under ADR-0014.
+Kept as history. Where the two disagree, DESIGN.md wins.
+
 This is third-party input. It is the DESIGN.md of the Lovable prototype of SIGI,
 kept unchanged below the marker line so it can be quoted and diffed. Use it as a
 style reference: tokens, shadcn/ui components, layout, and feedback and empty
