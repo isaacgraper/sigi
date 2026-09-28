@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.5
+version: 1.6
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -667,6 +667,35 @@ tries.
 The trusted-proxy list is empty by default, which is the v1.1 behaviour: nothing
 forwarded is believed until a deployment names who may forward.
 
+### 4.10 Input bounds and response headers *(new in v1.6)*
+
+**AC-0001-41** — Oversized fields are refused before any work
+```gherkin
+Given a request to any route that takes a password or a token
+When  the password is longer than 128 characters or the token longer than 512
+Then  the response is 422 "INVALID_DATA" naming the field
+And   no password is hashed and no token is looked up
+```
+
+**AC-0001-42** — An oversized body is refused
+```gherkin
+Given any route
+When  a request body larger than 64 KiB arrives
+Then  the response is 413 "PAYLOAD_TOO_LARGE"
+And   the body is not parsed
+```
+
+**AC-0001-43** — Every API response forbids sniffing and framing
+```gherkin
+Given any API response, success or error
+Then  it carries "X-Content-Type-Options: nosniff"
+And   "X-Frame-Options: DENY"
+And   "Content-Security-Policy: default-src 'none'; frame-ancestors 'none'"
+```
+
+The API serves JSON only, so a policy that allows nothing costs nothing and
+stops a response ever being rendered as a page.
+
 ## 5. Errors and edge cases
 
 | Condition | HTTP | Error code | Message (pt-BR) |
@@ -689,6 +718,8 @@ forwarded is believed until a deployment names who may forward.
 | E-mail already invited or registered | 409 | `EMAIL_ALREADY_REGISTERED` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
 | Invited e-mail outside the institutional domains | 422 | `NON_INSTITUTIONAL_DOMAIN` | "Use um e-mail institucional. Domínios aceitos: {dominios}." |
 | Bootstrap with an active gestor already present (command line only) | — | `GESTOR_ALREADY_EXISTS` | "Já existe um gestor ativo. Use o convite a partir da conta dele." |
+| A field is malformed, missing or out of bounds | 422 | `INVALID_DATA` | "Verifique os campos destacados." (`fields` names each one) |
+| Request body over 64 KiB | 413 | `PAYLOAD_TOO_LARGE` | "A requisição é grande demais." |
 | Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
 Every `message` is addressed to a servidor, not to a developer, and says what to
@@ -1191,3 +1222,4 @@ No acceptance criterion changed meaning and no route moved.
 | 1.3 | 2026-09-25 | §7 brought in line with the served API, which SPEC-0010 cites. Activation and reset confirmation had kept the token-in-path routes that OQ-30 moved into the body in v0.8, and the self-service reset request was listed without saying it is not served while AC-0001-30 is blocked. No behaviour changes. |
 | 1.4 | 2026-09-28 | AC-0001-34/35/36: the first gestor is created from the command line, because every account comes from an invitation and a fresh install had nobody to invite (OQ-38). AC-0001-37/38: a configured trusted proxy's `X-Forwarded-For` is the throttle's source, because SPEC-0010's same-origin proxy would otherwise make every servidor one source (OQ-32). |
 | 1.5 | 2026-09-28 | AC-0001-39/40: a development-only seed creates the gestor `admin@sc.gov.br` with password `admin`, by the product owner's request, so a local install can be used at once. It refuses outside `APP_ENV=development`. |
+| 1.6 | 2026-09-28 | AC-0001-41/42/43: passwords at most 128 characters, tokens at most 512, bodies at most 64 KiB, and security headers on every API response. `INVALID_DATA` added to §5, where it was missing although the API always returned it (OQ-37 item 1). |
