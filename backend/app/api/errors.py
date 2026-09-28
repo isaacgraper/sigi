@@ -6,6 +6,9 @@ other half of that rule: without it the first route would have to break it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -40,7 +43,7 @@ def register_handlers(app: FastAPI) -> None:
         is the stated mitigation for the transcription errors that motivated the
         project — a client that has to parse two shapes ends up parsing neither.
         """
-        fields = {_field(error.get("loc", ())): str(error.get("msg", "")) for error in exc.errors()}
+        fields = {_field(error.get("loc", ())): _message(error) for error in exc.errors()}
         return JSONResponse(
             status_code=422,
             content={
@@ -52,6 +55,27 @@ def register_handlers(app: FastAPI) -> None:
                 }
             },
         )
+
+
+def _message(error: Mapping[str, Any]) -> str:
+    """Say what is wrong with a field in pt-BR, for the servidor (ADR-0013).
+
+    Pydantic's own `msg` is English and addressed to a developer; passing it
+    through put "value is not a valid email address" on the invite dialog.
+    """
+    kind = str(error.get("type", ""))
+    context = error.get("ctx") or {}
+    if kind == "missing":
+        return "Campo obrigatório."
+    if kind == "string_too_short":
+        return "Campo obrigatório." if context.get("min_length") == 1 else "Texto curto demais."
+    if kind == "string_too_long":
+        return f"Use no máximo {context.get('max_length')} caracteres."
+    if kind == "value_error" and "email" in str(error.get("msg", "")).lower():
+        return "E-mail inválido."
+    if kind == "string_pattern_mismatch":
+        return "Valor não permitido."
+    return "Valor inválido."
 
 
 def _field(loc: object) -> str:
