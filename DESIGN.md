@@ -62,9 +62,14 @@ the same way before it is used, and the axe suite (AC-0010-44) guards the result
 
 ### Type
 
-The system sans-serif stack: no web font to download, and it matches the
-operating system the servidor already reads all day. Monospace for codes, links,
-Processo SEI, NE and NF numbers.
+[Inter](https://rsms.me/inter/), variable, Latin subset (every pt-BR
+character, 48 KB), bundled in `frontend/app/fonts/` and loaded with
+`next/font/local`. Bundled rather than fetched, because an on-premise build may
+have no internet and the CSP allows fonts only from `'self'`. Taken from
+`@fontsource-variable/inter` 5.3.0; licence SIL OFL 1.1, kept beside the file.
+The system sans-serif stack is the fallback. Chosen by the product owner over
+the system stack, which drew a different face on every machine. Monospace for
+codes, links, Processo SEI, NE and NF numbers.
 
 | Role | Classes |
 | --- | --- |

@@ -324,6 +324,13 @@ None. The drawer is the dialog primitive already installed, and the collapsed
 sidebar's names are a CSS tooltip, so no tooltip package is added. The
 illustrations are static files (below), not a package.
 
+### Font
+
+Inter replaces the system stack (product owner, 2026-09-28). One variable
+woff2, Latin subset, committed to `frontend/app/fonts/` with its OFL licence and
+loaded with `next/font/local`; no package is installed and nothing is fetched
+at build or run time.
+
 ### Illustrations
 
 undraw.co is not reachable from the build environment. The four files come from
@@ -418,3 +425,4 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 0.1 | 2026-09-28 | Initial draft from ADR-0014 and the product owner's references: navy sidebar shell, page template, dashboard tiles, signed-out frame, unDraw illustrations, loading and empty states, reduced motion. |
 | 1.0 | 2026-09-28 | Approved by the product owner after #46 merged. No criterion changed. |
 | 1.0 | 2026-09-28 | §11 implementation plan added. |
+| 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |
