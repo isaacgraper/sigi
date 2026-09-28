@@ -18,6 +18,7 @@ export default function ErrorPage({
 }) {
   return (
     <StatusPage
+      illustration="error"
       title="Algo deu errado"
       description="Esta página não pôde ser exibida. Tente novamente em instantes."
     >
