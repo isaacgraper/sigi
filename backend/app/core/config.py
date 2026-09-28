@@ -109,6 +109,10 @@ class Settings(BaseSettings):
         "192.168.0.0/16",
     ]
     rate_limit_institutional_ceiling: int = 600
+    # Peers allowed to say who the real client is (AC-0001-37/38). Empty means
+    # no one: a forwarded address is believed only from a hop the deployment
+    # named, or anyone could pick their own source by setting the header.
+    trusted_proxies: list[str] = []
 
     login_attempt_window_minutes: int = 15
     lockout_minutes: int = 15

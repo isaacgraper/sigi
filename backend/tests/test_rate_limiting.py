@@ -19,7 +19,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.throttling import RouteWithoutCeiling, enforce, verify_ceilings
+from app.core.config import get_settings
+from app.core.throttling import RouteWithoutCeiling, enforce, source_of, verify_ceilings
 from app.models.user import User
 from app.services import throttle
 from app.services.errors import RateLimited
@@ -328,3 +329,40 @@ def _sqlalchemy_url(dsn: str) -> str:
     from tests.conftest import _to_sqlalchemy
 
     return _to_sqlalchemy(dsn)
+
+
+# ── Trusted proxy (AC-0001-37, -38) ─────────────────────────────────────────
+
+
+@pytest.fixture
+def trusted_frontend(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Name one proxy hop as trusted, as a deployment behind the frontend would."""
+    monkeypatch.setenv("TRUSTED_PROXIES", '["172.20.0.0/16"]')
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_ac_0001_37_a_trusted_proxy_forwards_the_client(trusted_frontend: None) -> None:
+    """AC-0001-37 — the forwarded client is the source, not the proxy."""
+    assert source_of("172.20.0.5", "203.0.113.9") == "203.0.113.9"
+
+
+def test_ac_0001_37_the_right_most_untrusted_hop_wins(trusted_frontend: None) -> None:
+    """A client that writes its own header cannot pick its source."""
+    assert source_of("172.20.0.5", "1.1.1.1, 203.0.113.9, 172.20.0.7") == "203.0.113.9"
+
+
+def test_ac_0001_38_an_untrusted_peer_is_its_own_source(trusted_frontend: None) -> None:
+    """AC-0001-38 — anyone else's header is ignored."""
+    assert source_of("198.51.100.4", "203.0.113.9") == "198.51.100.4"
+
+
+def test_ac_0001_38_no_proxy_is_trusted_by_default() -> None:
+    """With the list empty, the v1.1 behaviour holds."""
+    assert source_of("172.20.0.5", "203.0.113.9") == "172.20.0.5"
+
+
+def test_a_trusted_peer_without_the_header_is_the_source(trusted_frontend: None) -> None:
+    """A trusted hop that forwards nothing is still counted, as itself."""
+    assert source_of("172.20.0.5", None) == "172.20.0.5"

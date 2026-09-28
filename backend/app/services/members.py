@@ -24,7 +24,9 @@ from app.repositories import user as repo
 from app.services import credentials
 from app.services.audit import Event, record
 from app.services.errors import (
+    DevelopmentOnly,
     EmailAlreadyRegistered,
+    GestorAlreadyExists,
     LastGestor,
     NonInstitutionalDomain,
     ResetAlreadyUsed,
@@ -93,7 +95,99 @@ def invite(
         correlation_id=correlation_id,
         at=at,
     )
-    return user, grant.link("/convite")
+    return user, grant.link("/invite")
+
+
+def bootstrap_gestor(
+    session: Session,
+    *,
+    email: str,
+    password: str | None,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User:
+    """Create the first gestor, from the command line (AC-0001-34, -35, -36).
+
+    Every other account comes from an invitation, which needs a gestor to issue
+    it, so this is the one account with no actor. It is created `ativo` rather
+    than invited, because an invitation must name who issued it (the
+    `ck_token_convite_tem_autor` constraint) and nobody did. `password` is None
+    for an install that logs in only through OIDC; the first institutional
+    login then binds the account by e-mail (AC-0001-21).
+    """
+    cfg = get_settings()
+    address = email.strip().lower()
+    _require_institutional_domain(address, cfg.institutional_domains)
+    if password is not None:
+        credentials.require_strong_password(password)
+
+    # The same lock the last-gestor guard takes: two operators racing must not
+    # both see "no gestor" and each create one.
+    repo.lock_gestores(session)
+    if repo.count_active_gestores(session) > 0:
+        raise GestorAlreadyExists()
+    if repo.by_email(session, address) is not None:
+        raise EmailAlreadyRegistered()
+
+    user = repo.create(session, email=address, role="gestor")
+    if password is not None:
+        user.senha_hash = hash_password(password)
+    user.status = "ativo"
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.gestor_inicial",
+            user_id=None,
+            dados_anteriores={
+                "perfil": "gestor",
+                "mecanismo": "local" if password is not None else "oidc",
+            },
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user
+
+
+DEV_ADMIN_EMAIL = "admin@sc.gov.br"
+DEV_ADMIN_PASSWORD = "admin"  # noqa: S105 - a development credential, refused elsewhere
+
+
+def seed_dev_admin(
+    session: Session,
+    *,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User | None:
+    """Create the development gestor, once (AC-0001-39, -40).
+
+    Skips the password policy on purpose, which is exactly why it refuses to
+    run anywhere but development: a shared, known credential is the first
+    thing an attacker tries. Returns None when the account already exists.
+    """
+    if get_settings().app_env != "development":
+        raise DevelopmentOnly()
+    if repo.by_email(session, DEV_ADMIN_EMAIL) is not None:
+        return None
+
+    user = repo.create(session, email=DEV_ADMIN_EMAIL, role="gestor")
+    user.senha_hash = hash_password(DEV_ADMIN_PASSWORD)
+    user.status = "ativo"
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.gestor_inicial",
+            user_id=None,
+            dados_anteriores={"perfil": "gestor", "mecanismo": "semente_desenvolvimento"},
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user
 
 
 def activate(
@@ -339,7 +433,7 @@ def trigger_reset(
         correlation_id=correlation_id,
         at=at,
     )
-    return user, grant.link("/redefinir-senha")
+    return user, grant.link("/reset-password")
 
 
 def redeem_reset(
