@@ -17,6 +17,8 @@ on an `Approved` spec is a merge blocker.
 | RNF16 | SPEC-0001 v0.5 | AC-0001-33 | _pending_ | **Approved** |
 | RF02 (first gestor) | SPEC-0001 v1.4 | AC-0001-34..36 | `tests/test_bootstrap.py` | **Approved** |
 | RNF16 (trusted proxy) | SPEC-0001 v1.4 | AC-0001-37, -38 | `tests/test_rate_limiting.py` | **Approved** |
+| RNF04, A05 (hardening) | SPEC-0001 v1.6 | AC-0001-41..43 | `tests/test_hardening.py` | **Approved** |
+| A03, A05 (page headers) | SPEC-0010 v1.3 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v0.2 | AC-0002-01..12 | _pending_ | Draft |
 | RN11, RN13, RN15 | SPEC-0002 v0.2 | AC-0002-13..17 | _pending_ | Draft |
 | RF03, RF07, RN14 | SPEC-0003 v0.2 | AC-0003-01..10 | _pending_ | Draft |
