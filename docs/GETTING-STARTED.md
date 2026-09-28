@@ -60,6 +60,11 @@ docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.go
 docker compose exec backend python -m app.cli seed-dev-admin
 ```
 
+**The support contact.** Set `SUPPORT_CONTACT_EMAIL` on the frontend to the
+mailbox the gestores read. Every error a servidor cannot fix names it as a
+mailto link, with the error's reference in the e-mail body (AC-0010-57). Unset,
+the pages say "Procure o gestor da sua unidade."
+
 **Behind a proxy**, set `TRUSTED_PROXIES` to the proxy's network, e.g.
 `["172.20.0.0/16"]`, or the rate limit counts every user as one source
 (AC-0001-37).
