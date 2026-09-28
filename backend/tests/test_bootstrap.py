@@ -139,3 +139,38 @@ def test_differing_passwords_stop_before_the_database(operator_db: psycopg.Conne
             prompt=_answers(STRONG_ENOUGH, STRONG_ENOUGH + "x"),
         )
     assert _gestores(operator_db) == []
+
+
+# ── Development seed (AC-0001-39, -40) ─────────────────────────────────────
+
+
+def test_ac_0001_39_a_development_install_has_a_known_gestor(
+    operator_db: psycopg.Connection,
+) -> None:
+    """AC-0001-39 — admin@sc.gov.br exists, active, and a second run changes nothing."""
+    assert cli.main(["seed-dev-admin"]) == 0
+    assert cli.main(["seed-dev-admin"]) == 0
+
+    assert _gestores(operator_db) == [("admin@sc.gov.br", "ativo", True)]
+    from app.core.passwords import check_password
+
+    stored = operator_db.execute(
+        "SELECT senha_hash FROM usuario WHERE email = 'admin@sc.gov.br'"
+    ).fetchone()
+    assert stored is not None and check_password("admin", stored[0])
+
+
+def test_ac_0001_40_the_seed_refuses_outside_development(
+    operator_db: psycopg.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """AC-0001-40 — any other APP_ENV creates nobody."""
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+
+    assert cli.main(["seed-dev-admin"]) == 1
+    assert "DEVELOPMENT_ONLY" in capsys.readouterr().err
+    assert _gestores(operator_db) == []

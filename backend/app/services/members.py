@@ -24,6 +24,7 @@ from app.repositories import user as repo
 from app.services import credentials
 from app.services.audit import Event, record
 from app.services.errors import (
+    DevelopmentOnly,
     EmailAlreadyRegistered,
     GestorAlreadyExists,
     LastGestor,
@@ -143,6 +144,45 @@ def bootstrap_gestor(
                 "perfil": "gestor",
                 "mecanismo": "local" if password is not None else "oidc",
             },
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user
+
+
+DEV_ADMIN_EMAIL = "admin@sc.gov.br"
+DEV_ADMIN_PASSWORD = "admin"  # noqa: S105 - a development credential, refused elsewhere
+
+
+def seed_dev_admin(
+    session: Session,
+    *,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User | None:
+    """Create the development gestor, once (AC-0001-39, -40).
+
+    Skips the password policy on purpose, which is exactly why it refuses to
+    run anywhere but development: a shared, known credential is the first
+    thing an attacker tries. Returns None when the account already exists.
+    """
+    if get_settings().app_env != "development":
+        raise DevelopmentOnly()
+    if repo.by_email(session, DEV_ADMIN_EMAIL) is not None:
+        return None
+
+    user = repo.create(session, email=DEV_ADMIN_EMAIL, role="gestor")
+    user.senha_hash = hash_password(DEV_ADMIN_PASSWORD)
+    user.status = "ativo"
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.gestor_inicial",
+            user_id=None,
+            dados_anteriores={"perfil": "gestor", "mecanismo": "semente_desenvolvimento"},
         ),
         correlation_id=correlation_id,
         at=at,

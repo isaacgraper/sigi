@@ -1,7 +1,8 @@
 """Operator commands, run on the server and never exposed over HTTP.
 
 `python -m app.cli bootstrap-gestor --email ...` creates the first gestor
-(AC-0001-34). An HTTP route that could do this would be the most valuable
+(AC-0001-34); `seed-dev-admin` creates admin@sc.gov.br / admin, in development
+only (AC-0001-39). An HTTP route that could do this would be the most valuable
 route in the system to attack, so the only way in is a shell on the server.
 """
 
@@ -51,6 +52,27 @@ def bootstrap_gestor(
     return 0
 
 
+def seed_dev_admin() -> int:
+    """Create admin@sc.gov.br / admin on a development install."""
+    with session_factory()() as session:
+        try:
+            user = members.seed_dev_admin(
+                session,
+                at=datetime.datetime.now(datetime.UTC),
+                correlation_id=uuid.uuid4(),
+            )
+            session.commit()
+        except DomainError as exc:
+            session.rollback()
+            print(f"{exc.code}: {exc.message_text}", file=sys.stderr)
+            return 1
+    if user is None:
+        print(f"{members.DEV_ADMIN_EMAIL} already exists.")
+    else:
+        print(f"Gestor {members.DEV_ADMIN_EMAIL} created, password '{members.DEV_ADMIN_PASSWORD}'.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Parse the command line and run the chosen command."""
     parser = argparse.ArgumentParser(prog="python -m app.cli")
@@ -62,7 +84,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="for an install that logs in only through OIDC",
     )
+    commands.add_parser("seed-dev-admin", help="development only: admin@sc.gov.br / admin")
     args = parser.parse_args(argv)
+    if args.command == "seed-dev-admin":
+        return seed_dev_admin()
     return bootstrap_gestor(args.email, no_password=args.no_password)
 
 
