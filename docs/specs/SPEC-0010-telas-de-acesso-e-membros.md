@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Draft
-version: 0.2
+version: 0.3
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -79,11 +79,11 @@ form (e-mail, password with show/hide) when local login is enabled. Which
 mechanisms are enabled is a frontend setting that mirrors the API's switches,
 because no API route reports them (OQ-33).
 
-**AC-0010-01** — Local login lands on the start page
+**AC-0010-01** — Local login lands on the dashboard
 ```gherkin
 Given an "ativo" usuario and local login enabled
 When  they submit their e-mail and password on /login
-Then  the browser is at "/"
+Then  the browser is at "/dashboard"
 And   the header identifies them as C4 describes, with their perfil
 ```
 
@@ -148,11 +148,11 @@ The provider returns the browser to `/auth/callback`, the redirect URI the API
 is configured with. That page completes the login by calling the API's callback
 with the `code` and `state` it received.
 
-**AC-0010-09** — A provisioned account lands on the start page
+**AC-0010-09** — A provisioned account lands on the dashboard
 ```gherkin
 Given a provider return for an "ativo" usuario
 When  /auth/callback loads with its "code" and "state"
-Then  the browser is at "/"
+Then  the browser is at "/dashboard"
 And   "code" and "state" are no longer in the address bar
 ```
 
@@ -217,7 +217,7 @@ And   after a successful login it is at "/membros?page=2"
 Given no session
 When  /login is opened with a return address that is absolute, protocol-relative
       ("//…") or not a path on this origin
-Then  after a successful login the browser is at "/"
+Then  after a successful login the browser is at "/dashboard"
 ```
 
 **AC-0010-17** — The access token is not in browser storage
@@ -245,7 +245,7 @@ And   the response carries "Referrer-Policy: no-referrer"
 ```gherkin
 Given an unredeemed invitation
 When  the invited person submits a password and its confirmation
-Then  the browser is at "/"
+Then  the browser is at "/dashboard"
 And   the header shows their perfil
 ```
 
@@ -317,17 +317,28 @@ gestor." for the last.
 ```gherkin
 Given a signed-in usuario of any perfil
 When  any authenticated page is shown
-Then  the navigation lists exactly "Início", plus "Membros" for a gestor or an auditor
+Then  the navigation lists exactly "Painel", plus "Membros" for a gestor or an auditor
 ```
 
 Nothing else is listed until another spec is `Approved` and adds its own entry.
 
-**AC-0010-28** — The start page states who is signed in
+**AC-0010-28** — The dashboard states who is signed in
 ```gherkin
 Given a signed-in usuario
-When  "/" is shown
+When  "/dashboard" is shown
 Then  it shows their e-mail and perfil, and their name when the API returns one
 ```
+
+**AC-0010-52** — The root always leads to the dashboard
+```gherkin
+Given any visitor, signed in or not
+When  "/" is opened
+Then  the browser goes to "/dashboard"
+And   a visitor without a live session continues to /login as AC-0010-15 describes
+```
+
+`/dashboard` is the single entry point. Every flow that ends in a session lands
+there, and every missing or expired session is sent from there to /login and back.
 
 ### 4.7 Members
 
@@ -515,7 +526,7 @@ And   the form keeps its values, except any password field
 ```gherkin
 Given a signed-in usuario
 When  /login is opened
-Then  the browser is at "/"
+Then  the browser is at "/dashboard"
 ```
 
 ## 5. Errors and edge cases
@@ -553,25 +564,26 @@ API enforces it (C2).
 | "Membros" in the navigation | ✅ | ❌ | ✅ |
 | Member table | ✅ | ❌ refusal message | ✅ |
 | Invite, block, deactivate, trigger reset | ✅ | ❌ | ❌ |
-| Start page, logout | ✅ | ✅ | ✅ |
+| Dashboard, logout | ✅ | ✅ | ✅ |
 
 `/login`, `/auth/callback`, `/convite` and `/redefinir-senha` need no session.
 The last two are usable by whoever holds the link, which is what the link is
 for; the API decides whether its token is still good. A signed-in usuario who
-opens `/login` is sent to `/` (AC-0010-51).
+opens `/login` is sent to `/dashboard` (AC-0010-51).
 
 ## 7. Pages
 
 The paths are pt-BR: the servidor reads them in the address bar and receives
-two of them in a link (ADR-0013's reader test). `/auth/callback` is the
-exception, because it is the API's configured OIDC redirect URI and no person
-types or reads it.
+two of them in a link (ADR-0013's reader test). Two exceptions: `/auth/callback`
+is the API's configured OIDC redirect URI and no person types or reads it, and
+`/dashboard` is the product owner's explicit choice for the single entry point.
 
 | Page | Purpose | API routes called | AC |
 | --- | --- | --- | --- |
 | `/login` | Both login mechanisms | `POST /api/v1/auth/login`, `GET /api/v1/auth/oidc/authorize` | 01–08, 15, 16, 50, 51 |
 | `/auth/callback` | Complete institutional login | `GET /api/v1/auth/oidc/callback` | 09, 10, 48 |
-| `/` | Start page | `GET /api/v1/auth/me` | 27, 28 |
+| `/` | Redirect only | none | 52 |
+| `/dashboard` | Single entry point | `GET /api/v1/auth/me` | 27, 28, 52 |
 | `/convite` | Activate an invitation | `POST /api/v1/convites/ativar` | 18–23, 45, 50 |
 | `/redefinir-senha` | Confirm a reset | `POST /api/v1/auth/redefinicoes/confirmar` | 24–26, 50 |
 | `/membros` | List and manage members | `GET\|POST /api/v1/usuarios`, `POST /api/v1/usuarios/{id}/bloquear`, `…/desativar`, `…/redefinir-senha` | 29–41, 49 |
@@ -649,3 +661,4 @@ by `/plan` after approval.
 | --- | --- | --- |
 | 0.1 | 2026-09-25 | First draft. Scope set by what SPEC-0001 serves; style from the Lovable design reference, with its signup, Gov.br, session checkbox and admin gate rejected against SPEC-0001 and ADR-0010. OQ-33 and OQ-34 opened. |
 | 0.2 | 2026-09-25 | `/spec-review` of 0.1. C4: `name` is null for every invited account, so three criteria that showed it would have shown blanks. AC-0010-46/47: the API treats a second refresh with one token as a replay and revokes the family, so parallel requests or two tabs would log the user out and write false `auth.refresh_replay` rows. AC-0010-48 (provider returns an error), -49 (`INVALID_DATA`), -50 (`RATE_LIMITED`), -51 (signed-in user at /login). AC-0010-27 made observable. Unauthenticated pages added to §6. OQ-35, -36, -37 opened. |
+| 0.3 | 2026-09-28 | `/dashboard` is the single entry point, by the product owner's decision: every landing that was `/` is now `/dashboard`, `/` only redirects (AC-0010-52), and the navigation label is "Painel". |
