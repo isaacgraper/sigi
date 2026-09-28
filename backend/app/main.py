@@ -8,6 +8,7 @@ from app.api.errors import register_handlers
 from app.core.authorization import verify_coverage
 from app.core.config import get_settings
 from app.core.correlation import CorrelationMiddleware
+from app.core.hardening import BodyLimitMiddleware, SecurityHeadersMiddleware
 from app.core.throttling import verify_ceilings
 
 
@@ -19,6 +20,11 @@ def create_app() -> FastAPI:
     """
     settings = get_settings()
     app = FastAPI(title="SIGI", version="0.1.0")
+
+    # Starlette wraps outward: each add_middleware call sits outside the ones
+    # before it. The body limit goes first, inside the correlation middleware,
+    # so its 413 still names a correlation id (AC-0001-42).
+    app.add_middleware(BodyLimitMiddleware)
 
     # Outermost, so every response carries it — including the ones produced by
     # error handlers, which are exactly the responses somebody will be trying to
@@ -32,6 +38,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Last, so it wraps everything else: CORS preflights and error responses
+    # carry the headers too (AC-0001-43).
+    app.add_middleware(SecurityHeadersMiddleware)
 
     register_handlers(app)
 

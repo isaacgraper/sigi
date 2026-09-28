@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -529,6 +529,28 @@ When  /login is opened
 Then  the browser is at "/dashboard"
 ```
 
+### 4.11 Response headers *(new in v1.3)*
+
+**AC-0010-53** — Only the page's own scripts run
+```gherkin
+Given any page in this spec
+Then  its response carries a Content-Security-Policy whose script-src is a
+      per-request nonce with 'strict-dynamic', and allows neither
+      'unsafe-inline' nor 'unsafe-eval'
+And   a script injected without that nonce does not run
+```
+
+**AC-0010-54** — No page can be framed or sniffed
+```gherkin
+Given any page in this spec
+Then  its response carries "frame-ancestors 'none'" and "X-Frame-Options: DENY"
+And   "X-Content-Type-Options: nosniff"
+And   "Strict-Transport-Security" with a max-age of at least one year
+```
+
+`style-src` allows inline styles: the dialog and toast libraries set them at
+runtime. A style cannot execute code, so script-src carries the protection.
+
 ## 5. Errors and edge cases
 
 No new API error codes. Every refusal these screens show is one of SPEC-0001 §5,
@@ -770,3 +792,4 @@ One commit per step, split into two PRs after step 5.
 | 1.0 | 2026-09-28 | Approved by the product owner. |
 | 1.1 | 2026-09-28 | Implementation plan added (§11). No behaviour changes. |
 | 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |
+| 1.3 | 2026-09-28 | AC-0010-53/54: a nonce-based Content-Security-Policy with no `unsafe-eval` and no inline scripts, and headers against framing and sniffing. |
