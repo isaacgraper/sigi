@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.3
+version: 1.4
 owner: Isaac Kleimann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -454,7 +454,8 @@ Then  it offers no block, deactivate or reset control
 Given any request that fails with a 5xx or no response
 When  the page reports it
 Then  it shows "Não foi possível concluir. Tente novamente em instantes."
-And   if the response carried a correlation_id, it shows it as "Código: …"
+And   it shows the gestor contact as AC-0010-57 describes, carrying the
+      correlation_id when the response had one
 ```
 
 **AC-0010-43** — Every page holds at three widths (RNF06)
@@ -551,6 +552,60 @@ And   "Strict-Transport-Security" with a max-age of at least one year
 `style-src` allows inline styles: the dialog and toast libraries set them at
 runtime. A style cannot execute code, so script-src carries the protection.
 
+### 4.12 When something goes wrong *(new in v1.4)*
+
+The person who hits an error should never have to copy a code or read a stack
+trace. They get a sentence in pt-BR and someone to write to. The contact is a
+configured address (`SUPPORT_CONTACT_EMAIL`), normally a functional mailbox
+the gestores read. It is not a gestor's own address taken from the database,
+because these screens are also shown to people who are not signed in.
+
+**AC-0010-55** — An unknown address has a page in pt-BR
+```gherkin
+Given any path that is not a page of this spec
+When  it is opened
+Then  the response status is 404
+And   the page says "Página não encontrada" and links to /dashboard
+And   it shows the gestor contact
+```
+
+**AC-0010-56** — A page that fails shows a way out, not a crash
+```gherkin
+Given a page whose rendering throws
+When  it is shown
+Then  it says "Algo deu errado" with a "Tentar novamente" button and a link to
+      /dashboard
+And   it shows the gestor contact
+And   no stack trace or English framework message is visible
+```
+
+**AC-0010-57** — Errors a servidor cannot fix name who can
+```gherkin
+Given a failure that only a gestor can resolve: no answer or a 5xx,
+      "USUARIO_INATIVO", "PERFIL_NAO_AUTORIZADO", "USUARIO_NAO_PROVISIONADO",
+      "INVITE_EXPIRED", "INVITE_ALREADY_USED", "RESET_EXPIRED",
+      "RESET_ALREADY_USED", or a link without a token
+When  its message is shown
+Then  "Fale com o gestor:" follows, with SUPPORT_CONTACT_EMAIL as a mailto link
+And   when the failure carried a correlation_id, the link's e-mail body holds it
+And   without SUPPORT_CONTACT_EMAIL it says "Procure o gestor da sua unidade."
+```
+
+Validation errors and a wrong password are not in the list: the person can fix
+those, and a contact next to them would only be noise.
+
+**AC-0010-58** — Copying a link works without the clipboard API
+```gherkin
+Given a one-time link on a page served where the clipboard API is unavailable
+When  "Copiar" is activated
+Then  the link is copied by the fallback, and the button reads "Copiado"
+Or    the link is selected and the page says "Selecione o link e copie com Ctrl+C."
+```
+
+Browsers expose the clipboard API only over HTTPS or on localhost; an install
+reached by its network address over plain http would otherwise have a button
+that silently does nothing.
+
 ## 5. Errors and edge cases
 
 No new API error codes. Every refusal these screens show is one of SPEC-0001 §5,
@@ -564,6 +619,10 @@ displayed verbatim (C3). The strings the screens own:
 | Reset link without token | `/reset-password` | "Link de redefinição incompleto. Peça um novo ao gestor." |
 | Reset confirmed | `/login` | "Senha redefinida. Entre com a nova senha." |
 | Forgotten password | `/login` | "Esqueceu a senha? Procure o gestor da sua unidade." |
+| Unknown address | any | "Página não encontrada" |
+| A page failed to render | any | "Algo deu errado" |
+| Contact, configured | after AC-0010-57's errors | "Fale com o gestor: {SUPPORT_CONTACT_EMAIL}" |
+| Contact, not configured | after AC-0010-57's errors | "Procure o gestor da sua unidade." |
 | Provider returned an error instead of a code | `/auth/callback` | "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente." |
 
 Two API refusals these screens handle are missing from SPEC-0001 §5 (OQ-37):
@@ -793,3 +852,4 @@ One commit per step, split into two PRs after step 5.
 | 1.1 | 2026-09-28 | Implementation plan added (§11). No behaviour changes. |
 | 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |
 | 1.3 | 2026-09-28 | AC-0010-53/54: a nonce-based Content-Security-Policy with no `unsafe-eval` and no inline scripts, and headers against framing and sniffing. |
+| 1.4 | 2026-09-28 | AC-0010-55 to 58: a pt-BR not-found page, an error boundary, the gestor contact on every error a servidor cannot fix, and a clipboard fallback. AC-0010-42 now shows the contact, with the correlation id in the e-mail body, instead of a code to copy; no screen had actually been showing that code. |
