@@ -68,3 +68,64 @@ test.describe("login", () => {
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 });
+
+test.describe("login refusals the API sends rarely", () => {
+  function refuse(status: number, code: string, message: string, headers: Record<string, string> = {}) {
+    return {
+      status,
+      contentType: "application/json",
+      headers,
+      body: JSON.stringify({ error: { code, message } }),
+    };
+  }
+
+  test("AC-0010-03 a locked-out address shows the message and waits", async ({ page }) => {
+    const message = "Muitas tentativas. Tente novamente em 15 minutos.";
+    await page.route("**/api/v1/auth/login", (route) =>
+      route.fulfill(refuse(429, "ATTEMPTS_EXCEEDED", message, { "Retry-After": "900" })),
+    );
+    await page.goto("/login");
+    await page.getByLabel("E-mail institucional").fill(GESTOR.email);
+    await page.getByLabel("Senha", { exact: true }).fill(GESTOR.password);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+
+    await expect(page.getByTestId("form-error")).toHaveText(message);
+    await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeDisabled();
+  });
+
+  test("AC-0010-50 the per-source ceiling is explained", async ({ page }) => {
+    const message = "Muitas requisições. Tente novamente em instantes.";
+    await page.route("**/api/v1/auth/login", (route) =>
+      route.fulfill(refuse(429, "RATE_LIMITED", message, { "Retry-After": "30" })),
+    );
+    await page.goto("/login");
+    await page.getByLabel("E-mail institucional").fill(GESTOR.email);
+    await page.getByLabel("Senha", { exact: true }).fill(GESTOR.password);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+
+    await expect(page.getByTestId("form-error")).toHaveText(message);
+    await expect(page.getByLabel("E-mail institucional")).toHaveValue(GESTOR.email);
+    await expect(page.getByLabel("Senha", { exact: true })).toHaveValue("");
+  });
+});
+
+// A second frontend, started with LOCAL_LOGIN_ENABLED=false and
+// OIDC_ENABLED=true, because the switches are read by the server (OQ-33).
+const oidcOnly = process.env.PLAYWRIGHT_OIDC_ONLY_URL;
+
+test.describe("an OIDC-only deployment", () => {
+  test.skip(!oidcOnly, "PLAYWRIGHT_OIDC_ONLY_URL not set");
+
+  test("AC-0010-05 a disabled local login is not offered", async ({ page }) => {
+    await page.goto(`${oidcOnly}/login`);
+    await expect(page.getByRole("button", { name: "Entrar com conta institucional" })).toBeVisible();
+    await expect(page.getByLabel("Senha", { exact: true })).toHaveCount(0);
+  });
+
+  test("AC-0010-06 the institutional button starts the provider's flow", async ({ page }) => {
+    await page.goto(`${oidcOnly}/login`);
+    const started = page.waitForRequest((r) => r.url().endsWith("/api/v1/auth/oidc/authorize"));
+    await page.getByRole("button", { name: "Entrar com conta institucional" }).click();
+    expect((await started).isNavigationRequest()).toBe(true);
+  });
+});
