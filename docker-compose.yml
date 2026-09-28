@@ -45,6 +45,9 @@ services:
     environment:
       # Read at runtime by the same-origin proxy; the browser never calls :8000.
       API_ORIGIN: ${API_ORIGIN:-http://backend:8000}
+      # Shown on every error a servidor cannot fix (AC-0010-57); a functional
+      # mailbox the gestores read. Unset, the pages say to look for the gestor.
+      SUPPORT_CONTACT_EMAIL: ${SUPPORT_CONTACT_EMAIL:-}
       TZ: ${TZ:-America/Sao_Paulo}
     ports:
       - "3000:3000"

@@ -127,7 +127,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          nohup npx next start --port 3000 > ../web.log 2>&1 &
+          SUPPORT_CONTACT_EMAIL=suporte@sc.gov.br nohup npx next start --port 3000 > ../web.log 2>&1 &
           LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
           for url in http://localhost:8000/health http://localhost:3000/login http://localhost:3001/login; do
             for i in $(seq 1 60); do curl -sf -o /dev/null "$url" && break; sleep 1; done
