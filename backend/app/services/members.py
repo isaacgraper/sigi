@@ -25,6 +25,7 @@ from app.services import credentials
 from app.services.audit import Event, record
 from app.services.errors import (
     EmailAlreadyRegistered,
+    GestorAlreadyExists,
     LastGestor,
     NonInstitutionalDomain,
     ResetAlreadyUsed,
@@ -94,6 +95,59 @@ def invite(
         at=at,
     )
     return user, grant.link("/convite")
+
+
+def bootstrap_gestor(
+    session: Session,
+    *,
+    email: str,
+    password: str | None,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User:
+    """Create the first gestor, from the command line (AC-0001-34, -35, -36).
+
+    Every other account comes from an invitation, which needs a gestor to issue
+    it, so this is the one account with no actor. It is created `ativo` rather
+    than invited, because an invitation must name who issued it (the
+    `ck_token_convite_tem_autor` constraint) and nobody did. `password` is None
+    for an install that logs in only through OIDC; the first institutional
+    login then binds the account by e-mail (AC-0001-21).
+    """
+    cfg = get_settings()
+    address = email.strip().lower()
+    _require_institutional_domain(address, cfg.institutional_domains)
+    if password is not None:
+        credentials.require_strong_password(password)
+
+    # The same lock the last-gestor guard takes: two operators racing must not
+    # both see "no gestor" and each create one.
+    repo.lock_gestores(session)
+    if repo.count_active_gestores(session) > 0:
+        raise GestorAlreadyExists()
+    if repo.by_email(session, address) is not None:
+        raise EmailAlreadyRegistered()
+
+    user = repo.create(session, email=address, role="gestor")
+    if password is not None:
+        user.senha_hash = hash_password(password)
+    user.status = "ativo"
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.gestor_inicial",
+            user_id=None,
+            dados_anteriores={
+                "perfil": "gestor",
+                "mecanismo": "local" if password is not None else "oidc",
+            },
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user
 
 
 def activate(

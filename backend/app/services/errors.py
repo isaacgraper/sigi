@@ -207,6 +207,21 @@ class EmailAlreadyRegistered(DomainError):
         )
 
 
+class GestorAlreadyExists(DomainError):
+    """The bootstrap ran while an active gestor exists (AC-0001-35).
+
+    Raised only by the command line. Once a gestor exists, every further
+    account comes from an invitation, which is audited with its actor.
+    """
+
+    code = "GESTOR_ALREADY_EXISTS"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, naming the path that already exists."""
+        super().__init__("Já existe um gestor ativo. Use o convite a partir da conta dele.")
+
+
 class NonInstitutionalDomain(DomainError):
     """The invited address is outside the institutional domains (AC-0001-28)."""
 
