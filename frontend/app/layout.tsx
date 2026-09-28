@@ -3,11 +3,13 @@ import { connection } from "next/server";
 import { Toaster } from "sonner";
 
 import { ContactProvider } from "@/components/contact";
+import { SkipLink } from "@/components/skip-link";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SIGI",
+  // Every page names itself first: "Membros · SIGI" (AC-0011-11).
+  title: { template: "%s · SIGI", default: "SIGI" },
   description: "Sistema Integrado de Governança de Insumos",
 };
 
@@ -22,6 +24,7 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="min-h-dvh">
+        <SkipLink />
         <ContactProvider email={contact}>
           {children}
           <Toaster richColors position="top-right" />
