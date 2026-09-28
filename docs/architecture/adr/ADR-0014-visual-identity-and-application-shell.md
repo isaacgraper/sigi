@@ -1,6 +1,6 @@
 # ADR-0014 — Visual identity and application shell
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-28)
 - **Date:** 2026-09-28
 - **Deciders:** Isaac Kleimann Graper
 - **Related:** SPEC-0010, SPEC-0011, `DESIGN.md`, RNF06, RNF14

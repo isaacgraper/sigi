@@ -23,4 +23,4 @@ Create one with `/adr-new <title>`.
 | 0011 | Credential verification sits outside RNF01's latency budget | Accepted |
 | 0012 | Rate limiting in the application, backed by PostgreSQL | Accepted |
 | 0013 | Language is chosen by who reads the string, not by the glossary | Accepted |
-| 0014 | Visual identity and application shell | Proposed |
+| 0014 | Visual identity and application shell | Accepted |
