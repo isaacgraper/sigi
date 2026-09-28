@@ -83,8 +83,9 @@ jobs:
       # would throttle the harness, not the feature under test.
       RATE_LIMIT_CEILINGS: >-
         {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
-      E2E_GESTOR_EMAIL: gestor@sc.gov.br
-      E2E_GESTOR_PASSWORD: SenhaLongaOSuficiente-2026
+      # The development seed (AC-0001-39): admin@sc.gov.br / admin. No
+      # password literal lives in this file, and the gestor is the only one.
+      APP_ENV: development
       PLAYWRIGHT_BASE_URL: http://localhost:3000
       PLAYWRIGHT_OIDC_ONLY_URL: http://localhost:3001
 
@@ -111,13 +112,12 @@ jobs:
       - name: Provision the application role
         run: sh infra/postgres/init/01-roles.sh
 
-      - name: Migrate, seed the first gestor, start the API
+      - name: Migrate, seed the development gestor, start the API
         working-directory: backend
         run: |
           poetry sync --only main
           poetry run alembic upgrade head
-          printf '%s\n%s\n' "$E2E_GESTOR_PASSWORD" "$E2E_GESTOR_PASSWORD" \
-            | poetry run python -m app.cli bootstrap-gestor --email "$E2E_GESTOR_EMAIL"
+          poetry run python -m app.cli seed-dev-admin
           nohup poetry run uvicorn app.main:app --port 8000 > ../api.log 2>&1 &
 
       - name: Build and start the frontend, local and OIDC-only
