@@ -55,7 +55,7 @@ export function CallbackHandler() {
   }
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Não foi possível entrar</h1>
+      <h1 className="text-2xl font-normal tracking-tight">Não foi possível entrar</h1>
       <ErrorNotice error={error} />
       <Link href="/login" className={buttonVariants({ variant: "outline", className: "w-full" })}>
         Tentar novamente

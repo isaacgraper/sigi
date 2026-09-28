@@ -24,7 +24,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={cn(
-        "flex h-14 shrink-0 items-center gap-2 text-lg font-semibold text-sidebar-foreground",
+        "flex h-14 shrink-0 items-center gap-2 text-lg font-normal text-sidebar-foreground",
         compact ? "justify-center" : "px-5",
       )}
     >

@@ -9,7 +9,7 @@ export function EmptyState({ message, action }: { message: string; action?: Reac
   return (
     <div data-testid="empty-state" className="flex flex-col items-center gap-3 py-8 text-center">
       <Illustration name="empty" className="max-h-40" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-sm font-light text-muted-foreground">{message}</p>
       {action}
     </div>
   );

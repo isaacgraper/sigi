@@ -35,7 +35,7 @@ export function ContactGestor({
   return (
     <p data-testid={testId} className="text-sm text-muted-foreground">
       Fale com o gestor:{" "}
-      <a href={href} className="font-medium text-primary underline underline-offset-4">
+      <a href={href} className="font-normal text-primary underline underline-offset-4">
         {email}
       </a>
     </p>

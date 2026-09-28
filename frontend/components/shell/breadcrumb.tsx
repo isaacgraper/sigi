@@ -21,7 +21,7 @@ export function Breadcrumb() {
             <li key={module.href} className="flex min-w-0 items-center gap-1.5">
               {index > 0 && <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
               {last ? (
-                <span aria-current="page" className="truncate font-medium text-foreground">
+                <span aria-current="page" className="truncate font-normal text-foreground">
                   {module.name}
                 </span>
               ) : (

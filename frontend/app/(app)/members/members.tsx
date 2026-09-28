@@ -127,7 +127,7 @@ export function Members() {
               {data.items.map((member) => (
                 <TableRow key={member.id} data-testid="member-row" data-member-id={member.id}>
                   {/* A deactivated member is known by the pseudonym (AC-0010-31, C4). */}
-                  <TableCell data-testid="cell-name" className="font-medium">
+                  <TableCell data-testid="cell-name" className="font-normal">
                     {member.status === "desativado" ? member.pseudonym ?? "—" : member.name ?? "—"}
                   </TableCell>
                   <TableCell data-testid="cell-email" className="break-all">

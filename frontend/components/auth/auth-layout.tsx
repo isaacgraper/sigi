@@ -14,14 +14,14 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         data-testid="brand-panel"
         className="hidden flex-col justify-between gap-10 bg-primary p-10 text-primary-foreground lg:flex"
       >
-        <div className="flex items-center gap-2 text-lg font-semibold">
+        <div className="flex items-center gap-2 text-lg font-normal">
           <ShieldCheck aria-hidden className="size-6" />
           SIGI
         </div>
         <Illustration name="login" className="mx-auto max-h-72" />
         <div className="max-w-md space-y-2">
-          <p className="text-2xl font-semibold tracking-tight">Da ATA à conclusão, cada etapa rastreável.</p>
-          <p className="text-sm text-sidebar-muted">Sistema Integrado de Governança de Insumos</p>
+          <p className="text-2xl font-normal tracking-tight">Da ATA à conclusão, cada etapa rastreável.</p>
+          <p className="text-sm font-light text-sidebar-muted">Sistema Integrado de Governança de Insumos</p>
         </div>
       </aside>
       <main

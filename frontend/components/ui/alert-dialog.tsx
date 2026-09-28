@@ -31,7 +31,7 @@ export function AlertDialogTitle({
   className,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Title>) {
-  return <AlertDialogPrimitive.Title className={cn("text-lg font-semibold", className)} {...props} />;
+  return <AlertDialogPrimitive.Title className={cn("text-lg font-normal", className)} {...props} />;
 }
 
 export function AlertDialogDescription({
@@ -40,7 +40,7 @@ export function AlertDialogDescription({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Description>) {
   return (
     <AlertDialogPrimitive.Description
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm font-light text-muted-foreground", className)}
       {...props}
     />
   );

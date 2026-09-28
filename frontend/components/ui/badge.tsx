@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 // Status never relies on colour alone: the badge text carries it (DESIGN.md §4).
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
+  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-normal",
   {
     variants: {
       tone: {

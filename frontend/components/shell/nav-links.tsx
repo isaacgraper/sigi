@@ -37,7 +37,7 @@ export function NavLinks({
             aria-current={active ? "page" : undefined}
             data-testid="nav-link"
             className={cn(
-              "group relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-foreground",
+              "group relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-foreground",
               collapsed && "justify-center px-0",
               active
                 ? "bg-sidebar-accent text-sidebar-foreground"
@@ -53,7 +53,7 @@ export function NavLinks({
               <span
                 aria-hidden
                 data-testid="nav-tooltip"
-                className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-normal text-background opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
               >
                 {module.name}
               </span>

@@ -20,7 +20,7 @@ export function Dashboard() {
       <PageHeader title="Painel" description="Bem-vindo ao SIGI." />
 
       <section aria-labelledby="modules-title" className="space-y-3">
-        <h2 id="modules-title" className="text-base font-semibold">
+        <h2 id="modules-title" className="text-base font-normal">
           Módulos
         </h2>
         {modules.length === 0 ? (
@@ -42,8 +42,8 @@ export function Dashboard() {
                       <Icon aria-hidden className="size-5" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block font-semibold">{module.name}</span>
-                      <span className="block text-sm text-muted-foreground">{module.description}</span>
+                      <span className="block font-normal">{module.name}</span>
+                      <span className="block text-sm font-light text-muted-foreground">{module.description}</span>
                     </span>
                   </Link>
                 </li>
