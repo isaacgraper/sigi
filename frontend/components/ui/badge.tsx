@@ -3,16 +3,16 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Status never relies on colour alone: the badge text carries it (SPEC-0010 §9).
+// Status never relies on colour alone: the badge text carries it (DESIGN.md §4).
 const badgeVariants = cva(
   "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
   {
     variants: {
       tone: {
-        success: "border-accent/30 bg-accent/10 text-primary",
-        attention: "border-amber-500/30 bg-amber-500/15 text-amber-800",
-        neutral: "border-slate-400/40 bg-slate-500/10 text-slate-700",
-        danger: "border-destructive/30 bg-destructive/15 text-destructive",
+        success: "border-success/30 bg-success/10 text-success",
+        attention: "border-attention/30 bg-attention/10 text-attention",
+        neutral: "border-neutral/30 bg-neutral/10 text-neutral",
+        danger: "border-danger/30 bg-danger/10 text-danger",
         muted: "border-border bg-muted text-muted-foreground",
       },
     },

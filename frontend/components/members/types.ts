@@ -26,7 +26,7 @@ export const STATUS_LABEL: Record<Status, string> = {
   desativado: "Desativado",
 };
 
-// Green only for health; waiting is slate, attention amber (design reference §2).
+// Green only for health; waiting is slate, attention amber (DESIGN.md §2).
 export const STATUS_TONE = {
   ativo: "success",
   pendente: "neutral",
