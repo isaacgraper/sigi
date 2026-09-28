@@ -43,7 +43,8 @@ services:
   frontend:
     build: ./frontend
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      # Read at runtime by the same-origin proxy; the browser never calls :8000.
+      API_ORIGIN: ${API_ORIGIN:-http://backend:8000}
       TZ: ${TZ:-America/Sao_Paulo}
     ports:
       - "3000:3000"
