@@ -2,7 +2,7 @@
 id: SPEC-0005
 title: Notas Fiscais e conferência
 status: Draft
-version: 0.2
+version: 0.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
@@ -50,9 +50,12 @@ justification and permits re-submission.
 **AC-0005-09** — A gestor may approve or return an NF; a servidor may register
 and submit but not approve their own registration.
 
-**AC-0005-10** — Approving an NF does not alter the ATA saldo. Saldo is deducted
-by the NE, never twice. A test asserts the saldo is byte-identical before and
-after NF approval — the double-deduction bug this criterion prevents would be
+**AC-0005-10** — Approving an NF moves its value from reserved to consumed and
+leaves the saldo disponível alone (OQ-03, ADR-0015). A test asserts that
+`saldo_disponivel` is byte-identical before and after the approval, that
+`valor_reservado` falls and `valor_consumido` rises by exactly the NF's value, and
+that an NF in `aguardando`, `em_conferencia` or `devolvida` moves nothing. The
+double-deduction bug this criterion has always guarded against would still be
 invisible until an audit.
 
 **AC-0005-11** — Every NF mutation writes a `HISTORICO_MOVIMENTACAO` row.
@@ -89,9 +92,25 @@ entity states it has no use for it (*"já temos um controle interno nosso"*), an
 it carries `pacienteNome` alongside `judicial` — identified health data. See
 OQ-24 and `data-sources.md` §13.
 
+## Revision 2026-10-02 — an approved NF is the delivery
+
+The stakeholder confirmed the four statuses (question 9, OQ-12) and that the
+atesto deadline can wait for a later version (OQ-22), so the gap recorded above is
+closed and the atesto SLA stays out of the MVP.
+
+They also said saldo counts as consumed only once the delivery is made and the
+volume enters stock (question 6, OQ-03). SIGI records no stock entries
+(ADR-0008), so the event it can see is an NF in `aprovada`. AC-0005-10 now says
+what that approval does to saldo, and SPEC-0006 v0.4 defines the figures
+(ADR-0015). The NF carries a total value and no item lines, so consumption is
+tracked in value, and a delivery in several NFs consumes the NE's value in
+several steps. Whether the approved NF is really the moment the volume enters
+stock, and whether NFs should list their items, is OQ-40.
+
 ## 4. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF05, §2.5 RN02/RN05, Tela 7 |
 | 0.2 | 2026-09-02 | RN02 confirmed from real data; RN12 now aggregates over ITEM_NOTA_EMPENHO (ADR-0007); atesto SLA recorded as unmodelled (OQ-22); ENTRADAS NFS excluded on privacy and data-quality grounds (OQ-24) |
+| 0.3 | 2026-10-02 | AC-0005-10: approving an NF consumes saldo, moving its value from reserved to consumed without changing the saldo disponível (stakeholder, question 6; ADR-0015, OQ-40). Four statuses confirmed (OQ-12) and atesto deadline deferred (OQ-22) |

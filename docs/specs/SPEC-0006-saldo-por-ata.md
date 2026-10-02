@@ -2,10 +2,10 @@
 id: SPEC-0006
 title: Saldo por ATA (visão derivada)
 status: Draft
-version: 0.3
+version: 0.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF14, RN10, RN15]
-depends_on: [SPEC-0002, SPEC-0004]
+depends_on: [SPEC-0002, SPEC-0004, SPEC-0005]
 milestone: M2
 ---
 
@@ -27,21 +27,41 @@ Saldo exists in **two units**, because the operation uses both (OQ-20).
 ```
 saldo_disponivel(ata) =
       valor_contratado(ata)          -- ATA total + approved aditivos
-    - valor_reservado(ata)           -- Σ itens of NEs in pre_empenho, envio_fornecedor
-    - valor_empenhado(ata)           -- Σ itens of NEs in ne_emitida
+    - valor_reservado(ata)           -- committed to NEs, not yet delivered
+    - valor_consumido(ata)           -- committed to NEs, delivered
+
+valor_comprometido(ata) = Σ itens of NEs in pre_empenho, envio_fornecedor, ne_emitida
+valor_consumido(ata)    = Σ valor of NFs in aprovada bound to those NEs
+valor_reservado(ata)    = valor_comprometido(ata) - valor_consumido(ata)
 ```
 
-Since ADR-0007 an NE carries many insumos, so both sums aggregate over
+Since ADR-0007 an NE carries many insumos, so `valor_comprometido` aggregates over
 `ITEM_NOTA_EMPENHO`, filtered by the **parent NE's** status. The status lives on
-the header; the quantities live on the lines.
+the header; the quantities live on the lines. `valor_consumido` aggregates over
+`NOTA_FISCAL`, which reaches the ATA only through the NE (RN02).
+
+Reserved and consumed together are exactly what is committed, so
+`saldo_disponivel = valor_contratado - valor_comprometido`. **Approving an NF
+moves value from one subtraction to the other and never changes what a new NE may
+claim.** What changes is what the figures say: *reservado* is what is on its way,
+*consumido* is what has arrived (ADR-0015, OQ-03).
+
+**Delivered means an NF in `aprovada`.** The stakeholder counts as consumed only
+what has been delivered and entered stock, and SIGI records no stock entries
+(ADR-0008), so the approved NF is the delivery event it can see. Whether that is
+really the moment the volume enters stock is OQ-40.
+
+`valor_empenhado(ata)`, the value of the NEs in `ne_emitida`, is still derived,
+but only for reporting (the budget-execution report, §4's runway). It is
+subtracted from nothing.
 
 ### 2.2 Quantity, per item
 
 ```
 quantidade_disponivel(item_ata) =
       item_ata.quantidade                -- contracted, plus aditivos de quantidade
-    - Σ ITEM_NOTA_EMPENHO.quantidade     -- where the parent NE is in a reserving
-                                         -- or committed state
+    - Σ ITEM_NOTA_EMPENHO.quantidade     -- where the parent NE is in pre_empenho,
+                                         -- envio_fornecedor or ne_emitida
 ```
 
 This is the figure the buyer actually decides on: an ATA can hold budget while
@@ -50,7 +70,11 @@ the item it covers is exhausted. `RN10` blocks on whichever runs out first
 
 NEs in `demanda`, `validacao_saldo` and `cancelada` contribute nothing to either.
 Reservation begins at `pre_empenho` — the first stage past the saldo guard — and
-converts to commitment at `ne_emitida`.
+ends only when the delivery is approved, when the value counts as consumed.
+Emission, `ne_emitida`, changes nothing in saldo.
+
+Quantity is not split into reserved and consumed, because the NF carries no item
+lines: an item's quantity stays committed as a whole until they exist (OQ-40).
 
 **There is no `saldo` column, in either unit.** No endpoint writes one. The only
 way to change a saldo is to change an ATA's contracted value or move an NE
@@ -66,27 +90,33 @@ snapshot (ADR-0008). They are never summed and never shown as one number.
 ## 3. Behaviour
 
 **AC-0006-01** — With no NEs, `saldo_disponivel` equals `valor_contratado` and
-`consumo_percentual` is 0.
+`consumo_percentual` and `comprometimento_percentual` are 0.
 
-**AC-0006-02** — The worked example from Tela 5 reproduces exactly: ATA 002/2026
-at R$ 2.840.000,00 with one NE in `ne_emitida` whose itens total R$ 78.000,00
-yields saldo R$ 2.762.000,00 and consumo 3% (rounded to the nearest whole
-percent). A second test splits the same R$ 78.000,00 across four itens and
+**AC-0006-02** — The worked example from Tela 5 reproduces, with its figures named
+as the stakeholder's answer requires: ATA 002/2026 at R$ 2.840.000,00 with one NE
+in `ne_emitida` whose itens total R$ 78.000,00 yields `saldo_disponivel`
+R$ 2.762.000,00, `valor_reservado` R$ 78.000,00, `valor_consumido` R$ 0,00 and
+`comprometimento_percentual` 3% (rounded to the nearest whole percent). Tela 5
+called that 3% "consumo"; it is the committed share, because nothing has been
+delivered. A second test splits the same R$ 78.000,00 across four itens and
 asserts an identical result — the saldo depends on the sum, not on how the NE is
 composed.
 
-**AC-0006-03** — Consumption at or above 80% flags the ATA as
+**AC-0006-03** — Commitment at or above 80% flags the ATA as
 `alto_consumo = true` (RF14); a test at 79.9%, 80.0% and 80.1% pins the boundary.
+The flag measures `comprometimento_percentual`, reserved plus consumed, and not
+`consumo_percentual`: the buyer needs to know how little is left to promise, and
+that does not wait for deliveries (ADR-0015, OQ-40).
 
-**AC-0006-04** — Aditivos raise `valor_contratado` and therefore lower
-`consumo_percentual` without any NE changing.
+**AC-0006-04** — Aditivos raise `valor_contratado` and therefore lower both
+percentages without any NE changing.
 
 **AC-0006-05** — Cancelling an NE in a reserving state releases its value **and
 the contracted quantity of every one of its itens** in the same transaction.
 
 **AC-0006-06** — Saldo is computed from the NE ledger on every read; a test
-mutates `ITEM_NOTA_EMPENHO` rows directly in the database and asserts the next
-read reflects it with no refresh step. This is what distinguishes a derived value
+mutates `ITEM_NOTA_EMPENHO` rows, and separately `NOTA_FISCAL` rows, directly in
+the database and asserts the next read reflects it with no refresh step. This is what distinguishes a derived value
 from a cached one. **If this criterion is ever weakened, ADR-0003 has been
 silently reversed** — the failure mode it prevents is measurable in the source
 spreadsheet at 32,5%.
@@ -132,6 +162,34 @@ Then  quantidade_disponivel becomes 25
 And   an aditivo above 25% is rejected with error code "ADITIVO_ACIMA_DO_LIMITE"
 ```
 
+**AC-0006-13** — Approving a delivery turns reserved into consumed (OQ-03, ADR-0015)
+```gherkin
+Given an ATA with valor contratado R$ 100.000,00
+And   an NE of R$ 30.000,00 in "ne_emitida"
+When  an NF of R$ 30.000,00 bound to that NE is approved
+Then  valor_reservado is R$ 0,00 and valor_consumido is R$ 30.000,00
+And   saldo_disponivel is R$ 70.000,00, exactly as it was before the approval
+And   consumo_percentual and comprometimento_percentual are both 30%
+```
+
+**AC-0006-14** — Only an approved NF consumes
+```gherkin
+Given the NE of AC-0006-13 and an NF of R$ 30.000,00 bound to it
+When  the NF is in "aguardando", in "em_conferencia" or in "devolvida"
+Then  valor_consumido is R$ 0,00 and valor_reservado is R$ 30.000,00
+```
+One test per status.
+
+**AC-0006-15** — A delivery in parts consumes in parts
+```gherkin
+Given the NE of AC-0006-13
+When  an NF of R$ 10.000,00 bound to it is approved
+Then  valor_consumido is R$ 10.000,00 and valor_reservado is R$ 20.000,00
+And   saldo_disponivel is R$ 70.000,00
+```
+RN12 already bars NFs whose sum exceeds the NE's value, so `valor_reservado` never
+falls below zero.
+
 ## 4. Runway projection (RF21)
 
 The colleague contribution in the RFC appendix (burn-rate projection: "at this
@@ -148,6 +206,15 @@ atual, quanto tempo de estoque essa ata vai durar"*, which is runway measured
 against consumption rather than against elapsed spend.
 
 ## Revision history
+
+**v0.4 (2026-10-02)** — saldo is consumed on delivery, not on emission, by the
+stakeholder's answer (question 6, OQ-03; ADR-0015). §2.1 gains `valor_consumido`
+and `valor_comprometido`, and `valor_empenhado` leaves the formula and stays as a
+reporting figure. AC-0006-02 and -03 are rewritten (the 3% of Tela 5 is now the
+*committed* share, and the 80% flag measures it), AC-0006-01, -04 and -06 are
+adjusted, and AC-0006-13 to -15 are new. The quantity view (AC-0006-10 to -12) is
+unchanged: committed quantity stays reserved-or-consumed together, because the
+NF carries no item lines (OQ-40). No existing AC was renumbered.
 
 **v0.3 (2026-09-02)** — saldo is now defined in **two units**. §2 splits into
 value-per-ATA and quantity-per-item, both derived; AC-0006-02, -05, -06 and -07
@@ -166,3 +233,4 @@ that v0.3 closes.
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF14, §2.5 RN10, Tela 5 |
 | 0.2 | 2026-09-02 | ADR-0003 confirmed empirically (32,5% divergence in the source spreadsheet); aggregation moves to ITEM_NOTA_EMPENHO (ADR-0007); quantity-saldo gap recorded (OQ-20); RF20/RF21 unblocked on data |
 | 0.3 | 2026-09-02 | Saldo defined in value and quantity (OQ-20); ACs 02, 05, 06, 07 rewritten over ITEM_NOTA_EMPENHO (ADR-0007); ACs 10–12 added; RF21 leaves the deferred list |
+| 0.4 | 2026-10-02 | Saldo consumed when an NF is approved, not when the NE is issued (stakeholder, question 6; ADR-0015, OQ-03 resolved, OQ-40 opened): `valor_consumido` replaces `valor_empenhado` in the formula, which stays as a reporting figure; ACs 01 to 04 and 06 adjusted; ACs 13 to 15 added; depends on SPEC-0005 |

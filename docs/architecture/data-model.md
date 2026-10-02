@@ -357,7 +357,12 @@ An NE with zero items cannot leave `demanda` (RN09).
 `UNIQUE(numero, fornecedor_id)`.
 
 `status` and `justificativa_devolucao` added (Tela 7 has statuses the RFC model
-lacks — OQ-12). No `ata_id`: the ATA is reached through the NE (RN02).
+lacks — OQ-12, confirmed by the stakeholder 2026-10-02). No `ata_id`: the ATA is
+reached through the NE (RN02).
+
+***(2026-10-02)* An NF in `aprovada` is what consumes saldo** (ADR-0015, OQ-03):
+SPEC-0006 sums `valor` over those NFs per ATA. The NF has no item lines, so the
+consumption is in value only (OQ-40).
 
 ### HISTORICO_MOVIMENTACAO
 

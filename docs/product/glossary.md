@@ -13,7 +13,7 @@ domain term yet — add it before using it.
 | **Item da ATA** | `ITEM_ATA` | A specific `insumo` inside an ATA, with quantity and unit price. The join entity between ATA and Insumo. |
 | **Insumo** | `INSUMO`, `insumo_id` | A catalogued supply item (paper, toner, gloves). Identified by its `sku`, the CAME's own code; the DOMS code is kept beside it for joining. |
 | **Nota de Empenho (NE)** | `NOTA_EMPENHO` | The commitment of budget against an ATA for a given item and quantity. The core entity of SIGI. |
-| **Empenhar / Empenhado** | `valor_empenhado` | To commit budget. The cumulative committed value of an ATA. |
+| **Empenhar / Empenhado** | `valor_empenhado` | To commit budget. The cumulative value of the NEs issued against an ATA, a reporting figure: it is not what consumes saldo (ADR-0015). |
 | **Nota Fiscal (NF)** | `NOTA_FISCAL` | The supplier's invoice, evidencing delivery. Always bound to an NE, never directly to an ATA. |
 | **Liquidação** | — | The administrative act of verifying delivery against the NF. Modelled here as the NF conference status; payment itself is out of scope. |
 | **Saldo** | `saldo_disponivel` | ATA total value minus committed NEs. **Derived, never stored as mutable state.** |

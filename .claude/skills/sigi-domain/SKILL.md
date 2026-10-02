@@ -31,10 +31,11 @@ Full list: `docs/product/glossary.md`.
    **An NE carries many insumos** (`ITEM_NOTA_EMPENHO`) — 27,8% of real ones do,
    up to 37. Status lives on the header: there is no per-item status and no
    partially advanced NE (ADR-0007).
-3. **Saldo is derived:** `valor_contratado − valor_reservado − valor_empenhado`,
-   aggregated over `ITEM_NOTA_EMPENHO` (ADR-0007). There is no `saldo` column
-   and no operation that writes one. Reservation begins at `pre_empenho`;
-   commitment at `ne_emitida`.
+3. **Saldo is derived:** `valor_contratado − valor_reservado − valor_consumido`,
+   aggregated over `ITEM_NOTA_EMPENHO` and the approved `NOTA_FISCAL` rows
+   (ADR-0007, ADR-0015). There is no `saldo` column and no operation that writes
+   one. Reservation begins at `pre_empenho`; **consumption only when an NF bound
+   to the NE is `aprovada`** — issuing the NE (`ne_emitida`) changes nothing.
    **Estoque is imported, not derived and not computed.** A dated snapshot from
    DOMS, written only by the importer, always displayed with its
    `data_referencia` (ADR-0008). `saldo` ≠ `estoque`: different sources,
