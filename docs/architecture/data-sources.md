@@ -62,7 +62,7 @@ The report the entity runs monthly to refresh stock position.
 | `unidadeId` · `unidadeNome` | `289` · `CIAD SES CAME - SECRETARIA DA SAUDE` | **no destination** — no `UNIDADE` entity exists |
 | `centroCustoId` · `centroCustoNome` | `657` · `CIAD CAME` | **no destination** |
 | `mercadoriaId` | `2498` | `INSUMO` — third identifier, see §8 |
-| `mercadoriaCdCliente` | `18954` | `INSUMO.codigo` |
+| `mercadoriaCdCliente` | `18954` | `INSUMO.codigo_doms` *(2026-10-02: was `INSUMO.codigo`; the SKU is now the identity, OQ-29)* |
 | `mercadoriaNome` | `ABAIXADOR DE LINGUA (PACOTE COM 100…` | `INSUMO.descricao` |
 | `demandaDiaria` · `demandaMensal` | `9,29` · `278,71` | **no destination** (ADR-0008) |
 | `estoqueAtual` | `1102` | **no destination** (ADR-0008) |
@@ -192,13 +192,14 @@ two names.
 
 ## 8. Item identity: four codes, not one
 
-`RN14` states that `insumo.codigo` is globally unique and immutable. The data
-carries four independent identifiers for the same item:
+`RN14` states that `insumo.sku` is globally unique and immutable *(2026-10-02: it
+said `insumo.codigo`, the DOMS code, until the stakeholder chose the SKU; OQ-29)*.
+The data carries four independent identifiers for the same item:
 
 | Identifier | Example | Where it lives |
 | --- | --- | --- |
 | `SKU` | `CLORDEG21`, `SER5D` | CAME internal mnemonic (`SKU` sheet, 1.425 rows) |
-| `CÓDIGO` / `mercadoriaCodigoCliente` / `CÓD INTEGRAÇÃO` | `26829`, `916891` | DOMS client code — the closest thing to `INSUMO.codigo` |
+| `CÓDIGO` / `mercadoriaCodigoCliente` / `CÓD INTEGRAÇÃO` | `26829`, `916891` | DOMS client code — joined through `INSUMO.codigo_doms` |
 | `mercadoriaId` | `3678` | DOMS internal surrogate |
 | `Nº ITEM` | `15` | position within a pregão/ATA, not an item identity |
 

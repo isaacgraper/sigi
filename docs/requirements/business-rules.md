@@ -24,7 +24,7 @@ auditor will rely on — those rules are also expressed as database constraints.
 | RN11 | An NE may only be opened against an ATA whose vigência covers the current date and whose status is not `cancelada`/`encerrada` | Otherwise a closed ATA can accrue new commitments — an audit finding waiting to happen. Nothing in RN01–RN10 forbids it. |
 | RN12 | The sum of NF values bound to an NE may not exceed the NE value without a recorded justification | Prevents silent over-invoicing; the RFC checks saldo at NE level but never at NF level. |
 | RN13 | An ATA may only be closed (`encerrada`) when no NE is in a non-terminal state | Otherwise in-flight commitments are orphaned. |
-| RN14 | `insumo.codigo` is globally unique and immutable once referenced by an `ITEM_ATA` | Changing it retroactively breaks DOMS correspondence in historical records. |
+| RN14 | `insumo.sku` is globally unique and immutable once referenced by an `ITEM_ATA`. A substituted item is never rewritten: the old insumo stays as it was and points to its substitute (`substituido_por_id`) | Changing it retroactively breaks the correspondence with the CAME and DOMS sheets in historical records. The SKU is the identity because the stakeholder chose it (OQ-29, 2026-10-02). |
 | RN15 | An aditivo may not increase an ATA's quantity beyond 25% of the original | Stated in the mockup ("Aditivo máximo permitido: 25% do quantitativo") but in no rule. |
 | RN16 | Deactivating a user anonymises personal data while preserving audit rows (LGPD art. 16, I) | Stated in the LGPD section; must be a rule, since it constrains RN06. |
 
