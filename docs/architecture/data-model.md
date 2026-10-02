@@ -272,6 +272,17 @@ happens"; the modelling response is deferred to SPEC-0002.
 Required by RF15/RN15 and by the alternative flow "solicitar aditivo à ATA".
 `valor_contratado` is `ATA.valor_total + Σ aditivos`.
 
+### ATA_REAJUSTE *(new, 2026-10-02)*
+`id UUID PK`, `ata_id FK`, `processo_sei VARCHAR`, `solicitado_em DATE`,
+`criado_por FK → USUARIO`, `criado_em TIMESTAMPTZ`.
+
+One row per reajuste request filed through SEI for an ATA (RF16, SPEC-0002
+AC-0002-19). It records that the request was filed and under which process, and
+nothing else: the outcome, the index and the approver are unknown (OQ-08). The
+date a reajuste falls due is **not** a column, it is `data_orcamento_planilhado`
+plus one year, derived (AC-0002-18). The source keeps `DATA LIMITE REAJUSTE` per
+item, so a per-item date may be needed later (OQ-42).
+
 ### INSUMO
 `id UUID PK`, `sku VARCHAR NOT NULL UNIQUE`, `codigo_doms VARCHAR NULL UNIQUE`,
 `descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NULL`,
@@ -510,6 +521,7 @@ FORNECEDOR 1──* ATA
 FORNECEDOR 1──* NOTA_FISCAL
 ATA 1─────────* ITEM_ATA *─────────1 INSUMO
 ATA 1─────────* ATA_ADITIVO
+ATA 1─────────* ATA_REAJUSTE
 ATA 1─────────* NOTA_EMPENHO       (all items of an NE share one ATA)
 NOTA_EMPENHO 1* ITEM_NOTA_EMPENHO *1 ITEM_ATA
 NOTA_EMPENHO 1* NOTA_FISCAL
