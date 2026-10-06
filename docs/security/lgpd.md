@@ -6,7 +6,7 @@ Source: RFC §6.4. This document is the register a DPO would ask for.
 
 | Category | Fields | Legal basis (Lei 13.709/2018) | Retention |
 | --- | --- | --- | --- |
-| Servidor identification | nome, e-mail institucional, perfil/cargo | Art. 7, II and V — legal obligation / contract execution | While active + 5 years in audit rows (pseudonymised) |
+| Servidor identification | nome, e-mail institucional, registro funcional (*registro na prefeitura*, since SPEC-0001 v1.7), perfil/cargo | Art. 7, II and V — legal obligation / contract execution | While active + 5 years in audit rows (pseudonymised) |
 | Authentication | senha (hash), tokens, IP, user-agent | Art. 7, IX — legitimate interest, system security | Tokens until expiry; access logs 12 months |
 | Federated identity *(2026-09-10)* | `oidc_subject` — the provider's opaque subject claim | Art. 7, II — legal obligation / contract execution, as the institutional identity | While the account is active |
 | Audit and traceability | usuario_id, timestamp, ação, dados anteriores | Art. 7, II — legal obligation, public transparency | ≥ 5 years (RNF08) |
@@ -64,6 +64,12 @@ in the RFC's data model, and neither is required by any functional requirement.
   reference to it, in AC-0001-14, which had been anonymising a field no entity
   carried. OQ-10 is `Assumed`.
 - **SIAPE** — justifiable as institutional identification; document the basis if kept.
+- **Registro funcional** *(2026-10-02)* — the stakeholder asked for the *registro na
+  prefeitura* at invitation (SPEC-0001 AC-0001-45). It is adopted as institutional
+  identification, on the same basis as the other identification fields. The basis
+  is unconfirmed until the DPO is named (OQ-18, OQ-41). It is visible to a gestor
+  and an auditor only, anonymised with the name (AC-0001-14), and never written
+  into an audit row.
 
 Under art. 6, III (minimisation), the cheapest compliance measure available is
 not collecting data you do not need. Every field removed here is a field that

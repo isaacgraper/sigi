@@ -8,7 +8,8 @@ Revised 2026-09-02 against the stakeholders' operational data — see
 ## Entities
 
 ### USUARIO
-`id UUID PK`, `nome NULL`, `email UNIQUE NULL`, `senha_hash NULL`,
+`id UUID PK`, `nome NULL`, `email UNIQUE NULL`, `registro_funcional VARCHAR(32) NULL`,
+`senha_hash NULL`,
 `perfil ENUM(gestor, servidor, auditor)`, `status ENUM(pendente, ativo,
 bloqueado, desativado)`, `criado_em TIMESTAMPTZ`,
 `anonimizado_em TIMESTAMPTZ NULL`, `oidc_subject VARCHAR UNIQUE NULL`,
@@ -17,6 +18,13 @@ bloqueado, desativado)`, `criado_em TIMESTAMPTZ`,
 
 `status` is added: the mockup shows Pendente and Bloqueado, which a single
 boolean cannot express.
+
+***(2026-10-02)* `registro_funcional`** is the member's *registro na prefeitura*,
+asked for at invitation on the stakeholder's suggestion (SPEC-0001 AC-0001-45,
+OQ-35, OQ-41). It is nullable because accounts created before it have none, and
+there is no `UNIQUE` and no format `CHECK`, because neither is known. It is
+personal data: anonymised with `nome` (DB12) and never written into
+`dados_anteriores`.
 
 ***(2026-09-10)* `senha_hash` is nullable, on purpose.** An invited account
 exists before it has a credential (AC-0001-10), and an account that
@@ -544,7 +552,7 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB9 | A `pendente` usuario never carries a credential | `CHECK (status <> 'pendente' OR senha_hash IS NULL)` *(2026-09-10)* |
 | DB10 | A `SESSAO` is immutable except for its revocation | Trigger rejecting any update that changes a column other than `revogado_em`/`revogado_motivo` *(2026-09-10, widened: "never un-revoked" left `familia`, `usuario_id`, `refresh_token_hash` and `emitido_em` mutable)* |
 | DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |
-| DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
+| DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `registro_funcional`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
 | DB13 | At least one `ativo` gestor always exists | Trigger on `USUARIO` update, counting with `ORDER BY id FOR UPDATE` so concurrent transactions take locks in a deterministic order; the service also takes `pg_advisory_xact_lock` so the API returns 409 `ULTIMO_GESTOR` instead of a deadlock *(2026-09-10)* |
 
 **On DB13.** It is a cross-row aggregate, so a `CHECK` cannot express it, and a
