@@ -328,8 +328,11 @@ Self-referencing, three levels: `Grupo mercadoria` → `SubGrupo Mercadoria` →
 `TRANFERENCIA DE MERCADORIA (CSV)`.
 
 ### ITEM_ATA
-`id UUID PK`, `ata_id FK`, `insumo_id FK`, `quantidade NUMERIC`,
-`valor_unitario NUMERIC(15,4)`, `UNIQUE(ata_id, insumo_id)`.
+`id UUID PK`, `ata_id FK`, `insumo_id FK`, `fornecedor_id FK → FORNECEDOR NULL`,
+`quantidade NUMERIC`, `valor_unitario NUMERIC(15,4)`, `UNIQUE(ata_id, insumo_id)`.
+
+***(2026-10-06)* `fornecedor_id` overrides the ATA's** for the 29 of 456 ATAs
+with more than one fornecedor (OQ-11). `NULL` means the ATA's own fornecedor.
 
 Unit price uses four decimals: unit prices for consumables are frequently
 sub-centavo, and rounding at storage time compounds across thousands of units.
