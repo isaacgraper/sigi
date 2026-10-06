@@ -1,8 +1,8 @@
 ---
 id: SPEC-0002
 title: ATAs de Registro de Preços
-status: Draft
-version: 0.4
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
@@ -53,7 +53,8 @@ When  any of those fields is missing or malformed
 Then  the response is 422 with error code "INVALID_DATA" and `fields` naming each one
 And   no ATA is created
 ```
-`data_emissao` is optional. One fornecedor sits on the ATA (OQ-11): the 29 of 456
+`fornecedor` is given as `{cnpj, razao_social}` (AC-0002-25). `data_emissao` is
+optional. One fornecedor sits on the ATA (OQ-11): the 29 of 456
 ATAs that have two or three record the others on their items, where
 `ITEM_ATA.fornecedor_id` overrides the ATA's (SPEC-0003).
 
@@ -128,6 +129,21 @@ is ever renumbered.
 
 **AC-0002-07** — *Withdrawn in v0.3.* Atomic import per file remains a rule, but
 for the items: SPEC-0003 AC-0003-07 owns it.
+
+**AC-0002-25** — A fornecedor is found by its CNPJ, or created
+```gherkin
+Given a gestor registering an ATA with fornecedor {cnpj, razao_social}
+When  no fornecedor has that CNPJ
+Then  a fornecedor is created and the ATA points to it
+When  a fornecedor already has that CNPJ
+Then  the ATA points to the existing one and its razao_social is not changed
+When  the CNPJ is malformed, or its check digits are wrong
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming fornecedor.cnpj
+And   no ATA and no fornecedor is created
+```
+The data model asks for the CNPJ to be validated with its check digits and gives
+the fornecedor no screen of its own, so the ATA is where one first appears. The
+CNPJ is stored as its 14 digits, whatever punctuation was typed.
 
 ### 3.2 Lifecycle
 
@@ -388,6 +404,55 @@ the alert. Still unknown are the index and who approves (OQ-08), so nothing here
 changes a price, and the alert's lead time and whether the right lapses after the
 date (OQ-42, `Assumed`).
 
+## Implementation plan
+
+*Written 2026-10-06, after the spec was approved.*
+
+**Data** (migration `0003_atas`): `fornecedor`, `ata`, `ata_aditivo` and
+`ata_reajuste`. `ata.status` and `ata_aditivo.tipo` are `VARCHAR` with `CHECK`,
+like `usuario`. `ata.vigencia_fim > vigencia_inicio` and `valor_total > 0` are
+`CHECK`s as well as validation (DB constraints, not only Python). The app role gets
+`SELECT, INSERT, UPDATE` and **no `DELETE`**, which is what makes AC-0002-17 true in
+the database. `situacao_vigencia`, the reajuste date and `valor_contratado` are
+derived on read and have no column. `ata_aditivo` has no `percentual` column: the
+ceiling is checked against the sum.
+
+**Layers:** `models/ata.py`, `models/fornecedor.py`; `repositories/ata.py` (reads, the
+`FOR UPDATE` lock, the alert queries); `services/atas.py` (every rule above, the
+lifecycle table, the derivations); `schemas/ata.py`; `api/atas.py`. The clock is
+`app/core/clock.py`, so a test freezes it without touching the system time
+(AC-0002-15, -20).
+
+**Endpoints**
+
+| Method | Path | AC |
+| --- | --- | --- |
+| POST, GET | `/api/v1/atas` | 01 to 04, 23, 25 |
+| GET, PATCH | `/api/v1/atas/{id}` | 23, 24 |
+| POST | `/api/v1/atas/{id}/ativar`, `/suspender`, `/retomar`, `/encerrar`, `/cancelar` | 10, 22 |
+| POST | `/api/v1/atas/{id}/aditivos` | 13, 14 |
+| POST | `/api/v1/atas/{id}/reajustes` | 08, 19, 21 |
+| GET | `/api/v1/atas/alertas/renovacao`, `/api/v1/atas/alertas/reajuste` | 09, 20 |
+
+DELETE answers 405 (AC-0002-17). Reads are open to the three perfis, writes to the
+gestor, through the same `Requires` matrix, and the matrix test gains the new
+routes.
+
+**Config:** `ata_alert_days` (default 90) for the renewal alert and the reajuste
+alert, one key because OQ-42 assumes the two are alike.
+
+**Audit:** the `acao` values of §3.7, written in the caller's transaction through
+`services/audit.py`.
+
+**Tests:** one file, `tests/test_atas.py`, a test per AC named `test_ac_0002_NN_*`;
+AC-0002-11, -12 and the saldo and quantity parts of -13 and -14 are deferred
+(§3) and have no test here. The DB checks are proven in `test_migration_atas.py`.
+
+**Not in this slice:** the screens (a second PR), `ITEM_ATA` and its fornecedor
+override (SPEC-0003), the NE guards (SPEC-0004), `ATA_COM_NE_PENDENTE`.
+
+**No new dependency.**
+
 ## 5. Changelog
 
 | Version | Date | Change |
@@ -396,3 +461,4 @@ date (OQ-42, `Assumed`).
 | 0.2 | 2026-09-02 | Validated against operational data: no ATA export exists (OQ-02 resolved); multi-fornecedor ATAs confirmed (OQ-11); third status axis recorded (OQ-21) |
 | 0.3 | 2026-10-02 | Stakeholder answers (questions 1 and 2): ATAs are informed through SEI and entered by hand, so AC-0002-06 and -07 (ATA import) are withdrawn; the reajuste is specified in part, AC-0002-18 to -21 (date one year after the orçamento, request by SEI process, alert), and RF16 is mapped. Index and approver still unknown (OQ-08); alert lead time assumed (OQ-42) |
 | 0.4 | 2026-10-06 | MVP slice. Every criterion is Given/When/Then. Added: the lifecycle moves (AC-0002-22), reading for all profiles (AC-0002-23), what is editable (AC-0002-24), permissions, errors and audit events (§3.7). AC-0002-08 reworded; AC-0002-11, -12 and the saldo and quantity parts of -13 and -14 are *deferred* to SPEC-0003, SPEC-0004 and SPEC-0006. OQ-11 settled for the MVP (fornecedor on the ATA, optional override on the item). RF15 added to `satisfies`. OQ-45 opened |
+| 1.0 | 2026-10-06 | Approved. AC-0002-25: a fornecedor is found by its CNPJ or created, with the check digits validated, because the ATA is the only place one first appears. Implementation plan added |
