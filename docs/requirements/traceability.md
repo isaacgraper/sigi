@@ -22,10 +22,10 @@ on an `Approved` spec is a merge blocker.
 | A03, A05 (page headers) | SPEC-0010 v1.3 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Approved** |
 | RNF14 (errors) | SPEC-0010 v1.4 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Approved** |
 | RNF06, RNF14 (shell) | SPEC-0011 v1.0 | AC-0011-01..24 | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Approved** |
-| RF04, RF08, RF19 | SPEC-0002 v1.0 | AC-0002-01..05, -08, -09, -22..25 (AC-0002-06, -07 withdrawn) | _pending_ | **Approved** |
-| RN04, RN13, RN15 | SPEC-0002 v1.0 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 and parts of -13, -14 deferred to SPEC-0003, -0004 and -0006) | _pending_ | Draft |
-| RF15 | SPEC-0002 v1.0 | AC-0002-13, -14 | _pending_ | **Approved** |
-| RF16 | SPEC-0002 v1.0 | AC-0002-18..21 | _pending_ | **Approved** |
+| RF04, RF08, RF19 | SPEC-0002 v1.1 | AC-0002-01..05, -08, -09, -22..25 (AC-0002-06, -07 withdrawn) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Approved** |
+| RN04, RN13, RN15 | SPEC-0002 v1.1 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 and parts of -13, -14 deferred to SPEC-0003, -0004 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | Draft |
+| RF15 | SPEC-0002 v1.1 | AC-0002-13, -14 | `tests/test_atas.py` | **Approved** |
+| RF16 | SPEC-0002 v1.1 | AC-0002-18..21 | `tests/test_atas.py` | **Approved** |
 | RF03, RF07, RN14 | SPEC-0003 v0.3 | AC-0003-01..10 | _pending_ | Draft |
 | RF13, RN03, RN08, RN09 | SPEC-0004 v0.4 | AC-0004-01..24 | _pending_ | Draft |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.3 | AC-0005-01..11 | _pending_ | Draft |

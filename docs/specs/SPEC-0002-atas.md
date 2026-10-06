@@ -2,7 +2,7 @@
 id: SPEC-0002
 title: ATAs de Registro de Preços
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
@@ -216,7 +216,9 @@ Given a vigente ATA with an aditivo de prazo recorded
 Then  it does not appear (RF19)
 ```
 Aditivos of value or quantity do not remove an ATA from the alert, because they do
-not move the date.
+not move the date. A `vigente` ATA already past its `vigencia_fim` stays in the alert,
+with negative days remaining, until it is closed: it is the one most in need of it
+*(clarified 2026-10-06, while implementing)*.
 
 ### 3.4 Aditivos
 
@@ -462,3 +464,4 @@ override (SPEC-0003), the NE guards (SPEC-0004), `ATA_COM_NE_PENDENTE`.
 | 0.3 | 2026-10-02 | Stakeholder answers (questions 1 and 2): ATAs are informed through SEI and entered by hand, so AC-0002-06 and -07 (ATA import) are withdrawn; the reajuste is specified in part, AC-0002-18 to -21 (date one year after the orçamento, request by SEI process, alert), and RF16 is mapped. Index and approver still unknown (OQ-08); alert lead time assumed (OQ-42) |
 | 0.4 | 2026-10-06 | MVP slice. Every criterion is Given/When/Then. Added: the lifecycle moves (AC-0002-22), reading for all profiles (AC-0002-23), what is editable (AC-0002-24), permissions, errors and audit events (§3.7). AC-0002-08 reworded; AC-0002-11, -12 and the saldo and quantity parts of -13 and -14 are *deferred* to SPEC-0003, SPEC-0004 and SPEC-0006. OQ-11 settled for the MVP (fornecedor on the ATA, optional override on the item). RF15 added to `satisfies`. OQ-45 opened |
 | 1.0 | 2026-10-06 | Approved. AC-0002-25: a fornecedor is found by its CNPJ or created, with the check digits validated, because the ATA is the only place one first appears. Implementation plan added |
+| 1.1 | 2026-10-06 | Backend implemented. AC-0002-09 states that a vigente ATA already past its end stays in the renewal alert, with negative days remaining. No other criterion changed |
