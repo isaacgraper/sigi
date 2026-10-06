@@ -53,6 +53,9 @@ entries are moved into a new dated version section — see
   matching screens.
 - SPEC-0002 v0.3: the reajuste date, its request by SEI process and its alert
   (AC-0002-18 to -21).
+- SPEC-0002 v0.4: an MVP slice with every criterion in Given/When/Then, the ATA lifecycle,
+  reading for all profiles, permissions, errors and audit events. Criteria that need
+  SPEC-0003, SPEC-0004 or SPEC-0006 are marked deferred. OQ-45 records the assumptions.
 - OQ-40 to OQ-44 and OQ-46, recording what the stakeholder's answers settled, left assumed or open.
 
 ### Changed
