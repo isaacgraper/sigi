@@ -379,9 +379,18 @@ An NE with zero items cannot leave `demanda` (RN09).
 lacks — OQ-12, confirmed by the stakeholder 2026-10-02). No `ata_id`: the ATA is
 reached through the NE (RN02).
 
-***(2026-10-02)* An NF in `aprovada` is what consumes saldo** (ADR-0015, OQ-03):
-SPEC-0006 sums `valor` over those NFs per ATA. The NF has no item lines, so the
-consumption is in value only (OQ-40).
+***(2026-10-06)* `quarentena BOOL`, `motivo_quarentena TEXT NULL`** mark an NF
+with a problem in the note or the material: it arrived, it is held, and its lines
+do not count (ADR-0015, OQ-46). It is a flag, not a fifth status.
+
+### ITEM_NOTA_FISCAL *(new, 2026-10-06)*
+`id UUID PK`, `nota_fiscal_id FK`, `item_nota_empenho_id FK`,
+`quantidade NUMERIC`, `UNIQUE(nota_fiscal_id, item_nota_empenho_id)`.
+
+What arrived, per item of the NE. SPEC-0006 §2.3 derives `quantidade_faltante`
+from it: the quantity of the NE item less the lines of the NFs bound to the NE,
+except those in quarantine or `devolvida`. It never enters saldo (ADR-0015). The
+item must belong to the NF's own NE, as DB2 does for `ITEM_NOTA_EMPENHO`.
 
 ### HISTORICO_MOVIMENTACAO
 
@@ -533,6 +542,7 @@ ATA 1─────────* ATA_REAJUSTE
 ATA 1─────────* NOTA_EMPENHO       (all items of an NE share one ATA)
 NOTA_EMPENHO 1* ITEM_NOTA_EMPENHO *1 ITEM_ATA
 NOTA_EMPENHO 1* NOTA_FISCAL
+NOTA_FISCAL 1* ITEM_NOTA_FISCAL *1 ITEM_NOTA_EMPENHO
 GRUPO_MATERIAL 1* INSUMO
 GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 ```
