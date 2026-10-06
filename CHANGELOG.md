@@ -56,6 +56,9 @@ entries are moved into a new dated version section — see
 - A gestor can unblock a member (`POST /api/v1/usuarios/{id}/desbloquear`, with a
   justification), and an invitation carries the full name and the registration
   (`registro_funcional`, migration `0002`), as SPEC-0001 v1.7 specifies.
+- The members page shows the registration, the invite dialog asks for the full name and
+  the registration, and a blocked member offers "Desbloquear" with a justification
+  (SPEC-0010 v1.5, AC-0010-59 and -60).
 - SPEC-0002 v0.4: an MVP slice with every criterion in Given/When/Then, the ATA lifecycle,
   reading for all profiles, permissions, errors and audit events. Criteria that need
   SPEC-0003, SPEC-0004 or SPEC-0006 are marked deferred. OQ-45 records the assumptions.
