@@ -169,6 +169,7 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     # "Invite / activate / block / deactivate members" — gestor only.
     ("POST", "/api/v1/usuarios"): frozenset({"gestor"}),
     ("POST", "/api/v1/usuarios/{user_id}/bloquear"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/desbloquear"): frozenset({"gestor"}),
     ("POST", "/api/v1/usuarios/{user_id}/desativar"): frozenset({"gestor"}),
     # "Trigger a password reset for another member" — gestor only.
     ("POST", "/api/v1/usuarios/{user_id}/redefinir-senha"): frozenset({"gestor"}),

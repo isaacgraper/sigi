@@ -4,15 +4,36 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
+
+# Trimmed and non-blank, bounded like every other field (AC-0001-41). No format
+# for the registration: none is known (OQ-41).
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Registration = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
+Justification = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+]
 
 
 class InviteInput(BaseModel):
-    """The body of an invitation."""
+    """The body of an invitation (AC-0001-10, -45).
+
+    `name` and `registration` are mandatory on a new invitation. The columns stay
+    nullable, because accounts created before v1.7 have neither.
+    """
 
     email: EmailStr
     perfil: str = Field(pattern="^(gestor|servidor|auditor)$")
+    name: Name
+    registration: Registration
+
+
+class UnblockInput(BaseModel):
+    """The body of an unblock: the justification is the one thing required (AC-0001-44)."""
+
+    justification: Justification
 
 
 class InviteOutput(BaseModel):
@@ -24,6 +45,7 @@ class InviteOutput(BaseModel):
     """
 
     id: uuid.UUID
+    name: str | None
     email: str
     perfil: str
     status: str
@@ -42,6 +64,9 @@ class MemberOutput(BaseModel):
     id: uuid.UUID
     name: str | None
     email: str | None
+    # Read by a gestor or an auditor only, and the routes that return it are
+    # theirs alone (SPEC-0001 §6). Null after anonymisation (AC-0001-14).
+    registration: str | None
     perfil: str
     status: str
     created_at: datetime.datetime

@@ -1,4 +1,4 @@
-"""Member management routes (SPEC-0001 §7 — AC-0001-10, -13, -28)."""
+"""Member management routes (SPEC-0001 §7 — AC-0001-10, -13, -28, -44, -45)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from app.schemas.user import (
     MemberOutput,
     MemberPage,
     ResetTriggerOutput,
+    UnblockInput,
 )
 from app.services import members
 
@@ -60,11 +61,14 @@ def invite(
         actor=actor,
         email=str(body.email),
         role=body.perfil,
+        name=body.name,
+        registration=body.registration,
         at=now,
         correlation_id=correlation_id,
     )
     return InviteOutput(
         id=user.id,
+        name=user.nome,
         email=user.email or "",
         perfil=user.role,
         status=user.status,
@@ -76,6 +80,19 @@ def invite(
 def _correlation(request: Request) -> uuid.UUID:
     raw = request.scope.get("state", {}).get("correlation_id")
     return raw if isinstance(raw, uuid.UUID) else current_correlation_id()
+
+
+def _member_output(user: User) -> MemberOutput:
+    return MemberOutput(
+        id=user.id,
+        name=user.nome,
+        email=user.email,
+        registration=user.registro_funcional,
+        perfil=user.role,
+        status=user.status,
+        created_at=user.criado_em,
+        pseudonym=user.pseudonimo,
+    )
 
 
 @router.get("", response_model=MemberPage)
@@ -92,18 +109,7 @@ def list_members(
     """
     rows, total = members.list_members(session, page=page, size=size)
     return MemberPage(
-        items=[
-            MemberOutput(
-                id=u.id,
-                name=u.nome,
-                email=u.email,
-                perfil=u.role,
-                status=u.status,
-                created_at=u.criado_em,
-                pseudonym=u.pseudonimo,
-            )
-            for u in rows
-        ],
+        items=[_member_output(u) for u in rows],
         total=total,
         page=page,
         size=size,
@@ -125,15 +131,27 @@ def block(
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )
-    return MemberOutput(
-        id=user.id,
-        name=user.nome,
-        email=user.email,
-        perfil=user.role,
-        status=user.status,
-        created_at=user.criado_em,
-        pseudonym=user.pseudonimo,
+    return _member_output(user)
+
+
+@router.post("/{user_id}/desbloquear", response_model=MemberOutput)
+def unblock(
+    user_id: uuid.UUID,
+    body: UnblockInput,
+    actor: Gestor,
+    request: Request,
+    session: DbSession,
+) -> MemberOutput:
+    """Unblock a member, with a justification (SPEC-0001 AC-0001-13, -44)."""
+    user = members.unblock(
+        session,
+        actor=actor,
+        user_id=user_id,
+        justification=body.justification,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
     )
+    return _member_output(user)
 
 
 @router.post("/{user_id}/desativar", response_model=MemberOutput)
@@ -151,15 +169,7 @@ def deactivate(
         at=datetime.datetime.now(datetime.UTC),
         correlation_id=_correlation(request),
     )
-    return MemberOutput(
-        id=user.id,
-        name=user.nome,
-        email=user.email,
-        perfil=user.role,
-        status=user.status,
-        created_at=user.criado_em,
-        pseudonym=user.pseudonimo,
-    )
+    return _member_output(user)
 
 
 @router.post("/{user_id}/redefinir-senha", response_model=ResetTriggerOutput)

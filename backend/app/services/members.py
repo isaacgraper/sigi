@@ -1,4 +1,4 @@
-"""Member management (SPEC-0001 §4.2 — AC-0001-10 to -14, -25, -26, -28, -29).
+"""Member management (SPEC-0001 §4.2 — AC-0001-10 to -14, -25, -26, -28, -29, -44, -45).
 
 This is the module that creates accounts. There is no self-registration and no
 just-in-time provisioning from the identity provider (AC-0001-21), so every
@@ -29,6 +29,7 @@ from app.services.errors import (
     GestorAlreadyExists,
     LastGestor,
     NonInstitutionalDomain,
+    NotBlocked,
     ResetAlreadyUsed,
     ResetExpired,
     UsuarioNotFound,
@@ -54,10 +55,12 @@ def invite(
     actor: User,
     email: str,
     role: str,
+    name: str,
+    registration: str,
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> tuple[User, str]:
-    """Create a `pendente` account and issue its activation link (AC-0001-10).
+    """Create a `pendente` account and issue its activation link (AC-0001-10, -45).
 
     Returns the usuario and the link. The link exists in memory for the length
     of this response and nowhere else, because only its HMAC is stored, so the
@@ -73,7 +76,13 @@ def invite(
         # this person do" (AC-0001-28).
         raise EmailAlreadyRegistered()
 
-    user = repo.create(session, email=address, role=role)
+    user = repo.create(
+        session,
+        email=address,
+        role=role,
+        nome=name.strip(),
+        registro_funcional=registration.strip(),
+    )
     grant = credentials.issue(
         session,
         user_id=user.id,
@@ -88,8 +97,9 @@ def invite(
             entidade_id=user.id,
             acao="usuario.convidado",
             user_id=actor.id,
-            # The perfil granted, never the token: this table can never be
-            # corrected, and `lgpd.md` promises it carries no credential.
+            # The perfil granted, never the token, the name or the registration:
+            # this table can never be corrected, and `lgpd.md` promises it carries
+            # neither a credential nor personal data (AC-0001-45).
             dados_anteriores={"perfil": role},
         ),
         correlation_id=correlation_id,
@@ -265,6 +275,47 @@ def block(
     )
 
 
+def unblock(
+    session: Session,
+    *,
+    actor: User,
+    user_id: uuid.UUID,
+    justification: str,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> User:
+    """Restore a blocked account to `ativo` (AC-0001-44).
+
+    The justification mirrors RN03: unblocking undoes a decision another gestor
+    took, so it is recorded in the audit row's `justificativa` column, never
+    silent. Nothing here can empty the gestor role, so unlike `block` it needs
+    no last-gestor guard, and it restores no session: the ones the block revoked
+    stay revoked and the member signs in again.
+    """
+    user = repo.by_id(session, user_id)
+    if user is None:
+        raise UsuarioNotFound()
+    if user.status != "bloqueado":
+        raise NotBlocked()
+
+    user.status = "ativo"
+    session.flush()
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.desbloqueado",
+            user_id=actor.id,
+            dados_anteriores={"status": "bloqueado"},
+            justificativa=justification.strip(),
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user
+
+
 def deactivate(
     session: Session,
     *,
@@ -289,10 +340,11 @@ def deactivate(
         at=at,
         correlation_id=correlation_id,
     )
-    # All four together, or the CHECK refuses the row. A half-anonymised usuario
+    # All five together, or the CHECK refuses the row. A half-anonymised usuario
     # is the state somebody later "restores" the name from the leftovers.
     user.nome = None
     user.email = None
+    user.registro_funcional = None
     user.senha_hash = None
     user.oidc_subject = None
     user.anonimizado_em = at

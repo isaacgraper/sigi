@@ -1,4 +1,4 @@
-"""Invitations — AC-0001-10, -11, -13, -25, -26, -28.
+"""Invitations — AC-0001-10, -11, -13, -25, -26, -28, -45.
 
 Every account in the system is born here: there is no self-registration and no
 just-in-time provisioning (AC-0001-21). So these tests are also the answer to
@@ -16,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from tests.conftest import invite_body
 
 USUARIOS = "/api/v1/usuarios"
 ACTIVATE = "/api/v1/convites/ativar"
@@ -44,9 +45,7 @@ def test_ac_0001_10_a_gestor_invites_a_member(
     headers = _as_gestor(application, create_user)
     email = f"novo-{uuid.uuid4().hex[:8]}@sc.gov.br"
 
-    response = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    response = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
 
     assert response.status_code == 201, response.text
     body = response.json()
@@ -76,9 +75,7 @@ def test_ac_0001_10_the_audit_row_carries_no_token(
     """The grant is auditable; the credential inside it is not recorded."""
     headers = _as_gestor(application, create_user)
     email = f"aud-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    response = application.post(
-        USUARIOS, json={"email": email, "perfil": "auditor"}, headers=headers
-    )
+    response = application.post(USUARIOS, json=invite_body(email, "auditor"), headers=headers)
     token = _token_from(response.json()["activation_link"])
 
     db_session.rollback()
@@ -98,9 +95,7 @@ def test_ac_0001_11_an_invited_user_activates_and_enters(
     """AC-0001-11 — activation sets the credential and issues a session."""
     headers = _as_gestor(application, create_user)
     email = f"ativa-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    invitation = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    invitation = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     token = _token_from(invitation.json()["activation_link"])
 
     ativacao = application.post(ACTIVATE, json={"token": token, "password": STRONG_ENOUGH})
@@ -118,9 +113,7 @@ def test_ac_0001_25_an_invitation_is_single_use(
     """AC-0001-25 — the second redemption is refused."""
     headers = _as_gestor(application, create_user)
     email = f"unica-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    invitation = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    invitation = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     token = _token_from(invitation.json()["activation_link"])
 
     assert (
@@ -148,15 +141,13 @@ def test_ac_0001_25_reinviting_supersedes_the_first_link(
     """A second invitation cancels the first, which then reads as expired."""
     headers = _as_gestor(application, create_user)
     email = f"resend-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    first = application.post(USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers)
+    first = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     old_token = _token_from(first.json()["activation_link"])
 
     # The account now exists, so a re-invite is refused by AC-0001-28. The
     # supersede path is exercised through the service instead, which is where it
     # lives; the API-level guard is the test above.
-    duplicate = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    duplicate = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["code"] == "EMAIL_ALREADY_REGISTERED"
 
@@ -178,9 +169,7 @@ def test_ac_0001_26_a_weak_password_does_not_burn_the_invitation(
     """
     headers = _as_gestor(application, create_user)
     email = f"fraca-{uuid.uuid4().hex[:8]}@sc.gov.br"
-    invitation = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    invitation = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     token = _token_from(invitation.json()["activation_link"])
 
     weak = application.post(ACTIVATE, json={"token": token, "password": "curta"})
@@ -209,7 +198,7 @@ def test_ac_0001_13_only_a_gestor_invites(
 
     response = application.post(
         USUARIOS,
-        json={"email": f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", "perfil": "servidor"},
+        json=invite_body(f"alvo-{uuid.uuid4().hex[:8]}@sc.gov.br", "servidor"),
         headers=headers,
     )
 
@@ -229,7 +218,7 @@ def test_ac_0001_13_only_a_gestor_invites(
 
 def test_ac_0001_13_an_anonymous_caller_is_refused(application: TestClient) -> None:
     """No token at all is 401, not 403: there is nobody to refuse yet."""
-    response = application.post(USUARIOS, json={"email": "alguem@sc.gov.br", "perfil": "servidor"})
+    response = application.post(USUARIOS, json=invite_body("alguem@sc.gov.br", "servidor"))
     assert response.status_code == 401
 
 
@@ -245,9 +234,7 @@ def test_ac_0001_28_a_duplicate_address_is_refused(
     email = f"dup-{uuid.uuid4().hex[:8]}@sc.gov.br"
     create_user(email=email, perfil="servidor", status="desativado", password=None)
 
-    response = application.post(
-        USUARIOS, json={"email": email, "perfil": "servidor"}, headers=headers
-    )
+    response = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "EMAIL_ALREADY_REGISTERED"
 
@@ -259,7 +246,7 @@ def test_ac_0001_28_an_address_outside_the_institutional_domains_is_refused(
     headers = _as_gestor(application, create_user)
 
     response = application.post(
-        USUARIOS, json={"email": "pessoa@gmail.com", "perfil": "servidor"}, headers=headers
+        USUARIOS, json=invite_body("pessoa@gmail.com", "servidor"), headers=headers
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "NON_INSTITUTIONAL_DOMAIN"
@@ -277,3 +264,112 @@ def test_the_activation_token_is_never_a_path_segment(application: TestClient) -
         "/api/v1/convites/algum-token/ativar", json={"password": STRONG_ENOUGH}
     )
     assert stale.status_code == 404
+
+
+# ── AC-0001-45 — the invitation carries the full name and the registration ──
+
+
+def test_ac_0001_45_the_invitation_stores_the_name_and_the_registration(
+    application: TestClient, create_user: Callable[..., User], db_session: Session
+) -> None:
+    """AC-0001-45 — both land on the usuario, and neither reaches the audit row."""
+    headers = _as_gestor(application, create_user)
+    email = f"nome-{uuid.uuid4().hex[:8]}@sc.gov.br"
+
+    response = application.post(
+        USUARIOS,
+        json={
+            "email": email,
+            "perfil": "servidor",
+            "name": "  Maria da Silva  ",
+            "registration": " REG-98765 ",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["name"] == "Maria da Silva"
+    db_session.rollback()
+    row = db_session.execute(
+        text("SELECT id, nome, registro_funcional FROM usuario WHERE email = :e"), {"e": email}
+    ).one()
+    assert (row.nome, row.registro_funcional) == ("Maria da Silva", "REG-98765")
+    audit = db_session.execute(
+        text(
+            "SELECT dados_anteriores::text, justificativa FROM historico_movimentacao"
+            " WHERE entidade_id = :u AND acao = 'usuario.convidado'"
+        ),
+        {"u": row.id},
+    ).one()
+    assert "Maria" not in audit[0]
+    assert "REG-98765" not in audit[0]
+
+
+@pytest.mark.parametrize("missing", ["name", "registration"])
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_ac_0001_45_a_missing_name_or_registration_is_refused(
+    application: TestClient,
+    create_user: Callable[..., User],
+    db_session: Session,
+    missing: str,
+    value: str | None,
+) -> None:
+    """AC-0001-45 — 422 `INVALID_DATA` naming the field, and no account is created."""
+    headers = _as_gestor(application, create_user)
+    email = f"falta-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    body = invite_body(email)
+    if value is None:
+        del body[missing]
+    else:
+        body[missing] = value
+
+    response = application.post(USUARIOS, json=body, headers=headers)
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "INVALID_DATA"
+    assert missing in error["fields"]
+    db_session.rollback()
+    assert (
+        db_session.execute(
+            text("SELECT count(*) FROM usuario WHERE email = :e"), {"e": email}
+        ).scalar_one()
+        == 0
+    )
+
+
+def test_ac_0001_45_the_fields_are_bounded(
+    application: TestClient, create_user: Callable[..., User]
+) -> None:
+    """AC-0001-45, AC-0001-41 — a name over 200 and a registration over 32 are refused."""
+    headers = _as_gestor(application, create_user)
+    long_name = invite_body(f"longo-{uuid.uuid4().hex[:8]}@sc.gov.br") | {"name": "N" * 201}
+    long_registration = invite_body(f"longo-{uuid.uuid4().hex[:8]}@sc.gov.br") | {
+        "registration": "R" * 33
+    }
+
+    for body, field in ((long_name, "name"), (long_registration, "registration")):
+        response = application.post(USUARIOS, json=body, headers=headers)
+        assert response.status_code == 422
+        assert field in response.json()["error"]["fields"]
+
+
+def test_ac_0001_45_the_member_list_shows_the_registration_to_a_gestor_and_an_auditor(
+    application: TestClient, create_user: Callable[..., User]
+) -> None:
+    """AC-0001-45, §6 — the list is the gestor's and the auditor's, and carries it."""
+    headers = _as_gestor(application, create_user)
+    email = f"lista-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    application.post(
+        USUARIOS,
+        json=invite_body(email) | {"registration": "REG-LISTA-1"},
+        headers=headers,
+    )
+    auditor = f"auditor-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    create_user(email=auditor, perfil="auditor", password=STRONG_ENOUGH)
+    entry = application.post(LOGIN, json={"email": auditor, "password": STRONG_ENOUGH})
+    auditor_headers = {"Authorization": f"Bearer {entry.json()['access_token']}"}
+
+    for who in (headers, auditor_headers):
+        page = application.get(f"{USUARIOS}?size=100", headers=who).json()
+        assert {m["registration"] for m in page["items"] if m["email"] == email} == {"REG-LISTA-1"}
