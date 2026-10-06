@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     bcrypt_cost: int = 12
     password_min_length: int = 12
 
+    # ── ATAs (SPEC-0002) ────────────────────────────────────────────────────
+    # How many days ahead the renewal alert and the reajuste alert look. One key,
+    # because OQ-42 assumes the two are alike until the entity says otherwise.
+    ata_alert_days: int = 90
+
     # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
     max_login_attempts: int = 5
     # ── Per-source rate limiting (AC-0001-33, ADR-0012) ────────────────────

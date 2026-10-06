@@ -75,6 +75,12 @@ def _message(error: Mapping[str, Any]) -> str:
         return "E-mail inválido."
     if kind == "string_pattern_mismatch":
         return "Valor não permitido."
+    if kind == "greater_than":
+        return "Informe um valor maior que zero."
+    if kind in ("decimal_max_places", "decimal_max_digits"):
+        return "Use no máximo duas casas decimais e 15 dígitos."
+    if kind.startswith("date"):
+        return "Data inválida."
     return "Valor inválido."
 
 

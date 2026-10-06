@@ -334,3 +334,96 @@ class RateLimited(DomainError):
         super().__init__(
             "Muitas requisições. Tente novamente em instantes.", retry_after=retry_after
         )
+
+
+class InvalidData(DomainError):
+    """A field is wrong in a way only the service can see (cross-field, or a lookup).
+
+    Pydantic produces the same code for a malformed field before the service
+    runs; this is for what it cannot know, such as `vigencia_fim` not being after
+    `vigencia_inicio`. The envelope is identical either way (`fields` names it).
+    """
+
+    code = "INVALID_DATA"
+    http = 422
+
+    def __init__(self, fields: dict[str, str]) -> None:
+        """Build the error from the fields that are wrong and why."""
+        super().__init__("Verifique os campos destacados.", fields=fields)
+
+
+class AtaDuplicada(DomainError):
+    """An ATA with this numero exists (AC-0002-02)."""
+
+    code = "ATA_DUPLICADA"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Já existe uma ATA com este número. Confira o número ou abra a existente.")
+
+
+class AtaNotFound(DomainError):
+    """No ATA has this id (AC-0002-23). The generic 404 code, an ATA-specific message."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("ATA não encontrada.")
+
+
+class TransicaoInvalida(DomainError):
+    """A move the lifecycle does not allow (AC-0002-22)."""
+
+    code = "TRANSICAO_INVALIDA"
+    http = 409
+
+    def __init__(self, origem: str, destino: str) -> None:
+        """Build the error naming both states, so the servidor sees what was refused."""
+        super().__init__(f"Esta ATA não pode passar de {origem} para {destino}.")
+
+
+class AtaNaoEditavel(DomainError):
+    """A locked field of an ATA that is past `rascunho` (AC-0002-24)."""
+
+    code = "ATA_NAO_EDITAVEL"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, pointing at the aditivo that is the way to change them."""
+        super().__init__("Depois de ativada, valores e prazos só mudam por aditivo.")
+
+
+class AtaNaoVigente(DomainError):
+    """An aditivo or a reajuste request on an ATA that is not `vigente` (AC-0002-13, -19)."""
+
+    code = "ATA_NAO_VIGENTE"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error, saying what to do first."""
+        super().__init__("A ATA precisa estar vigente. Ative ou retome a ATA antes.")
+
+
+class AditivoAcimaDoLimite(DomainError):
+    """The aditivos of value together pass 25% of the original valor (AC-0002-14, RN15)."""
+
+    code = "ADITIVO_ACIMA_DO_LIMITE"
+    http = 422
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("O aditivo passa de 25% do valor original da ATA. Reduza o valor.")
+
+
+class ProcessoSeiInvalido(DomainError):
+    """A Processo SEI number that does not match the format (AC-0002-19)."""
+
+    code = "PROCESSO_SEI_INVALIDO"
+    http = 422
+
+    def __init__(self, expected: str) -> None:
+        """Build the error stating the expected format."""
+        super().__init__(f"Número de processo SEI inválido. Use o formato {expected}.")

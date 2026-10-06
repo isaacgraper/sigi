@@ -175,6 +175,20 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/usuarios/{user_id}/redefinir-senha"): frozenset({"gestor"}),
     # "View member list" — gestor, and auditor read-only.
     ("GET", "/api/v1/usuarios"): frozenset({"gestor", "auditor"}),
+    # SPEC-0002 §3.7: every perfil reads ATAs and both alerts; only a gestor writes.
+    ("GET", "/api/v1/atas"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/atas/alertas/renovacao"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/atas/alertas/reajuste"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/atas/{ata_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/atas"): frozenset({"gestor"}),
+    ("PATCH", "/api/v1/atas/{ata_id}"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/ativar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/suspender"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/retomar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/encerrar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/cancelar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/aditivos"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/reajustes"): frozenset({"gestor"}),
 }
 
 
@@ -222,7 +236,7 @@ def _call(
 ) -> httpx2.Response:
     # A real id in the placeholder, and an empty body. A route that gets past
     # authorisation then fails validation with 422, and 422 means "authorised".
-    concrete = path.replace("{user_id}", str(uuid.uuid4()))
+    concrete = path.replace("{user_id}", str(uuid.uuid4())).replace("{ata_id}", str(uuid.uuid4()))
     if method == "GET":
         return application.get(concrete, headers=headers)
     return application.request(method, concrete, json={}, headers=headers)
