@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.6
+version: 1.7
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -22,7 +22,7 @@ RFC's own threat table ranks first.
 
 **In scope** — institutional OIDC login and local-credential login (ADR-0010),
 session issuance and refresh, session invalidation, three profiles, member
-management (invite, activate, block, deactivate), and the server-side
+management (invite, activate, block, unblock, deactivate), and the server-side
 authorisation rule every other spec depends on.
 
 **Out of scope** — Gov.br, which ADR-0010 cuts rather than defers. Directory
@@ -224,6 +224,32 @@ handed to the gestor still carries the token as a query parameter, because a
 link has to be openable; what changed is that our API never accepts it in a
 path.
 
+**AC-0001-45** — An invitation carries the person's full name and registration
+```gherkin
+Given a gestor
+When  a member is invited with an institutional e-mail, a perfil, a full name and a registration
+Then  the usuario is created with that nome and that registro_funcional
+And   the audit row of AC-0001-10 carries neither the name nor the registration
+When  a member is invited without a name, or without a registration
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming each missing one
+And   no usuario row and no invitation is created
+```
+*(v1.7, stakeholder question 11.)* Some institutional e-mails carry no name, so
+a member could not be recognised in the list, and the stakeholder also asked for
+the *registro na prefeitura*. Both are mandatory on a new invitation. The
+columns stay nullable because accounts created before v1.7, including the
+development seed (AC-0001-39), have neither; SPEC-0010 falls back to the e-mail
+for them (its C4).
+
+The registration is **personal data that no requirement used to need**. Its
+purpose and legal basis are OQ-41, `Assumed`: the same basis as the other
+identification fields (LGPD art. 7, II and V), unconfirmed until the DPO is
+named (OQ-18). No format is checked and no uniqueness is enforced, because
+neither is known (OQ-41). It is bounded like every other field (AC-0001-41): the
+name at most 200 characters and the registration at most 32, both trimmed and
+non-blank. Only a gestor and an auditor read it (§6), and AC-0001-14 anonymises
+it with the name.
+
 **AC-0001-11** — An invited user activates and sets a password
 ```gherkin
 Given a usuario with status "pendente" and an unredeemed invitation token
@@ -265,10 +291,30 @@ And   local login returns 401 and the unexpired access token returns 401
 And   an audit row records the block with the gestor as actor
 ```
 
+**AC-0001-44** — A gestor unblocks an account
+```gherkin
+Given a usuario with status "bloqueado"
+When  a gestor unblocks the account with a justification
+Then  the usuario's status becomes "ativo"
+And   local login and institutional login work again with the credential the usuario already had
+And   an audit row records the unblock with the gestor as actor and the justification
+Given a usuario whose status is not "bloqueado"
+When  a gestor unblocks it
+Then  the response is 409 with error code "NOT_BLOCKED"
+And   nothing is changed and no audit row is written
+```
+*(v1.7, stakeholder question 10: "será necessário".)* RF18 always said
+"block/unblock accounts", but v1.2 specified blocking only, so a blocked member
+could not be restored: deactivating anonymises the account (AC-0001-14) and
+re-inviting the address is refused (AC-0001-28). The justification mirrors RN03
+for reversals, because unblocking undoes a decision another gestor took; it is
+recorded, never silent. The route is not a way around AC-0001-29, which only
+ever concerned leaving the entity with no active gestor.
+
 **AC-0001-13** — A servidor or auditor cannot manage members
 ```gherkin
 Given a servidor, and separately an auditor
-When  either attempts to invite, block or deactivate a member
+When  either attempts to invite, block, unblock or deactivate a member
 Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 And   no usuario row is created or changed
 And   the denial produces the audit row AC-0001-18 requires
@@ -320,7 +366,7 @@ once proves nothing; it has to run many times.
 ```gherkin
 Given a usuario referenced by at least one audit row
 When  a gestor deactivates that usuario
-Then  the usuario's nome and email no longer carry the original values
+Then  the usuario's nome, email and registro_funcional no longer carry the original values
 And   the moment of anonymisation is recorded on the usuario
 And   every audit row that referenced that usuario still exists
 And   each of those rows still resolves to the same usuario_id, never to a dangling reference
@@ -720,6 +766,7 @@ stops a response ever being rendered as a page.
 | Bootstrap with an active gestor already present (command line only) | — | `GESTOR_ALREADY_EXISTS` | "Já existe um gestor ativo. Use o convite a partir da conta dele." |
 | A field is malformed, missing or out of bounds | 422 | `INVALID_DATA` | "Verifique os campos destacados." (`fields` names each one) |
 | Request body over 64 KiB | 413 | `PAYLOAD_TOO_LARGE` | "A requisição é grande demais." |
+| Unblock of an account that is not `bloqueado` | 409 | `NOT_BLOCKED` | "Esta conta não está bloqueada." |
 | Would leave no active gestor | 409 | `ULTIMO_GESTOR` | "Esta é a única conta de gestor ativa. Promova outro gestor antes de bloquear ou desativar esta." |
 
 Every `message` is addressed to a servidor, not to a developer, and says what to
@@ -729,9 +776,9 @@ do next — which for an access problem is naming who can fix it.
 
 | Action | gestor | servidor | auditor |
 | --- | --- | --- | --- |
-| Invite / activate / block / deactivate members | ✅ | ❌ | ❌ |
+| Invite / activate / block / unblock / deactivate members | ✅ | ❌ | ❌ |
 | Trigger a password reset for another member | ✅ | ❌ | ❌ |
-| View member list | ✅ | ❌ | ✅ read-only |
+| View member list, including the registration | ✅ | ❌ | ✅ read-only |
 | Authenticate, refresh, log out | ✅ | ✅ | ✅ |
 | Request a reset for one's own address | unauthenticated — see AC-0001-30 | | |
 
@@ -754,8 +801,9 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | GET | `/api/v1/auth/me` | The caller's identity, perfil and scope | 08, 22 |
 | GET | `/api/v1/auth/oidc/authorize` | Start institutional login | 19 |
 | GET | `/api/v1/auth/oidc/callback` | Complete institutional login | 19–22 |
-| GET\|POST | `/api/v1/usuarios` | List members; invite a member | 10, 13, 15–17, 28 |
+| GET\|POST | `/api/v1/usuarios` | List members; invite a member with `{email, perfil, name, registration}` | 10, 13, 15–17, 28, 45 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | Block | 12, 13, 29 |
+| POST | `/api/v1/usuarios/{id}/desbloquear` | Unblock; `{justification}` in the body | 13, 44 |
 | POST | `/api/v1/usuarios/{id}/desativar` | Deactivate and anonymise | 13, 14, 29 |
 | POST | `/api/v1/convites/ativar` | Redeem an invitation; `{token, password}` in the body (OQ-30) | 11, 25, 26 |
 | POST | `/api/v1/auth/redefinicoes` | Request a reset; always 202. **Not served** while AC-0001-30 is blocked (OQ-31) | 30, 33 |
@@ -778,6 +826,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Invite | `usuario` | `usuario.convidado` | `null` |
 | Activation | `usuario` | `usuario.ativado` | `{status}` |
 | Block | `usuario` | `usuario.bloqueado` | `{status}` |
+| Unblock | `usuario` | `usuario.desbloqueado` | `{status, justificativa}` |
 | Deactivation | `usuario` | `usuario.desativado` | `{status}` |
 | Refusal by profile | `usuario` | `auth.negada` | `{rota, metodo, perfil}` |
 | Blocked attempt to remove the last gestor | `usuario` | `usuario.ultimo_gestor` | `{alvo_id}` |
@@ -788,7 +837,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Rate limit exceeded | `usuario` | `auth.limite_excedido` | `{rota, origem_hmac}` |
 | First gestor created by the operator | `usuario` | `usuario.gestor_inicial` | `{perfil, mecanismo}` |
 
-No row carries a password, a token value, or a `nome` in `dados_anteriores` —
+No row carries a password, a token value, a `nome` or a `registro_funcional` in `dados_anteriores` —
 `lgpd.md`'s resolution of the erasure/immutability tension depends on it.
 
 **And no row carries an e-mail address.** *(v0.4, correcting v0.3.)* v0.3 wrote
@@ -897,8 +946,9 @@ a repository, and the audit row written in the same transaction as its mutation.
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
-| POST | `/api/v1/usuarios` | `{email, perfil}` → created `pendente` + `activation_link` | 10, 13, 28 |
+| POST | `/api/v1/usuarios` | `{email, perfil, name, registration}` → created `pendente` + `activation_link` | 10, 13, 28, 45 |
 | POST | `/api/v1/usuarios/{id}/bloquear` | — → 200 or 409 | 12, 13, 29 |
+| POST | `/api/v1/usuarios/{id}/desbloquear` | `{justification}` → 200 or 409 | 13, 44 |
 | POST | `/api/v1/usuarios/{id}/desativar` | — → 200 or 409 | 13, 14, 29 |
 | POST | `/api/v1/convites/ativar` | `{token, password}` → session | 11, 25, 26 |
 | POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
@@ -1204,6 +1254,20 @@ everywhere. The database columns are unchanged, so `pseudonym` now sits over
 
 No acceptance criterion changed meaning and no route moved.
 
+**v1.7 (2026-10-02)** — the stakeholder's answers to questions 10 and 11.
+
+1. **A gestor can unblock** (AC-0001-44). OQ-34 is resolved. A justification is
+   required and the audit row `usuario.desbloqueado` records it.
+2. **The invitation asks for the full name and the registration** (AC-0001-45).
+   OQ-35 is resolved. The registration is new personal data on `USUARIO`
+   (`registro_funcional`), anonymised with the name by AC-0001-14; its purpose and
+   basis are OQ-41, `Assumed`.
+
+No existing criterion changed meaning and no AC was renumbered. The code does
+not exist yet: the unblock route, the two invitation fields and the migration
+that adds `registro_funcional` are implementation work for a later slice, and
+`AC-0001-44` and `-45` have no test until then.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1223,3 +1287,4 @@ No acceptance criterion changed meaning and no route moved.
 | 1.4 | 2026-09-28 | AC-0001-34/35/36: the first gestor is created from the command line, because every account comes from an invitation and a fresh install had nobody to invite (OQ-38). AC-0001-37/38: a configured trusted proxy's `X-Forwarded-For` is the throttle's source, because SPEC-0010's same-origin proxy would otherwise make every servidor one source (OQ-32). |
 | 1.5 | 2026-09-28 | AC-0001-39/40: a development-only seed creates the gestor `admin@sc.gov.br` with password `admin`, by the product owner's request, so a local install can be used at once. It refuses outside `APP_ENV=development`. |
 | 1.6 | 2026-09-28 | AC-0001-41/42/43: passwords at most 128 characters, tokens at most 512, bodies at most 64 KiB, and security headers on every API response. `INVALID_DATA` added to §5, where it was missing although the API always returned it (OQ-37 item 1). |
+| 1.7 | 2026-10-02 | AC-0001-44: a gestor unblocks an account, with a justification (OQ-34, stakeholder question 10). AC-0001-45: the invitation carries the full name and the registration, both mandatory (OQ-35, question 11; purpose and basis OQ-41). AC-0001-14 anonymises the registration. `NOT_BLOCKED` added to §5. |
