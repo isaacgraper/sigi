@@ -266,6 +266,29 @@ def test_a_half_done_anonymisation_is_refused(admin_connection: psycopg.Connecti
     assert exc.value.sqlstate == "23514"
 
 
+def test_an_anonymisation_that_keeps_the_registration_is_refused(
+    admin_connection: psycopg.Connection,
+) -> None:
+    """DB12, as widened by 0002 — the registro funcional goes with the name (AC-0001-14).
+
+    Everything else is blanked and only `registro_funcional` is left, which is the
+    half-done job the check exists to refuse.
+    """
+    uid = uuid.uuid4()
+    admin_connection.execute(
+        "INSERT INTO usuario (id, nome, email, registro_funcional, perfil, status)"
+        " VALUES (%s, 'Diego', %s, 'REG-777', 'servidor', 'ativo')",
+        (uid, f"diego-{uid.hex[:8]}@sc.gov.br"),
+    )
+    with pytest.raises(psycopg.errors.Error) as exc:
+        admin_connection.execute(
+            "UPDATE usuario SET nome = NULL, email = NULL, senha_hash = NULL,"
+            " oidc_subject = NULL, anonimizado_em = now() WHERE id = %s",
+            (uid,),
+        )
+    assert exc.value.sqlstate == "23514"
+
+
 def test_a_sessao_familia_does_not_span_usuarios(
     admin_connection: psycopg.Connection,
 ) -> None:

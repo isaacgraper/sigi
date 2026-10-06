@@ -33,6 +33,9 @@ class User(Base):
     # below is what stops that being a half-done job.
     nome: Mapped[str | None] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(320), unique=True)
+    # The registro na prefeitura (AC-0001-45). Nullable for accounts that predate
+    # it. No UNIQUE and no format: neither is known (OQ-41).
+    registro_funcional: Mapped[str | None] = mapped_column(String(32))
     # Nullable on purpose: an invited account exists before it has a credential
     # (AC-0001-10), and an OIDC-only account never gets one.
     senha_hash: Mapped[str | None] = mapped_column(String(100))
@@ -71,7 +74,7 @@ class User(Base):
         ),
         CheckConstraint(
             "anonimizado_em IS NULL"
-            " OR (nome IS NULL AND email IS NULL"
+            " OR (nome IS NULL AND email IS NULL AND registro_funcional IS NULL"
             " AND senha_hash IS NULL AND oidc_subject IS NULL)",
             name="ck_usuario_anonimizado",
         ),
