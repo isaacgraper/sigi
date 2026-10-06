@@ -15,6 +15,7 @@ import socket
 import uuid
 from collections.abc import Callable
 
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -728,7 +729,7 @@ def test_ac_0002_14_the_aditivos_of_value_stop_at_a_quarter(
     """AC-0002-14 — 20.000 plus 6.000 on 100.000 is refused; exactly 25.000 is the ceiling."""
     ata = make(application, gestor, activate=True)
 
-    def aditivo(value: str) -> object:
+    def aditivo(value: str) -> httpx2.Response:
         return application.post(
             f"{ATAS}/{ata['id']}/aditivos",
             json={"kind": "valor", "valor_acrescimo": value, "justification": "Mais verba."},
