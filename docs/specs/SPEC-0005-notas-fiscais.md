@@ -2,7 +2,7 @@
 id: SPEC-0005
 title: Notas Fiscais e conferência
 status: Draft
-version: 0.2
+version: 0.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
@@ -50,44 +50,58 @@ justification and permits re-submission.
 **AC-0005-09** — A gestor may approve or return an NF; a servidor may register
 and submit but not approve their own registration.
 
-**AC-0005-10** — Approving an NF does not alter the ATA saldo. Saldo is deducted
-by the NE, never twice. A test asserts the saldo is byte-identical before and
-after NF approval — the double-deduction bug this criterion prevents would be
-invisible until an audit.
+**AC-0005-10** — Launching an NF reduces what the NE still waits for, and leaves the
+ATA's saldo alone (OQ-03, ADR-0015). A test asserts that `saldo_disponivel` and
+`valor_empenhado` are byte-identical before and after the launch, that
+`quantidade_faltante` of each item falls by exactly that item's quantity on the NF,
+and that an NF in quarantine, or in `devolvida`, moves nothing.
 
-**AC-0005-11** — Every NF mutation writes a `HISTORICO_MOVIMENTACAO` row.
+**AC-0005-12** — An NF lists what arrived
+```gherkin
+Given an issued NE with an item of 300 units
+When  a servidor launches an NF with a line for that item of 100 units
+Then  the NF is stored with that line and quantidade_faltante of the item is 200
+When  a line names an item that is not on the NE, or has a quantity of zero or less
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming the line
+When  the lines of the NFs bound to the NE would exceed an item's quantity
+Then  the response is 409 with error code "QUANTIDADE_ACIMA_DO_EMPENHO" stating both figures
+And   nothing is stored
+```
+The NF's `valor` is still entered and RN12 still applies to it (AC-0005-07). An NF
+counts from the moment it is launched, not when it is approved. A line above what
+the NE still waits for is refused the way a value above the NE is (OQ-46).
 
-## 3. Gap noted
+**AC-0005-13** — An NF with a problem is held in quarantine
+```gherkin
+Given an NF launched against an issued NE
+When  a servidor or a gestor puts it in quarantine with a reason
+Then  the NF is flagged and the NE shows that its items arrived and are in quarantine
+And   quantidade_faltante does not count its lines
+And   an audit row "nf.quarentena_iniciada" records the reason
+When  a gestor releases it
+Then  quantidade_faltante counts its lines and an audit row "nf.quarentena_liberada" records it
+When  the reason is missing
+Then  the response is 422 with error code "INVALID_DATA"
+When  an NF in quarantine is approved
+Then  the response is 409 with error code "NF_EM_QUARENTENA"
+```
+Quarantine is a flag with a reason, not a fifth status: the four statuses were
+confirmed (OQ-12). It is `Assumed` (OQ-46); the stakeholder asked only for *"uma
+maneira de destacar que o item chegou porém está em quarentena"*.
 
-The RFC's data model gives `NOTA_FISCAL` no status column, while Tela 7 shows
-four statuses. This spec adds `status` and `justificativa_devolucao` to the
-entity. Recorded as OQ-12.
+## Revision 2026-10-06 — what the NE still waits for
 
-## Revision 2026-09-02 — validated against operational data
+The stakeholder confirmed the four statuses (question 9, OQ-12) and that the
+atesto deadline can wait for a later version (OQ-22), so the atesto SLA stays out
+of the MVP.
 
-**RN02 is confirmed by real data.** `ENTRADAS NFS (CSV)` links each
-`numeroDocumento` to an `empenho`, and `Controle CAME 2026 › EMPENHOS` carries
-`NF 1` … `NF 4` columns per empenho. One NE, many NFs, and the NF reaches the
-ATA only through the NE — exactly as specified. No change needed.
-
-**One consequence of ADR-0007.** RN12 (`Σ NF.valor` per NE may not exceed the NE
-value) now compares against `Σ ITEM_NOTA_EMPENHO.valor`, since the NE header no
-longer carries a value of its own. `DB6` is updated in the data model; the AC
-wording here should follow when this spec moves to `Review`.
-
-**An atesto workflow exists that this spec does not model.** The source carries
-`dataHoraPrazoFinalAtesto`, `situacaoAtesto` ∈ {`Atestado e recebido no prazo`,
-`Atestado e recebido fora do prazo`, `Sem atesto`} and
-`prioridadeAtesto` = `Normal 48H` — a receipt-attestation SLA with a deadline
-and a breach state. The four-status model here (`aguardando`, `em_conferencia`,
-`aprovada`, `devolvida`) is not that. Out of MVP scope, consistent with the
-decision not to ingest `ENTRADAS NFS` at all, but recorded so the status model
-is not mistaken for complete. See OQ-22.
-
-**`ENTRADAS NFS` is not ingested in the MVP.** Two reasons, both sufficient: the
-entity states it has no use for it (*"já temos um controle interno nosso"*), and
-it carries `pacienteNome` alongside `judicial` — identified health data. See
-OQ-24 and `data-sources.md` §13.
+Their example of delivery (question 6 and its follow-up) fixes how an NF matters:
+an NE of 300 units with an NF of 100 launched *"só marca a quantidade faltante de
+200"*, counted **at the launch** of the note, in units, and never changing the
+ATA's saldo (ADR-0015). So the NF gains item lines (AC-0005-12), and a note with a
+problem in the note or the material is held in quarantine instead of counted
+(AC-0005-13). An earlier text of this revision counted an NF from its approval, in
+value; that was a misreading and was removed before review.
 
 ## 4. Changelog
 
@@ -95,3 +109,4 @@ OQ-24 and `data-sources.md` §13.
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF05, §2.5 RN02/RN05, Tela 7 |
 | 0.2 | 2026-09-02 | RN02 confirmed from real data; RN12 now aggregates over ITEM_NOTA_EMPENHO (ADR-0007); atesto SLA recorded as unmodelled (OQ-22); ENTRADAS NFS excluded on privacy and data-quality grounds (OQ-24) |
+| 0.3 | 2026-10-06 | The stakeholder's delivery example (ADR-0015): AC-0005-10 now says launching an NF reduces `quantidade_faltante` and leaves the ATA's saldo alone. AC-0005-12: the NF lists what arrived, per NE item. AC-0005-13: quarantine for an NF with a problem. Four statuses confirmed (OQ-12), atesto deadline deferred (OQ-22). OQ-46 opened |

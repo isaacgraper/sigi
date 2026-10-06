@@ -44,9 +44,24 @@ entries are moved into a new dated version section — see
   RFC v1.6 (historical context).
 - `scripts/analise-planilhas.py` — reproduces every figure cited in the
   documents from the stakeholders' workbooks.
+- `ADR-0015` — saldo is reserved from pré-empenho and committed at emission, as
+  the stakeholder's own example shows; delivery is tracked on the NE as
+  `quantidade_faltante` and never enters saldo. New rule `RN17`. NFs gain item
+  lines and a quarantine flag (SPEC-0005).
+- SPEC-0001 v1.7: a gestor unblocks an account (AC-0001-44) and the invitation
+  asks for the full name and the registration (AC-0001-45); SPEC-0010 v1.5 has the
+  matching screens.
+- SPEC-0002 v0.3: the reajuste date, its request by SEI process and its alert
+  (AC-0002-18 to -21).
+- OQ-40 to OQ-44 and OQ-46, recording what the stakeholder's answers settled, left assumed or open.
 
 ### Changed
 
+- The SKU is the item's identity (SPEC-0003 v0.3), unique and changeable by a
+  gestor with a justification; the DOMS code moves to its own field. ATA import is withdrawn from SPEC-0002, because ATAs are entered by
+  hand. SPEC-0004, SPEC-0005 and SPEC-0006 follow ADR-0015.
+- `docs/requirements/traceability.md` maps the revised and new criteria; RF16 is no
+  longer unmapped.
 - **The backend is managed with Poetry instead of uv.** `pyproject.toml` keeps
   its PEP 621 and PEP 735 tables unchanged and gains `package-mode = false`,
   which is what the application always was; `backend/poetry.toml` fixes the

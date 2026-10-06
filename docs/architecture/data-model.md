@@ -8,7 +8,8 @@ Revised 2026-09-02 against the stakeholders' operational data — see
 ## Entities
 
 ### USUARIO
-`id UUID PK`, `nome NULL`, `email UNIQUE NULL`, `senha_hash NULL`,
+`id UUID PK`, `nome NULL`, `email UNIQUE NULL`, `registro_funcional VARCHAR(32) NULL`,
+`senha_hash NULL`,
 `perfil ENUM(gestor, servidor, auditor)`, `status ENUM(pendente, ativo,
 bloqueado, desativado)`, `criado_em TIMESTAMPTZ`,
 `anonimizado_em TIMESTAMPTZ NULL`, `oidc_subject VARCHAR UNIQUE NULL`,
@@ -17,6 +18,13 @@ bloqueado, desativado)`, `criado_em TIMESTAMPTZ`,
 
 `status` is added: the mockup shows Pendente and Bloqueado, which a single
 boolean cannot express.
+
+***(2026-10-02)* `registro_funcional`** is the member's *registro na prefeitura*,
+asked for at invitation on the stakeholder's suggestion (SPEC-0001 AC-0001-45,
+OQ-35, OQ-41). It is nullable because accounts created before it have none, and
+there is no `UNIQUE` and no format `CHECK`, because neither is known. It is
+personal data: anonymised with `nome` (DB12) and never written into
+`dados_anteriores`.
 
 ***(2026-09-10)* `senha_hash` is nullable, on purpose.** An invited account
 exists before it has a credential (AC-0001-10), and an account that
@@ -272,9 +280,20 @@ happens"; the modelling response is deferred to SPEC-0002.
 Required by RF15/RN15 and by the alternative flow "solicitar aditivo à ATA".
 `valor_contratado` is `ATA.valor_total + Σ aditivos`.
 
+### ATA_REAJUSTE *(new, 2026-10-02)*
+`id UUID PK`, `ata_id FK`, `processo_sei VARCHAR`, `solicitado_em DATE`,
+`criado_por FK → USUARIO`, `criado_em TIMESTAMPTZ`.
+
+One row per reajuste request filed through SEI for an ATA (RF16, SPEC-0002
+AC-0002-19). It records that the request was filed and under which process, and
+nothing else: the outcome, the index and the approver are unknown (OQ-08). The
+date a reajuste falls due is **not** a column, it is `data_orcamento_planilhado`
+plus one year, derived (AC-0002-18). The source keeps `DATA LIMITE REAJUSTE` per
+item, so a per-item date may be needed later (OQ-42).
+
 ### INSUMO
-`id UUID PK`, `codigo UNIQUE`, `descricao`, `unidade`,
-`grupo_id FK → GRUPO_MATERIAL NULL`, `sku VARCHAR NULL`,
+`id UUID PK`, `sku VARCHAR NOT NULL UNIQUE`, `codigo_doms VARCHAR NULL UNIQUE`,
+`descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NULL`,
 `codigo_externo VARCHAR NULL`, `quantidade_referencia NUMERIC NULL`,
 `ativo BOOL`, `substituido_por_id FK → INSUMO NULL`,
 `descontinuado_em DATE NULL`.
@@ -284,9 +303,13 @@ Required by RF15/RN15 and by the alternative flow "solicitar aditivo à ATA".
 ***(2026-09-02)* Identity is plural.** The data carries four identifiers:
 `SKU` (CAME mnemonic, e.g. `CLORDEG21`), the DOMS client code (`26829`), the
 DOMS surrogate `mercadoriaId` (`3678`), and `Nº ITEM` (a position within a
-pregão, not an identity). `codigo` holds the DOMS client code — the only one
-shared across sources; `sku` and `codigo_externo` carry the other two so imports
-can join. `Nº ITEM` belongs to `ITEM_ATA`, not here. See OQ-29.
+pregão, not an identity). `Nº ITEM` belongs to `ITEM_ATA`, not here. See OQ-29.
+
+***(2026-10-02)* The SKU is the identity.** The stakeholder chose it (question
+3). `sku` is `NOT NULL UNIQUE`; a gestor can change it with a justification (RN14, AC-0003-04); the DOMS client
+code moves from `codigo` to `codigo_doms`, and `mercadoriaId` stays in
+`codigo_externo`, both only so imports can join. The column `codigo` is gone.
+Whether every item has a SKU and none repeats is OQ-43.
 
 ***(2026-09-02)* `categoria` is replaced by `grupo_id`.** The real hierarchy has
 three levels (15 groups, 44 group/subgroup pairs), which a flat string cannot
@@ -353,7 +376,21 @@ An NE with zero items cannot leave `demanda` (RN09).
 `UNIQUE(numero, fornecedor_id)`.
 
 `status` and `justificativa_devolucao` added (Tela 7 has statuses the RFC model
-lacks — OQ-12). No `ata_id`: the ATA is reached through the NE (RN02).
+lacks — OQ-12, confirmed by the stakeholder 2026-10-02). No `ata_id`: the ATA is
+reached through the NE (RN02).
+
+***(2026-10-06)* `quarentena BOOL`, `motivo_quarentena TEXT NULL`** mark an NF
+with a problem in the note or the material: it arrived, it is held, and its lines
+do not count (ADR-0015, OQ-46). It is a flag, not a fifth status.
+
+### ITEM_NOTA_FISCAL *(new, 2026-10-06)*
+`id UUID PK`, `nota_fiscal_id FK`, `item_nota_empenho_id FK`,
+`quantidade NUMERIC`, `UNIQUE(nota_fiscal_id, item_nota_empenho_id)`.
+
+What arrived, per item of the NE. SPEC-0006 §2.3 derives `quantidade_faltante`
+from it: the quantity of the NE item less the lines of the NFs bound to the NE,
+except those in quarantine or `devolvida`. It never enters saldo (ADR-0015). The
+item must belong to the NF's own NE, as DB2 does for `ITEM_NOTA_EMPENHO`.
 
 ### HISTORICO_MOVIMENTACAO
 
@@ -501,9 +538,11 @@ FORNECEDOR 1──* ATA
 FORNECEDOR 1──* NOTA_FISCAL
 ATA 1─────────* ITEM_ATA *─────────1 INSUMO
 ATA 1─────────* ATA_ADITIVO
+ATA 1─────────* ATA_REAJUSTE
 ATA 1─────────* NOTA_EMPENHO       (all items of an NE share one ATA)
 NOTA_EMPENHO 1* ITEM_NOTA_EMPENHO *1 ITEM_ATA
 NOTA_EMPENHO 1* NOTA_FISCAL
+NOTA_FISCAL 1* ITEM_NOTA_FISCAL *1 ITEM_NOTA_EMPENHO
 GRUPO_MATERIAL 1* INSUMO
 GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 ```
@@ -523,7 +562,7 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB9 | A `pendente` usuario never carries a credential | `CHECK (status <> 'pendente' OR senha_hash IS NULL)` *(2026-09-10)* |
 | DB10 | A `SESSAO` is immutable except for its revocation | Trigger rejecting any update that changes a column other than `revogado_em`/`revogado_motivo` *(2026-09-10, widened: "never un-revoked" left `familia`, `usuario_id`, `refresh_token_hash` and `emitido_em` mutable)* |
 | DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |
-| DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
+| DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `registro_funcional`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
 | DB13 | At least one `ativo` gestor always exists | Trigger on `USUARIO` update, counting with `ORDER BY id FOR UPDATE` so concurrent transactions take locks in a deterministic order; the service also takes `pg_advisory_xact_lock` so the API returns 409 `ULTIMO_GESTOR` instead of a deadlock *(2026-09-10)* |
 
 **On DB13.** It is a cross-row aggregate, so a `CHECK` cannot express it, and a

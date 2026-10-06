@@ -91,8 +91,10 @@ These are invariants. If a task appears to require breaking one, **stop and ask*
    never silent. (RN03)
 5. **`saldo` is derived, never stored as a mutable column.** It is computed from
    the NE ledger — `valor_contratado − valor_reservado − valor_empenhado` —
-   aggregated over `ITEM_NOTA_EMPENHO` (ADR-0003, ADR-0007). There is no
-   writable saldo anywhere.
+   aggregated over `ITEM_NOTA_EMPENHO` (ADR-0003, ADR-0007, ADR-0015). An NE
+   reserves from `pre_empenho` and commits at `ne_emitida`. What an NE still waits
+   for is `quantidade_faltante`, counted from the NFs launched against it, and
+   never enters saldo. There is no writable saldo anywhere.
    **`estoque` is imported, never computed.** SIGI may hold a dated stock
    snapshot from DOMS (`estoque_atual`, `dias_estoque`, `curva_abc`,
    `estoque_minimo`, `ponto_pedido`) because the entity's loop is
@@ -275,7 +277,7 @@ Full version: `CONTRIBUTING.md`.
 ## Testing expectations
 
 - Minimum 70% coverage (RNF10), but coverage is a floor, not a goal.
-- Every business rule in `docs/requirements/business-rules.md` — `RN01`–`RN16`,
+- Every business rule in `docs/requirements/business-rules.md` — `RN01`–`RN17`,
   not only the ten the RFC stated — has at least one test named after it.
 - Every state-machine transition, valid and invalid, has a test (SPEC-0004).
 - Tests hit a real PostgreSQL via testcontainers, not SQLite. The audit

@@ -75,7 +75,7 @@ saldo crítico) rather than requiring her to go looking.
 systems; frequently mistypes when transcribing between systems.
 **Design implication:** the transcription error is the enemy. Inline validation
 with specific per-field messages, dropdowns over free text, format masks on
-`codigo` and `processo_sei`, and never a silent failure.
+`sku` and `processo_sei`, and never a silent failure.
 
 ### Ana — Auditora Interna (`auditor`)
 

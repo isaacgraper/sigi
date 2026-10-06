@@ -24,20 +24,31 @@ auditor will rely on — those rules are also expressed as database constraints.
 | RN11 | An NE may only be opened against an ATA whose vigência covers the current date and whose status is not `cancelada`/`encerrada` | Otherwise a closed ATA can accrue new commitments — an audit finding waiting to happen. Nothing in RN01–RN10 forbids it. |
 | RN12 | The sum of NF values bound to an NE may not exceed the NE value without a recorded justification | Prevents silent over-invoicing; the RFC checks saldo at NE level but never at NF level. |
 | RN13 | An ATA may only be closed (`encerrada`) when no NE is in a non-terminal state | Otherwise in-flight commitments are orphaned. |
-| RN14 | `insumo.codigo` is globally unique and immutable once referenced by an `ITEM_ATA` | Changing it retroactively breaks DOMS correspondence in historical records. |
+| RN14 | `insumo.sku` is globally unique. Once referenced by an `ITEM_ATA` it changes only by a gestor, with a recorded justification (SPEC-0003 AC-0003-04). A substituted item is never rewritten: the old insumo stays as it was and points to its substitute (`substituido_por_id`) | Links go by `id`, so a change breaks none; the audit row keeps the previous SKU, so the correspondence with the CAME and DOMS sheets in historical records can be rebuilt. The SKU is the identity because the stakeholder chose it (OQ-29, 2026-10-02). |
 | RN15 | An aditivo may not increase an ATA's quantity beyond 25% of the original | Stated in the mockup ("Aditivo máximo permitido: 25% do quantitativo") but in no rule. |
 | RN16 | Deactivating a user anonymises personal data while preserving audit rows (LGPD art. 16, I) | Stated in the LGPD section; must be a rule, since it constrains RN06. |
+| RN17 | An NE reserves saldo from `pre_empenho` and commits it at `ne_emitida`; both subtract from `saldo_disponivel`, so issuing the NE does not change it. Delivery is tracked on the NE as `quantidade_faltante`, counted when an NF is launched, and never changes the ATA's saldo | The stakeholder's own example: 300 of 1.000 reads `700 (300)` until the empenho is issued, then `700`; an NF of 100 against an NE of 300 leaves 200 missing (2026-10-06, OQ-03, ADR-0015). Derived on every read (SPEC-0006 §2.1); proven by SPEC-0006 AC-0006-13 to -15, SPEC-0004 AC-0004-15 and SPEC-0005 AC-0005-10. |
 
 ## Reserved vs. committed saldo
 
-RN10 validates saldo at `validacao_saldo`, but RF14 deducts at `ne_emitida`.
-Between those two events the saldo is *promised but not deducted*, so two
-concurrent NEs can both pass validation and jointly exceed the ATA. The system
-therefore recognises three quantities, defined in SPEC-0006:
+RN10 validates saldo at `validacao_saldo`, before the NE has claimed anything. If
+the claim waited for emission, two concurrent NEs could both pass validation and
+jointly exceed the ATA. The system therefore reserves from `pre_empenho` and
+recognises these quantities, defined in SPEC-0006:
 
 - **`valor_contratado`** — ATA total, plus aditivos.
-- **`valor_reservado`** — sum of NEs in `validacao_saldo`, `pre_empenho` or `envio_fornecedor`.
+- **`valor_reservado`** — sum of NEs in `pre_empenho` or `envio_fornecedor`.
 - **`valor_empenhado`** — sum of NEs in `ne_emitida`.
 - **`saldo_disponivel` = `valor_contratado` − `valor_reservado` − `valor_empenhado`.**
 
-RN10 validates against `saldo_disponivel`, which closes the gap.
+RN10 validates against `saldo_disponivel`, which closes the gap. The same holds in
+quantity, per item. A reserved NE reads `700 (300)`; once issued, `700`.
+
+**Delivery is a different thing and never enters that formula.** For each item of
+an NE, `quantidade_faltante` is the quantity ordered less the quantity of the NFs
+launched against it, except an NF that is in quarantine or `devolvida`
+(ADR-0015, RN17).
+
+*(2026-10-06.)* A first version of this section, dated 2026-10-02, added a third
+term, `valor_consumido`, counted from an approved NF. The stakeholder's example
+showed that was a misreading and it was removed before review.

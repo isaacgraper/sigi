@@ -11,9 +11,9 @@ domain term yet — add it before using it.
 | **Aditivo** | `aditivo` | Amendment increasing an ATA's quantity/value, capped at 25% of the original quantity under Brazilian procurement practice. Changes available `saldo`. |
 | **Reajuste** | `reajuste` | Price revision of an ATA's items within a window. Changes unit prices, therefore future `saldo` consumption. |
 | **Item da ATA** | `ITEM_ATA` | A specific `insumo` inside an ATA, with quantity and unit price. The join entity between ATA and Insumo. |
-| **Insumo** | `INSUMO`, `insumo_id` | A catalogued supply item (paper, toner, gloves). Identified by a `codigo` compatible with DOMS. |
+| **Insumo** | `INSUMO`, `insumo_id` | A catalogued supply item (paper, toner, gloves). Identified by its `sku`, the CAME's own code; the DOMS code is kept beside it for joining. |
 | **Nota de Empenho (NE)** | `NOTA_EMPENHO` | The commitment of budget against an ATA for a given item and quantity. The core entity of SIGI. |
-| **Empenhar / Empenhado** | `valor_empenhado` | To commit budget. The cumulative committed value of an ATA. |
+| **Empenhar / Empenhado** | `valor_empenhado` | To commit budget. The cumulative value of the NEs issued against an ATA. |
 | **Nota Fiscal (NF)** | `NOTA_FISCAL` | The supplier's invoice, evidencing delivery. Always bound to an NE, never directly to an ATA. |
 | **Liquidação** | — | The administrative act of verifying delivery against the NF. Modelled here as the NF conference status; payment itself is out of scope. |
 | **Saldo** | `saldo_disponivel` | ATA total value minus committed NEs. **Derived, never stored as mutable state.** |
@@ -22,7 +22,7 @@ domain term yet — add it before using it.
 | **Servidor** | `USUARIO` with `perfil='servidor'` | Public employee. Registers insumos and NFs, advances NE steps. Cannot reverse. |
 | **Gestor** | `perfil='gestor'` | Manager. Full CRUD on ATAs/NEs/members; the only role that may reverse a step or close an ATA. |
 | **Auditor** | `perfil='auditor'` | Read-only. History, reports, exports. |
-| **DOMS** | — | Third-party platform whose item nomenclature SIGI must remain compatible with. **No API integration**; compatibility via `codigo` format validation and CSV import. |
+| **DOMS** | — | Third-party platform whose item nomenclature SIGI must remain compatible with. **No API integration**; compatibility via format validation of the DOMS code and CSV import. |
 | **e-Publica** | — | State government platform for administrative processes. **No API integration.** *(2026-09-02: the entity's export contract contains **no ATA report at all** — ATAs are registered manually and only their items are imported by CSV. See `data-sources.md` §1.)* |
 | **Histórico de movimentação** | `HISTORICO_MOVIMENTACAO` | Append-only audit trail of every mutation, with actor, timestamp, action and prior state. |
 | **Prestação de contas** | — | Public accountability reporting. The reason the audit trail must be immutable. |

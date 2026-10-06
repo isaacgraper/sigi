@@ -2,7 +2,7 @@
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
 status: Draft
-version: 0.3
+version: 0.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN11]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0006, SPEC-0007]
@@ -251,6 +251,9 @@ Then  the ATA's valor_reservado is R$ 0,00
 And   its valor_empenhado is R$ 30.000,00
 And   its saldo_disponivel is still R$ 70.000,00
 ```
+Only how the saldo is shown changes: `700 (300)` while reserved, `700` once issued
+(SPEC-0006 AC-0006-13). Delivery is tracked on the NE and never touches it
+(AC-0006-14, ADR-0015).
 
 **AC-0004-16** — Cancellation releases reservation
 ```gherkin
@@ -426,21 +429,31 @@ Gaps in the sequence are acceptable; reuse is not.
   models the header/item split. ADR-0007.
 - **OQ-06** (denormalised FKs) — **Resolved**. `insumo_id` and `item_ata_id` left
   the header; the remaining `ata_id` carries invariant I2 rather than duplicating it.
-- **OQ-03** (reservation semantics) — `Assumed`, unchanged: reserved from
-  `pre_empenho`, committed at `ne_emitida`.
-- **OQ-07** (cancellation absent from the RFC) — `Assumed`. Implemented as
-  `cancelada`, gestor-only, justification mandatory (AC-0004-16).
-- **OQ-27** (may an item be removed after `pre_empenho`?) — `Assumed`. No:
-  AC-0004-22 freezes the itens and directs the user to cancel and reopen.
+- **OQ-03** (reservation semantics) — **Resolved** 2026-10-06, and the answer
+  confirmed by the stakeholder's own example: reserved from `pre_empenho`, committed
+  at `ne_emitida`, saldo unchanged by emission (ADR-0015, AC-0004-15). Delivery is
+  tracked on the NE as `quantidade_faltante` (SPEC-0006 §2.3).
+- **OQ-07** (cancellation absent from the RFC) — **Resolved** 2026-10-02, confirmed
+  by the stakeholder. Implemented as `cancelada`, gestor-only, justification
+  mandatory (AC-0004-16).
+- **OQ-27** (may an item be removed after `pre_empenho`?) — **Resolved**
+  2026-10-02, confirmed by the stakeholder. No: AC-0004-22 freezes the itens and
+  directs the user to cancel and reopen.
 
-Both `Assumed` answers are the proposals recorded in `open-questions.md`. If the
-entity answers differently, AC-0004-16 and AC-0004-22 are the criteria to revisit.
+Both were confirmed by the stakeholder on 2026-10-02, so AC-0004-16 and
+AC-0004-22 stand as written.
 
 ## 11. Implementation plan
 
 _Filled by `/plan SPEC-0004`._
 
 ## Revision history
+
+**v0.4 (2026-10-06)** — OQ-03 is resolved by the stakeholder's example: reserved
+from `pre_empenho`, committed at `ne_emitida`, and emission leaves the saldo
+unchanged. AC-0004-14 and -15 keep their v0.3 meaning, and AC-0004-15 now points
+at how the saldo is shown and at delivery. OQ-07 and OQ-27 are confirmed. The
+state machine and every other criterion are untouched.
 
 **v0.3 (2026-09-02)** — the acceptance criteria promised by v0.2 are now written.
 v0.2 described what ADR-0007 would change without touching the criteria, so that
@@ -460,3 +473,4 @@ partially advanced NE.
 | 0.1 | 2026-08-17 | Initial draft from RFC v1.6 §2.3 RF13, §2.5 RN03/RN08/RN09/RN10, §3.1, §4.2 Tela 6 |
 | 0.2 | 2026-09-02 | OQ-05 resolved from data: NEs are multi-item (27,8%, up to 37 insumos). ADR-0007. Impact on AC-0004-01/02/12-16 described; state machine unaffected; OQ-27 opened |
 | 0.3 | 2026-09-02 | ACs rewritten for multi-item NEs (ADR-0007): 01, 02, 12, 13, 14, 16 revised; 19–24 added, covering empty NEs, duplicate and foreign items, frozen itens (OQ-27), price snapshot and quantity exhaustion (OQ-20). OQ-05/OQ-06 resolved; OQ-07/OQ-27 marked Assumed |
+| 0.4 | 2026-10-06 | OQ-03 resolved by the stakeholder's example: reserved from `pre_empenho`, committed at `ne_emitida`, saldo unchanged by emission (ADR-0015). AC-0004-15 points at the display (`700 (300)`, then `700`) and at delivery. OQ-07 and OQ-27 confirmed |
