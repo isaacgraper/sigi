@@ -29,7 +29,7 @@ export async function invite(perfil: Perfil, email = uniqueEmail(perfil)) {
   const ctx = await api();
   const token = await tokenFor(ctx, GESTOR.email, GESTOR.password);
   const response = await ctx.post("/api/v1/usuarios", {
-    data: { email, perfil },
+    data: { email, perfil, name: "Pessoa Convidada", registration: `REG-${Date.now()}` },
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(response.status(), await response.text()).toBe(201);
@@ -52,10 +52,10 @@ export async function member(perfil: Perfil) {
 }
 
 /** Gestor-side action on a member, through the API. */
-export async function asGestor(method: "post", path: string) {
+export async function asGestor(method: "post", path: string, data?: Record<string, unknown>) {
   const ctx = await api();
   const token = await tokenFor(ctx, GESTOR.email, GESTOR.password);
-  const response = await ctx[method](path, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await ctx[method](path, { headers: { Authorization: `Bearer ${token}` }, data });
   const body = response.status() === 204 ? null : await response.json();
   await ctx.dispose();
   return { status: response.status(), body };

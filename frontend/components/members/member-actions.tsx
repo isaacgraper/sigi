@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, KeyRound, MoreHorizontal, UserX } from "lucide-react";
+import { Ban, KeyRound, MoreHorizontal, UserCheck, UserX } from "lucide-react";
 import { useState } from "react";
 
 import { CopyLink } from "@/components/members/copy-link";
@@ -20,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -29,10 +30,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ApiError, unavailable } from "@/lib/errors";
 import { displayName } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
+// "unblock" has its own dialog, because it asks for a justification (AC-0010-59).
 type Action = "block" | "deactivate" | "resetPassword";
 
 // The API's route segments (SPEC-0001 §7), kept in one place.
@@ -75,13 +79,48 @@ export function MemberActions({
   const { handleSessionError } = useSession();
   const [action, setAction] = useState<Action | null>(null);
   const [resetLink, setResetLink] = useState<string | null>(null);
+  const [unblocking, setUnblocking] = useState(false);
+  const [justification, setJustification] = useState("");
+  const [pending, setPending] = useState(false);
+  const [unblockError, setUnblockError] = useState<ApiError | null>(null);
 
   // A deactivated account has nothing left to act on (AC-0010-41); block and
-  // reset apply only to an active one (AC-0010-37, -40).
-  const available: Action[] = [];
+  // reset apply only to an active one (AC-0010-37, -40), and unblock only to a
+  // blocked one (AC-0010-59).
+  const available: (Action | "unblock")[] = [];
   if (member.status === "ativo") available.push("block", "resetPassword");
+  if (member.status === "bloqueado") available.push("unblock");
   if (member.status !== "desativado") available.push("deactivate");
   if (available.length === 0) return null;
+
+  function closeUnblock() {
+    setUnblocking(false);
+    setJustification("");
+    setUnblockError(null);
+  }
+
+  async function unblock(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setUnblockError(null);
+    try {
+      await apiJson(`/api/v1/usuarios/${member.id}/desbloquear`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ justification }),
+      });
+      closeUnblock();
+      onChanged();
+    } catch (err) {
+      if (handleSessionError(err)) return;
+      const shown = err instanceof ApiError ? err : unavailable();
+      setUnblockError(shown);
+      // The account is no longer blocked, so the list is what is out of date.
+      if (shown.code === "NOT_BLOCKED") onChanged();
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function run(chosen: Action) {
     try {
@@ -113,6 +152,12 @@ export function MemberActions({
               Bloquear
             </DropdownMenuItem>
           )}
+          {available.includes("unblock") && (
+            <DropdownMenuItem onSelect={() => setUnblocking(true)}>
+              <UserCheck aria-hidden />
+              Desbloquear
+            </DropdownMenuItem>
+          )}
           {available.includes("resetPassword") && (
             <DropdownMenuItem onSelect={() => setAction("resetPassword")}>
               <KeyRound aria-hidden />
@@ -142,6 +187,47 @@ export function MemberActions({
           </AlertDialogContent>
         )}
       </AlertDialog>
+
+      <Dialog open={unblocking} onOpenChange={(open) => !open && closeUnblock()}>
+        <DialogContent>
+          <form className="grid gap-4" onSubmit={unblock} noValidate>
+            <DialogHeader>
+              <DialogTitle>Desbloquear membro?</DialogTitle>
+              <DialogDescription>
+                A pessoa volta a entrar com a credencial que já tinha. Registre o motivo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="unblock-justification">Justificativa</Label>
+              <Input
+                id="unblock-justification"
+                value={justification}
+                aria-invalid={unblockError?.fields.justification ? true : undefined}
+                aria-describedby={unblockError?.fields.justification ? "unblock-justification-error" : undefined}
+                onChange={(e) => setJustification(e.target.value)}
+              />
+              {unblockError?.fields.justification && (
+                <p id="unblock-justification-error" data-testid="field-error" className="text-sm text-destructive">
+                  {unblockError.fields.justification}
+                </p>
+              )}
+            </div>
+            {unblockError && !unblockError.fields.justification && (
+              <p role="alert" data-testid="unblock-error" className="text-sm text-destructive">
+                {unblockError.message}
+              </p>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeUnblock}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Enviando..." : "Desbloquear"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={resetLink !== null} onOpenChange={(open) => !open && setResetLink(null)}>
         <DialogContent>

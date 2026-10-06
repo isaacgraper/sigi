@@ -23,6 +23,24 @@ import { ApiError, unavailable } from "@/lib/errors";
 import { PERFIL_LABEL, type Perfil } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
+const INVITE_FIELDS = ["email", "name", "registration"] as const;
+
+/** The refusals this dialog can show beside a field; anything else is shown as a notice. */
+function pickFields(fields: Record<string, string>): Record<string, string> {
+  const shown: Record<string, string> = {};
+  for (const field of INVITE_FIELDS) if (fields[field]) shown[field] = fields[field];
+  return shown;
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} data-testid="field-error" className="text-sm text-destructive">
+      {message}
+    </p>
+  );
+}
+
 export function InviteDialog({
   onInvited,
   label = "Convidar membro",
@@ -36,36 +54,51 @@ export function InviteDialog({
   const { handleSessionError } = useSession();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [registration, setRegistration] = useState("");
   const [perfil, setPerfil] = useState<Perfil>("servidor");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [link, setLink] = useState<string | null>(null);
 
   function reset() {
     setEmail("");
+    setName("");
+    setRegistration("");
     setPerfil("servidor");
     setError(null);
-    setFieldError(null);
+    setFieldErrors({});
     setLink(null);
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
     setError(null);
-    setFieldError(null);
+
+    // The screen checks only that the fields are filled in (AC-0010-60): no
+    // format is known for the registration, and what the API accepts is its
+    // answer to give (C3).
+    const empty: Record<string, string> = {};
+    if (!email.trim()) empty.email = "Campo obrigatório.";
+    if (!name.trim()) empty.name = "Campo obrigatório.";
+    if (!registration.trim()) empty.registration = "Campo obrigatório.";
+    setFieldErrors(empty);
+    if (Object.keys(empty).length > 0) return;
+
+    setPending(true);
     try {
       const created = await apiJson<{ activation_link: string }>("/api/v1/usuarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, perfil }),
+        body: JSON.stringify({ email, perfil, name, registration }),
       });
       setLink(created.activation_link);
     } catch (err) {
       if (handleSessionError(err)) return;
-      if (err instanceof ApiError && err.fields.email) {
-        setFieldError(err.fields.email);
+      const shown = err instanceof ApiError ? pickFields(err.fields) : {};
+      if (Object.keys(shown).length > 0) {
+        setFieldErrors(shown);
       } else {
         setError(err instanceof ApiError ? err : unavailable());
       }
@@ -120,15 +153,35 @@ export function InviteDialog({
                 type="email"
                 required
                 value={email}
-                aria-invalid={fieldError ? true : undefined}
-                aria-describedby={fieldError ? "invite-email-error" : undefined}
+                aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? "invite-email-error" : undefined}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              {fieldError && (
-                <p id="invite-email-error" data-testid="field-error" className="text-sm text-destructive">
-                  {fieldError}
-                </p>
-              )}
+              <FieldError id="invite-email-error" message={fieldErrors.email} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-name">Nome completo</Label>
+              <Input
+                id="invite-name"
+                required
+                value={name}
+                aria-invalid={fieldErrors.name ? true : undefined}
+                aria-describedby={fieldErrors.name ? "invite-name-error" : undefined}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <FieldError id="invite-name-error" message={fieldErrors.name} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-registration">Registro na prefeitura</Label>
+              <Input
+                id="invite-registration"
+                required
+                value={registration}
+                aria-invalid={fieldErrors.registration ? true : undefined}
+                aria-describedby={fieldErrors.registration ? "invite-registration-error" : undefined}
+                onChange={(e) => setRegistration(e.target.value)}
+              />
+              <FieldError id="invite-registration-error" message={fieldErrors.registration} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-perfil">Perfil</Label>
