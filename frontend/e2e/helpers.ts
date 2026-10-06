@@ -69,6 +69,9 @@ export function pathOf(link: string): string {
 
 export async function signIn(page: Page, email: string, password: string) {
   await page.goto("/login");
+  // The button is disabled until React hydrates. Filling before that loses the
+  // values, because hydration resets the controlled inputs to empty.
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
   await page.getByLabel("E-mail institucional").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
