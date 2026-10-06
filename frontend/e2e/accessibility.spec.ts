@@ -4,6 +4,17 @@ import { expect, type Page, test } from "@playwright/test";
 import { GESTOR, invite, LONG_ENOUGH, member, openFromSidebar, pathOf, signIn } from "./helpers";
 
 async function noSeriousViolations(page: Page) {
+  // Measure what settles on screen, not a frame of a fade: text halfway through
+  // an opacity transition reads as low contrast. Endless ones (a skeleton's
+  // pulse) are left alone, since they never finish.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
