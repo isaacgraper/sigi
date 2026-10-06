@@ -90,11 +90,11 @@ These are invariants. If a task appears to require breaking one, **stop and ask*
 4. **Reversal requires a justification and the `gestor` role.** It is recorded,
    never silent. (RN03)
 5. **`saldo` is derived, never stored as a mutable column.** It is computed from
-   the NE ledger and the NFs approved against it — `valor_contratado −
-   valor_reservado − valor_consumido` — aggregated over `ITEM_NOTA_EMPENHO` and
-   `NOTA_FISCAL` (ADR-0003, ADR-0007, ADR-0015). An NE reserves from
-   `pre_empenho`; only an approved NF consumes. There is no writable saldo
-   anywhere.
+   the NE ledger — `valor_contratado − valor_reservado − valor_empenhado` —
+   aggregated over `ITEM_NOTA_EMPENHO` (ADR-0003, ADR-0007, ADR-0015). An NE
+   reserves from `pre_empenho` and commits at `ne_emitida`. What an NE still waits
+   for is `quantidade_faltante`, counted from the NFs launched against it, and
+   never enters saldo. There is no writable saldo anywhere.
    **`estoque` is imported, never computed.** SIGI may hold a dated stock
    snapshot from DOMS (`estoque_atual`, `dias_estoque`, `curva_abc`,
    `estoque_minimo`, `ponto_pedido`) because the entity's loop is

@@ -246,9 +246,8 @@ typed into SIGI.
 ## 10. Saldo: quantity per item, not value per ATA
 
 `SPEC-0006` and `ADR-0003` define saldo as
-`valor_contratado − valor_reservado − valor_consumido` *(2026-10-02: the third
-term was `valor_empenhado` until the stakeholder said consumption counts after
-delivery, ADR-0015)* — **monetary, per ATA**.
+`valor_contratado − valor_reservado − valor_empenhado` *(2026-10-06: the
+stakeholder's example confirmed it, ADR-0015)* — **monetary, per ATA**.
 
 The operation tracks `TOTAL DA ATA` / `COMPRADO` / `SALDO` — **quantity, per
 item**, and `SALDO DE ATAS` repeats the shape (`TOTAL` `250`, `RESTANTE` `195`).

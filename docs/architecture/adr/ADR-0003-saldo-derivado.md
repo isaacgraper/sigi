@@ -1,6 +1,6 @@
 # ADR-0003 — Saldo is derived, never stored
 
-- **Status:** Accepted. The formula's third term was amended by ADR-0015 (2026-10-02); the decision that saldo is derived stands.
+- **Status:** Accepted. ADR-0015 (2026-10-06) confirms the formula after the stakeholder's own example; delivery is tracked on the NE and never enters it.
 - **Date:** 2026-05-22
 - **Related:** RF14, RN10, SPEC-0006, ADR-0007
 

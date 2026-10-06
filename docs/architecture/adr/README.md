@@ -24,4 +24,4 @@ Create one with `/adr-new <title>`.
 | 0012 | Rate limiting in the application, backed by PostgreSQL | Accepted |
 | 0013 | Language is chosen by who reads the string, not by the glossary | Accepted |
 | 0014 | Visual identity and application shell | Accepted |
-| 0015 | Saldo is consumed on delivery, not on emission | Accepted |
+| 0015 | Saldo is reserved from pré-empenho and committed at emission; delivery is tracked on the NE | Accepted |

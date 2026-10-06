@@ -238,24 +238,22 @@ in separate transactions is the defect this criterion exists to prevent.
 Given an ATA with valor contratado R$ 100.000,00 and no NEs
 When  an NE whose itens total R$ 30.000,00 reaches "pre_empenho"
 Then  the ATA's valor_reservado is R$ 30.000,00
-And   its valor_consumido is R$ 0,00
+And   its valor_empenhado is R$ 0,00
 And   its saldo_disponivel is R$ 70.000,00
 And   each ITEM_ATA's reserved quantity increases by that item's quantidade
 ```
 
-**AC-0004-15** — Issuance does not consume saldo (OQ-03)
+**AC-0004-15** — Commitment on issuance
 ```gherkin
 Given the NE from AC-0004-14 advancing to "ne_emitida"
 When  the transition completes
-Then  the ATA's valor_reservado is still R$ 30.000,00
-And   its valor_consumido is still R$ 0,00
+Then  the ATA's valor_reservado is R$ 0,00
+And   its valor_empenhado is R$ 30.000,00
 And   its saldo_disponivel is still R$ 70.000,00
-And   its valor_empenhado, a reporting figure, is R$ 30.000,00
 ```
-The saldo is consumed when the delivery is approved, not when the empenho is
-issued: the stakeholder counts as consumed only what has arrived (SPEC-0006
-AC-0006-13, ADR-0015). *(v0.4: this criterion used to say the reservation became
-a commitment here.)*
+Only how the saldo is shown changes: `700 (300)` while reserved, `700` once issued
+(SPEC-0006 AC-0006-13). Delivery is tracked on the NE and never touches it
+(AC-0006-14, ADR-0015).
 
 **AC-0004-16** — Cancellation releases reservation
 ```gherkin
@@ -431,10 +429,10 @@ Gaps in the sequence are acceptable; reuse is not.
   models the header/item split. ADR-0007.
 - **OQ-06** (denormalised FKs) — **Resolved**. `insumo_id` and `item_ata_id` left
   the header; the remaining `ata_id` carries invariant I2 rather than duplicating it.
-- **OQ-03** (reservation semantics) — **Resolved** 2026-10-02, and the answer
-  moved: reserved from `pre_empenho` until the delivery, consumed when the NF is
-  approved (ADR-0015, AC-0004-15). Treating the approved NF as the delivery is
-  OQ-40, `Assumed`.
+- **OQ-03** (reservation semantics) — **Resolved** 2026-10-06, and the answer
+  confirmed by the stakeholder's own example: reserved from `pre_empenho`, committed
+  at `ne_emitida`, saldo unchanged by emission (ADR-0015, AC-0004-15). Delivery is
+  tracked on the NE as `quantidade_faltante` (SPEC-0006 §2.3).
 - **OQ-07** (cancellation absent from the RFC) — **Resolved** 2026-10-02, confirmed
   by the stakeholder. Implemented as `cancelada`, gestor-only, justification
   mandatory (AC-0004-16).
@@ -451,12 +449,11 @@ _Filled by `/plan SPEC-0004`._
 
 ## Revision history
 
-**v0.4 (2026-10-02)** — issuance no longer consumes saldo. The stakeholder said
-consumption counts only after the delivery (question 6, OQ-03; ADR-0015), so
-AC-0004-15 now asserts that `ne_emitida` leaves reserved, consumed and available
-unchanged, and AC-0004-14 names `valor_consumido` where it named
-`valor_empenhado`. OQ-07 and OQ-27 are confirmed. The state machine and every
-other criterion are untouched.
+**v0.4 (2026-10-06)** — OQ-03 is resolved by the stakeholder's example: reserved
+from `pre_empenho`, committed at `ne_emitida`, and emission leaves the saldo
+unchanged. AC-0004-14 and -15 keep their v0.3 meaning, and AC-0004-15 now points
+at how the saldo is shown and at delivery. OQ-07 and OQ-27 are confirmed. The
+state machine and every other criterion are untouched.
 
 **v0.3 (2026-09-02)** — the acceptance criteria promised by v0.2 are now written.
 v0.2 described what ADR-0007 would change without touching the criteria, so that
@@ -476,4 +473,4 @@ partially advanced NE.
 | 0.1 | 2026-08-17 | Initial draft from RFC v1.6 §2.3 RF13, §2.5 RN03/RN08/RN09/RN10, §3.1, §4.2 Tela 6 |
 | 0.2 | 2026-09-02 | OQ-05 resolved from data: NEs are multi-item (27,8%, up to 37 insumos). ADR-0007. Impact on AC-0004-01/02/12-16 described; state machine unaffected; OQ-27 opened |
 | 0.3 | 2026-09-02 | ACs rewritten for multi-item NEs (ADR-0007): 01, 02, 12, 13, 14, 16 revised; 19–24 added, covering empty NEs, duplicate and foreign items, frozen itens (OQ-27), price snapshot and quantity exhaustion (OQ-20). OQ-05/OQ-06 resolved; OQ-07/OQ-27 marked Assumed |
-| 0.4 | 2026-10-02 | AC-0004-15: issuance consumes no saldo, which waits for the delivery (stakeholder, question 6; ADR-0015, OQ-03 resolved, OQ-40 opened). AC-0004-14 adjusted. OQ-07 and OQ-27 confirmed by the stakeholder |
+| 0.4 | 2026-10-06 | OQ-03 resolved by the stakeholder's example: reserved from `pre_empenho`, committed at `ne_emitida`, saldo unchanged by emission (ADR-0015). AC-0004-15 points at the display (`700 (300)`, then `700`) and at delivery. OQ-07 and OQ-27 confirmed |
