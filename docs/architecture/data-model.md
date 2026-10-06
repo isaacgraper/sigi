@@ -306,7 +306,7 @@ DOMS surrogate `mercadoriaId` (`3678`), and `Nº ITEM` (a position within a
 pregão, not an identity). `Nº ITEM` belongs to `ITEM_ATA`, not here. See OQ-29.
 
 ***(2026-10-02)* The SKU is the identity.** The stakeholder chose it (question
-3). `sku` is `NOT NULL UNIQUE` and is what RN14 makes immutable; the DOMS client
+3). `sku` is `NOT NULL UNIQUE`; a gestor can change it with a justification (RN14, AC-0003-04); the DOMS client
 code moves from `codigo` to `codigo_doms`, and `mercadoriaId` stays in
 `codigo_externo`, both only so imports can join. The column `codigo` is gone.
 Whether every item has a SKU and none repeats is OQ-43.

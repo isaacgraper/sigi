@@ -45,8 +45,23 @@ codes, is rejected rather than trimmed, with 422 `INVALID_DOMS_CODE`.
 duplicate returns 409 naming the existing insumo, so the operator reuses it
 rather than inventing a variant.
 
-**AC-0003-04** — `sku` is immutable once referenced by any `ITEM_ATA`
-(RN14); an edit attempt returns 409 `SKU_IMMUTABLE`.
+**AC-0003-04** — A gestor can change a `sku`, with a justification
+```gherkin
+Given an insumo, whether or not an ITEM_ATA references it
+When  a gestor changes its sku to a value no other insumo has, with a justification
+Then  the sku is changed, every ATA, NE and NF that referenced the insumo still does
+And   an audit row "insumo.sku_alterado" holds the previous sku and the justification
+When  the justification is missing
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming it
+When  the new sku belongs to another insumo
+Then  the response is 409 as in AC-0003-03
+When  a servidor or an auditor tries it
+Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+```
+*(v0.3.)* RN14 used to make the SKU immutable once referenced. The stakeholder said
+new codes must be easy to add and to change *"pois compramos muitos itens pela
+primeira vez"*, so a code is sometimes only known after the first purchase. Links
+go by `id`, so changing the SKU breaks none of them; the history keeps the old one.
 
 **AC-0003-05** — `quantidade_referencia` is a process-alert threshold only. No
 endpoint, report or calculation treats it as stock on hand. A test asserts that
@@ -131,18 +146,19 @@ The validation questionnaire asked which of the four codes never changes and
 should identify the item. The answer was **"Devemos utilizar o SKU"** (question
 3), which reverses the proposal in OQ-29, where `codigo` was the DOMS client code.
 
-- `INSUMO.sku` is the identity: `NOT NULL`, globally unique, immutable once
-  referenced (RN14). Every `codigo` in ACs 01 to 04, 06 and 08 became `sku`, and
-  the error codes `CODIGO_DOMS_INVALIDO` and `CODIGO_IMUTAVEL` became
-  `INVALID_SKU` and `SKU_IMMUTABLE`, in English as ADR-0013 asks of a code with
-  no glossary noun in it.
+- `INSUMO.sku` is the identity: `NOT NULL`, globally unique (RN14). Every `codigo`
+  in ACs 01 to 04, 06 and 08 became `sku`, and the error code
+  `CODIGO_DOMS_INVALIDO` became `INVALID_SKU`, in English as ADR-0013 asks of a
+  code with no glossary noun in it. *(2026-10-06: the follow-up answer made the SKU
+  changeable by a gestor, AC-0003-04, so `CODIGO_IMUTAVEL` is gone, not renamed.)*
 - The DOMS client code gets its own column, `codigo_doms`, optional and unique,
   for joining DOMS exports. `mercadoriaId` stays in `codigo_externo`. The column
   `codigo` no longer exists.
 - The SKU is the CAME's own mnemonic, kept in a sheet that maps it to the DOMS
   code. The DOMS exports do not carry it, so a catalogue import needs the SKU
-  joined in first. That a SKU exists for every item and is never reused is not
-  known: OQ-43.
+  joined in first. *(2026-10-06: the stakeholder says every item has one, it is the
+  integration code of the Branet stock, and none repeats, OQ-43 resolved. Who keeps
+  the sheet was not answered.)*
 - The group hierarchy, substitution and the import hazards above are untouched.
 
 ## 5. Changelog
@@ -151,4 +167,4 @@ should identify the item. The answer was **"Devemos utilizar o SKU"** (question
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF03/RF07, Tela 3, mockup 9.2.2.2, §9.5 CAME mapping |
 | 0.2 | 2026-09-02 | Four item identifiers recorded (OQ-29); three-level hierarchy replaces flat `categoria`; substitution/discontinuation modelled (OQ-23); concrete import hazards from real files |
-| 0.3 | 2026-10-02 | The SKU is the item's identity, by the stakeholder's answer (OQ-29 resolved, reversing the DOMS-code proposal): ACs 01 to 04, 06 and 08 now key on `sku`, the DOMS code moves to `codigo_doms`, and a catalogue import refuses a row with no SKU. Substitution confirmed (OQ-23). OQ-43 opened for SKU coverage |
+| 0.3 | 2026-10-02 | The SKU is the item's identity, by the stakeholder's answer (OQ-29 resolved, reversing the DOMS-code proposal): ACs 01 to 04, 06 and 08 now key on `sku`, the DOMS code moves to `codigo_doms`, and a catalogue import refuses a row with no SKU. Substitution confirmed (OQ-23). OQ-43 resolved on 2026-10-06 (every item has one, none repeats); AC-0003-04: a gestor can change a SKU with a justification, because new codes are often known only after the first purchase |

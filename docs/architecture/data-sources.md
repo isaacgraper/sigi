@@ -192,8 +192,9 @@ two names.
 
 ## 8. Item identity: four codes, not one
 
-`RN14` states that `insumo.sku` is globally unique and immutable *(2026-10-02: it
-said `insumo.codigo`, the DOMS code, until the stakeholder chose the SKU; OQ-29)*.
+`RN14` states that `insumo.sku` is globally unique and a gestor's to change *(2026-10-02:
+it said `insumo.codigo`, the DOMS code, until the stakeholder chose the SKU;
+OQ-29)*.
 The data carries four independent identifiers for the same item:
 
 | Identifier | Example | Where it lives |
