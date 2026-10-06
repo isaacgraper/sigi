@@ -28,7 +28,7 @@ on an `Approved` spec is a merge blocker.
 | RF03, RF07, RN14 | SPEC-0003 v0.3 | AC-0003-01..10 | _pending_ | Draft |
 | RF13, RN03, RN08, RN09 | SPEC-0004 v0.4 | AC-0004-01..24 | _pending_ | Draft |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.3 | AC-0005-01..11 | _pending_ | Draft |
-| RN17 | SPEC-0006 v0.4, SPEC-0004 v0.4, SPEC-0005 v0.3 | AC-0006-13..15, AC-0004-15, AC-0005-10 | _pending_ | Draft |
+| RN17 | SPEC-0006 v0.4, SPEC-0004 v0.4, SPEC-0005 v0.3 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
 | RF14, RN10, RN15 | SPEC-0006 v0.4 | AC-0006-01..15 | _pending_ | Draft |
 | RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
@@ -89,11 +89,11 @@ version bump and a changelog line; additions take the next free number.
 | AC-0001-44, -45 | **New** — a gestor unblocks with a justification; the invitation carries the full name and the registration. AC-0001-14 also anonymises the registration | OQ-34, OQ-35, OQ-41 |
 | AC-0002-06, -07 | **Withdrawn** — ATAs are entered by hand, so there is no ATA import | OQ-02 |
 | AC-0002-18..21 | **New** — reajuste date, request by SEI process, alert, no price change | OQ-08, OQ-42 |
-| AC-0003-01..04, -06, -08 | Revised — keyed on `sku`; `codigo_doms` moves to its own field | OQ-29 |
-| AC-0004-14, -15 | Revised — issuance consumes no saldo | ADR-0015, OQ-03, OQ-40 |
-| AC-0005-10 | Revised — approving an NF moves its value from reserved to consumed | ADR-0015, OQ-40 |
-| AC-0006-01..04, -06 | Revised — `valor_consumido` replaces `valor_empenhado` in the formula | ADR-0015 |
-| AC-0006-13..15 | **New** — only an approved NF consumes, also in parts | ADR-0015, RN17 |
+| AC-0003-01..04, -06, -08 | Revised — keyed on `sku`; `codigo_doms` moves to its own field; AC-0003-04 lets a gestor change a SKU with a justification | OQ-29, OQ-43 |
+| AC-0004-15 | Revised — points at how saldo is shown and at delivery; meaning unchanged | ADR-0015, OQ-03 |
+| AC-0005-10, -12, -13 | Revised and new — launching an NF reduces `quantidade_faltante`, the NF lists what arrived, quarantine for an NF with a problem | ADR-0015, OQ-40, OQ-46 |
+| AC-0006-01..04, -06 | Revised — `comprometimento_percentual` names the committed share; the formula is ADR-0003's | ADR-0015 |
+| AC-0006-13..15 | **New** — reserved reads in parentheses until emission, delivery never changes saldo, `quantidade_faltante` | ADR-0015, RN17 |
 | AC-0010-59, -60 | **New** — unblock control and the invite fields | OQ-34, OQ-35 |
 
 ### Done — SPEC-0001 v0.5
