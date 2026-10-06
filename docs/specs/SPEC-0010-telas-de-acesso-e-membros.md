@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.4
+version: 1.5
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -39,8 +39,6 @@ serves.
 - Gov.br, cut by ADR-0010.
 - "Lembrar sessão". The refresh lifetime is fixed server-side at 7 days; a
   checkbox that changes nothing would be a lie on the login page.
-- Unblocking a member. RF18 asks for it, SPEC-0001 does not specify it, and the
-  API does not serve it (OQ-34).
 
 ## 3. Domain model touched
 
@@ -57,9 +55,9 @@ no invariant of its own beyond these, which are about the client:
   `message`, shown verbatim. The screen never rewrites, translates or invents
   one, except for the single case the API cannot answer (§5).
 - **C4** — a person is identified by `name` when the API returns one and by
-  `email` otherwise. Today `name` is null for every account an invitation
-  creates, because no route lets anyone set it (OQ-35); a screen that relies on
-  it shows blanks.
+  `email` otherwise. `name` is null for every account created before SPEC-0001
+  v1.7, which makes the invitation ask for it (OQ-35, resolved); a screen that
+  relies on it still shows blanks for those accounts.
 
 **Deployment assumption.** The pages and the API share one origin: the frontend
 serves `/api/v1` by forwarding it to the API. The refresh cookie
@@ -346,8 +344,8 @@ there, and every missing or expired session is sent from there to /login and bac
 ```gherkin
 Given a signed-in gestor and at least one member
 When  /members is opened
-Then  a table shows, per member, Nome, E-mail, Perfil, Status and Criado em
-And   a null name shows "—" in the Nome cell
+Then  a table shows, per member, Nome, E-mail, Registro, Perfil, Status and Criado em
+And   a null name shows "—" in the Nome cell, and a null registration shows "—" in the Registro cell
 And   Criado em is formatted "dd/MM/yyyy" in America/Sao_Paulo
 ```
 
@@ -363,7 +361,7 @@ And   the address bar reflects it, so a reload keeps the page
 ```gherkin
 Given a member whose status is "desativado"
 When  the list shows them
-Then  the Nome cell shows their pseudonym and the E-mail cell shows "—"
+Then  the Nome cell shows their pseudonym and the E-mail and Registro cells show "—"
 ```
 
 **AC-0010-32** — The auditor reads without acting
@@ -371,7 +369,7 @@ Then  the Nome cell shows their pseudonym and the E-mail cell shows "—"
 Given a signed-in auditor
 When  /members is opened
 Then  the member table shows
-And   no invite, block, deactivate or reset control exists on the page
+And   no invite, block, unblock, deactivate or reset control exists on the page
 ```
 
 **AC-0010-33** — The servidor is told why, not shown an empty page
@@ -394,7 +392,7 @@ Then  the table shows a single row "Nenhum membro encontrado."
 **AC-0010-35** — Inviting shows the link once
 ```gherkin
 Given a signed-in gestor
-When  they invite an institutional e-mail with a perfil
+When  they invite an institutional e-mail with a perfil, a full name and a registration
 Then  a dialog shows the activation link with a "Copiar" button
 And   it states "Este link não será mostrado de novo. Envie-o agora à pessoa convidada."
 And   after the dialog closes, the list shows the new member as "pendente"
@@ -444,8 +442,45 @@ And   it states "Este link não será mostrado de novo e expira em 1 hora."
 ```gherkin
 Given a member whose status is "desativado"
 When  their row is shown
-Then  it offers no block, deactivate or reset control
+Then  it offers no block, unblock, deactivate or reset control
+Given a member whose status is "bloqueado"
+When  their row is shown
+Then  it offers "Desbloquear" and "Desativar", and no "Bloquear" or "Redefinir senha" control
+Given a member whose status is "ativo"
+When  their row is shown
+Then  it offers no "Desbloquear" control
 ```
+
+**AC-0010-59** — Unblocking asks for a justification
+```gherkin
+Given a signed-in gestor and a "bloqueado" member
+When  they choose "Desbloquear", write a justification and confirm
+Then  the request carries that justification
+And   the member's status reads "ativo"
+And   choosing "Cancelar" instead sends no request
+When  they confirm with the justification empty
+Then  the dialog stays open and shows the API's "INVALID_DATA" message beside the field
+When  the API answers "NOT_BLOCKED"
+Then  the dialog shows the message from that response and the list is refreshed
+```
+*(v1.5.)* SPEC-0001 AC-0001-44 requires the justification, because unblocking
+undoes another gestor's decision (RN03's reasoning). Nothing is hidden here: the
+button states what it does, and the justification is the one thing the person
+must write.
+
+**AC-0010-60** — The invite dialog asks for the name and the registration
+```gherkin
+Given the invite dialog
+Then  it asks for E-mail, Nome completo, Registro na prefeitura and Perfil, all required
+When  any of them is empty and the form is submitted
+Then  no request is sent and each empty field shows "Campo obrigatório."
+When  the API answers "INVALID_DATA"
+Then  the dialog stays open and marks each field the response names
+```
+*(v1.5, stakeholder question 11.)* The label is the stakeholder's own words,
+*registro na prefeitura*. The screen checks only that the fields are filled in,
+because no format is known (OQ-41); whether they are acceptable is the API's
+answer (C3).
 
 ### 4.9 Cross-cutting
 
@@ -608,7 +643,7 @@ that silently does nothing.
 
 ## 5. Errors and edge cases
 
-No new API error codes. Every refusal these screens show is one of SPEC-0001 §5,
+No new API error codes of its own. Every refusal these screens show is one of SPEC-0001 §5,
 displayed verbatim (C3). The strings the screens own:
 
 | Condition | Where | Message (pt-BR) |
@@ -644,7 +679,7 @@ API enforces it (C2).
 | --- | --- | --- | --- |
 | "Membros" in the navigation | ✅ | ❌ | ✅ |
 | Member table | ✅ | ❌ refusal message | ✅ |
-| Invite, block, deactivate, trigger reset | ✅ | ❌ | ❌ |
+| Invite, block, unblock, deactivate, trigger reset | ✅ | ❌ | ❌ |
 | Dashboard, logout | ✅ | ✅ | ✅ |
 
 `/login`, `/auth/callback`, `/invite` and `/reset-password` need no session.
@@ -709,16 +744,12 @@ by `/plan` after approval.
   two drift, the login page offers a mechanism that answers 404, or hides one
   that works. A public `GET /api/v1/auth/mecanismos` would remove the drift,
   but that is a SPEC-0001 change.
-- **OQ-34 — unblocking a member.** RF18 says "block/unblock accounts".
-  SPEC-0001 specifies only blocking, and the API serves no unblock route, so a
-  blocked member can today be restored only by deactivating them, which
-  anonymises the account, and inviting the address again, which
-  `EMAIL_ALREADY_REGISTERED` refuses. A blocked member is therefore stuck. This
-  spec shows no unblock control, because it would have no route behind it.
-- **OQ-35 — nobody can set a member's name.** The invitation takes `email` and
-  `perfil`, activation takes `password`, and no other route writes `nome`, so
-  every invited account has none. C4 works around it. Proposal: an optional
-  `name` on the invitation, in a SPEC-0001 revision.
+- **OQ-34 — unblocking a member.** *Resolved (2026-10-02, stakeholder question
+  10).* SPEC-0001 v1.7 specifies the route (AC-0001-44) and AC-0010-59 the
+  control. The screens do not show it until the route is served.
+- **OQ-35 — a member's name.** *Resolved (2026-10-02, stakeholder question 11).*
+  The invitation takes the full name and the registration (SPEC-0001 AC-0001-45,
+  AC-0010-60). Accounts older than that have neither, and C4 still covers them.
 - **OQ-36 — refresh across tabs.** AC-0010-47 is achievable in the browser, by
   letting one tab refresh while the others wait for its result. The alternative
   is a short grace window on the API, in which the token just rotated still
@@ -783,7 +814,7 @@ every page makes at most two calls.
 | `app/auth/callback/page.tsx` | Calls the API callback with `code` and `state`, or shows the provider's error without calling it (AC-48) |
 | `app/(app)/layout.tsx` | Auth guard and shell for every authenticated page; restores the session on load (AC-11) |
 | `app/(app)/dashboard/page.tsx` | Identity from `/auth/me` (AC-28) |
-| `app/(app)/members/page.tsx` and its dialogs | List, paging, invite, block, deactivate, reset link (AC-29 to 41, 49) |
+| `app/(app)/members/page.tsx` and its dialogs | List, paging, invite, block, unblock, deactivate, reset link (AC-29 to 41, 49, 59, 60) |
 | `app/invite/page.tsx`, `app/reset-password/page.tsx` | Read the token, `history.replaceState` it away (AC-18, 24) |
 | `next.config.ts` | `Referrer-Policy: no-referrer` on `/invite` and `/reset-password` |
 | `app/globals.css` | Tokens: dark institutional green `primary`, accent, amber, slate, destructive; `oklch` values checked for AA |
@@ -808,7 +839,7 @@ AC, e.g. `AC-0010-12 renews an expired token once`.
 | 18–23 | `e2e/invitation.spec.ts` |
 | 24–26 | `e2e/reset.spec.ts` |
 | 27, 28, 52 | `e2e/shell.spec.ts` |
-| 29–41, 49 | `e2e/members.spec.ts` |
+| 29–41, 49, 59, 60 | `e2e/members.spec.ts` |
 | 42 | `tests/errors.test.ts` |
 | 43 | `e2e/responsive.spec.ts`, at 360, 768 and 1440 px |
 | 44, 45 | `e2e/accessibility.spec.ts` |
@@ -853,3 +884,4 @@ One commit per step, split into two PRs after step 5.
 | 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |
 | 1.3 | 2026-09-28 | AC-0010-53/54: a nonce-based Content-Security-Policy with no `unsafe-eval` and no inline scripts, and headers against framing and sniffing. |
 | 1.4 | 2026-09-28 | AC-0010-55 to 58: a pt-BR not-found page, an error boundary, the gestor contact on every error a servidor cannot fix, and a clipboard fallback. AC-0010-42 now shows the contact, with the correlation id in the e-mail body, instead of a code to copy; no screen had actually been showing that code. |
+| 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. |
