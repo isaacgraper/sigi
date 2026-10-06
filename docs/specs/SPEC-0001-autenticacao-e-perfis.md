@@ -826,7 +826,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Invite | `usuario` | `usuario.convidado` | `null` |
 | Activation | `usuario` | `usuario.ativado` | `{status}` |
 | Block | `usuario` | `usuario.bloqueado` | `{status}` |
-| Unblock | `usuario` | `usuario.desbloqueado` | `{status, justificativa}` |
+| Unblock | `usuario` | `usuario.desbloqueado` | `{status}`, and the justification in the row's `justificativa` column |
 | Deactivation | `usuario` | `usuario.desativado` | `{status}` |
 | Refusal by profile | `usuario` | `auth.negada` | `{rota, metodo, perfil}` |
 | Blocked attempt to remove the last gestor | `usuario` | `usuario.ultimo_gestor` | `{alvo_id}` |
@@ -894,6 +894,12 @@ drove v0.4. Not yet executed.*
 instead of being an ASGI app. Fetching JWKS through the injected `httpx2` client
 keeps the provider a fixture and puts the `kid` cache AC-0001-20 needs under
 explicit control.
+
+### Migration — `0002_registro_funcional`
+
+Adds `usuario.registro_funcional VARCHAR(32)`, nullable, and recreates
+`ck_usuario_anonimizado` so that an anonymised account has it blank too (DB12).
+Reversible: `downgrade()` drops the column and restores the v1.6 check.
 
 ### Migration — `0001_baseline`
 
@@ -995,6 +1001,8 @@ which are already behind authentication and the permission matrix.
 | 30 | `test_redefinicao_senha.py::test_ac_0001_30_202_uniforme_para_os_tres_casos` |
 | 31 | `test_redefinicao_senha.py::test_ac_0001_31_troca_credencial_e_revoga_sessoes` · `::test_ac_0001_31_uso_unico_e_expiracao` |
 | 32 | `test_redefinicao_senha.py::test_ac_0001_32_gestor_dispara_sem_ver_o_token` |
+| 44 | `test_users_management.py::test_ac_0001_44_*` (five tests, and `test_ac_0001_13_a_servidor_or_auditor_cannot_unblock`) |
+| 45 | `test_users_invitations.py::test_ac_0001_45_*` (four tests) · `test_migration_baseline.py::test_an_anonymisation_that_keeps_the_registration_is_refused` |
 | 33 | `test_limite_taxa.py::test_ac_0001_33_429_com_retry_after` · `::test_ac_0001_33_faixa_institucional_tem_teto_maior` · `::test_ac_0001_33_toda_rota_tem_teto` |
 
 Plus `test_migration_baseline.py`, which proves the schema rather than an AC:
@@ -1263,10 +1271,12 @@ No acceptance criterion changed meaning and no route moved.
    (`registro_funcional`), anonymised with the name by AC-0001-14; its purpose and
    basis are OQ-41, `Assumed`.
 
-No existing criterion changed meaning and no AC was renumbered. The code does
-not exist yet: the unblock route, the two invitation fields and the migration
-that adds `registro_funcional` are implementation work for a later slice, and
-`AC-0001-44` and `-45` have no test until then.
+No existing criterion changed meaning and no AC was renumbered. *(2026-10-06)*
+Implemented: `POST /api/v1/usuarios/{id}/desbloquear`, the two invitation fields,
+and migration `0002_registro_funcional`, which adds the column and widens DB12 to
+cover it. The justification is written to the audit row's `justificativa` column,
+as RN03 does, rather than inside `dados_anteriores`. An unblock restores no
+session: the ones the block revoked stay revoked and the member signs in again.
 
 ## 11. Changelog
 
