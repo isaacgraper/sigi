@@ -263,9 +263,11 @@ def create_user(db_session: Session) -> Callable[..., User]:
         perfil: str = "servidor",
         status: str = "ativo",
         name: str = "Pessoa de Teste",
+        registration: str | None = None,
     ) -> User:
         user = User(
             nome=name,
+            registro_funcional=registration,
             email=email or f"{uuid.uuid4().hex[:10]}@sc.gov.br",
             senha_hash=hash_password(password) if password else None,
             role=perfil,
@@ -277,6 +279,16 @@ def create_user(db_session: Session) -> Callable[..., User]:
         return user
 
     return create
+
+
+def invite_body(email: str, perfil: str = "servidor") -> dict[str, str]:
+    """The body of an invitation, with the name and registration v1.7 requires."""
+    return {
+        "email": email,
+        "perfil": perfil,
+        "name": "Pessoa Convidada",
+        "registration": f"REG-{uuid.uuid4().hex[:6]}",
+    }
 
 
 def cookie_from(response: object, name: str) -> str | None:

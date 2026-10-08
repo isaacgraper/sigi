@@ -107,6 +107,9 @@ test.describe("when something goes wrong", () => {
     await openFromSidebar(page, "Membros");
     await page.getByRole("button", { name: "Convidar membro" }).click();
     await page.getByLabel("E-mail institucional").fill(`copia${Date.now().toString(36)}@sc.gov.br`);
+    // The invitation asks for the name and the registration too (AC-0010-60).
+    await page.getByLabel("Nome completo").fill("Maria da Silva");
+    await page.getByLabel("Registro na prefeitura").fill("REG-2026-002");
     await page.getByRole("button", { name: "Convidar", exact: true }).click();
     await page.getByRole("button", { name: "Copiar" }).click();
 

@@ -280,6 +280,38 @@ class LastGestor(DomainError):
         )
 
 
+class NotBlocked(DomainError):
+    """An unblock was asked for an account that is not `bloqueado` (AC-0001-44).
+
+    409 rather than a silent success: unblocking an `ativo` account would write
+    an audit row for a change that never happened.
+    """
+
+    code = "NOT_BLOCKED"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Esta conta não está bloqueada.")
+
+
+class NotPending(DomainError):
+    """A new invitation was asked for an account already activated (AC-0001-46).
+
+    An active account has a credential, and the way to replace it is a reset,
+    which the message names.
+    """
+
+    code = "NOT_PENDING"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__(
+            "Esta conta já foi ativada. Se a pessoa esqueceu a senha, use 'Redefinir senha'."
+        )
+
+
 class ResetAlreadyUsed(DomainError):
     """The reset grant was already redeemed, or never existed (AC-0001-31)."""
 

@@ -74,16 +74,25 @@ test.describe("SPEC-0011 the shell", () => {
     await expect(tooltip).toHaveText("Membros");
   });
 
-  test("AC-0011-02 the name also shows on keyboard focus", async ({ page }) => {
+  test("AC-0011-02 the name also shows on keyboard focus", async ({ page, browserName }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
-    // Collapsed from the keyboard, so the next focus counts as keyboard focus
-    // in every engine; WebKit does not Tab between plain links by default.
     await page.getByRole("button", { name: "Recolher menu lateral" }).focus();
     await page.keyboard.press("Enter");
     const link = page.getByTestId("sidebar").getByRole("link", { name: "Membros" });
     const tooltip = link.getByTestId("nav-tooltip");
     await expect(tooltip).toHaveCSS("opacity", "0");
-    await link.focus();
+    if (browserName === "webkit") {
+      // WebKit does not Tab to plain links by default, and it counts a scripted
+      // focus right after a key press as keyboard focus.
+      await link.focus();
+    } else {
+      // A real keyboard move. Firefox matches :focus-visible on a scripted focus
+      // only when focus last moved by keyboard, and pressing Enter moves nothing,
+      // so `link.focus()` here never showed the name there. "Membros" is the
+      // last link before the collapse control.
+      await page.keyboard.press("Shift+Tab");
+    }
+    await expect(link).toBeFocused();
     await expect(tooltip).toHaveCSS("opacity", "1");
   });
 

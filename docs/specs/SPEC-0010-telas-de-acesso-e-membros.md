@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Approved
-version: 1.5
+version: 1.6
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -449,7 +449,22 @@ Then  it offers "Desbloquear" and "Desativar", and no "Bloquear" or "Redefinir s
 Given a member whose status is "ativo"
 When  their row is shown
 Then  it offers no "Desbloquear" control
+Given a member whose status is "pendente"
+When  their row is shown
+Then  it offers "Gerar novo convite" and "Desativar", and no other control
 ```
+
+**AC-0010-61** — A pending member can be given a new invitation link
+```gherkin
+Given a signed-in gestor and a "pendente" member
+When  they choose "Gerar novo convite" and confirm
+Then  a dialog shows the new activation link with a "Copiar" button
+And   it states "Este link não será mostrado de novo. O link anterior deixa de funcionar."
+And   choosing "Cancelar" instead sends no request
+```
+*(v1.6, the product owner's request of 2026-10-07.)* Closing the invite dialog was
+the end of the road for a link nobody copied. SPEC-0001 AC-0001-46 issues the new
+one and switches off the old.
 
 **AC-0010-59** — Unblocking asks for a justification
 ```gherkin
@@ -679,7 +694,7 @@ API enforces it (C2).
 | --- | --- | --- | --- |
 | "Membros" in the navigation | ✅ | ❌ | ✅ |
 | Member table | ✅ | ❌ refusal message | ✅ |
-| Invite, block, unblock, deactivate, trigger reset | ✅ | ❌ | ❌ |
+| Invite, block, unblock, deactivate, trigger reset, new invitation link | ✅ | ❌ | ❌ |
 | Dashboard, logout | ✅ | ✅ | ✅ |
 
 `/login`, `/auth/callback`, `/invite` and `/reset-password` need no session.
@@ -839,7 +854,7 @@ AC, e.g. `AC-0010-12 renews an expired token once`.
 | 18–23 | `e2e/invitation.spec.ts` |
 | 24–26 | `e2e/reset.spec.ts` |
 | 27, 28, 52 | `e2e/shell.spec.ts` |
-| 29–41, 49, 59, 60 | `e2e/members.spec.ts` |
+| 29–41, 49, 59–61 | `e2e/members.spec.ts` |
 | 42 | `tests/errors.test.ts` |
 | 43 | `e2e/responsive.spec.ts`, at 360, 768 and 1440 px |
 | 44, 45 | `e2e/accessibility.spec.ts` |
@@ -884,4 +899,5 @@ One commit per step, split into two PRs after step 5.
 | 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |
 | 1.3 | 2026-09-28 | AC-0010-53/54: a nonce-based Content-Security-Policy with no `unsafe-eval` and no inline scripts, and headers against framing and sniffing. |
 | 1.4 | 2026-09-28 | AC-0010-55 to 58: a pt-BR not-found page, an error boundary, the gestor contact on every error a servidor cannot fix, and a clipboard fallback. AC-0010-42 now shows the contact, with the correlation id in the e-mail body, instead of a code to copy; no screen had actually been showing that code. |
-| 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. |
+| 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. Implemented 2026-10-06; the e2e proof is `e2e/members.spec.ts`. |
+| 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |

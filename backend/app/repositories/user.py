@@ -32,11 +32,13 @@ def create(
     email: str,
     role: str,
     nome: str | None = None,
+    registro_funcional: str | None = None,
 ) -> User:
     """Insert a `pendente` account and flush it, so the caller has its id."""
     user = User(
         email=email.strip().lower(),
         nome=nome,
+        registro_funcional=registro_funcional,
         role=role,
         status="pendente",
     )

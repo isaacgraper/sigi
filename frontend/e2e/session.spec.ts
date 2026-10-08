@@ -3,6 +3,17 @@ import { expect, test } from "@playwright/test";
 import { GESTOR, signIn } from "./helpers";
 
 test.describe("session", () => {
+  test("AC-0010-42 an API that does not answer on load is reported, not taken as a logout", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    // A reload restores the session through the refresh cookie; no answer comes.
+    await page.route("**/api/v1/auth/refresh", (route) => route.abort());
+    await page.reload();
+    await expect(page.getByTestId("session-failure")).toContainText(
+      "Não foi possível concluir. Tente novamente em instantes.",
+    );
+    await expect(page).toHaveURL(/\/dashboard$/);
+  });
+
   test("AC-0010-11 a reload keeps the session", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
     await page.reload();

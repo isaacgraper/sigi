@@ -1,4 +1,4 @@
-"""Member management — AC-0001-12, -13, -14, -15, -29.
+"""Member management — AC-0001-12, -13, -14, -15, -29, -44.
 
 The API-level cases run against the shared test database, which already holds
 other active gestores, so blocking one never trips the last-gestor guard. The
@@ -76,7 +76,10 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     """AC-0001-14, RN16 — identifying fields go, the record of what they did stays."""
     headers = _as_gestor(application, create_user)
     target = create_user(
-        email=f"anon-{uuid.uuid4().hex[:8]}@sc.gov.br", name="Pessoa Real", password=LONG_ENOUGH
+        email=f"anon-{uuid.uuid4().hex[:8]}@sc.gov.br",
+        name="Pessoa Real",
+        registration="REG-123456",
+        password=LONG_ENOUGH,
     )
     target_id = target.id
 
@@ -86,6 +89,7 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     assert body["status"] == "desativado"
     assert body["name"] is None
     assert body["email"] is None
+    assert body["registration"] is None
     # The column is `pseudonimo` and the payload field is `pseudonym`: they have
     # different readers, so they need not match (ADR-0013). It is generated, so
     # the trail keeps resolving to one stable name without the history being
@@ -95,13 +99,14 @@ def test_ac_0001_14_deactivation_anonymises_and_keeps_the_history(
     db_session.rollback()
     row = db_session.execute(
         text(
-            "SELECT nome, email, senha_hash, oidc_subject, anonimizado_em"
+            "SELECT nome, email, registro_funcional, senha_hash, oidc_subject, anonimizado_em"
             " FROM usuario WHERE id = :u"
         ),
         {"u": target_id},
     ).one()
     assert row.nome is None
     assert row.email is None
+    assert row.registro_funcional is None
     assert row.senha_hash is None
     assert row.oidc_subject is None
     assert row.anonimizado_em is not None
@@ -398,3 +403,159 @@ def test_ac_0001_29_under_concurrency_the_loser_gets_409_not_500(
             ).fetchone()
             # The invariant that actually matters.
             assert left_over is not None and left_over[0] >= 1, results
+
+
+# ── AC-0001-44 — a gestor unblocks an account ───────────────────────────────
+
+
+def _blocked_member(
+    application: TestClient, create_user: Callable[..., User], headers: dict[str, str]
+) -> User:
+    target = create_user(email=f"bloq-{uuid.uuid4().hex[:8]}@sc.gov.br", password=LONG_ENOUGH)
+    blocked = application.post(f"{USUARIOS}/{target.id}/bloquear", headers=headers)
+    assert blocked.status_code == 200, blocked.text
+    return target
+
+
+def test_ac_0001_44_a_gestor_unblocks_with_a_justification(
+    application: TestClient, create_user: Callable[..., User], db_session: Session
+) -> None:
+    """AC-0001-44 — `bloqueado` becomes `ativo`, the credential works again, the act is audited."""
+    headers = _as_gestor(application, create_user)
+    target = _blocked_member(application, create_user, headers)
+    assert (
+        application.post(LOGIN, json={"email": target.email, "password": LONG_ENOUGH}).status_code
+        == 401
+    )
+
+    response = application.post(
+        f"{USUARIOS}/{target.id}/desbloquear",
+        json={"justification": "Bloqueio feito por engano."},
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "ativo"
+    # The credential the member already had is the way back in.
+    assert (
+        application.post(LOGIN, json={"email": target.email, "password": LONG_ENOUGH}).status_code
+        == 200
+    )
+
+    db_session.rollback()
+    row = db_session.execute(
+        text(
+            "SELECT acao, usuario_id, dados_anteriores, justificativa FROM historico_movimentacao"
+            " WHERE entidade_id = :u AND acao = 'usuario.desbloqueado'"
+        ),
+        {"u": target.id},
+    ).one()
+    assert row.justificativa == "Bloqueio feito por engano."
+    assert row.dados_anteriores == {"status": "bloqueado"}
+    assert row.usuario_id is not None
+
+
+def test_ac_0001_44_the_justification_is_required(
+    application: TestClient, create_user: Callable[..., User], db_session: Session
+) -> None:
+    """AC-0001-44 — no justification, no unblock, and nothing is written."""
+    headers = _as_gestor(application, create_user)
+    target = _blocked_member(application, create_user, headers)
+
+    for body in ({}, {"justification": ""}, {"justification": "   "}):
+        response = application.post(
+            f"{USUARIOS}/{target.id}/desbloquear", json=body, headers=headers
+        )
+        assert response.status_code == 422, body
+        assert response.json()["error"]["code"] == "INVALID_DATA"
+        assert "justification" in response.json()["error"]["fields"]
+
+    db_session.rollback()
+    assert (
+        db_session.execute(
+            text("SELECT status FROM usuario WHERE id = :u"), {"u": target.id}
+        ).scalar_one()
+        == "bloqueado"
+    )
+    assert (
+        db_session.execute(
+            text(
+                "SELECT count(*) FROM historico_movimentacao"
+                " WHERE entidade_id = :u AND acao = 'usuario.desbloqueado'"
+            ),
+            {"u": target.id},
+        ).scalar_one()
+        == 0
+    )
+
+
+@pytest.mark.parametrize("status", ["ativo", "pendente", "desativado"])
+def test_ac_0001_44_only_a_blocked_account_can_be_unblocked(
+    application: TestClient,
+    create_user: Callable[..., User],
+    db_session: Session,
+    status: str,
+) -> None:
+    """AC-0001-44 — any other status answers 409 `NOT_BLOCKED`, changes nothing, writes nothing."""
+    headers = _as_gestor(application, create_user)
+    target = create_user(
+        email=f"nao-bloq-{uuid.uuid4().hex[:8]}@sc.gov.br",
+        password=None if status == "pendente" else LONG_ENOUGH,
+        status=status,
+    )
+
+    response = application.post(
+        f"{USUARIOS}/{target.id}/desbloquear", json={"justification": "x"}, headers=headers
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "NOT_BLOCKED"
+    db_session.rollback()
+    assert (
+        db_session.execute(
+            text("SELECT status FROM usuario WHERE id = :u"), {"u": target.id}
+        ).scalar_one()
+        == status
+    )
+    assert (
+        db_session.execute(
+            text(
+                "SELECT count(*) FROM historico_movimentacao"
+                " WHERE entidade_id = :u AND acao = 'usuario.desbloqueado'"
+            ),
+            {"u": target.id},
+        ).scalar_one()
+        == 0
+    )
+
+
+def test_ac_0001_44_an_unknown_account_is_404(
+    application: TestClient, create_user: Callable[..., User]
+) -> None:
+    """AC-0001-44 — the same 404 as the other member routes."""
+    headers = _as_gestor(application, create_user)
+    response = application.post(
+        f"{USUARIOS}/{uuid.uuid4()}/desbloquear", json={"justification": "x"}, headers=headers
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
+@pytest.mark.parametrize("perfil", ["servidor", "auditor"])
+def test_ac_0001_13_a_servidor_or_auditor_cannot_unblock(
+    application: TestClient, create_user: Callable[..., User], perfil: str
+) -> None:
+    """AC-0001-13, AC-0001-44 — unblocking is a gestor's act."""
+    gestor = _as_gestor(application, create_user)
+    target = _blocked_member(application, create_user, gestor)
+    email = f"{perfil}-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    create_user(email=email, perfil=perfil, password=LONG_ENOUGH)
+    entry = application.post(LOGIN, json={"email": email, "password": LONG_ENOUGH})
+    headers = {"Authorization": f"Bearer {entry.json()['access_token']}"}
+
+    response = application.post(
+        f"{USUARIOS}/{target.id}/desbloquear", json={"justification": "x"}, headers=headers
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"

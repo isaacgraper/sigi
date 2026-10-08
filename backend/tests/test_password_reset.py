@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from tests.conftest import invite_body
 
 USUARIOS = "/api/v1/usuarios"
 CONFIRM = "/api/v1/auth/redefinicoes/confirmar"
@@ -176,7 +177,7 @@ def test_an_invitation_token_cannot_be_redeemed_as_a_reset(
     headers = _as_gestor(application, create_user)
     invitation = application.post(
         USUARIOS,
-        json={"email": f"conv-{uuid.uuid4().hex[:8]}@sc.gov.br", "perfil": "servidor"},
+        json=invite_body(f"conv-{uuid.uuid4().hex[:8]}@sc.gov.br", "servidor"),
         headers=headers,
     )
     invitation_token = _token_from(invitation.json()["activation_link"])

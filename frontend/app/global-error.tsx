@@ -12,7 +12,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
       <body className="min-h-dvh">
         <main id="content" tabIndex={-1} className="flex min-h-dvh items-center justify-center px-4 focus:outline-none">
           <div className="max-w-md space-y-4 text-center">
-            <Illustration name="error" className="mx-auto max-h-60" />
+            <Illustration name="error" className="mx-auto max-h-60" eager />
             <h1 className="text-2xl font-normal tracking-tight">Algo deu errado</h1>
             <p className="text-sm font-light text-muted-foreground">
               O SIGI não pôde ser carregado. Tente novamente em instantes ou procure o gestor da

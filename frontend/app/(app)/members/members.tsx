@@ -98,6 +98,7 @@ export function Members() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>E-mail</TableHead>
+                <TableHead>Registro</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Criado em</TableHead>
@@ -107,7 +108,7 @@ export function Members() {
             <TableBody>
               {data.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={manages ? 6 : 5}>
+                  <TableCell colSpan={manages ? 7 : 6}>
                     <EmptyState
                       message="Nenhum membro encontrado."
                       action={
@@ -133,6 +134,7 @@ export function Members() {
                   <TableCell data-testid="cell-email" className="break-all">
                     {member.email ?? "—"}
                   </TableCell>
+                  <TableCell data-testid="cell-registration">{member.registration ?? "—"}</TableCell>
                   <TableCell>{PERFIL_LABEL[member.perfil]}</TableCell>
                   <TableCell>
                     <Badge tone={STATUS_TONE[member.status]} data-testid="cell-status">

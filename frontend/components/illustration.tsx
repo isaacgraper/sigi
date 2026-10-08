@@ -17,7 +17,16 @@ export type IllustrationName = keyof typeof FILES;
  * Decoration only (AC-0011-17): an empty text alternative, and never the only
  * carrier of a message. Static SVGs, so the optimiser has nothing to do.
  */
-export function Illustration({ name, className }: { name: IllustrationName; className?: string }) {
+export function Illustration({
+  name,
+  className,
+  eager = false,
+}: {
+  name: IllustrationName;
+  className?: string;
+  /** For an illustration that is the first thing on screen, and so the LCP element. */
+  eager?: boolean;
+}) {
   const file = FILES[name];
   return (
     <Image
@@ -26,6 +35,7 @@ export function Illustration({ name, className }: { name: IllustrationName; clas
       height={file.height}
       alt=""
       unoptimized
+      loading={eager ? "eager" : undefined}
       data-illustration={name}
       className={cn("h-auto w-auto", className)}
     />

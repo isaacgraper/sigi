@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { AppShell, Content } from "@/components/app-shell";
+import { ErrorNotice } from "@/components/error-notice";
 import { PageSkeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/errors";
 import { setFlash } from "@/lib/flash";
@@ -40,6 +41,7 @@ export function SessionProvider({
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [me, setMe] = useState<Me | null>(null);
+  const [failure, setFailure] = useState<ApiError | null>(null);
 
   const toLogin = useCallback(() => {
     const here = search ? `${pathname}?${search}` : pathname;
@@ -60,15 +62,20 @@ export function SessionProvider({
 
   // On load the page has no token in memory; the refresh cookie restores it
   // (AC-0010-11). No cookie, or a dead one, means no session: go to login
-  // without a message, because nothing the user did ended it.
+  // without a message, because nothing the user did ended it. No answer at all
+  // says nothing about the session (AC-0010-42), and it is also what a browser
+  // reports for this request when the person leaves the page before it returns;
+  // sending them to login then would override the page they asked for.
   useEffect(() => {
     let cancelled = false;
     apiJson<Me>("/api/v1/auth/me")
       .then((value) => {
         if (!cancelled) setMe(value);
       })
-      .catch(() => {
-        if (!cancelled) toLogin();
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof ApiError && error.isGeneric) setFailure(error);
+        else toLogin();
       });
     return () => {
       cancelled = true;
@@ -82,7 +89,7 @@ export function SessionProvider({
     router.replace("/login");
   }
 
-  if (!me) return <ShellSkeleton sidebarCollapsed={sidebarCollapsed} />;
+  if (!me) return <ShellSkeleton sidebarCollapsed={sidebarCollapsed} failure={failure} />;
   return (
     <Context.Provider value={{ me, handleSessionError }}>
       <AppShell me={me} onLogout={onLogout} sidebarCollapsed={sidebarCollapsed}>
@@ -97,7 +104,13 @@ export function SessionProvider({
  * drawn without entries and the page as placeholders (AC-0011-18). Same widths
  * as the real shell, so nothing jumps when it arrives.
  */
-function ShellSkeleton({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
+function ShellSkeleton({
+  sidebarCollapsed,
+  failure,
+}: {
+  sidebarCollapsed: boolean;
+  failure: ApiError | null;
+}) {
   return (
     <div className="flex min-h-dvh">
       <div
@@ -107,7 +120,13 @@ function ShellSkeleton({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div aria-hidden className="h-14 border-b bg-card" />
         <Content>
-          <PageSkeleton />
+          {failure ? (
+            <div data-testid="session-failure">
+              <ErrorNotice error={failure} />
+            </div>
+          ) : (
+            <PageSkeleton />
+          )}
         </Content>
       </div>
     </div>

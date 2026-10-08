@@ -6,6 +6,8 @@ export interface Member {
   id: string;
   name: string | null;
   email: string | null;
+  /** Read by a gestor or an auditor only; null before SPEC-0001 v1.7 and once deactivated. */
+  registration: string | null;
   perfil: Perfil;
   status: Status;
   created_at: string;
