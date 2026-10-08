@@ -28,7 +28,7 @@ export function StatusPage({
           <ShieldCheck aria-hidden className="size-5" />
           SIGI
         </div>
-        <Illustration name={illustration} className="mx-auto max-h-60" />
+        <Illustration name={illustration} className="mx-auto max-h-60" eager />
         <div className="space-y-2">
           <h1 className="text-2xl font-normal tracking-tight">{title}</h1>
           <p className="text-sm font-light text-muted-foreground">{description}</p>

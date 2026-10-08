@@ -29,6 +29,18 @@ async function fillInvite(page: Page, email: string, perfil?: string) {
   }
 }
 
+/** Every control is drawn inside the dialog, however long the link it shows. */
+async function expectInsideDialog(page: Page, names: string[]) {
+  const dialog = await page.getByRole("dialog").boundingBox();
+  expect(dialog).not.toBeNull();
+  for (const name of names) {
+    const box = await page.getByRole("button", { name, exact: true }).boundingBox();
+    expect(box, name).not.toBeNull();
+    expect(box!.x, name).toBeGreaterThanOrEqual(dialog!.x);
+    expect(box!.x + box!.width, name).toBeLessThanOrEqual(dialog!.x + dialog!.width);
+  }
+}
+
 async function openMembers(page: Page) {
   await signIn(page, GESTOR.email, GESTOR.password);
   await openFromSidebar(page, "Membros");
@@ -116,6 +128,7 @@ test.describe("members", () => {
     ).toBeVisible();
     await expect(page.getByTestId("one-time-link")).toContainText("/invite?token=");
     await expect(page.getByRole("button", { name: "Copiar" })).toBeVisible();
+    await expectInsideDialog(page, ["Copiar", "Concluir"]);
     await page.getByRole("button", { name: "Concluir" }).click();
     await expect(row(page, email).getByTestId("cell-status")).toHaveText("Pendente");
   });
@@ -192,6 +205,7 @@ test.describe("members", () => {
     await page.getByRole("button", { name: "Gerar link" }).click();
     await expect(page.getByText("Este link não será mostrado de novo e expira em 1 hora.")).toBeVisible();
     await expect(page.getByTestId("one-time-link")).toContainText("/reset-password?token=");
+    await expectInsideDialog(page, ["Copiar"]);
   });
 
   test("AC-0010-60 the invite dialog asks for the name and the registration", async ({ page }) => {
