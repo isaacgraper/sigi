@@ -11,6 +11,8 @@ entries are moved into a new dated version section — see
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-08
+
 ### Added
 
 - **Quality gates that run before the commit, not only in CI.** `pre-commit`
@@ -122,4 +124,5 @@ entries are moved into a new dated version section — see
 - `docs/analise-lacunas-rfc-v1.6.md` repointed to the ADRs that actually carry
   its findings.
 
-[Unreleased]: https://github.com/isaacgraper/sigi/commits/dev
+[Unreleased]: https://github.com/isaacgraper/sigi/compare/v0.1.0...dev
+[0.1.0]: https://github.com/isaacgraper/sigi/releases/tag/v0.1.0
