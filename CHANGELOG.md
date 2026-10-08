@@ -61,6 +61,8 @@ entries are moved into a new dated version section — see
 - The members page shows the registration, the invite dialog asks for the full name and
   the registration, and a blocked member offers "Desbloquear" with a justification
   (SPEC-0010 v1.5, AC-0010-59 and -60).
+- ATAs (`/api/v1/atas`): registration, the lifecycle, aditivos, reajuste requests and the
+  renewal and reajuste alerts, with migration `0003_atas`, as SPEC-0002 v1.1 specifies.
 - SPEC-0002 v0.4: an MVP slice with every criterion in Given/When/Then, the ATA lifecycle,
   reading for all profiles, permissions, errors and audit events. Criteria that need
   SPEC-0003, SPEC-0004 or SPEC-0006 are marked deferred. OQ-45 records the assumptions.

@@ -45,10 +45,11 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Two migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Three migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
-`historico_movimentacao` with seven yearly partitions to 2032, and
-`0002_registro_funcional` adds the member's registration. `alembic check`
+`historico_movimentacao` with seven yearly partitions to 2032,
+`0002_registro_funcional` adds the member's registration, and `0003_atas` adds
+`fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
