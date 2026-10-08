@@ -70,6 +70,9 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- SPEC-0001 (v1.9), SPEC-0010 (v1.7) and SPEC-0011 (v1.1) are `Implemented`, accepted by the
+  product owner. Their traceability rows name the tests that prove each criterion.
+  AC-0001-30 stays blocked until a mail transport exists (OQ-31).
 - The SKU is the item's identity (SPEC-0003 v0.3), unique and changeable by a
   gestor with a justification; the DOMS code moves to its own field. ATA import is withdrawn from SPEC-0002, because ATAs are entered by
   hand. SPEC-0004, SPEC-0005 and SPEC-0006 follow ADR-0015.

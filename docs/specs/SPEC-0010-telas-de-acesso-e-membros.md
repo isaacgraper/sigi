@@ -1,8 +1,8 @@
 ---
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
-status: Approved
-version: 1.6
+status: Implemented
+version: 1.7
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -901,3 +901,4 @@ One commit per step, split into two PRs after step 5.
 | 1.4 | 2026-09-28 | AC-0010-55 to 58: a pt-BR not-found page, an error boundary, the gestor contact on every error a servidor cannot fix, and a clipboard fallback. AC-0010-42 now shows the contact, with the correlation id in the e-mail body, instead of a code to copy; no screen had actually been showing that code. |
 | 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. Implemented 2026-10-06; the e2e proof is `e2e/members.spec.ts`. |
 | 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |
+| 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |

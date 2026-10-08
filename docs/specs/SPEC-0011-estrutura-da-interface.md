@@ -1,8 +1,8 @@
 ---
 id: SPEC-0011
 title: Estrutura da interface
-status: Approved
-version: 1.0
+status: Implemented
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -426,3 +426,4 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 1.0 | 2026-09-28 | Approved by the product owner after #46 merged. No criterion changed. |
 | 1.0 | 2026-09-28 | §11 implementation plan added. |
 | 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |
+| 1.1 | 2026-10-08 | Implemented, accepted by the product owner with SPEC-0010. Every criterion has a test in `frontend/e2e`; AC-0011-23 is proven by the whole SPEC-0010 suite passing on this shell. No criterion changed. |
