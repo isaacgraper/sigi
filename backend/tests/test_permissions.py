@@ -173,6 +173,8 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/usuarios/{user_id}/desativar"): frozenset({"gestor"}),
     # "Trigger a password reset for another member" — gestor only.
     ("POST", "/api/v1/usuarios/{user_id}/redefinir-senha"): frozenset({"gestor"}),
+    # "Issue a new invitation for a pending member" — gestor only (v1.8).
+    ("POST", "/api/v1/usuarios/{user_id}/reemitir-convite"): frozenset({"gestor"}),
     # "View member list" — gestor, and auditor read-only.
     ("GET", "/api/v1/usuarios"): frozenset({"gestor", "auditor"}),
     # SPEC-0002 §3.7: every perfil reads ATAs and both alerts; only a gestor writes.

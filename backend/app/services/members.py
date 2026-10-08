@@ -1,4 +1,4 @@
-"""Member management (SPEC-0001 §4.2 — AC-0001-10 to -14, -25, -26, -28, -29, -44, -45).
+"""Member management (SPEC-0001 §4.2 — AC-0001-10 to -14, -25, -26, -28, -29, -44 to -46).
 
 This is the module that creates accounts. There is no self-registration and no
 just-in-time provisioning from the identity provider (AC-0001-21), so every
@@ -30,6 +30,7 @@ from app.services.errors import (
     LastGestor,
     NonInstitutionalDomain,
     NotBlocked,
+    NotPending,
     ResetAlreadyUsed,
     ResetExpired,
     UsuarioNotFound,
@@ -101,6 +102,50 @@ def invite(
             # this table can never be corrected, and `lgpd.md` promises it carries
             # neither a credential nor personal data (AC-0001-45).
             dados_anteriores={"perfil": role},
+        ),
+        correlation_id=correlation_id,
+        at=at,
+    )
+    return user, grant.link("/invite")
+
+
+def reissue_invite(
+    session: Session,
+    *,
+    actor: User,
+    user_id: uuid.UUID,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+) -> tuple[User, str]:
+    """Issue a new activation link for a pending account (AC-0001-46).
+
+    The link of AC-0001-10 is shown once, so one that was lost or left to expire
+    had no replacement, and the address could never join: re-inviting it is
+    refused (AC-0001-28). `credentials.issue` cancels the earlier grant, so at
+    most one link is live and the old one answers `INVITE_EXPIRED`.
+    """
+    user = repo.by_id(session, user_id)
+    if user is None:
+        raise UsuarioNotFound()
+    if user.status != "pendente":
+        raise NotPending()
+
+    grant = credentials.issue(
+        session,
+        user_id=user.id,
+        kind=credentials.INVITE,
+        at=at,
+        created_by=actor.id,
+    )
+    record(
+        session,
+        Event(
+            entidade_tipo="usuario",
+            entidade_id=user.id,
+            acao="usuario.convite_reemitido",
+            user_id=actor.id,
+            # The perfil, never the token, as for the first invitation.
+            dados_anteriores={"perfil": user.role},
         ),
         correlation_id=correlation_id,
         at=at,

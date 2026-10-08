@@ -373,3 +373,90 @@ def test_ac_0001_45_the_member_list_shows_the_registration_to_a_gestor_and_an_au
     for who in (headers, auditor_headers):
         page = application.get(f"{USUARIOS}?size=100", headers=who).json()
         assert {m["registration"] for m in page["items"] if m["email"] == email} == {"REG-LISTA-1"}
+
+
+# ── AC-0001-46 — a new invitation link for a pending member ─────────────────
+
+
+def test_ac_0001_46_a_new_link_replaces_the_lost_one(
+    application: TestClient, create_user: Callable[..., User], db_session: Session
+) -> None:
+    """AC-0001-46 — the new link activates, the old one reads as expired, the act is audited."""
+    headers = _as_gestor(application, create_user)
+    email = f"perdido-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    first = application.post(USUARIOS, json=invite_body(email, "servidor"), headers=headers)
+    member_id = first.json()["id"]
+    old_token = _token_from(first.json()["activation_link"])
+
+    response = application.post(f"{USUARIOS}/{member_id}/reemitir-convite", headers=headers)
+
+    assert response.status_code == 200, response.text
+    new_link = response.json()["activation_link"]
+    assert "/invite?token=" in new_link
+    new_token = _token_from(new_link)
+    assert new_token != old_token
+
+    stale = application.post(ACTIVATE, json={"token": old_token, "password": STRONG_ENOUGH})
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "INVITE_EXPIRED"
+    fresh = application.post(ACTIVATE, json={"token": new_token, "password": STRONG_ENOUGH})
+    assert fresh.status_code == 200, fresh.text
+
+    db_session.rollback()
+    row = db_session.execute(
+        text(
+            "SELECT usuario_id, dados_anteriores::text AS dados FROM historico_movimentacao"
+            " WHERE entidade_id = :u AND acao = 'usuario.convite_reemitido'"
+        ),
+        {"u": member_id},
+    ).one()
+    assert row.usuario_id is not None
+    assert new_token not in row.dados and old_token not in row.dados
+
+
+@pytest.mark.parametrize("status", ["ativo", "bloqueado", "desativado"])
+def test_ac_0001_46_only_a_pending_account_gets_a_new_link(
+    application: TestClient, create_user: Callable[..., User], db_session: Session, status: str
+) -> None:
+    """AC-0001-46 — any other status answers 409 `NOT_PENDING` and issues nothing."""
+    headers = _as_gestor(application, create_user)
+    target = create_user(email=f"ja-{uuid.uuid4().hex[:8]}@sc.gov.br", status=status)
+
+    response = application.post(f"{USUARIOS}/{target.id}/reemitir-convite", headers=headers)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "NOT_PENDING"
+    db_session.rollback()
+    issued = db_session.execute(
+        text("SELECT count(*) FROM token_credencial WHERE usuario_id = :u"), {"u": target.id}
+    ).scalar_one()
+    assert issued == 0
+
+
+def test_ac_0001_46_an_unknown_account_is_404(
+    application: TestClient, create_user: Callable[..., User]
+) -> None:
+    """AC-0001-46 — the same 404 as the other member routes."""
+    headers = _as_gestor(application, create_user)
+    response = application.post(f"{USUARIOS}/{uuid.uuid4()}/reemitir-convite", headers=headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("perfil", ["servidor", "auditor"])
+def test_ac_0001_13_a_servidor_or_auditor_cannot_issue_a_new_link(
+    application: TestClient, create_user: Callable[..., User], perfil: str
+) -> None:
+    """AC-0001-13, AC-0001-46 — a gestor's act."""
+    gestor = _as_gestor(application, create_user)
+    pending = application.post(
+        USUARIOS, json=invite_body(f"pend-{uuid.uuid4().hex[:8]}@sc.gov.br"), headers=gestor
+    ).json()
+    email = f"{perfil}-{uuid.uuid4().hex[:8]}@sc.gov.br"
+    create_user(email=email, perfil=perfil, password=STRONG_ENOUGH)
+    entry = application.post(LOGIN, json={"email": email, "password": STRONG_ENOUGH})
+    headers = {"Authorization": f"Bearer {entry.json()['access_token']}"}
+
+    response = application.post(f"{USUARIOS}/{pending['id']}/reemitir-convite", headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
