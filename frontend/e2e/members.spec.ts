@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { asGestor, GESTOR, invite, member, openFromSidebar, signIn, uniqueEmail } from "./helpers";
+import { asGestor, GESTOR, invite, LONG_ENOUGH, member, openFromSidebar, signIn, uniqueEmail } from "./helpers";
 
 function row(page: Page, email: string) {
   return page.getByTestId("member-row").filter({ hasText: email });
@@ -206,6 +206,43 @@ test.describe("members", () => {
     await expect(page.getByText("Este link não será mostrado de novo e expira em 1 hora.")).toBeVisible();
     await expect(page.getByTestId("one-time-link")).toContainText("/reset-password?token=");
     await expectInsideDialog(page, ["Copiar"]);
+  });
+
+  test("AC-0010-61 a pending member can be given a new invitation link", async ({ page }) => {
+    const invited = await invite("servidor");
+    await openMembers(page);
+    let reissues = 0;
+    await page.route("**/reemitir-convite", async (route) => {
+      reissues += 1;
+      await route.continue();
+    });
+
+    await openRowMenu(page, invited.email);
+    await expect(page.getByRole("menuitem")).toHaveText(["Gerar novo convite", "Desativar"]);
+    await page.getByRole("menuitem", { name: "Gerar novo convite" }).click();
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    expect(reissues).toBe(0);
+
+    await rowAction(page, invited.email, "Gerar novo convite");
+    await page.getByRole("button", { name: "Gerar link" }).click();
+    await expect(
+      page.getByText("Este link não será mostrado de novo. O link anterior deixa de funcionar."),
+    ).toBeVisible();
+    const fresh = await page.getByTestId("one-time-link").textContent();
+    expect(fresh).toContain("/invite?token=");
+    expect(fresh).not.toBe(invited.link);
+    await expectInsideDialog(page, ["Copiar"]);
+    expect(reissues).toBe(1);
+
+    // The first link no longer activates; the new one does.
+    const stale = await page.request.post("/api/v1/convites/ativar", {
+      data: { token: new URL(invited.link).searchParams.get("token"), password: LONG_ENOUGH },
+    });
+    expect(stale.status()).toBe(409);
+    const works = await page.request.post("/api/v1/convites/ativar", {
+      data: { token: new URL(fresh!).searchParams.get("token"), password: LONG_ENOUGH },
+    });
+    expect(works.status()).toBe(200);
   });
 
   test("AC-0010-60 the invite dialog asks for the name and the registration", async ({ page }) => {
