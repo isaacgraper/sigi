@@ -1,4 +1,4 @@
-"""Member management routes (SPEC-0001 §7 — AC-0001-10, -13, -28, -44, -45)."""
+"""Member management routes (SPEC-0001 §7 — AC-0001-10, -13, -28, -44 to -46)."""
 
 from __future__ import annotations
 
@@ -170,6 +170,35 @@ def deactivate(
         correlation_id=_correlation(request),
     )
     return _member_output(user)
+
+
+@router.post("/{user_id}/reemitir-convite", response_model=InviteOutput)
+def reissue_invite(
+    user_id: uuid.UUID,
+    actor: Gestor,
+    request: Request,
+    session: DbSession,
+) -> InviteOutput:
+    """Issue a new activation link for a pending member (SPEC-0001 AC-0001-13, -46).
+
+    Returned once, here, like the first one; the earlier link stops working.
+    """
+    user, link = members.reissue_invite(
+        session,
+        actor=actor,
+        user_id=user_id,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
+    )
+    return InviteOutput(
+        id=user.id,
+        name=user.nome,
+        email=user.email or "",
+        perfil=user.role,
+        status=user.status,
+        created_at=user.criado_em,
+        activation_link=link,
+    )
 
 
 @router.post("/{user_id}/redefinir-senha", response_model=ResetTriggerOutput)
