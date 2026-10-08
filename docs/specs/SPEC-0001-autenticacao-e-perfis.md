@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Approved
-version: 1.7
+version: 1.8
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -270,6 +270,24 @@ When  it is redeemed
 Then  the response is 409 with error code "INVITE_EXPIRED"
 And   the usuario's status remains "pendente"
 ```
+
+**AC-0001-46** — A gestor issues a new invitation link for a pending member
+```gherkin
+Given a usuario with status "pendente"
+When  a gestor issues a new invitation for it
+Then  a new single-use activation link, valid 72 hours, is returned to that gestor exactly once
+And   the link issued before it answers 409 "INVITE_EXPIRED" from then on
+And   an audit row "usuario.convite_reemitido" records it with the gestor as actor, without the token
+Given a usuario whose status is not "pendente"
+When  a gestor issues a new invitation for it
+Then  the response is 409 with error code "NOT_PENDING"
+And   no invitation is created
+```
+*(v1.8, the product owner's request of 2026-10-07.)* The activation link is shown
+once (AC-0001-10), and until now nothing replaced it. A link lost, or left to expire
+after 72 hours, could not be recovered: re-inviting the address is refused
+(AC-0001-28) and deactivating anonymises the account for good, so that address could
+never join. The new link supersedes the old one, so at most one is live at a time.
 
 **AC-0001-26** — The password policy is enforced on activation
 ```gherkin
@@ -759,6 +777,7 @@ stops a response ever being rendered as a page.
 | Invitation older than 72 h | 409 | `INVITE_EXPIRED` | "Este convite expirou. Peça um novo ao gestor." |
 | Password below the minimum | 422 | `WEAK_PASSWORD` | "A senha precisa ter ao menos 12 caracteres." |
 | Reset token already used | 409 | `RESET_ALREADY_USED` | "Este link de redefinição já foi usado. Solicite outro." |
+| New invitation for an account that is not `pendente` | 409 | `NOT_PENDING` | "Esta conta já foi ativada. Se a pessoa esqueceu a senha, use 'Redefinir senha'." |
 | Reset token older than 1 hour | 409 | `RESET_EXPIRED` | "Este link de redefinição expirou. Solicite outro." |
 | Rate limit exceeded | 429 | `RATE_LIMITED` | "Muitas requisições. Tente novamente em instantes." |
 | E-mail already invited or registered | 409 | `EMAIL_ALREADY_REGISTERED` | "Já existe uma conta para este e-mail. Se a pessoa esqueceu a senha, use 'redefinir senha' em vez de convidar de novo." |
@@ -778,6 +797,7 @@ do next — which for an access problem is naming who can fix it.
 | --- | --- | --- | --- |
 | Invite / activate / block / unblock / deactivate members | ✅ | ❌ | ❌ |
 | Trigger a password reset for another member | ✅ | ❌ | ❌ |
+| Issue a new invitation for a pending member | ✅ | ❌ | ❌ |
 | View member list, including the registration | ✅ | ❌ | ✅ read-only |
 | Authenticate, refresh, log out | ✅ | ✅ | ✅ |
 | Request a reset for one's own address | unauthenticated — see AC-0001-30 | | |
@@ -809,6 +829,7 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | POST | `/api/v1/auth/redefinicoes` | Request a reset; always 202. **Not served** while AC-0001-30 is blocked (OQ-31) | 30, 33 |
 | POST | `/api/v1/auth/redefinicoes/confirmar` | Set a new password; `{token, password}` in the body (OQ-30) | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | Gestor triggers a reset | 32 |
+| POST | `/api/v1/usuarios/{id}/reemitir-convite` | New invitation link for a pending member | 13, 46 |
 
 All auth routes live under `/api/v1`, resolving a divergence in v0.2, which
 listed them at the root while `api-conventions.md` states the prefix is
@@ -834,6 +855,7 @@ listed them at the root while `api-conventions.md` states the prefix is
 | Reset refused (no account, or not `ativo`, or OIDC-only) | `usuario` | `auth.redefinicao_recusada` | `{motivo, email_hmac, dominio}` |
 | Reset completed | `usuario` | `auth.redefinicao_concluida` | `{sessoes_revogadas}` |
 | Reset triggered by a gestor | `usuario` | `usuario.redefinicao_disparada` | `{alvo_id}` |
+| New invitation issued | `usuario` | `usuario.convite_reemitido` | `{perfil}` |
 | Rate limit exceeded | `usuario` | `auth.limite_excedido` | `{rota, origem_hmac}` |
 | First gestor created by the operator | `usuario` | `usuario.gestor_inicial` | `{perfil, mecanismo}` |
 
@@ -960,6 +982,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | POST | `/api/v1/auth/redefinicoes` | `{email}` → 202, always | 30 |
 | POST | `/api/v1/auth/redefinicoes/confirmar` | `{token, password}` → 204, sessions revoked | 31 |
 | POST | `/api/v1/usuarios/{id}/redefinir-senha` | — → 202 | 32 |
+| POST | `/api/v1/usuarios/{id}/reemitir-convite` | — → 200 + `activation_link` | 13, 46 |
 
 Errors use the envelope in `api-conventions.md`; `code` from §5, `message` pt-BR.
 AC-0001-33's throttle wraps every row above except the three `usuarios` routes,
@@ -1002,6 +1025,7 @@ which are already behind authentication and the permission matrix.
 | 31 | `test_redefinicao_senha.py::test_ac_0001_31_troca_credencial_e_revoga_sessoes` · `::test_ac_0001_31_uso_unico_e_expiracao` |
 | 32 | `test_redefinicao_senha.py::test_ac_0001_32_gestor_dispara_sem_ver_o_token` |
 | 44 | `test_users_management.py::test_ac_0001_44_*` (five tests, and `test_ac_0001_13_a_servidor_or_auditor_cannot_unblock`) |
+| 46 | `test_users_invitations.py::test_ac_0001_46_*` |
 | 45 | `test_users_invitations.py::test_ac_0001_45_*` (four tests) · `test_migration_baseline.py::test_an_anonymisation_that_keeps_the_registration_is_refused` |
 | 33 | `test_limite_taxa.py::test_ac_0001_33_429_com_retry_after` · `::test_ac_0001_33_faixa_institucional_tem_teto_maior` · `::test_ac_0001_33_toda_rota_tem_teto` |
 
@@ -1278,6 +1302,10 @@ cover it. The justification is written to the audit row's `justificativa` column
 as RN03 does, rather than inside `dados_anteriores`. An unblock restores no
 session: the ones the block revoked stay revoked and the member signs in again.
 
+**v1.8 (2026-10-07)** — a lost invitation link can be replaced (AC-0001-46), at
+the product owner's request while testing v1.7: without it a pending member whose
+link was lost could never join. No other criterion changed meaning.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1298,3 +1326,4 @@ session: the ones the block revoked stay revoked and the member signs in again.
 | 1.5 | 2026-09-28 | AC-0001-39/40: a development-only seed creates the gestor `admin@sc.gov.br` with password `admin`, by the product owner's request, so a local install can be used at once. It refuses outside `APP_ENV=development`. |
 | 1.6 | 2026-09-28 | AC-0001-41/42/43: passwords at most 128 characters, tokens at most 512, bodies at most 64 KiB, and security headers on every API response. `INVALID_DATA` added to §5, where it was missing although the API always returned it (OQ-37 item 1). |
 | 1.7 | 2026-10-02 | AC-0001-44: a gestor unblocks an account, with a justification (OQ-34, stakeholder question 10). AC-0001-45: the invitation carries the full name and the registration, both mandatory (OQ-35, question 11; purpose and basis OQ-41). AC-0001-14 anonymises the registration. `NOT_BLOCKED` added to §5. |
+| 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |

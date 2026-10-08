@@ -11,7 +11,7 @@ on an `Approved` spec is a merge blocker.
 | RF01, RN01 | SPEC-0001 v0.5 | AC-0001-01..09 | _pending_ | **Approved** |
 | RF01 (OIDC) | SPEC-0001 v0.5 | AC-0001-19..22, AC-0001-24 | _pending_ | **Approved** |
 | RF02, RF18, RN16 | SPEC-0001 v1.7 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | _pending_ | **Approved** |
-| RF18 (unblock, name, registration) | SPEC-0001 v1.7 | AC-0001-44, -45 | _none yet: specified, not implemented_ | **Approved** |
+| RF18 (unblock, name, registration, new invitation) | SPEC-0001 v1.8 | AC-0001-44, -45, -46 | _none yet: specified, not implemented_ | **Approved** |
 | RN04 | SPEC-0001 v0.5 | AC-0001-15..18, AC-0001-23 | _pending_ | **Approved** |
 | RN06 (enforcement) | SPEC-0001 v0.5 | AC-0001-27 | _pending_ | **Approved** |
 | RF01 (redefinição) | SPEC-0001 v0.5 | AC-0001-30..32 | _pending_ | **Approved** |
@@ -34,7 +34,7 @@ on an `Approved` spec is a merge blocker.
 | RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
-| RF01, RF02, RF18 (screens) | SPEC-0010 v1.5 | AC-0010-01..42, AC-0010-46..52, AC-0010-59, -60 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Approved** |
+| RF01, RF02, RF18 (screens) | SPEC-0010 v1.6 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Approved** |
 | RNF06, RNF14 | SPEC-0010 v1.1 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Approved** |
 
 ## Unmapped
