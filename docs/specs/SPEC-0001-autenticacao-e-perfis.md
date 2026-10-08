@@ -1,8 +1,8 @@
 ---
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
-status: Approved
-version: 1.8
+status: Implemented
+version: 1.9
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -1306,6 +1306,11 @@ session: the ones the block revoked stay revoked and the member signs in again.
 the product owner's request while testing v1.7: without it a pending member whose
 link was lost could never join. No other criterion changed meaning.
 
+**v1.9 (2026-10-08)** — implemented, and accepted by the product owner after
+testing it. Every criterion has a test in `backend/tests` except AC-0001-30, which
+is not built: it stays blocked on a mail transport, as v1.0 recorded, and so does the
+guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1327,3 +1332,4 @@ link was lost could never join. No other criterion changed meaning.
 | 1.6 | 2026-09-28 | AC-0001-41/42/43: passwords at most 128 characters, tokens at most 512, bodies at most 64 KiB, and security headers on every API response. `INVALID_DATA` added to §5, where it was missing although the API always returned it (OQ-37 item 1). |
 | 1.7 | 2026-10-02 | AC-0001-44: a gestor unblocks an account, with a justification (OQ-34, stakeholder question 10). AC-0001-45: the invitation carries the full name and the registration, both mandatory (OQ-35, question 11; purpose and basis OQ-41). AC-0001-14 anonymises the registration. `NOT_BLOCKED` added to §5. |
 | 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |
+| 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
