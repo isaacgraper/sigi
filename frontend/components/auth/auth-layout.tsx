@@ -18,7 +18,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
           <ShieldCheck aria-hidden className="size-6" />
           SIGI
         </div>
-        <Illustration name="login" className="mx-auto max-h-72" />
+        <Illustration name="login" className="mx-auto max-h-72" eager />
         <div className="max-w-md space-y-2">
           <p className="text-2xl font-normal tracking-tight">Da ATA à conclusão, cada etapa rastreável.</p>
           <p className="text-sm font-light text-sidebar-muted">Sistema Integrado de Governança de Insumos</p>
