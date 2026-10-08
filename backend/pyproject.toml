@@ -1,0 +1,68 @@
+[project]
+name = "sigi-backend"
+version = "0.1.0"
+description = "SIGI — Sistema Integrado de Governança de Insumos (backend)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    # `[email]` pulls in the email-validator that EmailStr requires. Without it
+    # the invitation (AC-0001-28) validates an address by hand, which is where
+    # that validation always goes wrong. It makes no DNS query: pydantic calls
+    # the validator with check_deliverability=False, so nothing here talks to
+    # the network.
+    "pydantic[email]>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    # SPEC-0001. Justification lives in the spec's Implementation plan section;
+    # CLAUDE.md forbids a new dependency without one.
+    "bcrypt>=4.2",          # AC-0001-05 pins the algorithm and cost
+    "pyjwt[crypto]>=2.10",  # AC-0001-09 RS256; AC-0001-20 verifies the provider's token
+    "httpx2>=2.12",         # OIDC token exchange and JWKS retrieval (ADR-0010)
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "testcontainers[postgres]>=4.9",
+    "ruff>=0.8",
+    # The definition of done has required a clean mypy run since before there
+    # was a pipeline to run it in. A checklist item nobody executes stops being
+    # a checklist item, so it lands here, in the hook and in CI together.
+    "mypy>=1.13",
+    "pre-commit>=4.3",
+]
+
+# This is an application, never a distribution. `package-mode = false` is how
+# Poetry is told that: it installs the dependencies and nothing else, which is
+# the same thing `uv sync --no-install-project` did. `app` is imported from the
+# working directory — pytest's `pythonpath`, the image's `WORKDIR` — never from
+# site-packages, so there is no wheel to build and no build backend to declare.
+[tool.poetry]
+package-mode = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "D", "UP", "B", "SIM"]
+
+# `google` rather than `pep257`, and the reason is not taste. Measured across
+# the three conventions, it is the only one that disables D401
+# (non-imperative-mood), whose heuristic reads the docstring's first word
+# against a list of English verb forms. Docstrings here are English prose with
+# Portuguese domain vocabulary, and comments in the services are written in
+# Portuguese outright — D401 flags those as style errors they are not.
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["app"]

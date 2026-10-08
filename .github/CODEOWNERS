@@ -1,0 +1,12 @@
+# Mandatory review by code owner.
+# Syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*                       @isaacgraper
+
+# Sensitive areas — keep explicit review here even as collaborators are added.
+/docs/specs/            @isaacgraper
+/docs/security/         @isaacgraper
+/docs/architecture/     @isaacgraper
+/backend/migrations/    @isaacgraper
+/.github/               @isaacgraper
+/CLAUDE.md              @isaacgraper

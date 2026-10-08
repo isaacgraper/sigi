@@ -1,0 +1,904 @@
+---
+id: SPEC-0010
+title: Telas de acesso e gestão de membros
+status: Implemented
+version: 1.7
+owner: Isaac Kleimmann Graper
+satisfies: [RF01, RF02, RF18, RNF06, RNF14]
+depends_on: [SPEC-0001]
+milestone: M2
+---
+
+# SPEC-0010 — Telas de acesso e gestão de membros
+
+## 1. Purpose
+
+SPEC-0001 is implemented and nobody can use it, because nothing speaks to the
+API. This spec adds the screens through which a servidor enters SIGI, and
+through which a gestor brings members in, and out. It is also what the
+acceptance gate in `definition-of-done.md` needs: SPEC-0001 is not done until
+its owner has used it on a running system, and today that system has no screen.
+
+## 2. Scope
+
+**In scope** — the login page, both mechanisms (institutional OIDC and the
+local contingency, ADR-0010); completing institutional login; the authenticated
+shell; keeping a session alive and ending it; activating an invitation;
+confirming a password reset; the member list and every member action SPEC-0001
+serves.
+
+**Out of scope**
+
+- Screens for ATAs, insumos, NEs, NFs, saldo, estoque, reports and
+  notifications. SPEC-0002 to SPEC-0009 are `Draft`, and a `Draft` spec may not
+  be implemented. Each gets its screens with its own spec.
+- Self-service password reset. AC-0001-30 is blocked on a mail transport, and
+  its route is not served (OQ-31).
+- Self-signup. Accounts exist only because a gestor invited them (SPEC-0001,
+  invariant I3).
+- Gov.br, cut by ADR-0010.
+- "Lembrar sessão". The refresh lifetime is fixed server-side at 7 days; a
+  checkbox that changes nothing would be a lie on the login page.
+
+## 3. Domain model touched
+
+None. This spec reads and changes state only through the SPEC-0001 API, and owns
+no invariant of its own beyond these, which are about the client:
+
+- **C1** — the access token lives only in the page's memory. It is never written
+  to `localStorage`, `sessionStorage`, IndexedDB or a cookie script can read.
+  The refresh token is the API's httpOnly cookie, and the page never sees it.
+- **C2** — hiding a control is cosmetic. Every permission this spec describes
+  is enforced by the API (invariant 8, SPEC-0001 §4.3); the screen only avoids
+  offering what the API will refuse.
+- **C3** — every message a servidor reads about a refusal is the API's
+  `message`, shown verbatim. The screen never rewrites, translates or invents
+  one, except for the single case the API cannot answer (§5).
+- **C4** — a person is identified by `name` when the API returns one and by
+  `email` otherwise. `name` is null for every account created before SPEC-0001
+  v1.7, which makes the invitation ask for it (OQ-35, resolved); a screen that
+  relies on it still shows blanks for those accounts.
+
+**Deployment assumption.** The pages and the API share one origin: the frontend
+serves `/api/v1` by forwarding it to the API. The refresh cookie
+(`SameSite=Lax`, scoped by path) and the OIDC state cookie (scoped to
+`/api/v1/auth/oidc`) only reach the API that way.
+
+## 4. Behaviour
+
+Every criterion is observable in the DOM, the URL, browser storage, or a request
+the page makes. "Shows the message" means the API's `error.message`, verbatim
+(C3).
+
+### 4.1 Login
+
+`/login` shows the institutional button when OIDC is enabled, and the local
+form (e-mail, password with show/hide) when local login is enabled. Which
+mechanisms are enabled is a frontend setting that mirrors the API's switches,
+because no API route reports them (OQ-33).
+
+**AC-0010-01** — Local login lands on the dashboard
+```gherkin
+Given an "ativo" usuario and local login enabled
+When  they submit their e-mail and password on /login
+Then  the browser is at "/dashboard"
+And   the header identifies them as C4 describes, with their perfil
+```
+
+**AC-0010-02** — A refused local login shows the API's message
+```gherkin
+Given local login enabled
+When  a login is submitted and the API answers "INVALID_CREDENTIALS"
+Then  the page stays at /login and shows "E-mail ou senha inválidos."
+And   the password field is empty and the e-mail field keeps its value
+```
+
+**AC-0010-03** — A locked-out address shows the API's message
+```gherkin
+Given an address the API has locked out
+When  a login is submitted and the API answers 429 "ATTEMPTS_EXCEEDED"
+Then  the page shows the message from that response
+And   the submit button is disabled for the seconds in "Retry-After"
+```
+
+**AC-0010-04** — An inactive account shows the API's message
+```gherkin
+Given a usuario whose status is not "ativo"
+When  a login is submitted and the API answers "USUARIO_INATIVO"
+Then  the page shows "Esta conta não está ativa. Procure o gestor da sua unidade."
+```
+
+**AC-0010-05** — A disabled local login is not offered
+```gherkin
+Given local login disabled
+When  /login is opened
+Then  there is no password field on the page
+And   the institutional button is the only way in
+```
+
+**AC-0010-06** — The institutional button starts the provider's flow
+```gherkin
+Given OIDC enabled
+When  the institutional button is activated
+Then  the browser navigates to "/api/v1/auth/oidc/authorize"
+```
+
+**AC-0010-07** — No self-service reset or signup is offered
+```gherkin
+Given any configuration
+When  /login is opened
+Then  it shows "Esqueceu a senha? Procure o gestor da sua unidade."
+And   it contains no link to a signup or self-service reset page
+And   opening "/signup" answers the not-found page
+```
+
+**AC-0010-08** — A submitting form cannot be submitted twice
+```gherkin
+Given a login in flight
+When  the submit button is activated again
+Then  no second login request is sent
+And   the button reads "Entrando..."
+```
+
+### 4.2 Completing institutional login
+
+The provider returns the browser to `/auth/callback`, the redirect URI the API
+is configured with. That page completes the login by calling the API's callback
+with the `code` and `state` it received.
+
+**AC-0010-09** — A provisioned account lands on the dashboard
+```gherkin
+Given a provider return for an "ativo" usuario
+When  /auth/callback loads with its "code" and "state"
+Then  the browser is at "/dashboard"
+And   "code" and "state" are no longer in the address bar
+```
+
+**AC-0010-10** — Each refusal shows its message and a way back
+```gherkin
+Given a provider return the API refuses with "USUARIO_NAO_PROVISIONADO",
+      "INVALID_STATE" or "INVALID_ASSERTION"
+When  /auth/callback loads
+Then  the page shows the message from that response
+And   a "Tentar novamente" link leads to /login
+```
+
+### 4.3 Session
+
+**AC-0010-11** — A reload keeps the session
+```gherkin
+Given a signed-in usuario on any authenticated page
+When  the page is reloaded
+Then  the same page shows, still signed in, without visiting /login
+```
+
+**AC-0010-12** — An expired access token is renewed without the user noticing
+```gherkin
+Given a signed-in usuario whose access token has expired
+When  they perform an action that calls the API and the API answers "TOKEN_EXPIRED"
+Then  one refresh request is sent
+And   the action is retried once and its result is shown
+```
+
+The API rotates the refresh token on every use and treats a second use of the
+same token as a replay: it revokes the whole family and writes
+`auth.refresh_replay` (AC-0001-07). A client that refreshes twice with one
+token therefore logs its own user out and raises a false security signal.
+AC-0010-46 and -47 exist because of that.
+
+**AC-0010-13** — A dead session returns to login with the reason
+```gherkin
+Given a signed-in usuario whose refresh the API refuses with "INVALID_REFRESH"
+When  any authenticated request needs a new access token
+Then  the browser is at /login
+And   it shows "Sua sessão não é mais válida. Entre novamente."
+```
+
+**AC-0010-14** — Logout ends the session and leaves nothing behind
+```gherkin
+Given a signed-in usuario
+When  they choose "Sair" in the header menu
+Then  a logout request is sent and the browser is at /login
+And   pressing Back shows /login, not the page they left
+```
+
+**AC-0010-15** — A protected page asks for login and returns afterwards
+```gherkin
+Given no session
+When  "/members?page=2" is opened
+Then  the browser is at /login
+And   after a successful login it is at "/members?page=2"
+```
+
+**AC-0010-16** — The return address cannot leave SIGI
+```gherkin
+Given no session
+When  /login is opened with a return address that is absolute, protocol-relative
+      ("//…") or not a path on this origin
+Then  after a successful login the browser is at "/dashboard"
+```
+
+**AC-0010-17** — The access token is not in browser storage
+```gherkin
+Given a signed-in usuario
+When  localStorage, sessionStorage, IndexedDB and document.cookie are read
+Then  none of them contains the access token
+```
+
+### 4.4 Activating an invitation
+
+The gestor hands the invited person a link to `/invite?token=…` (AC-0001-10).
+The token stays a query parameter by decision (OQ-30); this page limits where it
+travels next.
+
+**AC-0010-18** — The token leaves the address bar as soon as it is read
+```gherkin
+Given an invitation link
+When  /invite?token=… loads
+Then  the address bar shows "/invite" without the token
+And   the response carries "Referrer-Policy: no-referrer"
+```
+
+**AC-0010-19** — Activation opens a session
+```gherkin
+Given an unredeemed invitation
+When  the invited person submits a password and its confirmation
+Then  the browser is at "/dashboard"
+And   the header shows their perfil
+```
+
+**AC-0010-20** — Mismatched confirmation is caught before the API
+```gherkin
+Given the activation form
+When  the password and its confirmation differ
+Then  the page shows "As senhas não conferem." and sends no request
+```
+
+**AC-0010-21** — A weak password keeps the invitation usable
+```gherkin
+Given an unredeemed invitation
+When  a password the API refuses with "WEAK_PASSWORD" is submitted
+Then  the page shows "A senha precisa ter ao menos 12 caracteres."
+And   the form is still there, and a stronger password can be submitted
+```
+
+**AC-0010-22** — A spent or expired invitation says what to do
+```gherkin
+Given an invitation the API refuses with "INVITE_ALREADY_USED" or "INVITE_EXPIRED"
+When  a password is submitted
+Then  the page shows the message from that response
+And   the form is no longer shown
+```
+
+**AC-0010-23** — A link without a token is explained
+```gherkin
+Given no "token" in the address
+When  /invite is opened
+Then  the page shows "Link de convite incompleto. Peça um novo ao gestor."
+And   no form is shown
+```
+
+### 4.5 Confirming a password reset
+
+**AC-0010-24** — The reset token leaves the address bar as soon as it is read
+```gherkin
+Given a reset link
+When  /reset-password?token=… loads
+Then  the address bar shows "/reset-password" without the token
+And   the response carries "Referrer-Policy: no-referrer"
+```
+
+**AC-0010-25** — A confirmed reset returns to login, without a session
+```gherkin
+Given an unredeemed reset token
+When  a new password and its confirmation are submitted
+Then  the browser is at /login
+And   it shows "Senha redefinida. Entre com a nova senha."
+And   no session exists (AC-0001-31)
+```
+
+**AC-0010-26** — A spent or expired reset link says what to do
+```gherkin
+Given a reset token the API refuses with "RESET_ALREADY_USED" or "RESET_EXPIRED"
+When  a password is submitted
+Then  the page shows the message from that response
+And   the form is no longer shown
+```
+
+`WEAK_PASSWORD`, a mismatched confirmation and a missing token behave as in
+AC-0010-20, -21 and -23, with "Link de redefinição incompleto. Peça um novo ao
+gestor." for the last.
+
+### 4.6 The shell
+
+**AC-0010-27** — The navigation offers only what exists
+```gherkin
+Given a signed-in usuario of any perfil
+When  any authenticated page is shown
+Then  the navigation lists exactly "Painel", plus "Membros" for a gestor or an auditor
+```
+
+Nothing else is listed until another spec is `Approved` and adds its own entry.
+
+**AC-0010-28** — The dashboard states who is signed in
+```gherkin
+Given a signed-in usuario
+When  "/dashboard" is shown
+Then  it shows their e-mail and perfil, and their name when the API returns one
+```
+
+**AC-0010-52** — The root always leads to the dashboard
+```gherkin
+Given any visitor, signed in or not
+When  "/" is opened
+Then  the browser goes to "/dashboard"
+And   a visitor without a live session continues to /login as AC-0010-15 describes
+```
+
+`/dashboard` is the single entry point. Every flow that ends in a session lands
+there, and every missing or expired session is sent from there to /login and back.
+
+### 4.7 Members
+
+**AC-0010-29** — The gestor sees the member list
+```gherkin
+Given a signed-in gestor and at least one member
+When  /members is opened
+Then  a table shows, per member, Nome, E-mail, Registro, Perfil, Status and Criado em
+And   a null name shows "—" in the Nome cell, and a null registration shows "—" in the Registro cell
+And   Criado em is formatted "dd/MM/yyyy" in America/Sao_Paulo
+```
+
+**AC-0010-30** — The list is paged by the API
+```gherkin
+Given more members than one page holds
+When  the next page is chosen
+Then  the request carries the next "page"
+And   the address bar reflects it, so a reload keeps the page
+```
+
+**AC-0010-31** — A deactivated member shows the pseudonym
+```gherkin
+Given a member whose status is "desativado"
+When  the list shows them
+Then  the Nome cell shows their pseudonym and the E-mail and Registro cells show "—"
+```
+
+**AC-0010-32** — The auditor reads without acting
+```gherkin
+Given a signed-in auditor
+When  /members is opened
+Then  the member table shows
+And   no invite, block, unblock, deactivate or reset control exists on the page
+```
+
+**AC-0010-33** — The servidor is told why, not shown an empty page
+```gherkin
+Given a signed-in servidor
+When  /members is opened directly
+Then  the page shows "Seu perfil não permite esta ação."
+And   no member data is shown
+```
+
+**AC-0010-34** — An empty list is stated
+```gherkin
+Given a page of the list with no members
+When  it is shown
+Then  the table shows a single row "Nenhum membro encontrado."
+```
+
+### 4.8 Member actions (gestor)
+
+**AC-0010-35** — Inviting shows the link once
+```gherkin
+Given a signed-in gestor
+When  they invite an institutional e-mail with a perfil, a full name and a registration
+Then  a dialog shows the activation link with a "Copiar" button
+And   it states "Este link não será mostrado de novo. Envie-o agora à pessoa convidada."
+And   after the dialog closes, the list shows the new member as "pendente"
+```
+
+**AC-0010-36** — Invitation refusals appear in the dialog
+```gherkin
+Given the invite dialog
+When  the API refuses with "EMAIL_ALREADY_REGISTERED" or "NON_INSTITUTIONAL_DOMAIN"
+Then  the dialog stays open and shows the message from that response
+```
+
+**AC-0010-37** — Blocking asks first
+```gherkin
+Given a signed-in gestor and an "ativo" member
+When  they choose "Bloquear" and confirm
+Then  the member's status reads "bloqueado"
+And   choosing "Cancelar" instead sends no request
+```
+
+**AC-0010-38** — Deactivating says it cannot be undone
+```gherkin
+Given a signed-in gestor and a member not "desativado"
+When  they choose "Desativar"
+Then  the confirmation states that name and e-mail will be erased and that
+      this cannot be undone
+And   after confirming, the member shows as in AC-0010-31
+```
+
+**AC-0010-39** — The last gestor is protected, and says so
+```gherkin
+Given the only active gestor
+When  blocking or deactivating them is confirmed and the API answers "ULTIMO_GESTOR"
+Then  the page shows the message from that response
+And   the member's status is unchanged in the list
+```
+
+**AC-0010-40** — Triggering a reset shows the link once
+```gherkin
+Given a signed-in gestor and an "ativo" member
+When  they choose "Redefinir senha" and confirm
+Then  a dialog shows the reset link with a "Copiar" button
+And   it states "Este link não será mostrado de novo e expira em 1 hora."
+```
+
+**AC-0010-41** — Actions do not apply to states that forbid them
+```gherkin
+Given a member whose status is "desativado"
+When  their row is shown
+Then  it offers no block, unblock, deactivate or reset control
+Given a member whose status is "bloqueado"
+When  their row is shown
+Then  it offers "Desbloquear" and "Desativar", and no "Bloquear" or "Redefinir senha" control
+Given a member whose status is "ativo"
+When  their row is shown
+Then  it offers no "Desbloquear" control
+Given a member whose status is "pendente"
+When  their row is shown
+Then  it offers "Gerar novo convite" and "Desativar", and no other control
+```
+
+**AC-0010-61** — A pending member can be given a new invitation link
+```gherkin
+Given a signed-in gestor and a "pendente" member
+When  they choose "Gerar novo convite" and confirm
+Then  a dialog shows the new activation link with a "Copiar" button
+And   it states "Este link não será mostrado de novo. O link anterior deixa de funcionar."
+And   choosing "Cancelar" instead sends no request
+```
+*(v1.6, the product owner's request of 2026-10-07.)* Closing the invite dialog was
+the end of the road for a link nobody copied. SPEC-0001 AC-0001-46 issues the new
+one and switches off the old.
+
+**AC-0010-59** — Unblocking asks for a justification
+```gherkin
+Given a signed-in gestor and a "bloqueado" member
+When  they choose "Desbloquear", write a justification and confirm
+Then  the request carries that justification
+And   the member's status reads "ativo"
+And   choosing "Cancelar" instead sends no request
+When  they confirm with the justification empty
+Then  the dialog stays open and shows the API's "INVALID_DATA" message beside the field
+When  the API answers "NOT_BLOCKED"
+Then  the dialog shows the message from that response and the list is refreshed
+```
+*(v1.5.)* SPEC-0001 AC-0001-44 requires the justification, because unblocking
+undoes another gestor's decision (RN03's reasoning). Nothing is hidden here: the
+button states what it does, and the justification is the one thing the person
+must write.
+
+**AC-0010-60** — The invite dialog asks for the name and the registration
+```gherkin
+Given the invite dialog
+Then  it asks for E-mail, Nome completo, Registro na prefeitura and Perfil, all required
+When  any of them is empty and the form is submitted
+Then  no request is sent and each empty field shows "Campo obrigatório."
+When  the API answers "INVALID_DATA"
+Then  the dialog stays open and marks each field the response names
+```
+*(v1.5, stakeholder question 11.)* The label is the stakeholder's own words,
+*registro na prefeitura*. The screen checks only that the fields are filled in,
+because no format is known (OQ-41); whether they are acceptable is the API's
+answer (C3).
+
+### 4.9 Cross-cutting
+
+**AC-0010-42** — An unanswerable failure shows a reference
+```gherkin
+Given any request that fails with a 5xx or no response
+When  the page reports it
+Then  it shows "Não foi possível concluir. Tente novamente em instantes."
+And   it shows the gestor contact as AC-0010-57 describes, carrying the
+      correlation_id when the response had one
+```
+
+**AC-0010-43** — Every page holds at three widths (RNF06)
+```gherkin
+Given each page in this spec
+When  it is rendered at 360, 768 and 1440 px in Chromium, Firefox and WebKit
+Then  nothing overflows the viewport horizontally except inside the member table
+```
+
+**AC-0010-44** — No serious accessibility violation (RNF14)
+```gherkin
+Given each page in this spec, in each of its states above
+When  it is checked with axe-core
+Then  there is no violation of impact "serious" or "critical"
+```
+
+**AC-0010-45** — Login and activation work from the keyboard alone (RNF14)
+```gherkin
+Given /login and /invite?token=…
+When  each is completed using only Tab, Shift+Tab, Enter and Space
+Then  the same outcome as AC-0010-01 and AC-0010-19 is reached
+And   the focused element is visibly marked at every step
+```
+
+### 4.10 Added by the first review
+
+**AC-0010-46** — Concurrent expired requests share one refresh
+```gherkin
+Given a signed-in usuario whose access token has expired
+When  two requests fail with "TOKEN_EXPIRED" at the same time
+Then  exactly one refresh request is sent
+And   both requests are retried with the new token and succeed
+```
+
+**AC-0010-47** — Two tabs do not log each other out
+```gherkin
+Given a signed-in usuario with SIGI open in two tabs and an expired access token
+When  both tabs are reloaded at the same moment
+Then  both show the page signed in
+And   no "auth.refresh_replay" row is written
+```
+
+**AC-0010-48** — A cancelled institutional login is explained
+```gherkin
+Given the provider returns to /auth/callback with "error" instead of "code"
+When  the page loads
+Then  it shows "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente."
+And   it sends no request to the API's callback
+And   a "Tentar novamente" link leads to /login
+```
+
+**AC-0010-49** — A malformed field is marked where it is
+```gherkin
+Given the invite dialog
+When  the API refuses with 422 "INVALID_DATA" and a "fields" entry for "email"
+Then  that entry's message shows next to the e-mail field
+And   the dialog stays open with the values entered
+```
+
+**AC-0010-50** — The per-source ceiling is explained
+```gherkin
+Given /login, /invite or /reset-password
+When  a submission is refused with 429 "RATE_LIMITED"
+Then  the page shows "Muitas requisições. Tente novamente em instantes."
+And   the form keeps its values, except any password field
+```
+
+**AC-0010-51** — A signed-in user is not shown the login page
+```gherkin
+Given a signed-in usuario
+When  /login is opened
+Then  the browser is at "/dashboard"
+```
+
+### 4.11 Response headers *(new in v1.3)*
+
+**AC-0010-53** — Only the page's own scripts run
+```gherkin
+Given any page in this spec
+Then  its response carries a Content-Security-Policy whose script-src is a
+      per-request nonce with 'strict-dynamic', and allows neither
+      'unsafe-inline' nor 'unsafe-eval'
+And   a script injected without that nonce does not run
+```
+
+**AC-0010-54** — No page can be framed or sniffed
+```gherkin
+Given any page in this spec
+Then  its response carries "frame-ancestors 'none'" and "X-Frame-Options: DENY"
+And   "X-Content-Type-Options: nosniff"
+And   "Strict-Transport-Security" with a max-age of at least one year
+```
+
+`style-src` allows inline styles: the dialog and toast libraries set them at
+runtime. A style cannot execute code, so script-src carries the protection.
+
+### 4.12 When something goes wrong *(new in v1.4)*
+
+The person who hits an error should never have to copy a code or read a stack
+trace. They get a sentence in pt-BR and someone to write to. The contact is a
+configured address (`SUPPORT_CONTACT_EMAIL`), normally a functional mailbox
+the gestores read. It is not a gestor's own address taken from the database,
+because these screens are also shown to people who are not signed in.
+
+**AC-0010-55** — An unknown address has a page in pt-BR
+```gherkin
+Given any path that is not a page of this spec
+When  it is opened
+Then  the response status is 404
+And   the page says "Página não encontrada" and links to /dashboard
+And   it shows the gestor contact
+```
+
+**AC-0010-56** — A page that fails shows a way out, not a crash
+```gherkin
+Given a page whose rendering throws
+When  it is shown
+Then  it says "Algo deu errado" with a "Tentar novamente" button and a link to
+      /dashboard
+And   it shows the gestor contact
+And   no stack trace or English framework message is visible
+```
+
+**AC-0010-57** — Errors a servidor cannot fix name who can
+```gherkin
+Given a failure that only a gestor can resolve: no answer or a 5xx,
+      "USUARIO_INATIVO", "PERFIL_NAO_AUTORIZADO", "USUARIO_NAO_PROVISIONADO",
+      "INVITE_EXPIRED", "INVITE_ALREADY_USED", "RESET_EXPIRED",
+      "RESET_ALREADY_USED", or a link without a token
+When  its message is shown
+Then  "Fale com o gestor:" follows, with SUPPORT_CONTACT_EMAIL as a mailto link
+And   when the failure carried a correlation_id, the link's e-mail body holds it
+And   without SUPPORT_CONTACT_EMAIL it says "Procure o gestor da sua unidade."
+```
+
+Validation errors and a wrong password are not in the list: the person can fix
+those, and a contact next to them would only be noise.
+
+**AC-0010-58** — Copying a link works without the clipboard API
+```gherkin
+Given a one-time link on a page served where the clipboard API is unavailable
+When  "Copiar" is activated
+Then  the link is copied by the fallback, and the button reads "Copiado"
+Or    the link is selected and the page says "Selecione o link e copie com Ctrl+C."
+```
+
+Browsers expose the clipboard API only over HTTPS or on localhost; an install
+reached by its network address over plain http would otherwise have a button
+that silently does nothing.
+
+## 5. Errors and edge cases
+
+No new API error codes of its own. Every refusal these screens show is one of SPEC-0001 §5,
+displayed verbatim (C3). The strings the screens own:
+
+| Condition | Where | Message (pt-BR) |
+| --- | --- | --- |
+| 5xx, or no response | any | "Não foi possível concluir. Tente novamente em instantes." (+ "Código: {correlation_id}") |
+| Confirmation differs | `/invite`, `/reset-password` | "As senhas não conferem." |
+| Invitation link without token | `/invite` | "Link de convite incompleto. Peça um novo ao gestor." |
+| Reset link without token | `/reset-password` | "Link de redefinição incompleto. Peça um novo ao gestor." |
+| Reset confirmed | `/login` | "Senha redefinida. Entre com a nova senha." |
+| Forgotten password | `/login` | "Esqueceu a senha? Procure o gestor da sua unidade." |
+| Unknown address | any | "Página não encontrada" |
+| A page failed to render | any | "Algo deu errado" |
+| Contact, configured | after AC-0010-57's errors | "Fale com o gestor: {SUPPORT_CONTACT_EMAIL}" |
+| Contact, not configured | after AC-0010-57's errors | "Procure o gestor da sua unidade." |
+| Provider returned an error instead of a code | `/auth/callback` | "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente." |
+
+Two API refusals these screens handle are missing from SPEC-0001 §5 (OQ-37):
+`INVALID_DATA` (422, with `fields` naming each bad field and its pt-BR message),
+which the API returns for any malformed body; and `RATE_LIMITED` (429,
+AC-0001-33), which is listed there but has no criterion on any screen until
+this spec.
+
+`USUARIO_INATIVO` on a request after login (the account was blocked
+mid-session, AC-0001-08) ends the session as AC-0010-13 does, showing that
+code's message instead.
+
+## 6. Permissions
+
+What each perfil is **shown**. SPEC-0001 §6 is what each is **allowed**, and the
+API enforces it (C2).
+
+| Screen element | gestor | servidor | auditor |
+| --- | --- | --- | --- |
+| "Membros" in the navigation | ✅ | ❌ | ✅ |
+| Member table | ✅ | ❌ refusal message | ✅ |
+| Invite, block, unblock, deactivate, trigger reset, new invitation link | ✅ | ❌ | ❌ |
+| Dashboard, logout | ✅ | ✅ | ✅ |
+
+`/login`, `/auth/callback`, `/invite` and `/reset-password` need no session.
+The last two are usable by whoever holds the link, which is what the link is
+for; the API decides whether its token is still good. A signed-in usuario who
+opens `/login` is sent to `/dashboard` (AC-0010-51).
+
+## 7. Pages
+
+The paths are English, like every route and identifier in the code
+(ADR-0013); only what the servidor reads on the page is pt-BR.
+
+| Page | Purpose | API routes called | AC |
+| --- | --- | --- | --- |
+| `/login` | Both login mechanisms | `POST /api/v1/auth/login`, `GET /api/v1/auth/oidc/authorize` | 01–08, 15, 16, 50, 51 |
+| `/auth/callback` | Complete institutional login | `GET /api/v1/auth/oidc/callback` | 09, 10, 48 |
+| `/` | Redirect only | none | 52 |
+| `/dashboard` | Single entry point | `GET /api/v1/auth/me` | 27, 28, 52 |
+| `/invite` | Activate an invitation | `POST /api/v1/convites/ativar` | 18–23, 45, 50 |
+| `/reset-password` | Confirm a reset | `POST /api/v1/auth/redefinicoes/confirmar` | 24–26, 50 |
+| `/members` | List and manage members | `GET\|POST /api/v1/usuarios`, `POST /api/v1/usuarios/{id}/bloquear`, `…/desativar`, `…/redefinir-senha` | 29–41, 49 |
+| every authenticated page | Session upkeep | `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` | 11–14, 17, 46, 47 |
+
+## 8. Audit events
+
+None new. Each action produces the SPEC-0001 §8 row of the API route it calls:
+login `auth.login` or `auth.falha`, invite `usuario.convidado`, activation
+`usuario.ativado`, block `usuario.bloqueado`, deactivation `usuario.desativado`,
+triggered reset `usuario.redefinicao_disparada` as SPEC-0001 §8 names it,
+confirmed reset `auth.redefinicao_concluida`. The screens never write an audit
+row themselves.
+
+*The API writes `usuario.redefinicao_solicitada` for the triggered reset, not the
+name §8 gives, and `auth.redefinicao_solicitada` is the name §8 reserves for the
+self-service request (OQ-37).*
+
+## 9. Design
+
+Taken from `docs/product/design-reference.md` (the Lovable prototype), which is
+a style reference ranked below this spec:
+
+- **Colour.** The green `primary` marks brand, primary actions and completion
+  only; nothing "in progress" is green. Member status badges: `ativo` accent,
+  `pendente` slate, `bloqueado` amber, `desativado` muted. Status never relies on
+  colour alone; the badge text carries it.
+- **Components and layout.** The reference's component set, icons and toasts;
+  the split-screen login with the brand panel; the shell with a collapsible
+  sidebar and a header holding the user menu; confirmation dialogs; the
+  single-row empty state; monospace for links and codes.
+- **Rejected**, with the rule that rejects it: the signup page and SIAPE
+  (SPEC-0001 I3, `lgpd.md`); Gov.br (ADR-0010); "lembrar sessão" (§2); the
+  separate admin credential gate and the per-module permission switches (C2,
+  SPEC-0001 §6 fixes three perfis); every module screen (§2).
+
+The libraries that implement this are named in the implementation plan, added
+by `/plan` after approval.
+
+## 10. Open questions
+
+- **OQ-33 — which login mechanisms are enabled.** No API route reports it, so
+  the frontend mirrors the API's two switches in its own configuration. If the
+  two drift, the login page offers a mechanism that answers 404, or hides one
+  that works. A public `GET /api/v1/auth/mecanismos` would remove the drift,
+  but that is a SPEC-0001 change.
+- **OQ-34 — unblocking a member.** *Resolved (2026-10-02, stakeholder question
+  10).* SPEC-0001 v1.7 specifies the route (AC-0001-44) and AC-0010-59 the
+  control. The screens do not show it until the route is served.
+- **OQ-35 — a member's name.** *Resolved (2026-10-02, stakeholder question 11).*
+  The invitation takes the full name and the registration (SPEC-0001 AC-0001-45,
+  AC-0010-60). Accounts older than that have neither, and C4 still covers them.
+- **OQ-36 — refresh across tabs.** AC-0010-47 is achievable in the browser, by
+  letting one tab refresh while the others wait for its result. The alternative
+  is a short grace window on the API, in which the token just rotated still
+  answers once with the same new pair. That is a SPEC-0001 change, and it
+  weakens replay detection by exactly that window. This spec assumes the
+  browser-side answer.
+- **OQ-37 — SPEC-0001 drift found while writing this spec.** `INVALID_DATA` is
+  returned by the API and asserted by its tests, and appears in no spec or
+  convention document. The triggered-reset audit row is written as
+  `usuario.redefinicao_solicitada`; SPEC-0001 §8 calls it
+  `usuario.redefinicao_disparada` and reserves `auth.redefinicao_solicitada` for
+  AC-0001-30. Either the spec or the code moves; this spec does not decide which.
+- **The 12-character password rule** is SPEC-0001's assumption; these screens
+  show whatever the API refuses and hard-code no length.
+
+## 11. Implementation plan
+
+Added by `/plan` after approval. Names files, libraries and mechanisms, which the
+behavioural sections above deliberately do not.
+
+### Prerequisite
+
+A SPEC-0001 revision (v1.4) and its backend branch land first:
+
+- **OQ-38**: a bootstrap command that creates the first gestor. Without it, no
+  fresh install and no e2e run has anyone who can log in.
+- **OQ-32**: a trusted-proxy list, so the throttle reads `X-Forwarded-For` only
+  from the frontend hop. The proxy below otherwise collapses every user into one
+  source.
+
+### Migration
+
+None. This spec owns no persistence.
+
+### New dependencies
+
+| Package | Why |
+| --- | --- |
+| `tailwindcss`, `@tailwindcss/postcss` | The design reference's tokens are Tailwind v4 `@theme` tokens |
+| `@radix-ui/react-dialog`, `-alert-dialog`, `-dropdown-menu`, `-label`, `-select`, `-slot` | Primitives behind the shadcn/ui components the pages use; accessible dialogs and menus (AC-44, -45) |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | shadcn/ui component variants |
+| `lucide-react` | Icons, as the reference specifies |
+| `sonner` | Toasts, as the reference specifies |
+| `@axe-core/playwright` (dev) | AC-0010-44 |
+
+No state library and no data-fetching library: session state is one module, and
+every page makes at most two calls.
+
+### Modules
+
+| File | Purpose |
+| --- | --- |
+| `app/api/v1/[...path]/route.ts` | Same-origin proxy to `API_ORIGIN`, read at runtime. Passes status, body, `Set-Cookie` and 302 through unchanged; sets `X-Forwarded-For`. A route handler, not `next.config` rewrites, because rewrites are fixed at build time under `output: "standalone"` |
+| `lib/session.ts` | Access token in module memory (C1). `apiFetch` adds the bearer, retries once after a refresh (AC-12); one refresh promise per tab (AC-46); `navigator.locks` serialises refresh across tabs (AC-47), so the waiting tab uses the already-rotated cookie |
+| `lib/errors.ts` | Reads the API error envelope; `message` verbatim (C3); generic message plus `correlation_id` on 5xx or no response (AC-42) |
+| `lib/return-path.ts` | Accepts only same-origin paths starting with a single `/` (AC-16) |
+| `lib/format.ts` | `dd/MM/yyyy` in `America/Sao_Paulo` |
+| `components/ui/*` | shadcn/ui components, copied in |
+| `components/app-shell.tsx`, `components/user-menu.tsx` | Sidebar with "Painel" and "Membros", header with identity (C4) and "Sair" |
+| `app/page.tsx` | Redirects to `/dashboard` (AC-52) |
+| `app/login/page.tsx` | Server Component reading `LOCAL_LOGIN_ENABLED` and `OIDC_ENABLED` at runtime (OQ-33); renders the client login form |
+| `app/auth/callback/page.tsx` | Calls the API callback with `code` and `state`, or shows the provider's error without calling it (AC-48) |
+| `app/(app)/layout.tsx` | Auth guard and shell for every authenticated page; restores the session on load (AC-11) |
+| `app/(app)/dashboard/page.tsx` | Identity from `/auth/me` (AC-28) |
+| `app/(app)/members/page.tsx` and its dialogs | List, paging, invite, block, unblock, deactivate, reset link (AC-29 to 41, 49, 59, 60) |
+| `app/invite/page.tsx`, `app/reset-password/page.tsx` | Read the token, `history.replaceState` it away (AC-18, 24) |
+| `next.config.ts` | `Referrer-Policy: no-referrer` on `/invite` and `/reset-password` |
+| `app/globals.css` | Tokens: dark institutional green `primary`, accent, amber, slate, destructive; `oklch` values checked for AA |
+| `docker-compose.yml` | `API_ORIGIN=http://backend:8000` replaces `NEXT_PUBLIC_API_URL`; the browser never calls `:8000` |
+
+Authenticated pages are client components, an exception to "Server Components
+by default" that C1 forces: the token exists only in the browser's memory.
+
+### Tests
+
+Unit tests are Vitest under `frontend/tests/`; end-to-end tests are Playwright
+under `frontend/e2e/`, against the real backend. Each test name starts with its
+AC, e.g. `AC-0010-12 renews an expired token once`.
+
+| AC | File |
+| --- | --- |
+| 01–08, 50, 51 | `e2e/login.spec.ts` |
+| 09, 10, 48 | `e2e/callback.spec.ts`, intercepting the API callback with `page.route`; the provider handshake is covered by the backend suite |
+| 11, 13, 14, 15, 47 | `e2e/session.spec.ts` |
+| 12, 17, 46 | `tests/session.test.ts` |
+| 16 | `tests/return-path.test.ts` |
+| 18–23 | `e2e/invitation.spec.ts` |
+| 24–26 | `e2e/reset.spec.ts` |
+| 27, 28, 52 | `e2e/shell.spec.ts` |
+| 29–41, 49, 59–61 | `e2e/members.spec.ts` |
+| 42 | `tests/errors.test.ts` |
+| 43 | `e2e/responsive.spec.ts`, at 360, 768 and 1440 px |
+| 44, 45 | `e2e/accessibility.spec.ts` |
+
+`playwright.config.ts` gains the Chromium, Firefox and WebKit projects (RNF06).
+`frontend-ci` gains an e2e job: Postgres 16 service, backend migrated and
+started, the bootstrap command seeding a gestor, the frontend built and started,
+then `npm run test:e2e`.
+
+### Sequence
+
+1. Prerequisite SPEC-0001 v1.4 branch (bootstrap command, trusted proxy).
+2. Dependencies and design tokens.
+3. Proxy and `lib/session.ts`, with their unit tests.
+4. Login and callback pages.
+5. Shell, `/` redirect and dashboard.
+6. Invitation and reset pages.
+7. Members page and dialogs.
+8. Accessibility and responsive suites.
+9. CI e2e job.
+
+One commit per step, split into two PRs after step 5.
+
+### Risks
+
+| Risk | Cheapest early check |
+| --- | --- |
+| The entity's TI will not run a Node proxy in front of the API | Ask with the deployment topology (OQ-32); if refused, the reverse proxy does the same-origin routing and the route handler is deleted |
+| Web Locks behaves differently across the three engines | AC-47 runs on all three in CI from step 3 |
+| Colour values drawn from rules, not the Lovable source, look wrong | The acceptance gate: the product owner adjusts tokens while using the screens |
+| `SameSite=Lax` refresh cookie through the proxy in a non-HTTPS dev setup | `cookie_secure=false` in development only, asserted by the session e2e |
+
+## 12. Changelog
+
+| Version | Date | Change |
+| --- | --- | --- |
+| 0.1 | 2026-09-25 | First draft. Scope set by what SPEC-0001 serves; style from the Lovable design reference, with its signup, Gov.br, session checkbox and admin gate rejected against SPEC-0001 and ADR-0010. OQ-33 and OQ-34 opened. |
+| 0.2 | 2026-09-25 | `/spec-review` of 0.1. C4: `name` is null for every invited account, so three criteria that showed it would have shown blanks. AC-0010-46/47: the API treats a second refresh with one token as a replay and revokes the family, so parallel requests or two tabs would log the user out and write false `auth.refresh_replay` rows. AC-0010-48 (provider returns an error), -49 (`INVALID_DATA`), -50 (`RATE_LIMITED`), -51 (signed-in user at /login). AC-0010-27 made observable. Unauthenticated pages added to §6. OQ-35, -36, -37 opened. |
+| 0.3 | 2026-09-28 | `/dashboard` is the single entry point, by the product owner's decision: every landing that was `/` is now `/dashboard`, `/` only redirects (AC-0010-52), and the navigation label is "Painel". |
+| 1.0 | 2026-09-28 | Approved by the product owner. |
+| 1.1 | 2026-09-28 | Implementation plan added (§11). No behaviour changes. |
+| 1.2 | 2026-09-28 | Page paths are English, by the product owner's rule that code is not Portuguese: `/invite`, `/reset-password`, `/members`. No behaviour changes. |
+| 1.3 | 2026-09-28 | AC-0010-53/54: a nonce-based Content-Security-Policy with no `unsafe-eval` and no inline scripts, and headers against framing and sniffing. |
+| 1.4 | 2026-09-28 | AC-0010-55 to 58: a pt-BR not-found page, an error boundary, the gestor contact on every error a servidor cannot fix, and a clipboard fallback. AC-0010-42 now shows the contact, with the correlation id in the e-mail body, instead of a code to copy; no screen had actually been showing that code. |
+| 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. Implemented 2026-10-06; the e2e proof is `e2e/members.spec.ts`. |
+| 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |
+| 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |

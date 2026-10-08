@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Claude
+.claude/settings.local.json
+
+# Stakeholder data — carries CNPJ, e-mail, operator names and patient names.
+# Never commit. See docs/architecture/data-sources.md.
+*.xlsx
+*.xls

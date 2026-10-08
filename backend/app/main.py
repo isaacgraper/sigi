@@ -1,0 +1,66 @@
+"""Application factory and the ASGI entry point."""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import atas, auth, health, invites, oidc, users
+from app.api.errors import register_handlers
+from app.core.authorization import verify_coverage
+from app.core.config import get_settings
+from app.core.correlation import CorrelationMiddleware
+from app.core.hardening import BodyLimitMiddleware, SecurityHeadersMiddleware
+from app.core.throttling import verify_ceilings
+
+
+def create_app() -> FastAPI:
+    """Assemble the application.
+
+    A factory rather than a module-level app so that tests can build an
+    instance per configuration instead of mutating a shared one.
+    """
+    settings = get_settings()
+    app = FastAPI(title="SIGI", version="0.1.0")
+
+    # Starlette wraps outward: each add_middleware call sits outside the ones
+    # before it. The body limit goes first, inside the correlation middleware,
+    # so its 413 still names a correlation id (AC-0001-42).
+    app.add_middleware(BodyLimitMiddleware)
+
+    # Outermost, so every response carries it — including the ones produced by
+    # error handlers, which are exactly the responses somebody will be trying to
+    # trace back to an audit row.
+    app.add_middleware(CorrelationMiddleware)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Last, so it wraps everything else: CORS preflights and error responses
+    # carry the headers too (AC-0001-43).
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    register_handlers(app)
+
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(oidc.router)
+    app.include_router(users.router)
+    app.include_router(atas.router)
+    app.include_router(invites.router)
+
+    # AC-0001-23, at assembly: a write route with no access decision breaks
+    # here, in the build and in the tests, rather than serving the request.
+    # Every router is included above first, or this would inspect a partial
+    # route table and pass over what it never saw.
+    verify_coverage(app)
+    # AC-0001-33's last clause, also at assembly: a throttled route with no
+    # ceiling breaks here rather than being served unprotected.
+    verify_ceilings(app)
+    return app
+
+
+app = create_app()
