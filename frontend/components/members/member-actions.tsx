@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, KeyRound, MoreHorizontal, UserCheck, UserX } from "lucide-react";
+import { Ban, KeyRound, MailPlus, MoreHorizontal, UserCheck, UserX } from "lucide-react";
 import { useState } from "react";
 
 import { CopyLink } from "@/components/members/copy-link";
@@ -37,13 +37,14 @@ import { displayName } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
 // "unblock" has its own dialog, because it asks for a justification (AC-0010-59).
-type Action = "block" | "deactivate" | "resetPassword";
+type Action = "block" | "deactivate" | "resetPassword" | "reinvite";
 
 // The API's route segments (SPEC-0001 §7), kept in one place.
 const ENDPOINT: Record<Action, string> = {
   block: "bloquear",
   deactivate: "desativar",
   resetPassword: "redefinir-senha",
+  reinvite: "reemitir-convite",
 };
 
 const CONFIRM: Record<Action, { title: string; body: string; label: string; destructive: boolean }> = {
@@ -65,6 +66,24 @@ const CONFIRM: Record<Action, { title: string; body: string; label: string; dest
     label: "Gerar link",
     destructive: false,
   },
+  reinvite: {
+    title: "Gerar novo convite?",
+    body: "Um novo link de ativação será gerado para você entregar à pessoa. O link anterior deixa de funcionar.",
+    label: "Gerar link",
+    destructive: false,
+  },
+};
+
+// A one-time link is shown once and never again (AC-0010-40, -61).
+const LINK_DIALOG: Record<"resetPassword" | "reinvite", { title: string; description: string }> = {
+  resetPassword: {
+    title: "Link de redefinição",
+    description: "Este link não será mostrado de novo e expira em 1 hora.",
+  },
+  reinvite: {
+    title: "Novo link de convite",
+    description: "Este link não será mostrado de novo. O link anterior deixa de funcionar.",
+  },
 };
 
 export function MemberActions({
@@ -78,7 +97,9 @@ export function MemberActions({
 }) {
   const { handleSessionError } = useSession();
   const [action, setAction] = useState<Action | null>(null);
-  const [resetLink, setResetLink] = useState<string | null>(null);
+  const [oneTime, setOneTime] = useState<{ kind: "resetPassword" | "reinvite"; link: string } | null>(
+    null,
+  );
   const [unblocking, setUnblocking] = useState(false);
   const [justification, setJustification] = useState("");
   const [pending, setPending] = useState(false);
@@ -90,6 +111,8 @@ export function MemberActions({
   const available: (Action | "unblock")[] = [];
   if (member.status === "ativo") available.push("block", "resetPassword");
   if (member.status === "bloqueado") available.push("unblock");
+  // A pending account's only link may have been lost; this replaces it (AC-0010-61).
+  if (member.status === "pendente") available.push("reinvite");
   if (member.status !== "desativado") available.push("deactivate");
   if (available.length === 0) return null;
 
@@ -124,11 +147,16 @@ export function MemberActions({
 
   async function run(chosen: Action) {
     try {
-      const result = await apiJson<{ reset_link?: string }>(
+      const result = await apiJson<{ reset_link?: string; activation_link?: string }>(
         `/api/v1/usuarios/${member.id}/${ENDPOINT[chosen]}`,
         { method: "POST" },
       );
-      if (chosen === "resetPassword" && result.reset_link) setResetLink(result.reset_link);
+      if (chosen === "resetPassword" && result.reset_link) {
+        setOneTime({ kind: "resetPassword", link: result.reset_link });
+      }
+      if (chosen === "reinvite" && result.activation_link) {
+        setOneTime({ kind: "reinvite", link: result.activation_link });
+      }
       onChanged();
     } catch (err) {
       if (handleSessionError(err)) return;
@@ -156,6 +184,12 @@ export function MemberActions({
             <DropdownMenuItem onSelect={() => setUnblocking(true)}>
               <UserCheck aria-hidden />
               Desbloquear
+            </DropdownMenuItem>
+          )}
+          {available.includes("reinvite") && (
+            <DropdownMenuItem onSelect={() => setAction("reinvite")}>
+              <MailPlus aria-hidden />
+              Gerar novo convite
             </DropdownMenuItem>
           )}
           {available.includes("resetPassword") && (
@@ -229,13 +263,17 @@ export function MemberActions({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={resetLink !== null} onOpenChange={(open) => !open && setResetLink(null)}>
+      <Dialog open={oneTime !== null} onOpenChange={(open) => !open && setOneTime(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Link de redefinição</DialogTitle>
-            <DialogDescription>Este link não será mostrado de novo e expira em 1 hora.</DialogDescription>
-          </DialogHeader>
-          {resetLink && <CopyLink link={resetLink} />}
+          {oneTime && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{LINK_DIALOG[oneTime.kind].title}</DialogTitle>
+                <DialogDescription>{LINK_DIALOG[oneTime.kind].description}</DialogDescription>
+              </DialogHeader>
+              <CopyLink link={oneTime.link} />
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>

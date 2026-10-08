@@ -56,6 +56,8 @@ entries are moved into a new dated version section — see
 - A gestor can unblock a member (`POST /api/v1/usuarios/{id}/desbloquear`, with a
   justification), and an invitation carries the full name and the registration
   (`registro_funcional`, migration `0002`), as SPEC-0001 v1.7 specifies.
+- A pending member's row offers "Gerar novo convite": a new activation link, shown once,
+  that switches off the previous one (SPEC-0001 AC-0001-46, SPEC-0010 AC-0010-61).
 - The members page shows the registration, the invite dialog asks for the full name and
   the registration, and a blocked member offers "Desbloquear" with a justification
   (SPEC-0010 v1.5, AC-0010-59 and -60).
