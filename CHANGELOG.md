@@ -124,5 +124,11 @@ entries are moved into a new dated version section — see
 - `docs/analise-lacunas-rfc-v1.6.md` repointed to the ADRs that actually carry
   its findings.
 
+### Fixed
+
+- `docker-compose.yml` no longer defaults `SUPPORT_CONTACT_EMAIL` to a personal
+  address. Unset, the error pages say "Procure o gestor da sua unidade.", as
+  AC-0010-57 specifies; deploy sets the gestores' mailbox.
+
 [Unreleased]: https://github.com/isaacgraper/sigi/compare/v0.1.0...dev
 [0.1.0]: https://github.com/isaacgraper/sigi/releases/tag/v0.1.0
