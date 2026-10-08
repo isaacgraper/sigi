@@ -24,20 +24,26 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-*(Rewritten 2026-09-22, after SPEC-0001 finished. The previous text said "the
-behaviour does not exist" and called `app/services/` empty weeks after ten
-modules landed there, and pinned the spec at v0.5 when it was at v1.2. This
+*(Rewritten 2026-10-08, after SPEC-0001, SPEC-0010 and SPEC-0011 were closed. This
 section ages faster than any other: check a sentence here before acting on it.)*
 
 **SPEC-0001 is implemented.** `backend/` serves local login with refresh
 rotation and logout, per-address lockout, institutional OIDC, member invitations
-and activation, member management with anonymised deactivation,
-gestor-triggered password reset, a permission matrix checked when the app is
-assembled, and per-source rate limiting. The audit trail is written in the
-caller's transaction and is append-only at the database level. 157 tests run
-against a real PostgreSQL 16.
+with the full name and registration, activation, a new invitation link for a
+pending member, block, unblock with a justification, anonymised deactivation,
+gestor-triggered password reset, the first gestor from the command line, a
+development-only seed, a permission matrix checked when the app is assembled,
+and per-source rate limiting with a trusted-proxy list. The audit trail is
+written in the caller's transaction and is append-only at the database level.
 
-`frontend/` is still a Next.js skeleton. Nothing consumes the API yet.
+**SPEC-0002's backend is implemented**: ATAs, fornecedores, the lifecycle,
+aditivos, reajuste requests and the renewal and reajuste alerts under
+`/api/v1/atas`. 314 backend tests run against a real PostgreSQL 16.
+
+**SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
+callback, invitation, password reset, the dashboard and member management inside
+the navy shell, proven by Playwright against the real API in Chromium, Firefox
+and WebKit. There are no ATA screens yet; they need a screen spec first.
 
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee
@@ -53,9 +59,10 @@ migration refuses to run without it.
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` is at **v1.2**, `Approved`. Everything else is `Draft`,
-and **a spec at `Draft` may not be implemented** — audited: no test references
-an AC from SPEC-0002 to SPEC-0009.
+**Specs:** `SPEC-0001` (v1.9), `SPEC-0010` (v1.7) and `SPEC-0011` (v1.1) are
+`Implemented`. `SPEC-0002` (v1.1) is `Approved` with its backend built.
+SPEC-0003 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be
+implemented**.
 
 **What is left:**
 
@@ -69,12 +76,9 @@ an AC from SPEC-0002 to SPEC-0009.
 - **OQ-31** — AC-0001-32 no longer guarantees a gestor cannot take over an
   account; with no mail transport they receive the reset link. Detectable
   through the audit row and the session revocation, not impossible.
-- **OQ-32** — the throttle ignores `X-Forwarded-For`, so behind a reverse proxy
-  every request shares one ceiling. Needs the deployment topology.
-- Traceability gaps nobody has closed: `RN07` is meant to land in SPEC-0003 but
-  its `satisfies` does not claim it, `RF15` is implemented in SPEC-0002's body
-  but absent from its `satisfies` and from `traceability.md`, and `RF16` maps to
-  no spec.
+- **OQ-32** — the trusted-proxy list exists (AC-0001-37/38) and is empty by
+  default; which addresses go in it needs the deployment topology.
+- `RN07` is meant to land in SPEC-0003 but its `satisfies` does not claim it.
 
 ## Non-negotiable domain rules
 
