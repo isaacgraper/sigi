@@ -2,7 +2,7 @@
 id: SPEC-0012
 title: Painel
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF20]
 depends_on: [SPEC-0011]
@@ -88,20 +88,32 @@ The tab lives in the URL (`?aba=itens-em-falta`), so a link to a section can be 
 
 **AC-0012-04** — A block with no data says so
 ```gherkin
-Given a block whose source returns no rows, or has no source yet
-When  its section is shown
+Given a section whose answer from GET /api/v1/painel/{section} has no rows for a block
+When  the answer arrives
 Then  the block keeps its title and reads "Sem dados"
-And   its filters are shown disabled
+And   the section's filters are shown disabled
+```
+Today every block's answer is empty, because none of the sources in §3 exists
+yet. "Sem dados" is what the backend said, not what the screen assumed.
+
+**AC-0012-05** — A section whose request fails does not pass for empty
+```gherkin
+Given a section whose request to GET /api/v1/painel/{section} fails
+When  the failure arrives
+Then  the error notice of DESIGN.md §6 shows in place of the blocks, with the gestor contact (AC-0010-57)
+And   no block reads "Sem dados"
 ```
 
-**AC-0012-05** — A block whose source fails does not pass for empty
+**AC-0012-11** — A skeleton covers the section until its answer arrives
 ```gherkin
-Given a block whose source request fails
-When  its section is shown
-Then  the block shows the error notice of DESIGN.md §6 with the gestor contact (AC-0010-57)
-And   it does not read "Sem dados"
+Given a section whose request is still pending
+When  it is shown
+Then  every block shows a skeleton of its own shape, in the report's layout
+And   the wait is announced once as "Carregando..."
+And   the route's first paint (loading.tsx) shows the same skeleton
 ```
-Not reachable while every source is `null`; it binds the first block that gets one.
+The skeleton has the blocks' shape so nothing moves when the answer lands
+(DESIGN.md §6, "Loading a page").
 
 ### 4.2 The sections
 
@@ -164,7 +176,21 @@ AC-0010-28 still holds, from the page header: its description shows the
 usuario's name when the API returns one, their e-mail and their perfil
 ("Maria Souza · maria@sc.gov.br · Gestor").
 
-### 4.4 Layout
+### 4.4 The data
+
+**AC-0012-12** — The dashboard's data answers every perfil, block by block
+```gherkin
+Given a signed-in usuario of any perfil
+When  GET /api/v1/painel/{section} is called for each of the four sections
+Then  the response is 200 with the section's id and one entry per block of that section
+And   each entry holds "rows", empty while the block's source does not exist
+When  it is called without a session
+Then  the response is 401
+When  it is called for a section that does not exist
+Then  the response is 404 with error code "NOT_FOUND"
+```
+
+### 4.5 Layout
 
 **AC-0012-10** — The dashboard holds at every width
 ```gherkin
@@ -178,21 +204,35 @@ And   it passes the accessibility check of AC-0010-44
 
 | Condition | What the block shows |
 | --- | --- |
+| Request pending | Skeleton of the block's shape (AC-0012-11) |
 | No source yet, or zero rows | Title and "Sem dados" (AC-0012-04) |
-| Source request fails | Error notice with the gestor contact (AC-0012-05) |
+| Request fails | Error notice with the gestor contact, in place of the blocks (AC-0012-05) |
+| Unknown section | 404 `NOT_FOUND` (AC-0012-12); the page itself falls back to the first tab |
 | Session expired while loading | SPEC-0010's session handling, as on every page |
 
 ## 6. Permissions
 
 | Action | gestor | servidor | auditor |
 | --- | --- | --- | --- |
-| View the dashboard | ✓ | ✓ | ✓ |
+| View the dashboard, `GET /api/v1/painel/{section}` | ✓ | ✓ | ✓ |
 
-When a block gets data, the endpoint behind it enforces its own permission (invariant 8).
+The endpoint enforces it on the server (invariant 8). A block whose source
+later needs a narrower permission gets its own criterion in that source's spec.
 
 ## 7. API surface
 
-None in this version. Each block's endpoint is specified with its source.
+| Method | Path | Purpose | AC |
+| --- | --- | --- | --- |
+| GET | `/api/v1/painel/{section}` | Every block of one section: `atendimento`, `consumo`, `processos` or `itens-em-falta` | 04, 05, 11, 12 |
+
+```json
+{ "section": "consumo", "blocks": { "estoque": { "rows": [] }, "grafico": { "rows": [] } } }
+```
+
+`rows` is a list of rows, each a list of the block's values as text, in its
+column order: a table's columns, a tile's single value, a chart's series. The
+block ids are the keys of `frontend/lib/dashboard.ts`. Each source's spec fills
+its blocks in the service behind this route; the contract does not change.
 
 ## 8. Audit events
 
@@ -206,13 +246,14 @@ yet, which the table in §3 names.
 ## 10. Implementation plan
 
 - Migration: none.
-- Modules: `frontend/lib/dashboard.ts` declares each section and block (title,
-  kind, columns, filters, source, `null` today). `frontend/components/dashboard/`
+- Modules: `backend/app/api/painel.py`, `services/painel.py` and
+  `schemas/painel.py` serve §7. `frontend/lib/dashboard.ts` declares each
+  section and block (title, kind, columns, filters). `frontend/components/dashboard/`
   holds the tabs, the block frame with its empty and error states, and the
   empty table, chart, card and filter shells. `app/(app)/dashboard/dashboard.tsx`
   renders the registry. No chart library until the first chart has data, when
   its spec names one.
-- Tests: `frontend/e2e/dashboard.spec.ts`, one test per AC; the AC-0010-28 test
+- Tests: `backend/tests/test_painel.py` for AC-0012-12; `frontend/e2e/dashboard.spec.ts`, one test per AC; the AC-0010-28 test
   moves to the header; the AC-0011-13/-14 tests are removed with those criteria.
 
 ## 11. Changelog
@@ -221,3 +262,4 @@ yet, which the table in §3 names.
 | --- | --- | --- |
 | 0.1 | 2026-10-09 | Initial draft from the stakeholders' `RELATÓRIO GERAL CAME` report (four pages), sent as the design of the home screen. Every block is laid out and reads "Sem dados" until its source exists. |
 | 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
+| 1.1 | 2026-10-09 | The dashboard asks the backend for its data, by the product owner's request: GET /api/v1/painel/{section} (§7, AC-0012-12), a skeleton while it waits (AC-0012-11), and "Sem dados" only when the answer is empty (AC-0012-04). AC-0012-05 becomes testable. |
