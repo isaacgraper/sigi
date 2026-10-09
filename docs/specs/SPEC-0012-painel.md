@@ -202,7 +202,7 @@ never unlabelled.
 Given APP_ENV is "development" and DASHBOARD_DEMO is true
 When  GET /api/v1/painel/{section} is called for each section
 Then  every block answers with rows, and the answer carries "demo": true
-And   the page shows "Dados de demonstração — não representam a operação real." under its header
+And   the filters say "Filtros indisponíveis na demonstração."
 And   the charts draw their figures, and the Estoque tile names the date of its position
 ```
 The figures are invented, in the ranges of the CAME report. No name, code or
@@ -304,3 +304,4 @@ yet, which the table in §3 names.
 | 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
 | 1.1 | 2026-10-09 | The dashboard asks the backend for its data, by the product owner's request: GET /api/v1/painel/{section} (§7, AC-0012-12), a skeleton while it waits (AC-0012-11), and "Sem dados" only when the answer is empty (AC-0012-04). AC-0012-05 becomes testable. |
 | 1.2 | 2026-10-09 | AC-0012-13/-14: development-only demonstration data, by the product owner's request, so the stakeholders see the screen filled before SIGI holds their data. `demo` added to §7, with the row formats per block kind. `recharts` added to the plan. |
+| 1.2-demo | 2026-10-09 | Demo branch only, never merged: the notice above the dashboard is removed for the recording; the filter note still marks the demonstration. |

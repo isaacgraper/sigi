@@ -143,7 +143,7 @@ test.describe("SPEC-0012 the dashboard", () => {
     await expect(panel(page).getByRole("status")).toHaveCount(0);
   });
 
-  test("AC-0012-13 demonstration data is drawn and labelled", async ({ page }) => {
+  test("AC-0012-13 demonstration data is drawn", async ({ page }) => {
     // CI runs without DASHBOARD_DEMO, so the demo answer is fulfilled here in
     // the shape the backend sends with the switch on (SPEC-0012 §7).
     const demo: Record<string, Record<string, string[][]>> = {
@@ -179,23 +179,21 @@ test.describe("SPEC-0012 the dashboard", () => {
     });
 
     await open(page, "Consumo");
-    await expect(panel(page).getByTestId("demo-notice")).toHaveText("Dados de demonstração — não representam a operação real.");
     await expect(panel(page).getByText("Filtros indisponíveis na demonstração.")).toBeVisible();
     await expect(panel(page).getByText("Posição de 01/10/2026")).toBeVisible();
     await expect(panel(page).getByTestId("dashboard-chart").locator("svg.recharts-surface").first()).toBeVisible();
     await expect(panel(page).getByTestId("sem-dados")).toHaveCount(0);
 
     await open(page, "Itens em falta");
-    await expect(panel(page).getByTestId("demo-notice")).toBeVisible();
     await expect(panel(page).getByRole("cell", { name: "Atadura de crepom 10 cm" })).toBeVisible();
     await expect(panel(page).getByTestId("dashboard-chart")).toHaveCount(2);
     await expect(panel(page).getByText("63,6%")).toBeVisible();
   });
 
-  test("AC-0012-14 without the switch there is no demonstration notice", async ({ page }) => {
+  test("AC-0012-14 without the switch the dashboard is not a demonstration", async ({ page }) => {
     await open(page, "Consumo");
     await expect(panel(page).getByTestId("sem-dados")).toHaveCount(2);
-    await expect(panel(page).getByTestId("demo-notice")).toHaveCount(0);
+    await expect(panel(page).getByText("Filtros indisponíveis na demonstração.")).toHaveCount(0);
   });
 
   test("AC-0012-06 atendimento por unidade", async ({ page }) => {

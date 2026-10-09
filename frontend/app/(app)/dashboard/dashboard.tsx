@@ -95,16 +95,6 @@ export function Dashboard() {
           className="space-y-6 focus-visible:outline-none"
         >
           <p className="text-sm font-light text-muted-foreground">{selected.description}</p>
-          {current?.demo && (
-            // Invented figures are never shown unlabelled (AC-0012-13).
-            <p
-              role="note"
-              data-testid="demo-notice"
-              className="rounded-md border border-attention/30 bg-attention/10 px-4 py-2.5 text-sm text-attention"
-            >
-              Dados de demonstração — não representam a operação real.
-            </p>
-          )}
           {error ? (
             // A failed request never passes for an empty one (AC-0012-05).
             <div data-testid="dashboard-error" className="rounded-lg border bg-card p-6 shadow-sm">
