@@ -2,7 +2,7 @@
 id: SPEC-0012
 title: Painel
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF20]
 depends_on: [SPEC-0011]
@@ -190,7 +190,34 @@ When  it is called for a section that does not exist
 Then  the response is 404 with error code "NOT_FOUND"
 ```
 
-### 4.5 Layout
+### 4.5 Demonstration data
+
+The stakeholders see the screen before SIGI holds their data. A development
+installation can answer with fictional figures in the report's shape, the same
+way it can seed `admin/admin` (SPEC-0001 AC-0001-39): never in production, and
+never unlabelled.
+
+**AC-0012-13** — In development, the dashboard can show demonstration data
+```gherkin
+Given APP_ENV is "development" and DASHBOARD_DEMO is true
+When  GET /api/v1/painel/{section} is called for each section
+Then  every block answers with rows, and the answer carries "demo": true
+And   the page shows "Dados de demonstração — não representam a operação real." under its header
+And   the charts draw their figures, and the Estoque tile names the date of its position
+```
+The figures are invented, in the ranges of the CAME report. No name, code or
+CNPJ of the entity's is used. Saldo and Estoque stay separate figures (invariant 5).
+
+**AC-0012-14** — Demonstration data never reaches another environment
+```gherkin
+Given DASHBOARD_DEMO is true and APP_ENV is anything but "development"
+When  the backend starts
+Then  it refuses to start, naming the setting
+When  DASHBOARD_DEMO is not set
+Then  every answer carries "demo": false and the rows SIGI really holds
+```
+
+### 4.6 Layout
 
 **AC-0012-10** — The dashboard holds at every width
 ```gherkin
@@ -223,16 +250,25 @@ later needs a narrower permission gets its own criterion in that source's spec.
 
 | Method | Path | Purpose | AC |
 | --- | --- | --- | --- |
-| GET | `/api/v1/painel/{section}` | Every block of one section: `atendimento`, `consumo`, `processos` or `itens-em-falta` | 04, 05, 11, 12 |
+| GET | `/api/v1/painel/{section}` | Every block of one section: `atendimento`, `consumo`, `processos` or `itens-em-falta` | 04, 05, 11, 12, 13 |
 
 ```json
-{ "section": "consumo", "blocks": { "estoque": { "rows": [] }, "grafico": { "rows": [] } } }
+{ "section": "consumo", "demo": false, "blocks": { "estoque": { "rows": [] }, "grafico": { "rows": [] } } }
 ```
 
 `rows` is a list of rows, each a list of the block's values as text, in its
-column order: a table's columns, a tile's single value, a chart's series. The
-block ids are the keys of `frontend/lib/dashboard.ts`. Each source's spec fills
-its blocks in the service behind this route; the contract does not change.
+column order. The block ids are the keys of `frontend/lib/dashboard.ts`. Each
+source's spec fills its blocks in the service behind this route; the contract
+does not change.
+
+- **Table:** one row per line, display text in pt-BR (`R$ 1.234,56`, `dd/MM/yyyy`).
+- **Tile:** one row, the value as display text and, optionally, a caption
+  (`["32.693", "Posição de 01/10/2026"]`).
+- **Chart:** one row per point, the label first and then one raw number per
+  series, as text with a dot for decimals (`["Jan/26", "2119281", "2207565"]`).
+  The stages chart sends one row per stage: name, planned days, real days.
+
+`demo` is true only for AC-0012-13's answer.
 
 ## 8. Audit events
 
@@ -251,8 +287,12 @@ yet, which the table in §3 names.
   section and block (title, kind, columns, filters). `frontend/components/dashboard/`
   holds the tabs, the block frame with its empty and error states, and the
   empty table, chart, card and filter shells. `app/(app)/dashboard/dashboard.tsx`
-  renders the registry. No chart library until the first chart has data, when
-  its spec names one.
+  renders the registry.
+- **New dependency (v1.2): `recharts`.** The first charts with data are the
+  demonstration's (AC-0012-13), and the stages, line, bar and pie shapes of
+  the report need a chart library. Recharts is React-native SVG, needs no
+  canvas, and its output can be labelled for assistive technology.
+- Settings: `DASHBOARD_DEMO` (default false), refused outside development.
 - Tests: `backend/tests/test_painel.py` for AC-0012-12; `frontend/e2e/dashboard.spec.ts`, one test per AC; the AC-0010-28 test
   moves to the header; the AC-0011-13/-14 tests are removed with those criteria.
 
@@ -263,3 +303,4 @@ yet, which the table in §3 names.
 | 0.1 | 2026-10-09 | Initial draft from the stakeholders' `RELATÓRIO GERAL CAME` report (four pages), sent as the design of the home screen. Every block is laid out and reads "Sem dados" until its source exists. |
 | 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
 | 1.1 | 2026-10-09 | The dashboard asks the backend for its data, by the product owner's request: GET /api/v1/painel/{section} (§7, AC-0012-12), a skeleton while it waits (AC-0012-11), and "Sem dados" only when the answer is empty (AC-0012-04). AC-0012-05 becomes testable. |
+| 1.2 | 2026-10-09 | AC-0012-13/-14: development-only demonstration data, by the product owner's request, so the stakeholders see the screen filled before SIGI holds their data. `demo` added to §7, with the row formats per block kind. `recharts` added to the plan. |
