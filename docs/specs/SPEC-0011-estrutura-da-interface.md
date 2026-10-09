@@ -2,7 +2,7 @@
 id: SPEC-0011
 title: Estrutura da interface
 status: Implemented
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -162,23 +162,10 @@ Then  that action is inside the page header that holds the level-one heading
 
 ### 4.3 The dashboard
 
-**AC-0011-13** — The dashboard offers one tile per module
-```gherkin
-Given a signed-in usuario on /dashboard
-When  the page is shown
-Then  it shows one tile for each sidebar entry except "Painel", with the module's name and one line of description
-And   each whole tile is a single link to that module
-```
-
-AC-0010-28 still holds: the dashboard also states who is signed in. Today a
-gestor or an auditor sees one tile, "Membros", and a servidor sees none.
-
-**AC-0011-14** — A perfil with no module is told so
-```gherkin
-Given a signed-in servidor on /dashboard, while no business module is approved
-When  the page is shown
-Then  in place of tiles it says "Os módulos do SIGI aparecerão aqui conforme forem liberados."
-```
+*(v1.2, 2026-10-09)* **AC-0011-13 and AC-0011-14 are withdrawn.** The dashboard
+is now the stakeholders' `RELATÓRIO GERAL CAME` report, specified in SPEC-0012,
+and the sidebar already lists every module, so a tile per module only repeated
+it. The numbers are not reused.
 
 ### 4.4 Signed-out pages and status pages
 
@@ -427,3 +414,4 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 1.0 | 2026-09-28 | §11 implementation plan added. |
 | 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |
 | 1.1 | 2026-10-08 | Implemented, accepted by the product owner with SPEC-0010. Every criterion has a test in `frontend/e2e`; AC-0011-23 is proven by the whole SPEC-0010 suite passing on this shell. No criterion changed. |
+| 1.2 | 2026-10-09 | AC-0011-13 and AC-0011-14 withdrawn: the dashboard is SPEC-0012's report, and the sidebar already lists the modules. |
