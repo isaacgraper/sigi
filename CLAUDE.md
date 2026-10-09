@@ -38,12 +38,15 @@ written in the caller's transaction and is append-only at the database level.
 
 **SPEC-0002's backend is implemented**: ATAs, fornecedores, the lifecycle,
 aditivos, reajuste requests and the renewal and reajuste alerts under
-`/api/v1/atas`. 314 backend tests run against a real PostgreSQL 16.
+`/api/v1/atas`. 320 backend tests run against a real PostgreSQL 16.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
-callback, invitation, password reset, the dashboard and member management inside
-the navy shell, proven by Playwright against the real API in Chromium, Firefox
-and WebKit. There are no ATA screens yet; they need a screen spec first.
+callback, invitation, password reset and member management inside the navy
+shell, proven by Playwright against the real API in Chromium, Firefox
+and WebKit. The dashboard is the stakeholders' CAME report (SPEC-0012, `Approved`): four
+tabs fed by `GET /api/v1/painel/{section}`, a skeleton while it waits, and
+"Sem dados" for every block until its source exists. There are no ATA
+screens yet; they need a screen spec first.
 
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee

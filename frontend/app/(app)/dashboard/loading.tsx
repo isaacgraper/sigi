@@ -1,6 +1,7 @@
-import { PageSkeleton } from "@/components/skeleton";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
-// Shown inside the shell while this page's code and data arrive (AC-0011-18).
+// The dashboard's own shape while its code arrives (SPEC-0012 AC-0012-11);
+// each section then shows the same blocks as skeletons until its data does.
 export default function Loading() {
-  return <PageSkeleton />;
+  return <DashboardSkeleton />;
 }

@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import atas, auth, health, invites, oidc, users
+from app.api import atas, auth, health, invites, oidc, painel, users
 from app.api.errors import register_handlers
 from app.core.authorization import verify_coverage
 from app.core.config import get_settings
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(oidc.router)
     app.include_router(users.router)
     app.include_router(atas.router)
+    app.include_router(painel.router)
     app.include_router(invites.router)
 
     # AC-0001-23, at assembly: a write route with no access decision breaks

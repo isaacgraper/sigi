@@ -11,6 +11,21 @@ entries are moved into a new dated version section — see
 
 ## [Unreleased]
 
+### Added
+
+- The dashboard is the stakeholders' `RELATÓRIO GERAL CAME` report (SPEC-0012): four tabs,
+  Atendimento por unidade, Consumo, Processos licitatórios and Itens em falta, with every
+  filter, card, table and chart the report shows. Each block reads "Sem dados" until SIGI
+  holds its data.
+- `GET /api/v1/painel/{section}` serves the dashboard's blocks for all three perfis. The page
+  shows a skeleton while it waits and "Sem dados" for a block that comes back empty, which
+  today is every block (SPEC-0012 v1.1).
+
+### Changed
+
+- The dashboard no longer shows module tiles; the sidebar lists the modules (SPEC-0011 v1.2
+  withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
+
 ## [0.1.0] - 2026-10-08
 
 ### Added
