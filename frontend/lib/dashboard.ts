@@ -24,6 +24,11 @@ export interface TableBlock {
 export interface ChartBlock {
   kind: "chart";
   title: string;
+  /**
+   * The form, from the report: bars per unidade, lines per month, planned
+   * against real days per stage, and a part of the whole.
+   */
+  chart: "bar" | "line" | "stages" | "pie";
   /** Named in the legend, so the chart's meaning is readable before it has data. */
   series: string[];
 }
@@ -38,6 +43,8 @@ export type Block = StatBlock | TableBlock | ChartBlock | NoteBlock;
 /** The answer of GET /api/v1/painel/{section} (SPEC-0012 §7). */
 export interface PainelOut {
   section: string;
+  /** Invented figures, development only (AC-0012-13); the page says so. */
+  demo: boolean;
   blocks: Record<string, { rows: string[][] }>;
 }
 
@@ -73,6 +80,7 @@ export const ATENDIMENTO: Section = {
     grafico: {
       kind: "chart",
       title: "Atendido e valor total atendido por unidade",
+      chart: "bar",
       series: ["Atendido", "Valor total atendido"],
     },
   },
@@ -88,6 +96,7 @@ export const CONSUMO: Section = {
     grafico: {
       kind: "chart",
       title: "Solicitado, autorizado, atendido e média atual por mês",
+      chart: "line",
       series: ["Solicitado", "Autorizado", "Atendido", "Média atual"],
     },
   },
@@ -111,6 +120,7 @@ export const PROCESSOS: Section = {
     etapas: {
       kind: "chart",
       title: "Etapas: planejado e real",
+      chart: "stages",
       series: [
         "Comunicado",
         "ACP",
@@ -157,10 +167,11 @@ export const ITENS_EM_FALTA: Section = {
       title: "Processos por grupo",
       columns: ["Grupo", "Ano", "Processo", "Data projetada", "Dias sem processo"],
     },
-    curva_abc: { kind: "chart", title: "Curva ABC", series: ["A", "B", "C"] },
+    curva_abc: { kind: "chart", title: "Curva ABC", chart: "pie", series: ["A", "B", "C"] },
     disponibilidade: {
       kind: "chart",
       title: "Disponibilidade",
+      chart: "pie",
       series: ["Disponível", "Em falta", "Baixo estoque"],
     },
     materiais: {

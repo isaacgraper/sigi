@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useId } from "react";
 
+import { DashChart } from "@/components/dashboard/charts";
 import { Skeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +38,11 @@ export function TileView({ block, rows }: { block: StatBlock | NoteBlock; rows: 
       ) : rows.length === 0 ? (
         <NoData />
       ) : (
-        <p className={cn(block.kind === "stat" ? "text-2xl font-normal tabular-nums" : "text-sm")}>{rows[0][0]}</p>
+        <>
+          <p className={cn(block.kind === "stat" ? "text-2xl font-normal tabular-nums" : "text-sm")}>{rows[0][0]}</p>
+          {/* A tile's caption: for an estoque figure, the date of its position (ADR-0008). */}
+          {rows[0][1] && <p className="text-xs font-light text-muted-foreground">{rows[0][1]}</p>}
+        </>
       )}
     </Card>
   );
@@ -49,7 +54,11 @@ function BodyRows({ rows, columns }: { rows: string[][]; columns: number }) {
       {rows.map((row, index) => (
         <TableRow key={index}>
           {Array.from({ length: columns }, (_, cell) => (
-            <TableCell key={cell}>{row[cell] ?? ""}</TableCell>
+            // One line per cell, so a wide table scrolls inside its frame rather
+            // than folding every value; the first column names the row and wraps.
+            <TableCell key={cell} className={cell === 0 ? "min-w-56" : "whitespace-nowrap"}>
+              {row[cell] ?? ""}
+            </TableCell>
           ))}
         </TableRow>
       ))}
@@ -107,15 +116,18 @@ export function ChartView({ block, rows, className }: { block: ChartBlock; rows:
     <Card data-testid="dashboard-block" className={cn("flex min-w-0 flex-col", className)}>
       <CardHeader className="gap-3 pb-3">
         <CardTitle>{block.title}</CardTitle>
-        {/* The legend is text, so the chart says what it will show before it has data. */}
-        <ul aria-label="Legenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {block.series.map((name) => (
-            <li key={name} className="flex items-center gap-1.5">
-              <span aria-hidden className="size-2 rounded-full bg-muted-foreground/40" />
-              {name}
-            </li>
-          ))}
-        </ul>
+        {/* Without data the legend is text, so the chart says what it will show;
+            with data the chart carries its own legend in its colours. */}
+        {!(rows && rows.length > 0) && (
+          <ul aria-label="Legenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {block.series.map((name) => (
+              <li key={name} className="flex items-center gap-1.5">
+                <span aria-hidden className="size-2 rounded-full bg-muted-foreground/40" />
+                {name}
+              </li>
+            ))}
+          </ul>
+        )}
       </CardHeader>
       <CardContent className="flex flex-1">
         {rows === undefined ? (
@@ -125,12 +137,8 @@ export function ChartView({ block, rows, className }: { block: ChartBlock; rows:
             <NoData />
           </div>
         ) : (
-          // Until the spec that feeds this chart names a chart library, its
-          // figures are listed rather than hidden.
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-sm">
-              <BodyRows rows={rows} columns={Math.max(...rows.map((row) => row.length))} />
-            </table>
+          <div data-testid="dashboard-chart" className="min-w-0 flex-1">
+            <DashChart block={block} rows={rows} />
           </div>
         )}
       </CardContent>
@@ -184,7 +192,15 @@ function FilterControl({ filter }: { filter: Filter }) {
  * The report's filters, in its order. They stay disabled while the section has
  * no data (AC-0012-04): a filter over nothing would only suggest a broken page.
  */
-export function FilterPanel({ filters, className }: { filters: Filter[]; className?: string }) {
+export function FilterPanel({
+  filters,
+  note = "Os filtros ficam disponíveis quando houver dados.",
+  className,
+}: {
+  filters: Filter[];
+  note?: string;
+  className?: string;
+}) {
   return (
     <Card data-testid="dashboard-filters" className={cn("p-4", className)}>
       <fieldset disabled className="space-y-4">
@@ -195,9 +211,7 @@ export function FilterPanel({ filters, className }: { filters: Filter[]; classNa
           ))}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-light text-muted-foreground">
-            Os filtros ficam disponíveis quando houver dados.
-          </p>
+          <p className="text-xs font-light text-muted-foreground">{note}</p>
           <Button type="button" variant="outline" size="sm">
             Limpar filtros
           </Button>
