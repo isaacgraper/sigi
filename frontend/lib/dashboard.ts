@@ -1,8 +1,8 @@
 /**
  * The dashboard is the stakeholders' RELATÓRIO GERAL CAME report (SPEC-0012),
- * declared here block by block so the screen is a rendering of this file. A
- * block's `source` is null until the spec that owns its data lands; until
- * then it reads "Sem dados" (AC-0012-04) and its section's filters are off.
+ * declared here block by block so the screen is a rendering of this file. The
+ * keys of `blocks` are the block ids GET /api/v1/painel/{section} answers with
+ * (§7); a block whose rows come back empty reads "Sem dados" (AC-0012-04).
  */
 
 export type Filter =
@@ -34,6 +34,12 @@ export interface NoteBlock {
 }
 
 export type Block = StatBlock | TableBlock | ChartBlock | NoteBlock;
+
+/** The answer of GET /api/v1/painel/{section} (SPEC-0012 §7). */
+export interface PainelOut {
+  section: string;
+  blocks: Record<string, { rows: string[][] }>;
+}
 
 export interface Section {
   /** The `?aba=` value (AC-0012-03). */
@@ -94,14 +100,14 @@ export const PROCESSOS: Section = {
   filters: [select("Ano processo"), select("Objeto"), search("SKU")],
   blocks: {
     abertura: { kind: "stat", title: "Abertura" },
-    novoProcesso: { kind: "stat", title: "Novo processo" },
+    novo_processo: { kind: "stat", title: "Novo processo" },
     previsao: { kind: "stat", title: "Previsão" },
     status: { kind: "stat", title: "Status" },
-    novaData: { kind: "stat", title: "Nova data projetada" },
+    nova_data: { kind: "stat", title: "Nova data projetada" },
     progresso: { kind: "stat", title: "Progresso" },
     vigente: { kind: "stat", title: "Vigente" },
     vencimento: { kind: "stat", title: "Vencimento" },
-    semProcesso: { kind: "stat", title: "Previsão de tempo sem processo vigente" },
+    sem_processo: { kind: "stat", title: "Previsão de tempo sem processo vigente" },
     etapas: {
       kind: "chart",
       title: "Etapas: planejado e real",
@@ -143,7 +149,7 @@ export const ITENS_EM_FALTA: Section = {
   blocks: {
     sku: { kind: "stat", title: "SKU" },
     estoque: { kind: "stat", title: "Estoque" },
-    consumoMes: { kind: "stat", title: "Consumo mês" },
+    consumo_mes: { kind: "stat", title: "Consumo mês" },
     informacoes: { kind: "note", title: "Informações extras" },
     sugestoes: { kind: "note", title: "Sugestões de troca" },
     grupos: {
@@ -151,7 +157,7 @@ export const ITENS_EM_FALTA: Section = {
       title: "Processos por grupo",
       columns: ["Grupo", "Ano", "Processo", "Data projetada", "Dias sem processo"],
     },
-    curvaAbc: { kind: "chart", title: "Curva ABC", series: ["A", "B", "C"] },
+    curva_abc: { kind: "chart", title: "Curva ABC", series: ["A", "B", "C"] },
     disponibilidade: {
       kind: "chart",
       title: "Disponibilidade",

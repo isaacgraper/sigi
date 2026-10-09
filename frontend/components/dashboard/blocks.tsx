@@ -1,16 +1,17 @@
 import { ChevronDown } from "lucide-react";
 import { useId } from "react";
 
+import { Skeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ChartBlock, Filter, NoteBlock, StatBlock, TableBlock } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
 
 /**
- * Every block of the dashboard reads this until its source exists (AC-0012-04).
- * The words are the stakeholders': an empty block is not an error.
+ * What a block says when the backend answered with no rows (AC-0012-04). The
+ * words are the stakeholders': an empty block is not an error.
  */
 export function NoData({ className }: { className?: string }) {
   return (
@@ -20,23 +21,51 @@ export function NoData({ className }: { className?: string }) {
   );
 }
 
+/**
+ * A block's rows: `undefined` while the request is pending (AC-0012-11), an
+ * empty list when the backend has nothing for it (AC-0012-04).
+ */
+export type Rows = string[][] | undefined;
+
 /** A single figure, or a short text block, labelled above (DESIGN.md "Stat tile"). */
-export function TileView({ block }: { block: StatBlock | NoteBlock }) {
+export function TileView({ block, rows }: { block: StatBlock | NoteBlock; rows: Rows }) {
   return (
     <Card data-testid="dashboard-block" className="flex min-w-0 flex-col gap-1.5 px-4 py-3">
       <h2 className="text-xs font-normal tracking-wide text-muted-foreground uppercase">{block.title}</h2>
-      <NoData />
+      {rows === undefined ? (
+        <Skeleton className="h-5 w-24" />
+      ) : rows.length === 0 ? (
+        <NoData />
+      ) : (
+        <p className={cn(block.kind === "stat" ? "text-2xl font-normal tabular-nums" : "text-sm")}>{rows[0][0]}</p>
+      )}
     </Card>
   );
 }
 
-export function TableView({ block }: { block: TableBlock }) {
+function BodyRows({ rows, columns }: { rows: string[][]; columns: number }) {
+  return (
+    <tbody>
+      {rows.map((row, index) => (
+        <TableRow key={index}>
+          {Array.from({ length: columns }, (_, cell) => (
+            <TableCell key={cell}>{row[cell] ?? ""}</TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </tbody>
+  );
+}
+
+export function TableView({ block, rows }: { block: TableBlock; rows: Rows }) {
+  const empty = rows !== undefined && rows.length === 0;
   return (
     <section data-testid="dashboard-block" className="min-w-0 space-y-2">
       <h2 className="text-base font-normal">{block.title}</h2>
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-        {/* Only the header row scrolls sideways, and it can be scrolled from the
-            keyboard; "Sem dados" sits below it, so it stays in view on a phone. */}
+        {/* The table scrolls sideways inside its frame and can be scrolled from the
+            keyboard. "Sem dados" and the skeleton sit below the header, outside
+            the scrolling part, so they stay in view on a phone. */}
         <div
           role="region"
           aria-label={`Tabela ${block.title}`}
@@ -53,17 +82,27 @@ export function TableView({ block }: { block: TableBlock }) {
                 ))}
               </TableRow>
             </TableHeader>
+            {rows && rows.length > 0 && <BodyRows rows={rows} columns={block.columns.length} />}
           </table>
         </div>
-        <div className="border-t px-4 py-10 text-center">
-          <NoData />
-        </div>
+        {rows === undefined && (
+          <div aria-hidden className="space-y-3 border-t px-4 py-4">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} className="h-4 w-full" />
+            ))}
+          </div>
+        )}
+        {empty && (
+          <div className="border-t px-4 py-10 text-center">
+            <NoData />
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-export function ChartView({ block, className }: { block: ChartBlock; className?: string }) {
+export function ChartView({ block, rows, className }: { block: ChartBlock; rows: Rows; className?: string }) {
   return (
     <Card data-testid="dashboard-block" className={cn("flex min-w-0 flex-col", className)}>
       <CardHeader className="gap-3 pb-3">
@@ -79,9 +118,21 @@ export function ChartView({ block, className }: { block: ChartBlock; className?:
         </ul>
       </CardHeader>
       <CardContent className="flex flex-1">
-        <div className="flex min-h-48 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/30">
-          <NoData />
-        </div>
+        {rows === undefined ? (
+          <Skeleton className="min-h-48 flex-1" />
+        ) : rows.length === 0 ? (
+          <div className="flex min-h-48 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/30">
+            <NoData />
+          </div>
+        ) : (
+          // Until the spec that feeds this chart names a chart library, its
+          // figures are listed rather than hidden.
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full text-sm">
+              <BodyRows rows={rows} columns={Math.max(...rows.map((row) => row.length))} />
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
