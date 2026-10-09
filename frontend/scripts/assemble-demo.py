@@ -6,11 +6,11 @@ Picture: frames are resampled to a constant 30 fps by their own timestamps, and
 a virtual camera eases between the recorder's focus keyframes, zooming gently
 into what the cursor points at and back out before every scroll or tab.
 
-Sound: soft and rounded rather than mechanical, in the manner of modern
-product films, and synthesised here so the video carries no third-party
-audio. A warm pop per click, muted ticks while typing, an airy whoosh per
-scroll, a two-note chime when a section's data lands, and a short room reverb
-over everything. No music. Peaks stay under -6 dBFS.
+Sound: quiet and rounded, synthesised here so the video carries no third-party
+audio. A soft tap per click that fades in rather than snapping, one breath of
+air under each typed word, a dark whoosh per scroll, a two-note chime when a
+section's data lands, and a small room reverb. Nothing starts in under 10 ms.
+No music. Peaks at -20 dBFS.
 """
 
 from __future__ import annotations
@@ -27,9 +27,9 @@ from PIL import Image
 FPS = 30
 RATE = 48_000
 WIDTH, HEIGHT = 1920, 1080
-HOLD = 0.8  # seconds held after the last event, inside the fade
-FADE = 0.5
-CAMERA = 1.0  # seconds for each camera move
+HOLD = 1.2  # seconds held after the last event, inside the fade
+FADE = 0.8
+CAMERA = 1.6  # seconds for each camera move
 RNG = np.random.default_rng(7)
 
 
@@ -52,59 +52,62 @@ def _attack_decay(n: int, attack: float, decay: float) -> np.ndarray:
     return rise * np.exp(-np.maximum(0, t - attack) / decay)
 
 
-def pop() -> np.ndarray:
-    """A warm, rounded click: a sine that drops a little in pitch, no transient."""
-    n = int(0.18 * RATE)
+def tap() -> np.ndarray:
+    """A click as a soft touch: a muffled low tone that fades in, never a transient."""
+    n = int(0.32 * RATE)
     t = np.arange(n) / RATE
-    freq = 360 + 180 * np.exp(-t / 0.02)
-    phase = 2 * np.pi * np.cumsum(freq) / RATE
-    tone = np.sin(phase) + 0.18 * np.sin(2 * phase)
-    return tone * _attack_decay(n, 0.004, 0.045) * 0.30
+    tone = np.sin(2 * np.pi * 420 * t) + 0.12 * np.sin(2 * np.pi * 840 * t)
+    return _lowpass(tone * _attack_decay(n, 0.014, 0.09), 1600) * 0.30
 
 
-def key() -> np.ndarray:
-    """A muted keystroke: a breath of filtered noise with a faint low body."""
-    n = int(0.03 * RATE)
+def breath() -> np.ndarray:
+    """One faint swell of air under a typed word, instead of a tick per key."""
+    n = int(0.9 * RATE)
     t = np.arange(n) / RATE
-    noise = _lowpass(RNG.standard_normal(n), RNG.uniform(1400, 2000))
-    body = np.sin(2 * np.pi * RNG.uniform(700, 900) * t)
-    return (noise * 1.6 + body * 0.25) * _attack_decay(n, 0.0015, 0.007) * 0.05
+    air = _lowpass(RNG.standard_normal(n), 900) - _lowpass(RNG.standard_normal(n), 150) * 0.5
+    return air * np.sin(np.pi * t / t[-1]) ** 2 * 0.06
 
 
 def whoosh() -> np.ndarray:
-    """Air moving past: band-limited noise that swells and settles."""
-    n = int(0.5 * RATE)
+    """Air moving past a scroll: dark, slow to swell, slow to settle."""
+    n = int(0.9 * RATE)
     t = np.arange(n) / RATE
     noise = RNG.standard_normal(n)
-    band = _lowpass(noise, 1500) - _lowpass(noise, 250)
-    shape = np.sin(np.pi * t / t[-1]) ** 2
-    return band * shape * 0.07
+    band = _lowpass(noise, 900) - _lowpass(noise, 180)
+    return band * np.sin(np.pi * t / t[-1]) ** 2 * 0.05
 
 
 def chime() -> np.ndarray:
-    """Two soft bell notes a fifth apart, the second a breath after the first."""
-    n = int(0.9 * RATE)
+    """Two soft bell notes a fifth apart, eased in, when a section's data lands."""
+    n = int(1.2 * RATE)
     t = np.arange(n) / RATE
     out = np.zeros(n)
-    for freq, delay, gain in ((784.0, 0.0, 0.055), (1174.7, 0.07, 0.04)):
+    for freq, delay, gain in ((784.0, 0.0, 0.05), (1174.7, 0.09, 0.035)):
         start = int(delay * RATE)
         tt = t[: n - start]
-        tone = np.sin(2 * np.pi * freq * tt) + 0.2 * np.sin(2 * np.pi * 2 * freq * tt)
-        out[start:] += tone * _attack_decay(n - start, 0.006, 0.22) * gain
-    return out
+        tone = np.sin(2 * np.pi * freq * tt) + 0.15 * np.sin(2 * np.pi * 2 * freq * tt)
+        out[start:] += tone * _attack_decay(n - start, 0.02, 0.28) * gain
+    return _lowpass(out, 2600)
 
 
-SOUNDS = {"click": pop, "key": key, "whoosh": whoosh, "chime": chime}
+SOUNDS = {"click": tap, "breath": breath, "whoosh": whoosh, "chime": chime}
 
 
 def reverb(dry: np.ndarray) -> np.ndarray:
-    """A small, dark room: convolve with decaying low-passed noise, mix 22 % wet."""
-    n = int(0.7 * RATE)
-    ir = _lowpass(RNG.standard_normal(n), 3000) * np.exp(-np.arange(n) / RATE / 0.18)
+    """A small dark room, so each sound settles instead of stopping dead."""
+    n = int(0.9 * RATE)
+    ir = _lowpass(RNG.standard_normal(n), 2000) * np.exp(-np.arange(n) / RATE / 0.25)
     ir /= np.sqrt(np.sum(ir**2))
     size = 1 << int(np.ceil(np.log2(len(dry) + n)))
     wet = np.fft.irfft(np.fft.rfft(dry, size) * np.fft.rfft(ir, size), size)[: len(dry)]
-    return dry + wet * 0.22
+    return dry + wet * 0.18
+
+
+def level(track: np.ndarray) -> np.ndarray:
+    """Peaks at -20 dBFS, through a soft knee so no single sound jumps out."""
+    ceiling = 10 ** (-20 / 20)
+    track = track / (np.max(np.abs(track)) or 1.0)
+    return np.tanh(track * 1.5) / np.tanh(1.5) * ceiling
 
 
 # ── Picture ──────────────────────────────────────────────────────────────────
@@ -177,8 +180,7 @@ def main(src: str, out: str, ffmpeg: str) -> None:
         if 0 <= start < len(track):
             stop = min(len(track), start + len(sound))
             track[start:stop] += sound[: stop - start]
-    track = reverb(track)
-    track *= min(1.0, 0.5 / (np.max(np.abs(track)) or 1.0))  # -6 dBFS ceiling
+    track = level(reverb(track))
     audio = os.path.join(src, "audio-soft.wav")
     with wave.open(audio, "wb") as wav:
         wav.setnchannels(1)
