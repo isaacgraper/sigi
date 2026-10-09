@@ -79,8 +79,8 @@ export async function signIn(page: Page, email: string, password: string) {
 }
 
 /**
- * Follow a sidebar entry. The dashboard's tiles link to the same modules
- * (AC-0011-13), so a link found by name alone is no longer unique.
+ * Follow a sidebar entry. The search stays inside the navigation, because a
+ * page's own content may name the same module.
  */
 export async function openFromSidebar(page: Page, name: string) {
   await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name }).click();
