@@ -95,16 +95,6 @@ export function Dashboard() {
           className="space-y-6 focus-visible:outline-none"
         >
           <p className="text-sm font-light text-muted-foreground">{selected.description}</p>
-          {current?.demo && (
-            // Invented figures are never shown unlabelled (AC-0012-13).
-            <p
-              role="note"
-              data-testid="demo-notice"
-              className="rounded-md border border-attention/30 bg-attention/10 px-4 py-2.5 text-sm text-attention"
-            >
-              Dados de demonstração — não representam a operação real.
-            </p>
-          )}
           {error ? (
             // A failed request never passes for an empty one (AC-0012-05).
             <div data-testid="dashboard-error" className="rounded-lg border bg-card p-6 shadow-sm">
@@ -117,7 +107,7 @@ export function Dashboard() {
                   Carregando...
                 </p>
               )}
-              <SectionBody section={selected} rowsOf={rowsOf} demo={current?.demo ?? false} />
+              <SectionBody section={selected} rowsOf={rowsOf} />
             </>
           )}
         </div>
@@ -140,21 +130,7 @@ function BlockView({ block, rows, className }: { block: Block; rows: Rows; class
 
 // Each section keeps the report's arrangement at desktop width and collapses to
 // one column on a phone (AC-0012-10).
-function SectionBody({
-  section,
-  rowsOf,
-  demo,
-}: {
-  section: Section;
-  rowsOf: (block: string) => Rows;
-  demo: boolean;
-}) {
-  const filters = (
-    <FilterPanel
-      filters={section.filters}
-      note={demo ? "Filtros indisponíveis na demonstração." : undefined}
-    />
-  );
+function SectionBody({ section, rowsOf }: { section: Section; rowsOf: (block: string) => Rows }) {
   // One block by its id: its declaration, and the rows the backend sent for it.
   const at = (id: string, className?: string) => (
     <BlockView key={id} block={section.blocks[id]} rows={rowsOf(id)} className={className} />
@@ -163,7 +139,7 @@ function SectionBody({
     case ATENDIMENTO.id:
       return (
         <>
-          {filters}
+          <FilterPanel filters={section.filters} />
           <div className="grid gap-6 xl:grid-cols-2">
             {at("mercadorias")}
             {at("unidades")}
@@ -175,7 +151,7 @@ function SectionBody({
       return (
         <>
           <div className="grid gap-6 lg:grid-cols-[1fr_14rem]">
-            {filters}
+            <FilterPanel filters={section.filters} />
             {at("estoque")}
           </div>
           {at("grafico", "min-h-96")}
@@ -184,7 +160,7 @@ function SectionBody({
     case PROCESSOS.id:
       return (
         <>
-          {filters}
+          <FilterPanel filters={section.filters} />
           <div className="grid gap-4 sm:grid-cols-3">
             {["abertura", "novo_processo", "previsao", "status", "nova_data", "progresso", "vigente", "vencimento", "sem_processo"].map(
               (id) => at(id),
@@ -197,7 +173,7 @@ function SectionBody({
     case ITENS_EM_FALTA.id:
       return (
         <>
-          {filters}
+          <FilterPanel filters={section.filters} />
           <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
             {at("sku")}
             {at("estoque")}

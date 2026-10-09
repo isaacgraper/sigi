@@ -143,61 +143,6 @@ test.describe("SPEC-0012 the dashboard", () => {
     await expect(panel(page).getByRole("status")).toHaveCount(0);
   });
 
-  test("AC-0012-13 demonstration data is drawn and labelled", async ({ page }) => {
-    // CI runs without DASHBOARD_DEMO, so the demo answer is fulfilled here in
-    // the shape the backend sends with the switch on (SPEC-0012 §7).
-    const demo: Record<string, Record<string, string[][]>> = {
-      consumo: {
-        estoque: [["32.693", "Posição de 01/10/2026"]],
-        grafico: [
-          ["Jan/26", "1701330", "1637052", "1503870", "11850"],
-          ["Fev/26", "1852460", "1778040", "1634210", "11850"],
-        ],
-      },
-      "itens-em-falta": {
-        sku: [["CALCSEG"]],
-        estoque: [["0", "Posição de 01/10/2026"]],
-        consumo_mes: [["0"]],
-        informacoes: [["Item com entrega parcial."]],
-        sugestoes: [["Atadura de crepom 15 cm"]],
-        grupos: [["Fios cirúrgicos", "2025", "26.0.000569-5", "29/09/2026", "120"]],
-        curva_abc: [["A", "10"], ["B", "10"], ["C", "80"]],
-        disponibilidade: [["Disponível", "63.6"], ["Em falta", "32.1"], ["Baixo estoque", "4.3"]],
-        materiais: [
-          ["Atadura de crepom 10 cm", "-", "147", "Com estoque", "071/2025", "26135475", "21/07/2027", "72.000", "Finalizado", "Prorrogada", "A", "83.316"],
-        ],
-      },
-    };
-    await page.route("**/api/v1/painel/*", (route) => {
-      const section = new URL(route.request().url()).pathname.split("/").pop() ?? "";
-      const blocks = Object.fromEntries(Object.entries(demo[section] ?? {}).map(([id, rows]) => [id, { rows }]));
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ section, demo: true, blocks }),
-      });
-    });
-
-    await open(page, "Consumo");
-    await expect(panel(page).getByTestId("demo-notice")).toHaveText("Dados de demonstração — não representam a operação real.");
-    await expect(panel(page).getByText("Filtros indisponíveis na demonstração.")).toBeVisible();
-    await expect(panel(page).getByText("Posição de 01/10/2026")).toBeVisible();
-    await expect(panel(page).getByTestId("dashboard-chart").locator("svg.recharts-surface").first()).toBeVisible();
-    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(0);
-
-    await open(page, "Itens em falta");
-    await expect(panel(page).getByTestId("demo-notice")).toBeVisible();
-    await expect(panel(page).getByRole("cell", { name: "Atadura de crepom 10 cm" })).toBeVisible();
-    await expect(panel(page).getByTestId("dashboard-chart")).toHaveCount(2);
-    await expect(panel(page).getByText("63,6%")).toBeVisible();
-  });
-
-  test("AC-0012-14 without the switch there is no demonstration notice", async ({ page }) => {
-    await open(page, "Consumo");
-    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(2);
-    await expect(panel(page).getByTestId("demo-notice")).toHaveCount(0);
-  });
-
   test("AC-0012-06 atendimento por unidade", async ({ page }) => {
     await filters(page, ["Unidade", "ESF", "ESB", "Pesquisa de mercadorias", "Data"]);
     await columns(page, "Mercadorias", ["Mercadorias", "Autorizado", "Atendido", "V.T atendido"]);

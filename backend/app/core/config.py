@@ -1,9 +1,7 @@
 """Application configuration, read from the environment."""
 
 from functools import lru_cache
-from typing import Self
 
-from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -133,20 +131,6 @@ class Settings(BaseSettings):
     # One hour against the invitation's 72: an invitation waits for somebody to
     # find the time, a reset is asked for by someone sitting at the screen.
     reset_ttl_hours: int = 1
-
-    # ── Dashboard (SPEC-0012 AC-0012-13, -14) ────────────────────────────────
-    # Fictional figures in the CAME report's shape, so the screen can be shown
-    # before SIGI holds the entity's data. Development only: a demonstration
-    # that reaches a real installation would be read as the operation's numbers.
-    dashboard_demo: bool = False
-
-    @model_validator(mode="after")
-    def _demo_only_in_development(self) -> Self:
-        if self.dashboard_demo and self.app_env != "development":
-            raise ValueError(
-                "DASHBOARD_DEMO is allowed only with APP_ENV=development (SPEC-0012 AC-0012-14)."
-            )
-        return self
 
 
 @lru_cache
