@@ -1,8 +1,8 @@
 ---
 id: SPEC-0012
 title: Painel
-status: Draft
-version: 0.1
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF20]
 depends_on: [SPEC-0011]
@@ -160,8 +160,9 @@ And   a table "Materiais" with the columns Material, Emp. abertos, Dias estoque,
 
 ### 4.3 Who is signed in
 
-AC-0010-28 still holds: the page header's description names the usuario and
-their perfil ("Isaac Graper · gestor"), with the e-mail when there is no name.
+AC-0010-28 still holds, from the page header: its description shows the
+usuario's name when the API returns one, their e-mail and their perfil
+("Maria Souza · maria@sc.gov.br · Gestor").
 
 ### 4.4 Layout
 
@@ -219,3 +220,4 @@ yet, which the table in §3 names.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-10-09 | Initial draft from the stakeholders' `RELATÓRIO GERAL CAME` report (four pages), sent as the design of the home screen. Every block is laid out and reads "Sem dados" until its source exists. |
+| 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
