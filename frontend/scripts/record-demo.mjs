@@ -26,7 +26,7 @@ const CURSOR = () => {
     style.textContent = `
       #demo-cursor { position: fixed; left: 0; top: 0; z-index: 2147483647; pointer-events: none;
         transform: translate(var(--x, 960px), var(--y, 540px));
-        transition: transform 900ms cubic-bezier(0.77, 0, 0.175, 1); }
+        transition: transform 420ms cubic-bezier(0.77, 0, 0.175, 1); }
       #demo-cursor svg { display: block; filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35)); }
       .demo-ring { position: fixed; z-index: 2147483646; pointer-events: none; width: 36px; height: 36px;
         margin: -18px 0 0 -18px; border-radius: 9999px; border: 2px solid rgb(30 52 94 / 0.55);
@@ -99,33 +99,33 @@ async function main() {
     const box = await locator.boundingBox();
     return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
   }
-  // The cursor glides for 0.9 s; settle is the rest after it arrives.
-  async function moveTo(locator, settle = 1200, zoom = 0) {
+  // The cursor glides for 0.42 s; settle is the rest after it arrives.
+  async function moveTo(locator, settle = 650, zoom = 0) {
     const { x, y } = await point(locator);
     if (zoom) focus(x, y, Math.min(zoom, 1.3));
     await page.evaluate(([px, py]) => window.__demoCursor.move(px, py), [x, y]);
-    await page.mouse.move(x, y, { steps: 24 });
-    await wait(900 + settle);
+    await page.mouse.move(x, y, { steps: 10 });
+    await wait(420 + settle);
     return { x, y };
   }
   async function click(locator) {
     // Rest over the target a moment before pressing, as a person would.
-    const { x, y } = await moveTo(locator, 350);
+    const { x, y } = await moveTo(locator, 120);
     await page.evaluate(([px, py]) => window.__demoCursor.press(px, py), [x, y]);
     log("click");
     await page.mouse.click(x, y);
   }
   async function type(locator, text) {
     await click(locator);
-    await wait(400);
+    await wait(150);
     // One soft breath under the whole word, not a tick per key.
     log("breath");
     for (const ch of text) {
       await page.keyboard.type(ch);
-      await wait(110 + Math.random() * 40);
+      await wait(35 + Math.random() * 25);
     }
   }
-  // One eased 1.2 s scroll, steadier than the browser's own smooth scroll.
+  // One eased 0.65 s scroll, steadier than the browser's own smooth scroll.
   async function glide(top) {
     await page.evaluate(
       (target) =>
@@ -135,7 +135,7 @@ async function main() {
           const start = performance.now();
           const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
           const step = (now) => {
-            const p = Math.min(1, (now - start) / 1200);
+            const p = Math.min(1, (now - start) / 650);
             window.scrollTo(0, from + (to - from) * ease(p));
             if (p < 1) requestAnimationFrame(step);
             else resolve();
@@ -147,7 +147,7 @@ async function main() {
   }
   async function scrollTo(locator, block = "center") {
     wide();
-    await wait(400);
+    await wait(120);
     log("whoosh");
     const top = await locator.evaluate((el, b) => {
       const box = el.getBoundingClientRect();
@@ -155,21 +155,21 @@ async function main() {
       return window.scrollY + box.top - Math.max(24, offset);
     }, block);
     await glide(top);
-    await wait(1000);
+    await wait(450);
   }
   async function toTop() {
     wide();
-    await wait(400);
+    await wait(120);
     log("whoosh");
     await glide(0);
-    await wait(1200);
+    await wait(400);
   }
   async function openTab(name, ready) {
     wide();
     await click(page.getByRole("tab", { name }));
     await ready.first().waitFor();
     log("chime");
-    await wait(1500);
+    await wait(800);
   }
 
   await page.goto(`${BASE}/login`);
@@ -182,28 +182,28 @@ async function main() {
   // 1. Sign in, the camera close on the form.
   const form = await point(page.getByLabel("Senha", { exact: true }));
   focus(form.x, form.y - 30, 1.3);
-  await wait(1400);
-  await type(page.getByLabel("E-mail institucional"), "admin@sc.gov.br");
-  await wait(600);
-  await type(page.getByLabel("Senha", { exact: true }), "admin");
   await wait(700);
+  await type(page.getByLabel("E-mail institucional"), "admin@sc.gov.br");
+  await wait(200);
+  await type(page.getByLabel("Senha", { exact: true }), "admin");
+  await wait(250);
   await click(page.getByRole("button", { name: "Entrar", exact: true }));
   await page.waitForURL(/dashboard/);
   wide();
   const panel = page.getByRole("tabpanel");
   await panel.getByTestId("dashboard-chart").first().waitFor();
   log("chime");
-  await wait(2200);
+  await wait(1000);
 
   // 2. Atendimento por unidade.
-  await moveTo(panel.getByRole("cell", { name: "Abaixador de língua, pacote com 100" }), 1200, 1.25);
+  await moveTo(panel.getByRole("cell", { name: "Abaixador de língua, pacote com 100" }), 700, 1.25);
   await scrollTo(panel.getByTestId("dashboard-chart").first());
-  await moveTo(panel.locator(".recharts-bar-rectangle").first(), 1200, 1.2);
+  await moveTo(panel.locator(".recharts-bar-rectangle").first(), 700, 1.2);
 
   // 3. Consumo.
   await toTop();
   await openTab("Consumo", panel.locator(".recharts-line"));
-  await moveTo(panel.getByText("Posição de 01/10/2026"), 1200, 1.3);
+  await moveTo(panel.getByText("Posição de 01/10/2026"), 700, 1.3);
   const line = panel.locator(".recharts-surface").first();
   const area = await line.boundingBox();
   focus(area.x + area.width * 0.55, area.y + area.height * 0.4, 1.2);
@@ -211,27 +211,27 @@ async function main() {
     const x = Math.round(area.x + area.width * fraction);
     const y = Math.round(area.y + area.height * 0.35);
     await page.evaluate(([px, py]) => window.__demoCursor.move(px, py), [x, y]);
-    await page.mouse.move(x, y, { steps: 24 });
-    await wait(1200);
+    await page.mouse.move(x, y, { steps: 10 });
+    await wait(550);
   }
 
   // 4. Processos licitatórios.
   await openTab("Processos licitatórios", panel.getByText("Processo concluído em 310 dias"));
   await scrollTo(panel.getByTestId("dashboard-chart").first());
-  await moveTo(panel.locator(".recharts-bar-rectangle").nth(1), 1200, 1.25);
+  await moveTo(panel.locator(".recharts-bar-rectangle").nth(1), 700, 1.25);
   await scrollTo(panel.getByRole("heading", { name: "Itens do processo" }), "start");
 
   // 5. Itens em falta.
   await toTop();
   await openTab("Itens em falta", panel.getByText("CALCSEG"));
   await scrollTo(panel.getByRole("heading", { name: "Disponibilidade" }));
-  await moveTo(panel.getByText("Em falta", { exact: true }).last(), 1200, 1.3);
+  await moveTo(panel.getByText("Em falta", { exact: true }).last(), 700, 1.3);
   await scrollTo(panel.getByRole("heading", { name: "Materiais" }), "start");
-  await moveTo(panel.getByRole("cell", { name: "Seringa descartável 10 ml com dispositivo de segurança" }), 1200, 1.2);
+  await moveTo(panel.getByRole("cell", { name: "Seringa descartável 10 ml com dispositivo de segurança" }), 700, 1.2);
 
   // 6. Back to the top and hold.
   await toTop();
-  await wait(1500);
+  await wait(900);
 
   await cdp.send("Page.stopScreencast");
   await writes;

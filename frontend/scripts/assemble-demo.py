@@ -27,9 +27,9 @@ from PIL import Image
 FPS = 30
 RATE = 48_000
 WIDTH, HEIGHT = 1920, 1080
-HOLD = 1.2  # seconds held after the last event, inside the fade
-FADE = 0.8
-CAMERA = 1.6  # seconds for each camera move
+HOLD = 0.8  # seconds held after the last event, inside the fade
+FADE = 0.5
+CAMERA = 0.7  # seconds for each camera move
 RNG = np.random.default_rng(7)
 
 
@@ -69,8 +69,8 @@ def breath() -> np.ndarray:
 
 
 def whoosh() -> np.ndarray:
-    """Air moving past a scroll: dark, slow to swell, slow to settle."""
-    n = int(0.9 * RATE)
+    """Air moving past a scroll: dark, swelling and settling with the scroll."""
+    n = int(0.6 * RATE)
     t = np.arange(n) / RATE
     noise = RNG.standard_normal(n)
     band = _lowpass(noise, 900) - _lowpass(noise, 180)
