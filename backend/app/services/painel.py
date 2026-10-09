@@ -9,6 +9,7 @@ does not change. The block ids are the keys of `frontend/lib/dashboard.ts`.
 from __future__ import annotations
 
 from app.services.errors import SectionNotFound
+from app.services.painel_demo import DEMO
 
 SECTIONS: dict[str, tuple[str, ...]] = {
     "atendimento": ("mercadorias", "unidades", "grafico"),
@@ -40,8 +41,11 @@ SECTIONS: dict[str, tuple[str, ...]] = {
 }
 
 
-def read(section: str) -> dict[str, list[list[str]]]:
+def read(section: str, *, demo: bool) -> dict[str, list[list[str]]]:
     """Return every block of `section` with its rows (AC-0012-12).
+
+    With `demo`, the rows are the invented figures of `painel_demo`
+    (AC-0012-13); the settings allow it only in development (AC-0012-14).
 
     Raises:
         SectionNotFound: when the dashboard has no such section.
@@ -49,4 +53,6 @@ def read(section: str) -> dict[str, list[list[str]]]:
     blocks = SECTIONS.get(section)
     if blocks is None:
         raise SectionNotFound()
+    if demo:
+        return {block: DEMO[section][block] for block in blocks}
     return {block: [] for block in blocks}

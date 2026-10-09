@@ -15,4 +15,7 @@ class PainelOut(BaseModel):
     """Every block of one section, keyed by the block's id (AC-0012-12)."""
 
     section: str
+    # True only for the development demonstration (AC-0012-13), so the page
+    # can say so and nobody reads invented figures as the operation's.
+    demo: bool
     blocks: dict[str, BlockOut]
