@@ -99,6 +99,50 @@ test.describe("SPEC-0012 the dashboard", () => {
     }
   });
 
+  test("AC-0012-04 \"Sem dados\" is the backend's empty answer", async ({ page }) => {
+    // The real API answers every block with no rows today; a block that gets a
+    // row shows it instead, so "Sem dados" is not hard-coded on the screen.
+    await page.route("**/api/v1/painel/consumo", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ section: "consumo", blocks: { estoque: { rows: [["32.693"]] }, grafico: { rows: [] } } }),
+      }),
+    );
+    await open(page, "Consumo");
+    const estoque = panel(page).getByTestId("dashboard-block").filter({ has: page.getByRole("heading", { name: "Estoque" }) });
+    await expect(estoque).toContainText("32.693");
+    await expect(estoque.getByTestId("sem-dados")).toHaveCount(0);
+    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(1);
+  });
+
+  test("AC-0012-05 a failed request does not pass for empty", async ({ page }) => {
+    await page.route("**/api/v1/painel/consumo", (route) =>
+      route.fulfill({ status: 500, contentType: "text/plain", body: "boom" }),
+    );
+    await open(page, "Consumo");
+    await expect(panel(page).getByTestId("dashboard-error")).toBeVisible();
+    await expect(panel(page).getByTestId("contact-gestor")).toBeVisible();
+    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(0);
+  });
+
+  test("AC-0012-11 a skeleton covers the section until its answer arrives", async ({ page }) => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/api/v1/painel/itens-em-falta", async (route) => {
+      await held;
+      await route.continue();
+    });
+    await open(page, "Itens em falta");
+    await expect(panel(page).getByRole("status")).toHaveText("Carregando...");
+    await expect(panel(page).getByTestId("dashboard-block")).toHaveCount(9);
+    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(0);
+
+    release();
+    await expect(panel(page).getByTestId("sem-dados")).toHaveCount(9);
+    await expect(panel(page).getByRole("status")).toHaveCount(0);
+  });
+
   test("AC-0012-06 atendimento por unidade", async ({ page }) => {
     await filters(page, ["Unidade", "ESF", "ESB", "Pesquisa de mercadorias", "Data"]);
     await columns(page, "Mercadorias", ["Mercadorias", "Autorizado", "Atendido", "V.T atendido"]);
