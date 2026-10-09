@@ -20,6 +20,9 @@ entries are moved into a new dated version section — see
 - `GET /api/v1/painel/{section}` serves the dashboard's blocks for all three perfis. The page
   shows a skeleton while it waits and "Sem dados" for a block that comes back empty, which
   today is every block (SPEC-0012 v1.1).
+- Development-only demonstration data for the dashboard (`DASHBOARD_DEMO`, on by default in
+  `docker-compose.yml`), drawn with `recharts` and labelled on screen. The backend refuses to
+  start with it on outside development (SPEC-0012 v1.2).
 
 ### Changed
 

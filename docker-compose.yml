@@ -33,6 +33,10 @@ services:
       # Alembic only. Never used to serve a request.
       DATABASE_URL_ADMIN: ${DATABASE_URL_ADMIN:-postgresql+psycopg://sigi:sigi@db:5432/sigi}
       APP_ENV: ${APP_ENV:-development}
+      # Invented figures on the dashboard, so a local install can be shown
+      # (SPEC-0012 AC-0012-13). The backend refuses to start with it on outside
+      # development (AC-0012-14): a deployment sets DASHBOARD_DEMO=false.
+      DASHBOARD_DEMO: ${DASHBOARD_DEMO:-true}
       TZ: ${TZ:-America/Sao_Paulo}
     ports:
       - "8000:8000"

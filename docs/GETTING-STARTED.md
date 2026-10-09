@@ -60,6 +60,12 @@ docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.go
 docker compose exec backend python -m app.cli seed-dev-admin
 ```
 
+**Demonstration data.** `docker compose up` shows the dashboard filled with
+invented figures and a notice saying so, because `DASHBOARD_DEMO` defaults to
+`true` there (SPEC-0012 AC-0012-13). The backend refuses to start with it on
+outside `APP_ENV=development`, so a deployment sets `DASHBOARD_DEMO=false`.
+Without it the dashboard shows what SIGI really holds.
+
 **The support contact.** Set `SUPPORT_CONTACT_EMAIL` on the frontend to the
 mailbox the gestores read. Every error a servidor cannot fix names it as a
 mailto link, with the error's reference in the e-mail body (AC-0010-57). Unset,
