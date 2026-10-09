@@ -17,6 +17,9 @@ entries are moved into a new dated version section — see
   Atendimento por unidade, Consumo, Processos licitatórios and Itens em falta, with every
   filter, card, table and chart the report shows. Each block reads "Sem dados" until SIGI
   holds its data.
+- `GET /api/v1/painel/{section}` serves the dashboard's blocks for all three perfis. The page
+  shows a skeleton while it waits and "Sem dados" for a block that comes back empty, which
+  today is every block (SPEC-0012 v1.1).
 
 ### Changed
 
