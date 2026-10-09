@@ -70,7 +70,10 @@ const CURSOR = () => {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const events = [];
-const log = (kind) => events.push({ kind, t: Date.now() / 1000 });
+const log = (kind, extra = {}) => events.push({ kind, t: Date.now() / 1000, ...extra });
+// A camera keyframe for the assembly: ease towards (x, y) at this zoom.
+const focus = (x, y, zoom) => log("focus", { x, y, zoom });
+const wide = () => focus(WIDTH / 2, HEIGHT / 2, 1);
 
 async function main() {
   const frameDir = path.join(OUT, "frames");
@@ -96,8 +99,9 @@ async function main() {
     const box = await locator.boundingBox();
     return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
   }
-  async function moveTo(locator, settle = 600) {
+  async function moveTo(locator, settle = 600, zoom = 0) {
     const { x, y } = await point(locator);
+    if (zoom) focus(x, y, zoom);
     await page.evaluate(([px, py]) => window.__demoCursor.move(px, py), [x, y]);
     await page.mouse.move(x, y, { steps: 12 });
     await wait(settle);
@@ -119,13 +123,16 @@ async function main() {
     }
   }
   async function scrollTo(locator, block = "center") {
+    wide();
+    log("whoosh");
     await locator.evaluate((el, b) => el.scrollIntoView({ behavior: "smooth", block: b }), block);
     await wait(1100);
   }
   async function openTab(name, ready) {
+    wide();
     await click(page.getByRole("tab", { name }));
     await ready.first().waitFor();
-    log("tick");
+    log("chime");
     await wait(900);
   }
 
@@ -136,30 +143,37 @@ async function main() {
   await cdp.send("Page.startScreencast", { format: "jpeg", quality: 90, maxWidth: WIDTH, maxHeight: HEIGHT, everyNthFrame: 1 });
   await wait(1000);
 
-  // 1. Sign in.
+  // 1. Sign in, the camera close on the form.
+  const form = await point(page.getByLabel("Senha", { exact: true }));
+  focus(form.x, form.y - 30, 1.45);
+  await wait(700);
   await type(page.getByLabel("E-mail institucional"), "admin@sc.gov.br");
   await wait(250);
   await type(page.getByLabel("Senha", { exact: true }), "admin");
   await wait(300);
   await click(page.getByRole("button", { name: "Entrar", exact: true }));
   await page.waitForURL(/dashboard/);
+  wide();
   const panel = page.getByRole("tabpanel");
   await panel.getByTestId("dashboard-chart").first().waitFor();
-  log("tick");
+  log("chime");
   await wait(1600);
 
   // 2. Atendimento por unidade.
-  await moveTo(panel.getByRole("cell", { name: "Abaixador de língua, pacote com 100" }), 900);
+  await moveTo(panel.getByRole("cell", { name: "Abaixador de língua, pacote com 100" }), 1300, 1.3);
   await scrollTo(panel.getByTestId("dashboard-chart").first());
-  await moveTo(panel.locator(".recharts-bar-rectangle").first(), 1400);
+  await moveTo(panel.locator(".recharts-bar-rectangle").first(), 1600, 1.25);
 
   // 3. Consumo.
+  wide();
+  log("whoosh");
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   await wait(900);
   await openTab("Consumo", panel.locator(".recharts-line"));
-  await moveTo(panel.getByText("Posição de 01/10/2026"), 1000);
+  await moveTo(panel.getByText("Posição de 01/10/2026"), 1300, 1.5);
   const line = panel.locator(".recharts-surface").first();
   const area = await line.boundingBox();
+  focus(area.x + area.width * 0.55, area.y + area.height * 0.4, 1.2);
   for (const fraction of [0.3, 0.55, 0.8]) {
     const x = Math.round(area.x + area.width * fraction);
     const y = Math.round(area.y + area.height * 0.35);
@@ -172,20 +186,24 @@ async function main() {
   await openTab("Processos licitatórios", panel.getByText("Processo concluído em 310 dias"));
   await wait(400);
   await scrollTo(panel.getByTestId("dashboard-chart").first());
-  await moveTo(panel.locator(".recharts-bar-rectangle").nth(1), 1400);
+  await moveTo(panel.locator(".recharts-bar-rectangle").nth(1), 1600, 1.3);
   await scrollTo(panel.getByRole("heading", { name: "Itens do processo" }), "start");
   await wait(600);
 
   // 5. Itens em falta.
+  wide();
+  log("whoosh");
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   await wait(900);
   await openTab("Itens em falta", panel.getByText("CALCSEG"));
   await scrollTo(panel.getByRole("heading", { name: "Disponibilidade" }));
-  await moveTo(panel.getByText("Em falta", { exact: true }).last(), 1300);
+  await moveTo(panel.getByText("Em falta", { exact: true }).last(), 1600, 1.45);
   await scrollTo(panel.getByRole("heading", { name: "Materiais" }), "start");
-  await moveTo(panel.getByRole("cell", { name: "Seringa descartável 10 ml com dispositivo de segurança" }), 1400);
+  await moveTo(panel.getByRole("cell", { name: "Seringa descartável 10 ml com dispositivo de segurança" }), 1600, 1.25);
 
   // 6. Back to the top and hold.
+  wide();
+  log("whoosh");
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   await wait(2000);
 
