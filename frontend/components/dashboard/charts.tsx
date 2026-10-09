@@ -96,7 +96,7 @@ function UnidadeBars({ block, rows }: { block: ChartBlock; rows: string[][] }) {
         <CartesianGrid horizontal={false} stroke={GRID} />
         <XAxis type="number" tickFormatter={format} tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="unidade" width={150} tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} />
-        <Tooltip {...tooltipStyle} formatter={(value) => format(Number(value))} cursor={{ fill: "var(--muted)" }} />
+        <Tooltip {...tooltipStyle} isAnimationActive={false} formatter={(value) => format(Number(value))} cursor={{ fill: "var(--muted)" }} />
         <Bar dataKey={key} name={key === "atendido" ? block.series[0] : block.series[1]} fill={color} radius={[0, 4, 4, 0]} maxBarSize={18} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
@@ -126,7 +126,7 @@ function MonthLines({ block, rows }: { block: ChartBlock; rows: string[][] }) {
           <CartesianGrid vertical={false} stroke={GRID} />
           <XAxis dataKey="mes" tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis tickFormatter={(n: number) => compact.format(n)} tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} width={56} />
-          <Tooltip {...tooltipStyle} formatter={(value) => integer.format(Number(value))} />
+          <Tooltip {...tooltipStyle} isAnimationActive={false} formatter={(value) => integer.format(Number(value))} />
           {block.series.map((name, i) => (
             <Line key={name} type="monotone" dataKey={name} stroke={SERIES[i]} strokeWidth={2} dot={i === 1 ? { r: 3 } : false} isAnimationActive={false} />
           ))}
@@ -156,7 +156,7 @@ function StageBars({ block, rows }: { block: ChartBlock; rows: string[][] }) {
           <CartesianGrid horizontal={false} stroke={GRID} />
           <XAxis type="number" unit=" d" tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="etapa" width={170} tick={{ fill: INK, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip {...tooltipStyle} formatter={(value) => `${integer.format(Number(value))} dias`} cursor={{ fill: "var(--muted)" }} />
+          <Tooltip {...tooltipStyle} isAnimationActive={false} formatter={(value) => `${integer.format(Number(value))} dias`} cursor={{ fill: "var(--muted)" }} />
           <Bar dataKey="planejado" name="Planejado" fill={SERIES[0]} radius={[0, 4, 4, 0]} maxBarSize={12} isAnimationActive={false} />
           <Bar dataKey="real" name="Real" fill={SERIES[1]} radius={[0, 4, 4, 0]} maxBarSize={12} isAnimationActive={false} />
         </BarChart>
@@ -179,7 +179,7 @@ function PartOfWhole({ rows }: { rows: string[][] }) {
               <Cell key={row.name} fill={row.color} />
             ))}
           </Pie>
-          <Tooltip {...tooltipStyle} formatter={(value) => `${percent.format((Number(value) / sum) * 100)}%`} />
+          <Tooltip {...tooltipStyle} isAnimationActive={false} formatter={(value) => `${percent.format((Number(value) / sum) * 100)}%`} />
         </PieChart>
       </ResponsiveContainer>
       {/* Direct labels with the share, so no slice depends on its colour. */}

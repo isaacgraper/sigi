@@ -65,7 +65,7 @@ export function SectionTabs({
             onClick={() => onSelect(section)}
             onKeyDown={(event) => move(event, index)}
             className={cn(
-              "-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm whitespace-nowrap transition-colors focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm whitespace-nowrap transition-[color,border-color] duration-150 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? "border-primary font-normal text-primary"
                 : "border-transparent font-light text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",

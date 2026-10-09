@@ -23,7 +23,8 @@ export function TableBody(props: React.HTMLAttributes<HTMLTableSectionElement>) 
 }
 
 export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("border-b hover:bg-muted/40", className)} {...props} />;
+  // Gated to a real pointer: a tap on a touch screen would leave the tint stuck.
+  return <tr className={cn("border-b [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/40", className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {

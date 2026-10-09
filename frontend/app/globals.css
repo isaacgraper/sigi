@@ -80,6 +80,9 @@
   --animate-drawer-in: drawer-in 250ms var(--ease-drawer);
   --animate-drawer-out: drawer-out 200ms var(--ease-drawer);
   --animate-label-in: fade-in 150ms var(--ease-out);
+  /* A dashboard block's answer replacing its skeleton: opacity only, so it
+     stays the same under reduced motion (SPEC-0012 AC-0012-11). */
+  --animate-data-in: fade-in 180ms var(--ease-out) both;
 
   @keyframes fade-in {
     from {
@@ -115,6 +118,13 @@
     }
   }
 }
+
+/* Tiles in a row arrive 40 ms apart rather than as one jump; capped at five so
+   the last never waits more than 160 ms. */
+.data-stagger > :nth-child(2) .animate-data-in { animation-delay: 40ms; }
+.data-stagger > :nth-child(3) .animate-data-in { animation-delay: 80ms; }
+.data-stagger > :nth-child(4) .animate-data-in { animation-delay: 120ms; }
+.data-stagger > :nth-child(n + 5) .animate-data-in { animation-delay: 160ms; }
 
 /* AC-0011-21: under reduced motion nothing moves or resizes; it only fades. */
 @media (prefers-reduced-motion: reduce) {

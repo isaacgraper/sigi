@@ -175,7 +175,7 @@ function SectionBody({
       return (
         <>
           {filters}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="data-stagger grid gap-4 sm:grid-cols-3">
             {["abertura", "novo_processo", "previsao", "status", "nova_data", "progresso", "vigente", "vencimento", "sem_processo"].map(
               (id) => at(id),
             )}
@@ -188,7 +188,7 @@ function SectionBody({
       return (
         <>
           {filters}
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="data-stagger grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
             {at("sku")}
             {at("estoque")}
             {at("consumo_mes")}

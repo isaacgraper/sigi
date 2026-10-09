@@ -36,13 +36,13 @@ export function TileView({ block, rows }: { block: StatBlock | NoteBlock; rows: 
       {rows === undefined ? (
         <Skeleton className="h-5 w-24" />
       ) : rows.length === 0 ? (
-        <NoData />
+        <NoData className="animate-data-in" />
       ) : (
-        <>
+        <div className="animate-data-in">
           <p className={cn(block.kind === "stat" ? "text-2xl font-normal tabular-nums" : "text-sm")}>{rows[0][0]}</p>
           {/* A tile's caption: for an estoque figure, the date of its position (ADR-0008). */}
           {rows[0][1] && <p className="text-xs font-light text-muted-foreground">{rows[0][1]}</p>}
-        </>
+        </div>
       )}
     </Card>
   );
@@ -50,7 +50,7 @@ export function TileView({ block, rows }: { block: StatBlock | NoteBlock; rows: 
 
 function BodyRows({ rows, columns }: { rows: string[][]; columns: number }) {
   return (
-    <tbody>
+    <tbody className="animate-data-in">
       {rows.map((row, index) => (
         <TableRow key={index}>
           {Array.from({ length: columns }, (_, cell) => (
@@ -102,7 +102,7 @@ export function TableView({ block, rows }: { block: TableBlock; rows: Rows }) {
           </div>
         )}
         {empty && (
-          <div className="border-t px-4 py-10 text-center">
+          <div className="animate-data-in border-t px-4 py-10 text-center">
             <NoData />
           </div>
         )}
@@ -133,11 +133,11 @@ export function ChartView({ block, rows, className }: { block: ChartBlock; rows:
         {rows === undefined ? (
           <Skeleton className="min-h-48 flex-1" />
         ) : rows.length === 0 ? (
-          <div className="flex min-h-48 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/30">
+          <div className="animate-data-in flex min-h-48 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/30">
             <NoData />
           </div>
         ) : (
-          <div data-testid="dashboard-chart" className="min-w-0 flex-1">
+          <div data-testid="dashboard-chart" className="animate-data-in min-w-0 flex-1">
             <DashChart block={block} rows={rows} />
           </div>
         )}
