@@ -31,6 +31,10 @@ HOLD = 0.8  # seconds held after the last event, inside the fade
 FADE = 0.5
 CAMERA = 0.7  # seconds for each camera move
 RNG = np.random.default_rng(7)
+# Room and ceiling for the built-in tones; load_afx lowers the room and raises
+# the ceiling, because a few-millisecond tick at -20 dBFS is barely audible.
+WET = 0.18
+CEILING_DB = -20.0
 
 
 # ── Sound ────────────────────────────────────────────────────────────────────
@@ -103,13 +107,13 @@ def sample(path: str) -> np.ndarray:
 
 
 def load_afx(folder: str) -> None:
-    """Replace the built-in sounds with click.wav, chime.wav and swish.wav; typing stays silent."""
-    SOUNDS.update(
-        click=lambda: sample(os.path.join(folder, "click.wav")),
-        chime=lambda: sample(os.path.join(folder, "chime.wav")),
-        whoosh=lambda: sample(os.path.join(folder, "swish.wav")),
-        breath=lambda: np.zeros(1),
-    )
+    """Use the sound-generator WAVs: click.wav per click, one of key1-4.wav per keystroke, nothing else."""
+    global WET, CEILING_DB
+    WET, CEILING_DB = 0.06, -14.0
+    keys = [sample(os.path.join(folder, f"key{i}.wav")) for i in range(1, 5)]
+    click = sample(os.path.join(folder, "click.wav"))
+    SOUNDS.clear()
+    SOUNDS.update(click=lambda: click, key=lambda: keys[RNG.integers(len(keys))] * RNG.uniform(0.8, 1.0))
 
 
 def reverb(dry: np.ndarray) -> np.ndarray:
@@ -119,12 +123,12 @@ def reverb(dry: np.ndarray) -> np.ndarray:
     ir /= np.sqrt(np.sum(ir**2))
     size = 1 << int(np.ceil(np.log2(len(dry) + n)))
     wet = np.fft.irfft(np.fft.rfft(dry, size) * np.fft.rfft(ir, size), size)[: len(dry)]
-    return dry + wet * 0.18
+    return dry + wet * WET
 
 
 def level(track: np.ndarray) -> np.ndarray:
-    """Peaks at -20 dBFS, through a soft knee so no single sound jumps out."""
-    ceiling = 10 ** (-20 / 20)
+    """Peaks at CEILING_DB, through a soft knee so no single sound jumps out."""
+    ceiling = 10 ** (CEILING_DB / 20)
     track = track / (np.max(np.abs(track)) or 1.0)
     return np.tanh(track * 1.5) / np.tanh(1.5) * ceiling
 

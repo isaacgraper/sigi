@@ -118,9 +118,8 @@ async function main() {
   async function type(locator, text) {
     await click(locator);
     await wait(150);
-    // One soft breath under the whole word, not a tick per key.
-    log("breath");
     for (const ch of text) {
+      log("key");
       await page.keyboard.type(ch);
       await wait(35 + Math.random() * 25);
     }
