@@ -1,6 +1,6 @@
 """Turn record-demo.mjs's frames and events into a calm product video.
 
-    python assemble-demo.py <recording-dir> <out.mp4> <ffmpeg>
+    python assemble-demo.py <recording-dir> <out.mp4> <ffmpeg> [<afx-dir>]
 
 Picture: frames are resampled to a constant 30 fps by their own timestamps, and
 a virtual camera eases between the recorder's focus keyframes, zooming gently
@@ -93,6 +93,25 @@ def chime() -> np.ndarray:
 SOUNDS = {"click": tap, "breath": breath, "whoosh": whoosh, "chime": chime}
 
 
+def sample(path: str) -> np.ndarray:
+    """A mono 48 kHz sound from a WAV rendered by the sound-generator skill."""
+    with wave.open(path) as wav:
+        rate, channels = wav.getframerate(), wav.getnchannels()
+        data = np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2").astype(float) / 32768
+    mono = data.reshape(-1, channels).mean(axis=1)
+    return np.interp(np.arange(int(len(mono) * RATE / rate)) * rate / RATE, np.arange(len(mono)), mono)
+
+
+def load_afx(folder: str) -> None:
+    """Replace the built-in sounds with click.wav, chime.wav and swish.wav; typing stays silent."""
+    SOUNDS.update(
+        click=lambda: sample(os.path.join(folder, "click.wav")),
+        chime=lambda: sample(os.path.join(folder, "chime.wav")),
+        whoosh=lambda: sample(os.path.join(folder, "swish.wav")),
+        breath=lambda: np.zeros(1),
+    )
+
+
 def reverb(dry: np.ndarray) -> np.ndarray:
     """A small dark room, so each sound settles instead of stopping dead."""
     n = int(0.9 * RATE)
@@ -148,7 +167,9 @@ def framed(image: Image.Image, x: float, y: float, zoom: float) -> Image.Image:
 # ── Assembly ─────────────────────────────────────────────────────────────────
 
 
-def main(src: str, out: str, ffmpeg: str) -> None:
+def main(src: str, out: str, ffmpeg: str, afx: str | None = None) -> None:
+    if afx:
+        load_afx(afx)
     with open(os.path.join(src, "frames.json")) as fh:
         frames = sorted(json.load(fh), key=lambda f: f["t"])
     with open(os.path.join(src, "events.json")) as fh:
@@ -226,4 +247,4 @@ def main(src: str, out: str, ffmpeg: str) -> None:
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])
