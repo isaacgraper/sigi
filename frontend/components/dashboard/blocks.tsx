@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { ChartBlock, Filter, NoteBlock, StatBlock, TableBlock } from "@/lib/dashboard";
+import type { ChartBlock, Filter, NoteBlock, StatBlock, TableBlock } from "@/lib/dashboard/types";
 import { cn } from "@/lib/utils";
 
 /**
