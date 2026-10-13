@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { InviteDialog } from "@/components/members/invite-dialog";
 import { MemberActions } from "@/components/members/member-actions";
-import { type MemberPage, STATUS_LABEL, STATUS_TONE } from "@/components/members/types";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -23,12 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { PERFIL_LABEL } from "@/lib/constants";
+import { MEMBERS_PAGE_SIZE, STATUS_LABEL, STATUS_TONE } from "@/lib/members/constants";
+import type { MemberPage } from "@/lib/members/types";
 import { apiJson } from "@/lib/session";
-
-const SIZE = 20;
 
 function pageFrom(raw: string | null): number {
   const value = Number.parseInt(raw ?? "1", 10);
@@ -52,7 +51,7 @@ export function Members() {
 
   useEffect(() => {
     let cancelled = false;
-    apiJson<MemberPage>(`/api/v1/usuarios?page=${page}&size=${SIZE}`)
+    apiJson<MemberPage>(`/api/v1/usuarios?page=${page}&size=${MEMBERS_PAGE_SIZE}`)
       .then((value) => {
         if (cancelled) return;
         setData(value);
