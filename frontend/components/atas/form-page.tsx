@@ -12,7 +12,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { buttonVariants } from "@/components/ui/button";
-import type { AtaDetail } from "@/lib/atas";
+import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { apiJson } from "@/lib/session";
 

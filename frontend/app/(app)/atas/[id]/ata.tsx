@@ -24,7 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type AtaDetail, MOVE } from "@/lib/atas";
+import { MOVE } from "@/lib/atas/constants";
+import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { takeFlash } from "@/lib/flash";
 import { formatBRL, formatCnpj, formatDate, formatDay } from "@/lib/format";

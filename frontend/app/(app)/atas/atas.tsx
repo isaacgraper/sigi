@@ -24,19 +24,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  type AtaPage,
+  ATAS_PAGE_SIZE,
+  FILTER_ALL,
+  LIST_COLUMNS,
   SITUACAO_LABEL,
   SITUACOES,
-  type Situacao,
   STATUS_LABEL,
   STATUSES,
-  type Status,
-} from "@/lib/atas";
+} from "@/lib/atas/constants";
+import type { AtaPage, Situacao, Status } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatBRL, formatDay } from "@/lib/format";
 import { apiJson } from "@/lib/session";
-
-const SIZE = 25;
 
 function RegisterLink({ variant = "default" }: { variant?: "default" | "outline" }) {
   return (
@@ -46,8 +45,6 @@ function RegisterLink({ variant = "default" }: { variant?: "default" | "outline"
     </Link>
   );
 }
-const ALL = "todos";
-const COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Valor contratado", "Status", "Reajuste em"];
 
 function pageFrom(raw: string | null): number {
   const value = Number.parseInt(raw ?? "1", 10);
@@ -77,7 +74,7 @@ export function Atas() {
   const page = pageFrom(params.get("pagina"));
   const filtered = status !== null || situacao !== null;
 
-  const query = new URLSearchParams({ page: String(page), size: String(SIZE) });
+  const query = new URLSearchParams({ page: String(page), size: String(ATAS_PAGE_SIZE) });
   if (status) query.set("status", status);
   if (situacao) query.set("situacao_vigencia", situacao);
   const path = `/api/v1/atas?${query}`;
@@ -121,14 +118,14 @@ export function Atas() {
           <div className="w-full space-y-2 sm:w-48">
             <Label htmlFor="filtro-status">Status</Label>
             <Select
-              value={status ?? ALL}
-              onValueChange={(value) => router.push(hrefFor(value === ALL ? null : (value as Status), situacao, 1))}
+              value={status ?? FILTER_ALL}
+              onValueChange={(value) => router.push(hrefFor(value === FILTER_ALL ? null : (value as Status), situacao, 1))}
             >
               <SelectTrigger id="filtro-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todos</SelectItem>
+                <SelectItem value={FILTER_ALL}>Todos</SelectItem>
                 {STATUSES.map((value) => (
                   <SelectItem key={value} value={value}>
                     {STATUS_LABEL[value]}
@@ -140,14 +137,14 @@ export function Atas() {
           <div className="w-full space-y-2 sm:w-48">
             <Label htmlFor="filtro-situacao">Situação</Label>
             <Select
-              value={situacao ?? ALL}
-              onValueChange={(value) => router.push(hrefFor(status, value === ALL ? null : (value as Situacao), 1))}
+              value={situacao ?? FILTER_ALL}
+              onValueChange={(value) => router.push(hrefFor(status, value === FILTER_ALL ? null : (value as Situacao), 1))}
             >
               <SelectTrigger id="filtro-situacao">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todas</SelectItem>
+                <SelectItem value={FILTER_ALL}>Todas</SelectItem>
                 {SITUACOES.map((value) => (
                   <SelectItem key={value} value={value}>
                     {SITUACAO_LABEL[value]}
@@ -177,7 +174,7 @@ export function Atas() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {COLUMNS.map((name) => (
+                  {LIST_COLUMNS.map((name) => (
                     <TableHead key={name} className={name === "Valor contratado" ? "whitespace-nowrap text-right" : "whitespace-nowrap"}>
                       {name}
                     </TableHead>
@@ -187,7 +184,7 @@ export function Atas() {
               <TableBody>
                 {data.items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={COLUMNS.length}>
+                    <TableCell colSpan={LIST_COLUMNS.length}>
                       <EmptyState
                         message={
                           filtered
