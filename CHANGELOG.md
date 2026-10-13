@@ -35,6 +35,10 @@ entries are moved into a new dated version section — see
 - Status reads as text, never as a pill badge (DESIGN.md §4): the word in the body colour, a
   small dot only when it needs attention, and finished states in grey. An ATA's status and
   situação become one line ("Vigente · a vencer"); member status follows the same rule.
+- Frontend constants and types live in `lib/constants.ts`, `lib/types.ts` and
+  `lib/<feature>/` (`atas`, `members`, `dashboard`), per `docs/process/coding-standards.md`.
+  An ESLint rule fails the lint on an `UPPER_CASE` constant anywhere else. No behaviour
+  change: the Vitest and Playwright suites pass unchanged.
 - The dashboard no longer shows module tiles; the sidebar lists the modules (SPEC-0011 v1.2
   withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
 
