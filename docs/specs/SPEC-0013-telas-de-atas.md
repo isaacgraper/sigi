@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -25,12 +25,15 @@ screens ask, show the answer, and show the API's refusal in its own words.
 ## 2. Scope
 
 **In scope**
-- `/atas`: the two alerts, the list with its filters and pages, and "Cadastrar ATA".
+- `/atas`: the upcoming vencimentos and reajustes in one list, the ATA list with
+  its filters and pages, and "Cadastrar ATA".
+- `/atas/nova` and `/atas/{id}/editar`: registering and editing an ATA, each on
+  its own page.
 - `/atas/{id}`: the ATA, its aditivos and reajuste requests, and the gestor's
   actions on it: edit, the lifecycle moves, "Registrar aditivo" and
   "Registrar pedido de reajuste".
 - "ATAs" in the sidebar for every perfil.
-- The loading, empty and error states of both pages.
+- The loading, empty and error states of every page.
 
 **Out of scope**
 - Valor empenhado, saldo and the share consumed. They come from the NE ledger
@@ -62,21 +65,30 @@ is Approved takes its place between "Painel" and "Membros".
 
 ### 4.2 The ATA list
 
-**AC-0013-02** — The two alerts come first
+**AC-0013-02** — What falls due comes first, in one list
 ```gherkin
 Given a signed-in usuario of any perfil
 When  /atas is shown
-Then  a block "ATAs a renovar" lists the rows of GET /api/v1/atas/alertas/renovacao
-And   a block "Reajuste a solicitar" lists the rows of GET /api/v1/atas/alertas/reajuste
-And   each row shows the ATA's número and objeto and the days remaining, in the API's order
+Then  a block "Vencimentos e reajustes" lists the rows of GET /api/v1/atas/alertas/renovacao
+      and GET /api/v1/atas/alertas/reajuste together, ordered by days remaining ascending
+And   each row shows its kind ("Vencimento" or "Reajuste"), the ATA's número and objeto,
+      the date it falls due and the days remaining
 And   each row opens that ATA
-When  an alert has no rows
-Then  its block reads "Nenhuma ATA neste alerta."
+When  there are more than 5 rows
+Then  the 5 most urgent show, and "Mostrar todos (N)" shows the rest
+When  neither alert has rows
+Then  the block is a single line: "Nenhum vencimento ou reajuste próximo."
 ```
-Days remaining are written out: "Vence em 12 dias", "Venceu há 3 dias", "Vence
-hoje" for renewal, and "Reajuste em 20 dias", "Reajuste vencido há 5 dias",
-"Reajuste hoje" for reajuste. A negative count is the API's (AC-0002-09,
-AC-0002-20); the screen does not decide which ATA belongs in an alert.
+A row's date is the ATA's `vigencia_fim` for a Vencimento and its `data_reajuste`
+for a Reajuste. Days remaining read "45 dias", "1 dia" or "hoje", and once the
+date has passed, "há 3 dias" in the danger colour. A negative count is the API's
+(AC-0002-09, AC-0002-20); the screen does not decide which ATA belongs in an
+alert, and an ATA in both appears twice, once per kind.
+
+*(v1.2)* The two alerts were two identical cards, which halved the width of each,
+cut the objeto short and said "Nenhuma ATA neste alerta." twice when there was
+nothing to do. One list answers the question both asked, what needs attention
+first, by the product owner's decision.
 
 **AC-0013-03** — The list shows every ATA, a page at a time
 ```gherkin
@@ -129,24 +141,34 @@ And   no block reads as empty
 
 ### 4.3 Registering an ATA
 
-**AC-0013-07** — A gestor registers an ATA
+**AC-0013-07** — A gestor registers an ATA on its own page
 ```gherkin
 Given a gestor on /atas
 When  "Cadastrar ATA" is chosen
-Then  a dialog asks for Número, Objeto, Órgão, CNPJ do fornecedor, Razão social,
-      Data de emissão (opcional), Início da vigência, Fim da vigência,
-      Valor total and Data do orçamento planilhado
+Then  /atas/nova opens with the page header "Nova ATA" and the fields in four sections:
+      Identificação (Número, Objeto, Órgão), Fornecedor (CNPJ do fornecedor, Razão social),
+      Vigência (Início da vigência, Fim da vigência, Data de emissão (opcional)) and
+      Valores (Valor total, Data do orçamento planilhado)
+And   "Cadastrar" and "Voltar" stay in view at the foot of the page
 When  it is submitted with valid values
 Then  POST /api/v1/atas is called once
 And   the new ATA's page opens, saying "ATA cadastrada como rascunho."
+When  "Voltar" is chosen
+Then  /atas returns and nothing is sent
 Given a servidor or an auditor on /atas
 Then  "Cadastrar ATA" is not offered
+And   /atas/nova, opened by its address, says "Seu perfil não permite esta ação." with a link back
 ```
 Hiding the control is cosmetic; the API refuses the write (AC-0002-05).
 
+*(v1.2)* Ten fields with validation are a document, not a quick task, and a
+dialog that scrolls hid half of them; the sections follow the ATA page's own
+grouping, so the form looks like the page it produces, by the product owner's
+decision.
+
 **AC-0013-08** — The API's refusal lands on the field it names
 ```gherkin
-Given the "Cadastrar ATA" dialog
+Given the registration or the edit page
 When  the API answers 422 "INVALID_DATA" with `fields`
 Then  each named field shows its message below it and is marked invalid
 And   focus moves to the first of them
@@ -154,7 +176,7 @@ And   every value typed is kept
 When  the API answers 409 "ATA_DUPLICADA"
 Then  Número shows "Já existe uma ATA com este número. Confira o número ou abra a existente."
 ```
-The dialog checks only that a required field is not empty before sending. The
+The page checks only that a required field is not empty before sending. The
 rest (CNPJ check digits, the vigência's order, the valor's precision) is the API's
 (AC-0002-03, -04, -25).
 
@@ -227,18 +249,22 @@ When  it is confirmed with a justification
 Then  POST /api/v1/atas/{id}/cancelar carries it
 ```
 
-**AC-0013-14** — A gestor edits what may still change
+**AC-0013-14** — A gestor edits what may still change, on its own page
 ```gherkin
 Given a gestor on a "Rascunho" ATA
 When  "Editar" is chosen
-Then  the registration fields are shown filled and editable
+Then  /atas/{id}/editar opens with the page header "Editar ATA {número}" and the
+      sections of AC-0013-07, filled and editable
 Given a gestor on an ATA past "Rascunho"
 When  "Editar" is chosen
 Then  only Objeto and Órgão are editable
 And   the others are shown read-only with "Depois de ativada, valores e prazos só mudam por aditivo."
 When  the edit is saved
 Then  PATCH /api/v1/atas/{id} carries only the fields that changed
+And   the ATA's page opens, saying "ATA atualizada."
 And   a refusal lands on its field as in AC-0013-08
+When  "Voltar" is chosen
+Then  the ATA's page returns and nothing is sent
 ```
 
 **AC-0013-15** — A gestor records an aditivo
@@ -279,9 +305,9 @@ And   no edit, move, aditivo or reajuste control is offered
 
 ### 4.6 Layout
 
-**AC-0013-18** — Both pages hold at every width
+**AC-0013-18** — Every page holds at every width
 ```gherkin
-Given /atas and /atas/{id}, with their dialogs open and closed
+Given /atas, /atas/nova, /atas/{id} and /atas/{id}/editar, with their dialogs open and closed
 When  they are shown at 360, 768 and 1440 px
 Then  the page does not scroll sideways, and a wide table scrolls inside its own frame
 And   they pass the accessibility check of AC-0010-44
@@ -295,7 +321,8 @@ And   every action can be reached and confirmed with the keyboard
 | Request pending | Skeleton of the block's shape (AC-0013-06) |
 | Request fails | Error notice with the gestor contact (AC-0013-06) |
 | `INVALID_DATA`, `ATA_DUPLICADA`, `ADITIVO_ACIMA_DO_LIMITE`, `PROCESSO_SEI_INVALIDO` | The API's message under the field it names (AC-0013-08, -15, -16) |
-| `TRANSICAO_INVALIDA`, `ATA_NAO_EDITAVEL`, `ATA_NAO_VIGENTE` | The API's message in the open dialog, and the ATA reloaded (AC-0013-12, -14) |
+| `TRANSICAO_INVALIDA`, `ATA_NAO_VIGENTE` | The API's message in the open dialog, and the ATA reloaded (AC-0013-12) |
+| `ATA_NAO_EDITAVEL` | The API's message on the edit page, and the ATA reloaded (AC-0013-14) |
 | `NOT_FOUND` on /atas/{id} | "ATA não encontrada." with a link back (AC-0013-10) |
 | `PERFIL_NAO_AUTORIZADO` | The API's message; reachable only if the perfil changed while the page was open |
 | Session expired | SPEC-0010's session handling, as on every page |
@@ -304,7 +331,7 @@ And   every action can be reached and confirmed with the keyboard
 
 | Action | gestor | servidor | auditor |
 | --- | --- | --- | --- |
-| See /atas, /atas/{id} and both alerts | ✓ | ✓ | ✓ |
+| See /atas, /atas/{id} and the vencimentos and reajustes | ✓ | ✓ | ✓ |
 | Cadastrar, editar, mover, registrar aditivo e pedido de reajuste | ✓ | — | — |
 
 The API enforces it (SPEC-0002 §3.7, invariant 8). The screens only hide what a
@@ -342,10 +369,11 @@ choose a member from this screen (§2).
     situação, the moves per status (AC-0013-12) and the days-remaining text.
   - `frontend/lib/format.ts` gains a calendar-date formatter, BRL formatting,
     pt-BR money parsing to a decimal string, and CNPJ formatting.
-  - `frontend/app/(app)/atas/` holds the list page, and `[id]/` the ATA page,
-    each with its `loading.tsx`.
-  - `frontend/components/atas/` holds the badges, the alerts, the ATA form
-    (register and edit), the move confirmation, and the aditivo and reajuste dialogs.
+  - `frontend/app/(app)/atas/` holds the list page, `nova/` the registration,
+    `[id]/` the ATA page and `[id]/editar/` the edit, each with its `loading.tsx`.
+  - `frontend/components/atas/` holds the status words, the vencimentos and
+    reajustes list, the ATA form (register and edit, in sections), the move
+    confirmation, and the aditivo and reajuste dialogs.
 - New dependencies: none.
 - Tests:
   - `frontend/tests/atas.test.ts` (Vitest) covers money parsing, date and
@@ -360,3 +388,4 @@ choose a member from this screen (§2).
 | 0.1 | 2026-10-13 | Initial draft. The screens for SPEC-0002 v1.1: the list with both alerts, registration, the ATA page, the lifecycle moves, edit, aditivo and reajuste request. No backend change. |
 | 1.0 | 2026-10-13 | Approved by the product owner as drafted, including the moves offered per status as a cosmetic mirror of AC-0002-22. |
 | 1.1 | 2026-10-13 | AC-0013-01 names the room AC-0010-27 and AC-0011-01 leave for it. No behaviour change. |
+| 1.2 | 2026-10-13 | By the product owner's review of the screens: registering and editing move from a dialog to `/atas/nova` and `/atas/{id}/editar`, in the ATA page's sections (AC-0013-07, -14); the two alert cards become one "Vencimentos e reajustes" list ordered by urgency, the 5 most urgent first (AC-0013-02); AC-0013-18 covers the new pages. |
