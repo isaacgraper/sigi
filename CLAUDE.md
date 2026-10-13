@@ -265,6 +265,9 @@ Full version: `CONTRIBUTING.md`.
 
 **Both**
 
+- Where a value lives and the order inside a file follow
+  `docs/process/coding-standards.md`: constants and labels in a `constants.ts`
+  by feature, never in a component, a page or a function body.
 - Comments explain *why*, never *what*.
 - No new dependency without a note in the spec's plan section.
 - **Language is chosen by who reads the string** (ADR-0013). Ask that first;
