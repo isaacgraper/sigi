@@ -108,6 +108,18 @@ Sidebar → **ATAs**.
      reajuste recorded. Dated by the reajuste date. It leaves the list as soon
      as a pedido is recorded.
 
+   **Colour says how urgent a row is, before anything is read:**
+
+   | Row | Left bar | Days | Also |
+   | --- | --- | --- | --- |
+   | Date passed | Red | Red, "há 3 dias" | Faint red tint, "· em atraso" after the kind |
+   | Due within 30 days | Amber | Amber | — |
+   | Due later | None | Plain | — |
+
+   The title is followed by the count, for example "● 2 em atraso ● 2 em até 30
+   dias", so the answer is there before any row is read. The 30 days are an
+   assumption to confirm with the stakeholders (OQ-47).
+
    An ATA due on both counts appears twice, once per kind. The five most urgent
    show; "Mostrar todos (N)" shows the rest. When nothing is due, the block is
    one line: "Nenhum vencimento ou reajuste próximo."
