@@ -56,8 +56,9 @@ column and never hard-code a colour.
 Measured contrast (WCAG 2.1): foreground on background 15.8:1; white on primary
 12.3:1; white on sidebar 15.6:1; idle sidebar items 8.4:1; muted text 5.8:1;
 every status colour between 5.6:1 and 6.0:1 on white and at least 4.9:1 on
-its own 10 % badge tint (amber was darkened from `0.55 0.13 70` because it
-failed there at 4.4:1). Any new colour is checked
+a 10 % tint of itself (amber was darkened from `0.55 0.13 70` because it
+failed there at 4.4:1); a status now uses them only as a 6 px dot, which carries
+no text (§4). Any new colour is checked
 the same way before it is used, and the axe suite (AC-0010-44) guards the result.
 
 ### Type
@@ -72,7 +73,7 @@ the system stack, which drew a different face on every machine. Monospace for
 codes, links, Processo SEI, NE and NF numbers.
 
 Two weights only (product owner, 2026-09-28): **regular (400)** for titles and
-anything important (names, identities, labels, buttons, badges, the brand) and
+anything important (names, identities, labels, buttons, status words, the brand) and
 **light (300)** for the minor line under a title. No semibold or bold: hierarchy
 comes from size and colour.
 
@@ -82,7 +83,7 @@ comes from size and colour.
 | Section, card and dialog title | `text-base font-normal` (dialogs `text-lg`) |
 | Subtitle under a title, descriptions, secondary lines | `text-sm font-light text-muted-foreground` |
 | Body and table text | `text-sm` |
-| Table header, labels, buttons, badges | `font-normal` |
+| Table header, labels, buttons, status words | `font-normal` |
 | Caption, footer, the perfil under a name | `text-xs font-light text-muted-foreground` |
 | Figures in tables and stats | `tabular-nums` |
 | Codes and identifiers | `font-mono text-xs` |
@@ -166,7 +167,7 @@ tokens above. Prefer extending one of these to adding a new one.
 | **Input, Select, Label** | Label above the field, always visible, never a placeholder in its place. Error text below the field in `text-danger`, linked with `aria-describedby`, field marked `aria-invalid`. |
 | **Form** | One column. Primary action at the end, right-aligned on desktop, full-width on mobile. A submitting form disables its button and changes the label ("Entrando...", "Enviando..."). |
 | **Table** | White card, `text-sm`, header row in muted text on a light tint, rows separated by hairlines, row hover tint. Scrolls sideways inside its own frame, never the page. Pagination below, state in the URL. Row actions behind a "⋯" menu labelled "Ações para <name>". |
-| **Badge** | Status only. Tint of the status colour at 10 %, text in the status colour, 1 px border at 30 %. Always a word. |
+| **Status** | Text, never a pill: no tinted background, no border, no rounded chip (the shadcn badge look reads as generated filler). The word in the body colour; a 6 px dot before it only when the state needs attention (`attention` amber, `danger` red); finished or inactive states in muted text with no dot. One thing has one status: a second fact joins it on the same line ("Vigente · a vencer") rather than a second chip beside it. Component: `components/ui/status.tsx`. |
 | **Card** | White, border, `shadow-sm`, `rounded-lg`. Title `text-base font-semibold`, optional muted description. |
 | **Module tile** | Dashboard entry point: card with a line icon in navy, the module name and one line of description; the whole tile is the link. Hover raises the border to navy, never scales. |
 | **Stat tile** | Number in `text-3xl font-semibold tabular-nums`, label above in muted text, optional change below. Only for figures the API provides. |
