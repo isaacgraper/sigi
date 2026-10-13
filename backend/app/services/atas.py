@@ -18,6 +18,13 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.constants.atas import (
+    ADITIVO_CEILING,
+    EDITABLE_COLUMN,
+    LOCKED_AFTER_DRAFT,
+    MOVES,
+    PROCESSO_SEI_FORMAT,
+)
 from app.core import cnpj as cnpj_lib
 from app.core import processo_sei
 from app.core.clock import local_date
@@ -38,46 +45,6 @@ from app.services.errors import (
     ProcessoSeiInvalido,
     TransicaoInvalida,
 )
-
-# RN15 and RF15: the aditivos of value may not together pass a quarter of what
-# was contracted.
-ADITIVO_CEILING = decimal.Decimal("0.25")
-
-# `acao`, by the move that produces it (SPEC-0002 §3.7).
-MOVES: dict[str, tuple[frozenset[str], str, str]] = {
-    "ativar": (frozenset({"rascunho"}), "vigente", "ata.ativada"),
-    "suspender": (frozenset({"vigente"}), "suspensa", "ata.suspensa"),
-    "retomar": (frozenset({"suspensa"}), "vigente", "ata.retomada"),
-    "encerrar": (frozenset({"vigente", "suspensa"}), "encerrada", "ata.encerrada"),
-    "cancelar": (frozenset({"rascunho", "vigente", "suspensa"}), "cancelada", "ata.cancelada"),
-}
-
-# Past `rascunho` these move only through an aditivo (AC-0002-24). `responsavel`,
-# `objeto` and `orgao` stay editable.
-LOCKED_AFTER_DRAFT = (
-    "number",
-    "fornecedor_id",
-    "issued_on",
-    "vigencia_inicio",
-    "vigencia_fim",
-    "total_value",
-    "budget_date",
-)
-
-
-# The column behind each attribute that `edit` can change.
-COLUMN = {
-    "number": "numero",
-    "subject": "objeto",
-    "organ": "orgao",
-    "fornecedor_id": "fornecedor_id",
-    "issued_on": "data_emissao",
-    "vigencia_inicio": "vigencia_inicio",
-    "vigencia_fim": "vigencia_fim",
-    "total_value": "valor_total",
-    "budget_date": "data_orcamento_planilhado",
-    "owner_id": "responsavel_id",
-}
 
 
 @dataclass(frozen=True)
@@ -220,7 +187,7 @@ def edit(
             raise InvalidData({"owner_id": "Informe um membro ativo."})
 
     # The keys of `dados_anteriores` are columns, read by a DBA (ADR-0013).
-    previous = {COLUMN[key]: getattr(ata, key) for key in effective}
+    previous = {EDITABLE_COLUMN[key]: getattr(ata, key) for key in effective}
     for key, value in effective.items():
         setattr(ata, key, value)
     ata.atualizado_em = at
@@ -345,7 +312,7 @@ def add_reajuste(
     index and the approver, which nobody has said (OQ-08).
     """
     if not processo_sei.is_valid(processo):
-        raise ProcessoSeiInvalido(processo_sei.FORMAT)
+        raise ProcessoSeiInvalido(PROCESSO_SEI_FORMAT)
     ata = _lock(session, ata_id)
     if ata.status != "vigente":
         raise AtaNaoVigente()

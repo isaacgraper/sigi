@@ -39,8 +39,19 @@ entries are moved into a new dated version section — see
   `lib/<feature>/` (`atas`, `members`, `dashboard`), per `docs/process/coding-standards.md`.
   An ESLint rule fails the lint on an `UPPER_CASE` constant anywhere else. No behaviour
   change: the Vitest and Playwright suites pass unchanged.
+- Backend constants live in `app/constants/` by domain (`auth`, `members`, `atas`,
+  `painel`), per `docs/process/coding-standards.md` §7. `scripts/check_constants.py`
+  refuses one declared anywhere else, at commit and in `backend-ci`. No behaviour change:
+  the 320 backend tests pass unchanged.
 - The dashboard no longer shows module tiles; the sidebar lists the modules (SPEC-0011 v1.2
   withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
+
+### Fixed
+
+- The ORM model of `sessao` listed `lockout` where migration 0001 created `bloqueio` in
+  `ck_sessao_motivo_valor`. The database was right and the code only ever wrote
+  `bloqueio`; the model now says so too. `alembic check` does not compare `CHECK` text,
+  which is why the drift went unnoticed.
 
 ## [0.1.0] - 2026-10-08
 

@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.constants.auth import THROTTLED_PREFIXES
 from app.core.config import get_settings
 from app.core.throttling import RouteWithoutCeiling, enforce, source_of, verify_ceilings
 from app.models.user import User
@@ -200,7 +201,7 @@ def test_the_real_application_has_a_ceiling_for_every_throttled_route(
     from app.main import create_app
 
     app = create_app()
-    throttled = [p for p, _ in application_routes(app) if p.startswith(throttle.PREFIXES)]
+    throttled = [p for p, _ in application_routes(app) if p.startswith(THROTTLED_PREFIXES)]
     # Guards against passing over an empty list.
     assert throttled, "no throttled route found: the route walk is broken"
     verify_ceilings(app)

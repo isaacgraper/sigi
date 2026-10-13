@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.constants.auth import REFRESH_COOKIE_PATH
 from app.core.authorization import CurrentUser, Public
 from app.core.config import get_settings
 from app.core.correlation import current
@@ -29,17 +30,6 @@ from app.services.authentication import authenticate_local
 from app.services.errors import InactiveUser, InvalidRefresh
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"], dependencies=[Depends(enforce)])
-
-# These three are open by definition: the caller has no session yet, or is
-# handing back the one they have. Declared rather than omitted, because
-# AC-0001-23 refuses a write route with no decision and "they forgot" must
-# never look like "they decided".
-OPEN = [Depends(Public())]
-
-# The cookie is scoped to the routes that consume it. A refresh token sent on
-# every request to every path is a refresh token exposed by every request; only
-# `/refresh` and `/logout` ever read it.
-COOKIE_PATH = "/api/v1/auth"
 
 DbSession = Annotated[Session, Depends(get_session)]
 
@@ -58,7 +48,7 @@ def _set_cookie(response: Response, value: str) -> None:
         httponly=True,
         secure=cfg.cookie_secure,
         samesite="lax",
-        path=COOKIE_PATH,
+        path=REFRESH_COOKIE_PATH,
     )
 
 
@@ -69,7 +59,11 @@ def _read_cookie(request: Request) -> str:
     return value
 
 
-@router.post("/login", response_model=SessionOutput, dependencies=OPEN)
+# Login, refresh, logout and the reset confirmation are open by definition: the
+# caller has no session yet, or is handing back the one they have. Declared
+# rather than omitted, because AC-0001-23 refuses a write route with no decision
+# and "they forgot" must never look like "they decided".
+@router.post("/login", response_model=SessionOutput, dependencies=[Depends(Public())])
 def login(
     body: LoginInput, request: Request, response: Response, session: DbSession
 ) -> SessionOutput:
@@ -92,7 +86,7 @@ def login(
     return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 
-@router.post("/refresh", response_model=SessionOutput, dependencies=OPEN)
+@router.post("/refresh", response_model=SessionOutput, dependencies=[Depends(Public())])
 def refresh(request: Request, response: Response, session: DbSession) -> SessionOutput:
     """Rotate the token pair without asking for credentials.
 
@@ -108,7 +102,7 @@ def refresh(request: Request, response: Response, session: DbSession) -> Session
     return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=OPEN)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(Public())])
 def logout(request: Request, response: Response, session: DbSession) -> None:
     """Invalidate the whole refresh family.
 
@@ -121,7 +115,7 @@ def logout(request: Request, response: Response, session: DbSession) -> None:
     )
     # Cleared even when nothing was revoked: a caller who asked to leave should
     # not keep a cookie that still looks like a session.
-    response.delete_cookie(get_settings().cookie_refresh_name, path=COOKIE_PATH)
+    response.delete_cookie(get_settings().cookie_refresh_name, path=REFRESH_COOKIE_PATH)
 
 
 @router.get("/me", response_model=UserOutput)
@@ -161,7 +155,11 @@ class _RoleOfRecord(sessions.RoleResolver):
         return user.role
 
 
-@router.post("/redefinicoes/confirmar", status_code=status.HTTP_204_NO_CONTENT, dependencies=OPEN)
+@router.post(
+    "/redefinicoes/confirmar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(Public())],
+)
 def confirm_reset(
     body: ResetConfirmInput,
     request: Request,

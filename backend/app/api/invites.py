@@ -22,13 +22,11 @@ router = APIRouter(prefix="/api/v1/convites", tags=["convites"], dependencies=[D
 
 DbSession = Annotated[Session, Depends(get_session)]
 
+
 # Open by definition: whoever holds the link has no account yet, which is the
 # entire point. Declared rather than omitted, because AC-0001-23 refuses a write
 # route with no access decision and "forgot" must not look like "decided".
-OPEN = [Depends(Public())]
-
-
-@router.post("/ativar", response_model=ActivationOutput, dependencies=OPEN)
+@router.post("/ativar", response_model=ActivationOutput, dependencies=[Depends(Public())])
 def activate(
     body: ActivationInput,
     request: Request,

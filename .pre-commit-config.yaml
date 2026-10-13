@@ -84,6 +84,16 @@ repos:
         types_or: [python, pyi]
         files: ^backend/
 
+      - id: constantes-no-lugar
+        name: constants live in backend/app/constants (coding-standards §7)
+        # ruff has no rule that knows where a name may be declared, so this is
+        # a short AST walk. The frontend half is an ESLint selector.
+        entry: scripts/check_constants.py
+        language: system
+        stages: [pre-commit]
+        files: ^backend/app/.*\.py$
+        exclude: ^backend/app/constants/
+
       - id: dados-pessoais
         name: no CPF, SIAPE, token or real person's e-mail
         # Not a replacement for gitleaks, which runs in CI and is better at API

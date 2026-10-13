@@ -61,8 +61,8 @@ The sidebar slot is where it goes between ATAs and Membros.
 ## Adding or changing a screen
 
 1. **Spec.** A screen spec with its ACs, approved, and its row in this map.
-2. **Navigation.** A top-level screen is a `Module` in `frontend/lib/modules.ts`,
-   in the sidebar order above, with `visibleTo` matching the perfil columns.
+2. **Navigation.** A top-level screen is a `Module` in `NAV_MODULES`
+   (`frontend/lib/constants.ts`), in the sidebar order above, with `visibleTo` matching the perfil columns.
    The sidebar, the mobile menu and the breadcrumb all read that list, so
    nothing else needs to change. A child route (`/atas/{id}`) is not a module;
    it inherits its parent's entry.

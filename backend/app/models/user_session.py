@@ -26,15 +26,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-REVOCATION_REASONS = (
-    "rotacao",
-    "logout",
-    "replay",
-    "desativacao",
-    "lockout",
-    "redefinicao",
-)
-
 
 class SessionFamily(Base):
     """One row per login. Binds a family to exactly one user (DB11).
@@ -97,7 +88,7 @@ class UserSession(Base):
         ),
         CheckConstraint(
             "revogado_motivo IN"
-            " ('rotacao', 'logout', 'replay', 'desativacao', 'lockout', 'redefinicao')",
+            " ('rotacao', 'logout', 'replay', 'desativacao', 'bloqueio', 'redefinicao')",
             name="ck_sessao_motivo_valor",
         ),
         CheckConstraint(

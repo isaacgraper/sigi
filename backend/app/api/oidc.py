@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.auth import _set_cookie
+from app.constants.auth import OIDC_STATE_COOKIE, OIDC_STATE_COOKIE_PATH
 from app.core.config import get_settings
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_session
@@ -24,8 +25,6 @@ from app.services.errors import RouteUnavailable, UnprovisionedUsuario
 router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"], dependencies=[Depends(enforce)])
 
 DbSession = Annotated[Session, Depends(get_session)]
-
-STATE_COOKIE = "sigi_oidc_estado"
 
 
 def _correlation_id(request: Request) -> uuid.UUID:
@@ -49,13 +48,13 @@ def authorize(response: Response) -> RedirectResponse:
     # The state travels in an httpOnly cookie, which is what binds it to this
     # caller: a state lifted from a URL is useless without it.
     redirect.set_cookie(
-        STATE_COOKIE,
+        OIDC_STATE_COOKIE,
         request_to_provider.signed_state,
         max_age=cfg.oidc_state_ttl_minutes * 60,
         httponly=True,
         secure=cfg.cookie_secure,
         samesite="lax",
-        path="/api/v1/auth/oidc",
+        path=OIDC_STATE_COOKIE_PATH,
     )
     return redirect
 
@@ -73,7 +72,7 @@ def callback(
         assertion = oidc.finish(
             code=code,
             received_state=state,
-            signed_state=request.cookies.get(STATE_COOKIE),
+            signed_state=request.cookies.get(OIDC_STATE_COOKIE),
             now=now,
         )
     except Exception as exc:
@@ -125,7 +124,7 @@ def callback(
     )
 
     _set_cookie(response, pair.refresh_token)
-    response.delete_cookie(STATE_COOKIE, path="/api/v1/auth/oidc")
+    response.delete_cookie(OIDC_STATE_COOKIE, path=OIDC_STATE_COOKIE_PATH)
     return SessionOutput(access_token=pair.access_token, expires_at=pair.expires_at)
 
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 
-FORMAT = "NNNNN.NNNNNN/AAAA-DD"
 _PATTERN = re.compile(r"^\d{5}\.\d{6}/\d{4}-\d{2}$")
 
 

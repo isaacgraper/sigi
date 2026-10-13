@@ -9,9 +9,9 @@ A value a reader has to hunt for is a value that gets written twice. Every
 rule below exists so that a page size, a threshold, a status label or an error
 message has exactly one home, and that home is obvious from the feature's name.
 
-**Status:** the frontend part applies to all frontend code: the refactor in
-§6 is done and the ESLint rule in §5 guards it. The backend part is a draft,
-applied in its own refactor.
+**Status:** applies to all code. The frontend refactor (§6) and the backend
+one (§7) are done, and each half has a check that fails on a misplaced
+constant (§5, §7).
 
 ## 1. What counts as a constant
 
@@ -122,6 +122,7 @@ may be local to that test.
 | Rule | Enforced by | Fires at |
 | --- | --- | --- |
 | No `UPPER_CASE` constant outside a `constants.ts` (exceptions in §4) | ESLint `no-restricted-syntax` in `frontend/eslint.config.mjs` | `npm run lint` locally · PR (`frontend-ci`) |
+| No `UPPER_CASE` constant in `backend/app` outside `app/constants/` | `scripts/check_constants.py` | commit (pre-commit) · PR (`backend-ci`) |
 | Exhaustive maps are `Record<Union, T>` | TypeScript, through the maps that use them | build · PR |
 | No constant inside a function, constants grouped and commented | — **a reviewer, reading** | never, automatically |
 
@@ -162,20 +163,39 @@ table records where each value went.
 Behaviour does not change: the full Vitest and Playwright suites must pass
 unchanged after every commit, which is the proof that nothing moved but code.
 
-## 7. Backend (draft, after the frontend)
+## 7. Backend
 
 The same principle, adapted to the layered backend (`api → services →
 repositories → models`):
 
+```
+backend/app/constants/
+  __init__.py   # app-wide: LOCAL_TIMEZONE, CORRELATION_HEADER, SECURITY_HEADERS, WRITE_METHODS
+  auth.py       # tokens, cookies, credential kinds, OIDC, throttled prefixes
+  members.py    # PERFIS, USUARIO_STATUS, the last-gestor guard, the dev seed
+  atas.py       # ATA_STATUS, MOVES, LOCKED_AFTER_DRAFT, ADITIVO_CEILING, PROCESSO_SEI_FORMAT
+  painel.py     # SECTIONS, the block ids of each tab
+```
+
 - **Configuration is not a constant.** A value an operator may tune without a
   deploy (alert windows, rate limits, token lifetimes) stays in
   `app/core/config.py` as a `Settings` field.
-- **Fixed values** move out of the modules that use them into
-  `app/constants/<domain>.py` (`atas.py`, `auth.py`, `members.py`), with
-  app-wide ones in `app/constants/__init__.py`. Examples today:
-  `services/atas.py`'s `MOVES` and `LOCKED_AFTER_DRAFT`, `core/processo_sei.py`'s
-  `FORMAT`, the permission matrix.
-- `SCREAMING_SNAKE_CASE`, typed with `Final` or as frozen mappings, with the
-  same provenance comments as the frontend.
-- **Enforced** by a ruff rule set or a small check in `scripts/`, chosen when
-  the backend refactor is planned.
+- **Fixed values** live in `app/constants/<domain>.py`, app-wide ones in
+  `app/constants/__init__.py`. Every layer may import them, and they import
+  nothing from `app`, so no cycle can form through them.
+- `SCREAMING_SNAKE_CASE`, typed `Final`; a mapping is a `MappingProxyType`, so
+  no caller can change it. Names carry their domain when the module alone
+  would not (`JWT_ALGORITHM`, `OIDC_STATE_COOKIE`), because they are imported
+  by name.
+- **Provenance** as in the frontend. A vocabulary that a `CHECK` constraint
+  also states says which one it mirrors (`# Mirrors ck_ata_status`); the
+  constraint text stays a literal in the model and the migration, because
+  history must not move when a constant does.
+- **Not constants:** a compiled pattern or another object built from a
+  constant (`_PATTERN` in `core/processo_sei.py`) stays private beside the
+  function that uses it; a FastAPI dependency list is written on the route
+  (`dependencies=[Depends(Public())]`), where a reader checks the decision.
+  Test fixtures stay in the test.
+- **Enforced** by `scripts/check_constants.py`, an AST walk: ruff has no rule
+  that knows where a name may be declared. It runs as the
+  `constantes-no-lugar` pre-commit hook and as a step in `backend-ci`.

@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.4
+version: 1.5
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -390,9 +390,11 @@ choose a member from this screen (§2).
 
 - Migration and backend: none.
 - Modules:
-  - `frontend/lib/modules.ts` gains "ATAs".
-  - `frontend/lib/atas.ts` holds the types, the words for each status and
-    situação, the moves per status (AC-0013-12) and the days-remaining text.
+  - `NAV_MODULES` in `frontend/lib/constants.ts` gains "ATAs".
+  - `frontend/lib/atas/` holds the types (`types.ts`), the words for each
+    status and situação and the moves per status (`constants.ts`, AC-0013-12),
+    the status line and urgency (`status.ts`) and the days-remaining text
+    (`due.ts`).
   - `frontend/lib/format.ts` gains a calendar-date formatter, BRL formatting,
     pt-BR money parsing to a decimal string, and CNPJ formatting.
   - `frontend/app/(app)/atas/` holds the list page, `nova/` the registration,
@@ -417,3 +419,4 @@ choose a member from this screen (§2).
 | 1.2 | 2026-10-13 | By the product owner's review of the screens: registering and editing move from a dialog to `/atas/nova` and `/atas/{id}/editar`, in the ATA page's sections (AC-0013-07, -14); the two alert cards become one "Vencimentos e reajustes" list ordered by urgency, the 5 most urgent first (AC-0013-02); AC-0013-18 covers the new pages. |
 | 1.3 | 2026-10-13 | Status is one line of text, not two badges, by DESIGN.md §4 as revised by the product owner: the Situação column folds into Status, and the situação shows only where it says something (AC-0013-03, -10). |
 | 1.4 | 2026-10-13 | AC-0013-02: due rows are coloured by urgency (red once past, amber within 30 days, none beyond) and the block states how many are late and how many close, by the product owner's request. 30 days assumed (OQ-47). |
+| 1.5 | 2026-10-13 | §10 names the files `lib/atas.ts` and `lib/modules.ts` became under `docs/process/coding-standards.md`. No criterion or behaviour changed. |
