@@ -391,6 +391,17 @@ class AtaNotFound(DomainError):
         super().__init__("ATA não encontrada.")
 
 
+class SectionNotFound(DomainError):
+    """The dashboard has no section by that name (SPEC-0012 AC-0012-12)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Seção do painel não encontrada.")
+
+
 class TransicaoInvalida(DomainError):
     """A move the lifecycle does not allow (AC-0002-22)."""
 

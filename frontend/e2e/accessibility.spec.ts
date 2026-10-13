@@ -79,11 +79,14 @@ test.describe("AC-0011-24 no serious violation in the shell's states", () => {
     await noSeriousViolations(page);
   });
 
-  test("a servidor's dashboard", async ({ page }) => {
+  test("a servidor's dashboard, every section", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
-    await expect(page.getByTestId("no-modules")).toBeVisible();
-    await noSeriousViolations(page);
+    for (const name of ["Atendimento por unidade", "Consumo", "Processos licitatórios", "Itens em falta"]) {
+      await page.getByRole("tab", { name }).click();
+      await expect(page.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
+      await noSeriousViolations(page);
+    }
   });
 
   test("empty table", async ({ page }) => {

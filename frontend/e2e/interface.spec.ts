@@ -248,29 +248,6 @@ test.describe("SPEC-0011 the page template", () => {
   });
 });
 
-test.describe("SPEC-0011 the dashboard", () => {
-  test("AC-0011-13 the dashboard offers one tile per module", async ({ page }) => {
-    await signIn(page, GESTOR.email, GESTOR.password);
-    const names = (await sidebarLinks(page).allTextContents()).slice(1);
-    const tiles = page.getByTestId("module-tile");
-    await expect(tiles).toHaveCount(names.length);
-    await expect(tiles.first()).toContainText("Membros");
-    await expect(tiles.first()).toContainText("Quem tem acesso ao SIGI.");
-    await expect(tiles.first()).toHaveAttribute("href", "/members");
-    await tiles.first().click();
-    await expect(page).toHaveURL(/\/members$/);
-  });
-
-  test("AC-0011-14 a perfil with no module is told so", async ({ page }) => {
-    const servidor = await member("servidor");
-    await signIn(page, servidor.email, servidor.password);
-    await expect(page.getByTestId("module-tile")).toHaveCount(0);
-    await expect(page.getByTestId("no-modules")).toHaveText(
-      "Os módulos do SIGI aparecerão aqui conforme forem liberados.",
-    );
-  });
-});
-
 test.describe("SPEC-0011 signed-out and status pages", () => {
   test("AC-0011-15 the signed-out frame shows the brand beside the form", async ({ page }) => {
     const { link } = await invite("servidor");

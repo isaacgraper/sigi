@@ -5,8 +5,6 @@ import { canSeeMembers, type Me } from "@/lib/me";
 export interface Module {
   href: string;
   name: string;
-  /** One line for the dashboard tile (AC-0011-13). */
-  description: string;
   icon: LucideIcon;
   visibleTo: (me: Me) => boolean;
 }
@@ -14,7 +12,6 @@ export interface Module {
 export const DASHBOARD: Module = {
   href: "/dashboard",
   name: "Painel",
-  description: "Visão geral do SIGI.",
   icon: LayoutDashboard,
   visibleTo: () => true,
 };
@@ -26,7 +23,6 @@ const MODULES: Module[] = [
   {
     href: "/members",
     name: "Membros",
-    description: "Quem tem acesso ao SIGI.",
     icon: Users,
     visibleTo: (me) => canSeeMembers(me.perfil),
   },
