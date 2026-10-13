@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.3
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -74,6 +74,13 @@ Then  a block "Vencimentos e reajustes" lists the rows of GET /api/v1/atas/alert
 And   each row shows its kind ("Vencimento" or "Reajuste"), the ATA's número and objeto,
       the date it falls due and the days remaining
 And   each row opens that ATA
+And   a row whose date has passed is marked in the danger colour, with a bar on its
+      left edge, a faint tint, its days in red and "em atraso" after its kind
+And   a row due within 30 days is marked in the attention colour, with a bar on its
+      left edge and its days in amber
+And   a row due later carries no colour
+And   the block's title is followed by how many are "em atraso" and how many fall due
+      "em até 30 dias"
 When  there are more than 5 rows
 Then  the 5 most urgent show, and "Mostrar todos (N)" shows the rest
 When  neither alert has rows
@@ -84,6 +91,11 @@ for a Reajuste. Days remaining read "45 dias", "1 dia" or "hoje", and once the
 date has passed, "há 3 dias" in the danger colour. A negative count is the API's
 (AC-0002-09, AC-0002-20); the screen does not decide which ATA belongs in an
 alert, and an ATA in both appears twice, once per kind.
+
+*(v1.4)* By the product owner's request that a vencimento really close, or past,
+be recognised at a glance. Past is unambiguous; 30 days as "close" is assumed
+(OQ-47). The colour only says how loudly to show a row the API already put in
+an alert; it decides nothing.
 
 *(v1.2)* The two alerts were two identical cards, which halved the width of each,
 cut the objeto short and said "Nenhuma ATA neste alerta." twice when there was
@@ -404,3 +416,4 @@ choose a member from this screen (§2).
 | 1.1 | 2026-10-13 | AC-0013-01 names the room AC-0010-27 and AC-0011-01 leave for it. No behaviour change. |
 | 1.2 | 2026-10-13 | By the product owner's review of the screens: registering and editing move from a dialog to `/atas/nova` and `/atas/{id}/editar`, in the ATA page's sections (AC-0013-07, -14); the two alert cards become one "Vencimentos e reajustes" list ordered by urgency, the 5 most urgent first (AC-0013-02); AC-0013-18 covers the new pages. |
 | 1.3 | 2026-10-13 | Status is one line of text, not two badges, by DESIGN.md §4 as revised by the product owner: the Situação column folds into Status, and the situação shows only where it says something (AC-0013-03, -10). |
+| 1.4 | 2026-10-13 | AC-0013-02: due rows are coloured by urgency (red once past, amber within 30 days, none beyond) and the block states how many are late and how many close, by the product owner's request. 30 days assumed (OQ-47). |
