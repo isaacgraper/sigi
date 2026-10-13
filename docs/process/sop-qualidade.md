@@ -24,6 +24,7 @@ the wiring diagram.
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
 | Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` | push · PR |
 | Frontend lint, tests and build | — | `frontend-ci` | PR |
+| Constants live in a `constants.ts`, by feature | `process/coding-standards.md` | ESLint `no-restricted-syntax` · `frontend-ci` — **from the refactor in its §6; until then a reviewer** | PR |
 | Tests run on real PostgreSQL | CLAUDE.md | `pre-push` hook · `backend-ci` | push · PR |
 | Models and schema agree (`alembic check`) | definition-of-done | `test_migration_baseline.py` | push · PR |
 | Audit trail is append-only (RN06) | CLAUDE.md · ADR-0004 | database triggers · `test_audit_immutability.py` | always · push · PR |
