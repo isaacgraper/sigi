@@ -37,8 +37,10 @@ Every path through a screen, its fields, validation and screenshots, is in
 | Route | Screen | Sidebar | gestor | servidor | auditor | Spec | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | Painel: the CAME report, four tabs | Painel (1st) | ✓ | ✓ | ✓ | SPEC-0012 | Approved, built |
-| `/atas` | ATAs: alerts, list, Cadastrar ATA | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved, built |
-| `/atas/{id}` | One ATA: aditivos, reajustes, moves, edit | under ATAs | W | ✓ | ✓ | SPEC-0013 | Approved, built |
+| `/atas` | ATAs: vencimentos e reajustes, list | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved, built |
+| `/atas/{id}` | One ATA: aditivos, reajustes, moves | under ATAs | W | ✓ | ✓ | SPEC-0013 | Approved, built |
+| `/atas/nova` | Nova ATA: the registration, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
+| `/atas/{id}/editar` | Editar ATA: the edit, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8 | Implemented |
 
 ### Planned, with no screen spec yet

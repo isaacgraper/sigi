@@ -31,14 +31,15 @@ anyway (`PERFIL_NAO_AUTORIZADO`), whatever the screen shows.
 flowchart LR
   sidebar[Sidebar: ATAs] --> lista["/atas"]
   lista -->|row or alert| ata["/atas/{id}"]
-  lista -->|Cadastrar ATA| cadastro[Dialog: Cadastrar ATA]
+  lista -->|Cadastrar ATA| cadastro["/atas/nova"]
   cadastro -->|201| ata
-  ata -->|Editar| edicao[Dialog: Editar ATA]
+  cadastro -->|Voltar| lista
+  ata -->|Editar| edicao["/atas/{id}/editar"]
   ata -->|Ativar, Suspender, Retomar, Encerrar| confirmacao[Confirmation]
   ata -->|Cancelar| cancelamento[Confirmation with Justificativa]
   ata -->|Registrar aditivo| aditivo[Dialog: Registrar aditivo]
   ata -->|Registrar pedido de reajuste| reajuste[Dialog: Registrar pedido de reajuste]
-  edicao --> ata
+  edicao -->|Salvar or Voltar| ata
   confirmacao --> ata
   cancelamento --> ata
   aditivo --> ata
@@ -85,19 +86,26 @@ Sidebar → **ATAs**.
 
 **What is on the page, top to bottom**
 
-1. **ATAs a renovar.** Vigente ATAs whose vigência ends within 90 days, or has
-   already ended, and that have no aditivo de prazo. Ordered by days left:
-   "Vence em 45 dias", "Vence hoje", "Venceu há 3 dias".
-2. **Reajuste a solicitar.** Vigente ATAs whose reajuste date (one year after
-   `Data do orçamento planilhado`) is within 90 days or past, with no pedido de
-   reajuste recorded: "Reajuste em 25 dias", "Reajuste vencido há 5 dias". An
-   ATA leaves this alert as soon as a pedido is recorded.
-3. **Filters**, Status and Situação.
-4. **The table**: Número, Objeto, Fornecedor, Vigência, Valor contratado,
+1. **Vencimentos e reajustes.** One list of what falls due, the most urgent
+   first. Each row says its kind, the ATA's número and objeto, the date and the
+   days left as a large figure ("45 dias", "hoje", or "há 3 dias" in red once
+   past). Two kinds of row:
+   - **Vencimento**: a vigente ATA whose vigência ends within 90 days, or has
+     already ended, and that has no aditivo de prazo. Dated by Fim da vigência.
+   - **Reajuste**: a vigente ATA whose reajuste date (one year after `Data do
+     orçamento planilhado`) is within 90 days or past, with no pedido de
+     reajuste recorded. Dated by the reajuste date. It leaves the list as soon
+     as a pedido is recorded.
+
+   An ATA due on both counts appears twice, once per kind. The five most urgent
+   show; "Mostrar todos (N)" shows the rest. When nothing is due, the block is
+   one line: "Nenhum vencimento ou reajuste próximo."
+2. **Filters**, Status and Situação.
+3. **The table**: Número, Objeto, Fornecedor, Vigência, Valor contratado,
    Status, Situação and Reajuste em, newest first, 25 per page.
 
-Each alert row and each Número opens that ATA. Alerts are computed by the API;
-the screen never decides which ATA belongs in one.
+Each row of either list opens that ATA. Which ATAs fall due is computed by the
+API; the screen never decides it.
 
 **Filter**
 
@@ -116,7 +124,7 @@ a shared link keeps them. **Limpar filtros** returns to the full list.
 | "Nenhuma ATA cadastrada." | No ATA exists | "Cadastrar ATA", to a gestor |
 | "Nenhuma ATA com esses filtros." | Filters match nothing | "Limpar filtros" |
 | "Nenhuma ATA nesta página." | The address asks for a page past the last | "Voltar à primeira página" |
-| "Nenhuma ATA neste alerta." | An alert has no rows | — |
+| "Nenhum vencimento ou reajuste próximo." | Nothing falls due | — |
 
 ![Filters that match nothing](atas/04-filtro-sem-resultado.png)
 
@@ -129,8 +137,13 @@ reads as empty.
 
 ## 2. Register an ATA (gestor)
 
-**Cadastrar ATA** opens the dialog. The ATA is created as a **rascunho**: it
-counts for nothing until a gestor activates it.
+**Cadastrar ATA** opens `/atas/nova`, a page with the fields in four sections,
+the way the ATA page groups them: **Identificação** (Número, Órgão, Objeto),
+**Fornecedor** (CNPJ, Razão social), **Vigência** (Início, Fim, Data de
+emissão) and **Valores** (Valor total, Data do orçamento planilhado). "Voltar"
+and "Cadastrar" stay at the foot of the screen however far down the page is
+scrolled. The ATA is created as a **rascunho**: it counts for nothing until a
+gestor activates it. "Voltar" returns to the list and saves nothing.
 
 ![The empty dialog](atas/05-cadastrar-vazio.png)
 
@@ -204,8 +217,9 @@ ATAs**.
 
 ## 4. Edit an ATA (gestor)
 
-**Editar** opens the registration fields, filled in. Only the fields that
-changed are sent, and the page shows "ATA atualizada.".
+**Editar** opens `/atas/{id}/editar`, the registration page filled in. Only the
+fields that changed are sent; on success the ATA's page opens with "ATA
+atualizada.". "Voltar" returns to the ATA and saves nothing.
 
 | Status | What can be edited |
 | --- | --- |
@@ -218,7 +232,7 @@ After activation the other fields are shown greyed out, with "Depois de
 ativada, valores e prazos só mudam por aditivo." The contracted figures change
 only through an aditivo, so what was contracted is never overwritten. If the
 API refuses an edit because the ATA changed meanwhile (`ATA_NAO_EDITAVEL`), the
-message shows in the dialog and the page reloads the ATA.
+message shows on the page and the form reloads the ATA as it now is.
 
 ![Editing after activation](atas/13-editar-vigente.png)
 
@@ -294,7 +308,7 @@ takes the sum past it. The API computes this; the screen does not.
 
 On success the aditivo appears in the table and the page says "Aditivo
 registrado.". An aditivo de valor raises Valor contratado; an aditivo de prazo
-moves Fim da vigência and takes the ATA out of **ATAs a renovar**. Aditivos
+moves Fim da vigência and takes its Vencimento row out of **Vencimentos e reajustes**. Aditivos
 cannot be edited or removed.
 
 ---
@@ -315,7 +329,7 @@ Only the format is checked; SIGI does not look the process up in SEI.
 ![A malformed Processo SEI](atas/16-reajuste-sei-invalido.png)
 
 On success the pedido appears in the table, the page says "Pedido de reajuste
-registrado.", and the ATA leaves **Reajuste a solicitar**. Recording a pedido
+registrado.", and its Reajuste row leaves **Vencimentos e reajustes**. Recording a pedido
 changes no price.
 
 ![An ATA with aditivos and a pedido de reajuste](atas/17-ata-com-registros.png)
