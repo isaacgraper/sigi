@@ -9,85 +9,15 @@ import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { AtaDetail } from "@/lib/atas";
+import { FORM_CODE_FIELD, FORM_EMPTY, FORM_FIELDS, FORM_ORDER, FORM_SECTIONS } from "@/lib/atas/constants";
+import type { AtaDetail, FormKey, FormValues } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { setFlash } from "@/lib/flash";
 import { formatBRL, formatCnpj, parseMoney } from "@/lib/format";
 import { apiJson } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-// Keys are the API's payload paths, so a refusal's `fields` lands as it comes.
-type Key =
-  | "number"
-  | "subject"
-  | "organ"
-  | "fornecedor.cnpj"
-  | "fornecedor.legal_name"
-  | "issued_on"
-  | "vigencia_inicio"
-  | "vigencia_fim"
-  | "total_value"
-  | "budget_date";
-
-interface FieldSpec {
-  key: Key;
-  label: string;
-  type?: "date" | "money";
-  optional?: boolean;
-  /** Past "rascunho" it changes only through an aditivo (AC-0002-24). */
-  locks?: boolean;
-  wide?: boolean;
-}
-
-// The ATA page's own grouping, so the form looks like the page it produces (AC-0013-07).
-const SECTIONS: { title: string; hint: string; fields: FieldSpec[] }[] = [
-  {
-    title: "Identificação",
-    hint: "O número é único entre as ATAs.",
-    fields: [
-      { key: "number", label: "Número", locks: true },
-      { key: "organ", label: "Órgão" },
-      { key: "subject", label: "Objeto", wide: true },
-    ],
-  },
-  {
-    title: "Fornecedor",
-    hint: "Se o CNPJ já estiver cadastrado, a razão social dele é mantida.",
-    fields: [
-      { key: "fornecedor.cnpj", label: "CNPJ do fornecedor", locks: true },
-      { key: "fornecedor.legal_name", label: "Razão social", locks: true },
-    ],
-  },
-  {
-    title: "Vigência",
-    hint: "O fim precisa ser depois do início.",
-    fields: [
-      { key: "vigencia_inicio", label: "Início da vigência", type: "date", locks: true },
-      { key: "vigencia_fim", label: "Fim da vigência", type: "date", locks: true },
-      { key: "issued_on", label: "Data de emissão (opcional)", type: "date", optional: true, locks: true },
-    ],
-  },
-  {
-    title: "Valores",
-    hint: "O reajuste vence um ano depois do orçamento planilhado.",
-    fields: [
-      { key: "total_value", label: "Valor total (R$)", type: "money", locks: true },
-      { key: "budget_date", label: "Data do orçamento planilhado", type: "date", locks: true },
-    ],
-  },
-];
-
-const FIELDS = SECTIONS.flatMap((section) => section.fields);
-const ORDER = FIELDS.map((field) => field.key);
-
-// Refusals that name no field in `fields` but belong to one (SPEC-0002 §3.7).
-const CODE_FIELD: Record<string, Key> = { ATA_DUPLICADA: "number" };
-
-type Values = Record<Key, string>;
-
-const EMPTY = Object.fromEntries(ORDER.map((key) => [key, ""])) as Values;
-
-function valuesOf(ata: AtaDetail): Values {
+function valuesOf(ata: AtaDetail): FormValues {
   return {
     number: ata.number,
     subject: ata.subject,
@@ -102,7 +32,7 @@ function valuesOf(ata: AtaDetail): Values {
   };
 }
 
-function payload(values: Values, keys: Key[]): Record<string, unknown> {
+function payload(values: FormValues, keys: FormKey[]): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   for (const key of keys) {
     if (key.startsWith("fornecedor.")) continue;
@@ -130,19 +60,19 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
   const router = useRouter();
   const editing = ata !== undefined;
   const locked = editing && ata.status !== "rascunho";
-  const initial = ata ? valuesOf(ata) : EMPTY;
+  const initial = ata ? valuesOf(ata) : FORM_EMPTY;
   const back = editing ? `/atas/${ata.id}` : "/atas";
 
-  const [values, setValues] = useState<Values>(initial);
+  const [values, setValues] = useState<FormValues>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    focusFirst(ORDER, errors, "ata");
+    focusFirst(FORM_ORDER, errors, "ata");
   }, [errors]);
 
-  function set(key: Key, value: string) {
+  function set(key: FormKey, value: string) {
     setValues((current) => ({ ...current, [key]: key === "fornecedor.cnpj" ? formatCnpj(value) : value }));
   }
 
@@ -150,7 +80,7 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
     event.preventDefault();
     setFailure(null);
 
-    const editable = FIELDS.filter((field) => !(locked && field.locks));
+    const editable = FORM_FIELDS.filter((field) => !(locked && field.locks));
     // Only that a required field is filled in; the rest is the API's (AC-0013-08).
     const empty: Record<string, string> = {};
     for (const field of editable) {
@@ -180,8 +110,8 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
       if (handleSessionError(err)) return;
       const error = err instanceof ApiError ? err : unavailable();
       const named: Record<string, string> = {};
-      for (const key of ORDER) if (error.fields[key]) named[key] = error.fields[key];
-      if (CODE_FIELD[error.code]) named[CODE_FIELD[error.code]] = error.message;
+      for (const key of FORM_ORDER) if (error.fields[key]) named[key] = error.fields[key];
+      if (FORM_CODE_FIELD[error.code]) named[FORM_CODE_FIELD[error.code]] = error.message;
       if (Object.keys(named).length > 0) setErrors(named);
       else setFailure(error);
       if (editing && error.status === 409) onStale?.();
@@ -199,7 +129,7 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
       )}
 
       <div className="divide-y rounded-lg border border-border/70 bg-card shadow-sm">
-        {SECTIONS.map((section) => (
+        {FORM_SECTIONS.map((section) => (
           <section
             key={section.title}
             aria-labelledby={`secao-${section.title}`}

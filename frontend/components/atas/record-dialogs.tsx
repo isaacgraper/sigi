@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { AtaDetail } from "@/lib/atas";
+import { ADITIVO_CODES, ADITIVO_ORDER, REAJUSTE_CODES, REAJUSTE_ORDER } from "@/lib/atas/constants";
+import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { parseMoney } from "@/lib/format";
 import { apiJson } from "@/lib/session";
@@ -74,9 +75,6 @@ function useRecord(ata: AtaDetail, path: string, order: string[], codeField: Rec
 
   return { errors, failure, pending, post, clear };
 }
-
-const ADITIVO_ORDER = ["kind", "valor_acrescimo", "nova_vigencia_fim", "justification"];
-const ADITIVO_CODES = { ADITIVO_ACIMA_DO_LIMITE: "valor_acrescimo" };
 
 /** "Registrar aditivo" (AC-0013-15). The 25% ceiling is the API's to compute. */
 export function AditivoDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata: AtaDetail) => void }) {
@@ -191,9 +189,6 @@ export function AditivoDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata:
     </Dialog>
   );
 }
-
-const REAJUSTE_ORDER = ["processo_sei", "requested_on"];
-const REAJUSTE_CODES = { PROCESSO_SEI_INVALIDO: "processo_sei" };
 
 /** "Registrar pedido de reajuste" (AC-0013-16): that it was filed in SEI, and under which process. */
 export function ReajusteDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata: AtaDetail) => void }) {

@@ -4,55 +4,8 @@
  * keys of `blocks` are the block ids GET /api/v1/painel/{section} answers with
  * (§7); a block whose rows come back empty reads "Sem dados" (AC-0012-04).
  */
-
-export type Filter =
-  | { kind: "select"; label: string }
-  | { kind: "search"; label: string }
-  | { kind: "checklist"; label: string; options: string[] };
-
-export interface StatBlock {
-  kind: "stat";
-  title: string;
-}
-
-export interface TableBlock {
-  kind: "table";
-  title: string;
-  columns: string[];
-}
-
-export interface ChartBlock {
-  kind: "chart";
-  title: string;
-  /** Named in the legend, so the chart's meaning is readable before it has data. */
-  series: string[];
-}
-
-export interface NoteBlock {
-  kind: "note";
-  title: string;
-}
-
-export type Block = StatBlock | TableBlock | ChartBlock | NoteBlock;
-
-/** The answer of GET /api/v1/painel/{section} (SPEC-0012 §7). */
-export interface PainelOut {
-  section: string;
-  blocks: Record<string, { rows: string[][] }>;
-}
-
-export interface Section {
-  /** The `?aba=` value (AC-0012-03). */
-  id: string;
-  title: string;
-  description: string;
-  filters: Filter[];
-  /** Every block; the section's own layout decides where each one sits. */
-  blocks: Record<string, Block>;
-}
-
-const select = (label: string): Filter => ({ kind: "select", label });
-const search = (label: string): Filter => ({ kind: "search", label });
+import { search, select } from "@/lib/dashboard/filters";
+import type { Section } from "@/lib/dashboard/types";
 
 export const ATENDIMENTO: Section = {
   id: "atendimento",
@@ -187,8 +140,3 @@ export const ITENS_EM_FALTA: Section = {
 
 /** The four tabs, in the report's order (AC-0012-01). */
 export const SECTIONS: Section[] = [ATENDIMENTO, CONSUMO, PROCESSOS, ITENS_EM_FALTA];
-
-/** The section a `?aba=` value names, or the first one when it names none. */
-export function sectionFor(aba: string | null): Section {
-  return SECTIONS.find((section) => section.id === aba) ?? SECTIONS[0];
-}

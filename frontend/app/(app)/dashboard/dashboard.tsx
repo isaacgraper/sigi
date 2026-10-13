@@ -8,19 +8,11 @@ import { panelId, SectionTabs, tabId } from "@/components/dashboard/section-tabs
 import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
-import {
-  ATENDIMENTO,
-  type Block,
-  CONSUMO,
-  ITENS_EM_FALTA,
-  type PainelOut,
-  PROCESSOS,
-  type Section,
-  SECTIONS,
-  sectionFor,
-} from "@/lib/dashboard";
+import { PERFIL_LABEL } from "@/lib/constants";
+import { ATENDIMENTO, CONSUMO, ITENS_EM_FALTA, PROCESSOS, SECTIONS } from "@/lib/dashboard/constants";
+import { sectionFor } from "@/lib/dashboard/sections";
+import type { Block, PainelOut, Section } from "@/lib/dashboard/types";
 import { ApiError, unavailable } from "@/lib/errors";
-import { PERFIL_LABEL } from "@/lib/me";
 import { apiJson } from "@/lib/session";
 
 // The stakeholders' RELATÓRIO GERAL CAME report, one tab per page and in its

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 
 import { SessionProvider } from "@/components/session-provider";
-import { SIDEBAR_COOKIE } from "@/lib/sidebar";
+import { SIDEBAR_COOKIE } from "@/lib/constants";
 
 // Every page under here needs a session. The pages are client-rendered,
 // because the access token exists only in the browser's memory (C1). This

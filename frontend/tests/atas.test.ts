@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { type AlertRow, type Ata, ataStatus, dueRows, dueText, MOVES, urgency } from "@/lib/atas";
+import { MOVES } from "@/lib/atas/constants";
+import { dueRows, dueText } from "@/lib/atas/due";
+import { ataStatus, urgency } from "@/lib/atas/status";
+import type { AlertRow, Ata } from "@/lib/atas/types";
 import { formatBRL, formatCnpj, formatDay, parseMoney } from "@/lib/format";
 
 describe("AC-0013-09 money typed in pt-BR", () => {

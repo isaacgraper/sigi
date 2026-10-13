@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 
-import type { Section } from "@/lib/dashboard";
+import type { Section } from "@/lib/dashboard/types";
 import { cn } from "@/lib/utils";
 
 export const tabId = (section: Section) => `aba-${section.id}`;

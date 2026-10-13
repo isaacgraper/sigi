@@ -1,4 +1,4 @@
-import type { Perfil } from "@/lib/me";
+import type { Perfil } from "@/lib/types";
 
 export type Status = "pendente" | "ativo" | "bloqueado" | "desativado";
 
@@ -21,18 +21,8 @@ export interface MemberPage {
   size: number;
 }
 
-export const STATUS_LABEL: Record<Status, string> = {
-  pendente: "Pendente",
-  ativo: "Ativo",
-  bloqueado: "Bloqueado",
-  desativado: "Desativado",
-};
+// "unblock" has its own dialog, because it asks for a justification (AC-0010-59).
+export type MemberAction = "block" | "deactivate" | "resetPassword" | "reinvite";
 
-// Status is text (DESIGN.md §4): an account working normally needs no colour,
-// a blocked one asks for attention, and waiting or gone recedes.
-export const STATUS_TONE = {
-  ativo: "neutral",
-  pendente: "muted",
-  bloqueado: "attention",
-  desativado: "muted",
-} as const;
+/** The actions that answer with a one-time link. */
+export type LinkAction = "resetPassword" | "reinvite";

@@ -4,7 +4,6 @@ import { Ban, KeyRound, MailPlus, MoreHorizontal, UserCheck, UserX } from "lucid
 import { useState } from "react";
 
 import { CopyLink } from "@/components/members/copy-link";
-import type { Member } from "@/components/members/types";
 import { useSession } from "@/components/session-provider";
 import {
   AlertDialog,
@@ -34,57 +33,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, unavailable } from "@/lib/errors";
 import { displayName } from "@/lib/me";
+import { ACTION_CONFIRM, ACTION_ENDPOINT, LINK_DIALOG } from "@/lib/members/constants";
+import type { LinkAction, Member, MemberAction } from "@/lib/members/types";
 import { apiJson } from "@/lib/session";
-
-// "unblock" has its own dialog, because it asks for a justification (AC-0010-59).
-type Action = "block" | "deactivate" | "resetPassword" | "reinvite";
-
-// The API's route segments (SPEC-0001 §7), kept in one place.
-const ENDPOINT: Record<Action, string> = {
-  block: "bloquear",
-  deactivate: "desativar",
-  resetPassword: "redefinir-senha",
-  reinvite: "reemitir-convite",
-};
-
-const CONFIRM: Record<Action, { title: string; body: string; label: string; destructive: boolean }> = {
-  block: {
-    title: "Bloquear membro?",
-    body: "As sessões abertas desta pessoa são encerradas e ela não consegue mais entrar.",
-    label: "Bloquear",
-    destructive: true,
-  },
-  deactivate: {
-    title: "Desativar membro?",
-    body: "Nome e e-mail serão apagados e esta ação não pode ser desfeita. O histórico do que a pessoa fez é mantido.",
-    label: "Desativar",
-    destructive: true,
-  },
-  resetPassword: {
-    title: "Redefinir senha?",
-    body: "Um link de redefinição será gerado para você entregar à pessoa.",
-    label: "Gerar link",
-    destructive: false,
-  },
-  reinvite: {
-    title: "Gerar novo convite?",
-    body: "Um novo link de ativação será gerado para você entregar à pessoa. O link anterior deixa de funcionar.",
-    label: "Gerar link",
-    destructive: false,
-  },
-};
-
-// A one-time link is shown once and never again (AC-0010-40, -61).
-const LINK_DIALOG: Record<"resetPassword" | "reinvite", { title: string; description: string }> = {
-  resetPassword: {
-    title: "Link de redefinição",
-    description: "Este link não será mostrado de novo e expira em 1 hora.",
-  },
-  reinvite: {
-    title: "Novo link de convite",
-    description: "Este link não será mostrado de novo. O link anterior deixa de funcionar.",
-  },
-};
 
 export function MemberActions({
   member,
@@ -96,8 +47,8 @@ export function MemberActions({
   onError: (error: ApiError) => void;
 }) {
   const { handleSessionError } = useSession();
-  const [action, setAction] = useState<Action | null>(null);
-  const [oneTime, setOneTime] = useState<{ kind: "resetPassword" | "reinvite"; link: string } | null>(
+  const [action, setAction] = useState<MemberAction | null>(null);
+  const [oneTime, setOneTime] = useState<{ kind: LinkAction; link: string } | null>(
     null,
   );
   const [unblocking, setUnblocking] = useState(false);
@@ -108,7 +59,7 @@ export function MemberActions({
   // A deactivated account has nothing left to act on (AC-0010-41); block and
   // reset apply only to an active one (AC-0010-37, -40), and unblock only to a
   // blocked one (AC-0010-59).
-  const available: (Action | "unblock")[] = [];
+  const available: (MemberAction | "unblock")[] = [];
   if (member.status === "ativo") available.push("block", "resetPassword");
   if (member.status === "bloqueado") available.push("unblock");
   // A pending account's only link may have been lost; this replaces it (AC-0010-61).
@@ -145,10 +96,10 @@ export function MemberActions({
     }
   }
 
-  async function run(chosen: Action) {
+  async function run(chosen: MemberAction) {
     try {
       const result = await apiJson<{ reset_link?: string; activation_link?: string }>(
-        `/api/v1/usuarios/${member.id}/${ENDPOINT[chosen]}`,
+        `/api/v1/usuarios/${member.id}/${ACTION_ENDPOINT[chosen]}`,
         { method: "POST" },
       );
       if (chosen === "resetPassword" && result.reset_link) {
@@ -164,7 +115,7 @@ export function MemberActions({
     }
   }
 
-  const confirm = action ? CONFIRM[action] : null;
+  const confirm = action ? ACTION_CONFIRM[action] : null;
   return (
     <>
       <DropdownMenu>

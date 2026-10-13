@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { type AtaDetail, MOVE, type Move, MOVES } from "@/lib/atas";
+import { MOVE, MOVES } from "@/lib/atas/constants";
+import type { AtaDetail, Move } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { apiJson } from "@/lib/session";
 

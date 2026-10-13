@@ -3,8 +3,7 @@
  * died, shown verbatim on /login (C3). sessionStorage holds the sentence only,
  * never a token (C1), and it is read once.
  */
-const KEY = "sigi.flash";
-const NEXT = "sigi.next";
+import { FLASH_STORAGE_KEY, NEXT_STORAGE_KEY } from "@/lib/constants";
 
 function storage(): Storage | null {
   try {
@@ -15,24 +14,24 @@ function storage(): Storage | null {
 }
 
 export function setFlash(message: string): void {
-  storage()?.setItem(KEY, message);
+  storage()?.setItem(FLASH_STORAGE_KEY, message);
 }
 
 export function takeFlash(): string | null {
   const store = storage();
-  const message = store?.getItem(KEY) ?? null;
-  store?.removeItem(KEY);
+  const message = store?.getItem(FLASH_STORAGE_KEY) ?? null;
+  store?.removeItem(FLASH_STORAGE_KEY);
   return message;
 }
 
 /** The return path survives the round trip to the identity provider. */
 export function rememberNext(path: string): void {
-  storage()?.setItem(NEXT, path);
+  storage()?.setItem(NEXT_STORAGE_KEY, path);
 }
 
 export function takeNext(): string | null {
   const store = storage();
-  const path = store?.getItem(NEXT) ?? null;
-  store?.removeItem(NEXT);
+  const path = store?.getItem(NEXT_STORAGE_KEY) ?? null;
+  store?.removeItem(NEXT_STORAGE_KEY);
   return path;
 }

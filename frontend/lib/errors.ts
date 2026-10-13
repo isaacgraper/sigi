@@ -5,7 +5,7 @@
  * the one the API cannot give: a 5xx or no answer at all (AC-0010-42).
  */
 
-export const GENERIC_FAILURE = "Não foi possível concluir. Tente novamente em instantes.";
+import { GENERIC_FAILURE } from "@/lib/constants";
 
 export class ApiError extends Error {
   readonly status: number;

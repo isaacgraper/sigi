@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { SECTIONS, sectionFor } from "@/lib/dashboard";
+import { SECTIONS } from "@/lib/dashboard/constants";
+import { sectionFor } from "@/lib/dashboard/sections";
 
 describe("AC-0012-03 the tab named in the URL is the one shown", () => {
   it.each(SECTIONS.map((section) => [section.id, section.title]))("?aba=%s opens %s", (aba, title) => {

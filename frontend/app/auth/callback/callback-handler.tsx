@@ -6,12 +6,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { ErrorNotice, localError } from "@/components/error-notice";
 import { buttonVariants } from "@/components/ui/button";
+import { OIDC_CANCELLED } from "@/lib/constants";
 import { ApiError, unavailable } from "@/lib/errors";
 import { takeNext } from "@/lib/flash";
 import { safeReturnPath } from "@/lib/return-path";
 import { adopt } from "@/lib/session";
-
-const CANCELLED = "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente.";
 
 export function CallbackHandler() {
   const router = useRouter();
@@ -29,7 +28,7 @@ export function CallbackHandler() {
   // The provider sent the browser back without a code: nothing to exchange,
   // and the API is not called (AC-0010-48).
   const cancelled = Boolean(providerError) || !code || !state;
-  const error = cancelled ? localError("CANCELLED", CANCELLED) : failure;
+  const error = cancelled ? localError("OIDC_CANCELLED", OIDC_CANCELLED) : failure;
 
   useEffect(() => {
     // The code is single-use: React's development double effect must not

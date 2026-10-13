@@ -1,5 +1,6 @@
 import { Status } from "@/components/ui/status";
-import { type Ata, ataStatus } from "@/lib/atas";
+import { ataStatus } from "@/lib/atas/status";
+import type { Ata } from "@/lib/atas/types";
 
 /** "Vigente", "Vigente · a vencer", "Suspensa", "Cancelada" (AC-0013-03). */
 export function AtaStatus({ ata }: { ata: Pick<Ata, "status" | "situacao_vigencia"> }) {
