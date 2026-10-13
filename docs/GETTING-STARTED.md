@@ -39,8 +39,8 @@ list as written would have sent you to ask questions the data already answered.)
    implemented as AC-0004-16. If the entity says otherwise, that is the
    criterion to revisit.
 
-**Added since:** OQ-09 and OQ-10 are `Assumed` under ADR-0010 — institutional
-OIDC as primary, local credentials as a switchable contingency, Gov.br cut, CPF
+**Added since:** OQ-09 and OQ-10 are `Resolved` (2026-10-13) under ADR-0010 — institutional
+OIDC against Entra ID as primary, local credentials as a switchable contingency, Gov.br cut, CPF
 not collected. OQ-09 leaves one ask for the entity's TI: tenant ID, client ID
 and redirect URI. It blocks the first real login, not the build.
 
