@@ -1,8 +1,8 @@
 ---
 id: SPEC-0013
 title: Telas de ATAs
-status: Draft
-version: 0.1
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -356,3 +356,4 @@ choose a member from this screen (§2).
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-10-13 | Initial draft. The screens for SPEC-0002 v1.1: the list with both alerts, registration, the ATA page, the lifecycle moves, edit, aditivo and reajuste request. No backend change. |
+| 1.0 | 2026-10-13 | Approved by the product owner as drafted, including the moves offered per status as a cosmetic mirror of AC-0002-22. |
