@@ -267,4 +267,5 @@ crisp, fast, and only where it explains something.
 A change to a token, a component rule or the shell is a design decision: it goes
 in a pull request of its own, with before and after screenshots, and updates
 SPEC-0011 when it changes observable behaviour. The screenshots are kept in
-`docs/design/changes/`, one folder per change.
+`docs/design/changes/`, one folder per change. Patterns collected as candidates
+for a future change are noted in `docs/design/references.md`.
