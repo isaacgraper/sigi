@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { type APIRequestContext, expect, type Page, request } from "@playwright/test";
 
 /**
@@ -84,4 +85,56 @@ export async function signIn(page: Page, email: string, password: string) {
  */
 export async function openFromSidebar(page: Page, name: string) {
   await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name }).click();
+}
+
+/** A date `days` from today, as the API reads it (`2026-10-13`). */
+export function isoDay(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** A unique ATA number, so the suite can run again on the same database. */
+export function ataNumber(): string {
+  return `E2E-${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/** An ATA registered through the API by the seeded gestor, and moved on if asked. */
+export async function createAta(overrides: Record<string, unknown> = {}, moves: string[] = []) {
+  const created = await asGestor("post", "/api/v1/atas", {
+    number: ataNumber(),
+    subject: "Seringas descartáveis com dispositivo de segurança",
+    organ: "Secretaria de Estado da Saúde",
+    fornecedor: { cnpj: "11.222.333/0001-81", legal_name: "MedSul Distribuidora Ltda" },
+    vigencia_inicio: "2026-01-02",
+    vigencia_fim: "2026-12-01",
+    total_value: "1234567.89",
+    budget_date: "2026-02-10",
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const ata = created.body as { id: string; number: string };
+  for (const move of moves) {
+    const moved = await asGestor("post", `/api/v1/atas/${ata.id}/${move}`);
+    expect(moved.status, JSON.stringify(moved.body)).toBe(200);
+  }
+  return ata;
+}
+
+/** AC-0010-44: no serious or critical axe violation on what settled on screen. */
+export async function noSeriousViolations(page: Page) {
+  // Measure what settles on screen, not a frame of a fade: text halfway through
+  // an opacity transition reads as low contrast. Endless ones (a skeleton's
+  // pulse) are left alone, since they never finish.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
+  const results = await new AxeBuilder({ page }).analyze();
+  const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
 }
