@@ -34,8 +34,8 @@ screens show, which must match it.
 | Route | Screen | Sidebar | gestor | servidor | auditor | Spec | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | Painel: the CAME report, four tabs | Painel (1st) | ✓ | ✓ | ✓ | SPEC-0012 | Approved, built |
-| `/atas` | ATAs: alerts, list, Cadastrar ATA | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved |
-| `/atas/{id}` | One ATA: aditivos, reajustes, moves, edit | under ATAs | W | ✓ | ✓ | SPEC-0013 | Approved |
+| `/atas` | ATAs: alerts, list, Cadastrar ATA | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved, built |
+| `/atas/{id}` | One ATA: aditivos, reajustes, moves, edit | under ATAs | W | ✓ | ✓ | SPEC-0013 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8 | Implemented |
 
 ### Planned, with no screen spec yet
