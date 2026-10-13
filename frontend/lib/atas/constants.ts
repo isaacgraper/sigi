@@ -32,7 +32,7 @@ export const LIST_COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Va
 
 // ── Vencimentos e reajustes ─────────────────────────────────────────────────
 
-// 30 days is the product owner's "really close". Assumed, OQ-47.
+// 30 days is the product owner's "really close" (OQ-47, decided 2026-10-13).
 export const SOON_DAYS = 30;
 
 // The block sits above the ATA list; past a handful it would push the list off
