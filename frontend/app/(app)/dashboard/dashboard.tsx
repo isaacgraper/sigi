@@ -20,7 +20,7 @@ import {
   sectionFor,
 } from "@/lib/dashboard";
 import { ApiError, unavailable } from "@/lib/errors";
-import { PERFIL_LABEL } from "@/lib/me";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { apiJson } from "@/lib/session";
 
 // The stakeholders' RELATÓRIO GERAL CAME report, one tab per page and in its

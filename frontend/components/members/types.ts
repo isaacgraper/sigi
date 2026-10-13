@@ -1,4 +1,4 @@
-import type { Perfil } from "@/lib/me";
+import type { Perfil } from "@/lib/types";
 
 export type Status = "pendente" | "ativo" | "bloqueado" | "desativado";
 

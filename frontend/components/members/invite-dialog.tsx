@@ -20,8 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ApiError, unavailable } from "@/lib/errors";
-import { PERFIL_LABEL, type Perfil } from "@/lib/me";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { apiJson } from "@/lib/session";
+import type { Perfil } from "@/lib/types";
 
 const INVITE_FIELDS = ["email", "name", "registration"] as const;
 

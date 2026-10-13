@@ -1,4 +1,4 @@
-const DATE = new Intl.DateTimeFormat("pt-BR", {
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   day: "2-digit",
   month: "2-digit",
@@ -7,7 +7,7 @@ const DATE = new Intl.DateTimeFormat("pt-BR", {
 
 /** `dd/MM/yyyy` in America/Sao_Paulo, whatever the browser's own zone. */
 export function formatDate(iso: string): string {
-  return DATE.format(new Date(iso));
+  return dateFormatter.format(new Date(iso));
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { StatusTone } from "@/components/ui/status";
+import type { StatusTone } from "@/lib/types";
 
 /**
  * The ATA as `/api/v1/atas` returns it (SPEC-0002 §3), and the words the screens

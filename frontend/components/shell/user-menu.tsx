@@ -10,7 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { displayName, type Me, PERFIL_LABEL } from "@/lib/me";
+import { PERFIL_LABEL } from "@/lib/constants";
+import { displayName } from "@/lib/me";
+import type { Me } from "@/lib/types";
 
 /** Who is signed in, and the way out (AC-0011-08). */
 export function UserMenu({ me, onLogout }: { me: Me; onLogout: () => void }) {

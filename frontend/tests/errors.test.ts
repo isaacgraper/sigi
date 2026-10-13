@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { GENERIC_FAILURE, readError } from "@/lib/errors";
+import { GENERIC_FAILURE } from "@/lib/constants";
+import { readError } from "@/lib/errors";
 
 function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {

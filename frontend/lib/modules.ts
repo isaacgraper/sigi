@@ -1,53 +1,19 @@
-import { FileText, LayoutDashboard, type LucideIcon, Users } from "lucide-react";
-
-import { canSeeMembers, type Me } from "@/lib/me";
-
-export interface Module {
-  href: string;
-  name: string;
-  icon: LucideIcon;
-  visibleTo: (me: Me) => boolean;
-}
-
-export const DASHBOARD: Module = {
-  href: "/dashboard",
-  name: "Painel",
-  icon: LayoutDashboard,
-  visibleTo: () => true,
-};
-
-// Business modules take their place before "Membros" as their specs are
-// approved (AC-0011-01). Only what has an Approved spec behind it is listed.
-// Hiding one is cosmetic; the API refuses what a perfil may not do (C5).
-const MODULES: Module[] = [
-  {
-    href: "/atas",
-    name: "ATAs",
-    icon: FileText,
-    // Every perfil reads ATAs (AC-0002-23, AC-0013-01); only a gestor writes.
-    visibleTo: () => true,
-  },
-  {
-    href: "/members",
-    name: "Membros",
-    icon: Users,
-    visibleTo: (me) => canSeeMembers(me.perfil),
-  },
-];
+import { NAV_DASHBOARD, NAV_MODULES } from "@/lib/constants";
+import type { Me, Module } from "@/lib/types";
 
 /** The modules this perfil is shown, in sidebar order, without the dashboard. */
 export function modulesFor(me: Me): Module[] {
-  return MODULES.filter((module) => module.visibleTo(me));
+  return NAV_MODULES.filter((module) => module.visibleTo(me));
 }
 
 /** Every sidebar entry: the dashboard first, then the modules. */
 export function navigationFor(me: Me): Module[] {
-  return [DASHBOARD, ...modulesFor(me)];
+  return [NAV_DASHBOARD, ...modulesFor(me)];
 }
 
 /** The module a path belongs to, whether or not this perfil may see it. */
 export function moduleAt(pathname: string): Module | undefined {
-  return [DASHBOARD, ...MODULES].find(
+  return [NAV_DASHBOARD, ...NAV_MODULES].find(
     (module) => pathname === module.href || pathname.startsWith(`${module.href}/`),
   );
 }

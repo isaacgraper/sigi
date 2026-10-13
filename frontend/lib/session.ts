@@ -11,12 +11,12 @@
  * across tabs (AC-0010-47). A tab that waits for the lock refreshes with the
  * cookie the other tab already rotated, which is valid, not a replay.
  */
+import { REFRESH_LOCK_NAME } from "@/lib/constants";
 import { ApiError, readError, unavailable } from "@/lib/errors";
 
 let accessToken: string | null = null;
 let inFlight: Promise<string> | null = null;
 
-const LOCK = "sigi-refresh";
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -28,7 +28,7 @@ export function hasAccessToken(): boolean {
 
 async function withLock<T>(task: () => Promise<T>): Promise<T> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
-  return locks ? locks.request(LOCK, task) : task();
+  return locks ? locks.request(REFRESH_LOCK_NAME, task) : task();
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {

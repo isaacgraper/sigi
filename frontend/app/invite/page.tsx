@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { TokenPasswordForm } from "@/components/auth/token-password-form";
-import { HOME } from "@/lib/return-path";
+import { HOME_PATH } from "@/lib/constants";
 import { adopt } from "@/lib/session";
 
 // Activation opens a session: activation and first login are one step
@@ -22,7 +22,7 @@ function Activation() {
       submitLabel="Ativar conta"
       onSuccess={async (response) => {
         await adopt(response);
-        router.replace(HOME);
+        router.replace(HOME_PATH);
       }}
     />
   );

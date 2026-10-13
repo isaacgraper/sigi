@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 
-import { Illustration, type IllustrationName } from "@/components/illustration";
+import { Illustration } from "@/components/illustration";
+import type { IllustrationName } from "@/lib/types";
 
 /**
  * The frame for pages that replace a screen: not found, and failures

@@ -7,10 +7,9 @@ import { PasswordInput } from "@/components/auth/password-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ErrorNotice, localError } from "@/components/error-notice";
+import { PASSWORD_MISMATCH } from "@/lib/constants";
 import { ApiError, readError, unavailable } from "@/lib/errors";
 import { useHydrated } from "@/lib/use-hydrated";
-
-const MISMATCH = "As senhas não conferem.";
 
 /**
  * Set a password with a single-use token from a link: invitation activation and
@@ -54,7 +53,7 @@ export function TokenPasswordForm({
     event.preventDefault();
     if (pending || !token) return;
     if (password !== confirmation) {
-      setError(localError("PASSWORD_MISMATCH", MISMATCH));
+      setError(localError("PASSWORD_MISMATCH", PASSWORD_MISMATCH));
       return;
     }
     setPending(true);

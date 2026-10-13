@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { PERFIL_LABEL } from "@/lib/me";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { apiJson } from "@/lib/session";
 
 const SIZE = 20;
