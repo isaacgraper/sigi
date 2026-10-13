@@ -1,28 +1,21 @@
 "use client";
 
-import { Pencil, Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Notice } from "@/components/auth/auth-layout";
 import { Field, focusFirst } from "@/components/atas/field";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AtaDetail } from "@/lib/atas";
 import { ApiError, unavailable } from "@/lib/errors";
 import { setFlash } from "@/lib/flash";
 import { formatBRL, formatCnpj, parseMoney } from "@/lib/format";
 import { apiJson } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 // Keys are the API's payload paths, so a refusal's `fields` lands as it comes.
 type Key =
@@ -37,19 +30,55 @@ type Key =
   | "total_value"
   | "budget_date";
 
-const FIELDS: { key: Key; label: string; type?: "date" | "money"; optional?: boolean; locks?: boolean }[] = [
-  { key: "number", label: "Número", locks: true },
-  { key: "subject", label: "Objeto" },
-  { key: "organ", label: "Órgão" },
-  { key: "fornecedor.cnpj", label: "CNPJ do fornecedor", locks: true },
-  { key: "fornecedor.legal_name", label: "Razão social", locks: true },
-  { key: "issued_on", label: "Data de emissão (opcional)", type: "date", optional: true, locks: true },
-  { key: "vigencia_inicio", label: "Início da vigência", type: "date", locks: true },
-  { key: "vigencia_fim", label: "Fim da vigência", type: "date", locks: true },
-  { key: "total_value", label: "Valor total (R$)", type: "money", locks: true },
-  { key: "budget_date", label: "Data do orçamento planilhado", type: "date", locks: true },
+interface FieldSpec {
+  key: Key;
+  label: string;
+  type?: "date" | "money";
+  optional?: boolean;
+  /** Past "rascunho" it changes only through an aditivo (AC-0002-24). */
+  locks?: boolean;
+  wide?: boolean;
+}
+
+// The ATA page's own grouping, so the form looks like the page it produces (AC-0013-07).
+const SECTIONS: { title: string; hint: string; fields: FieldSpec[] }[] = [
+  {
+    title: "Identificação",
+    hint: "O número é único entre as ATAs.",
+    fields: [
+      { key: "number", label: "Número", locks: true },
+      { key: "organ", label: "Órgão" },
+      { key: "subject", label: "Objeto", wide: true },
+    ],
+  },
+  {
+    title: "Fornecedor",
+    hint: "Se o CNPJ já estiver cadastrado, a razão social dele é mantida.",
+    fields: [
+      { key: "fornecedor.cnpj", label: "CNPJ do fornecedor", locks: true },
+      { key: "fornecedor.legal_name", label: "Razão social", locks: true },
+    ],
+  },
+  {
+    title: "Vigência",
+    hint: "O fim precisa ser depois do início.",
+    fields: [
+      { key: "vigencia_inicio", label: "Início da vigência", type: "date", locks: true },
+      { key: "vigencia_fim", label: "Fim da vigência", type: "date", locks: true },
+      { key: "issued_on", label: "Data de emissão (opcional)", type: "date", optional: true, locks: true },
+    ],
+  },
+  {
+    title: "Valores",
+    hint: "O reajuste vence um ano depois do orçamento planilhado.",
+    fields: [
+      { key: "total_value", label: "Valor total (R$)", type: "money", locks: true },
+      { key: "budget_date", label: "Data do orçamento planilhado", type: "date", locks: true },
+    ],
+  },
 ];
 
+const FIELDS = SECTIONS.flatMap((section) => section.fields);
 const ORDER = FIELDS.map((field) => field.key);
 
 // Refusals that name no field in `fields` but belong to one (SPEC-0002 §3.7).
@@ -57,18 +86,7 @@ const CODE_FIELD: Record<string, Key> = { ATA_DUPLICADA: "number" };
 
 type Values = Record<Key, string>;
 
-const EMPTY: Values = {
-  number: "",
-  subject: "",
-  organ: "",
-  "fornecedor.cnpj": "",
-  "fornecedor.legal_name": "",
-  issued_on: "",
-  vigencia_inicio: "",
-  vigencia_fim: "",
-  total_value: "",
-  budget_date: "",
-};
+const EMPTY = Object.fromEntries(ORDER.map((key) => [key, ""])) as Values;
 
 function valuesOf(ata: AtaDetail): Values {
   return {
@@ -104,27 +122,18 @@ function payload(values: Values, keys: Key[]): Record<string, unknown> {
 }
 
 /**
- * "Cadastrar ATA" (AC-0013-07 to -09) and "Editar" (AC-0013-14). Past
- * "rascunho" the figures change only through an aditivo, so the dialog shows
- * them read-only; the API refuses them anyway (AC-0002-24).
+ * The registration (AC-0013-07 to -09) and the edit (AC-0013-14), as a page.
+ * Past "rascunho" the figures change only through an aditivo, so they are shown
+ * read-only; the API refuses them anyway (AC-0002-24).
  */
-export function AtaForm({
-  ata,
-  onSaved,
-  onStale,
-}: {
-  ata?: AtaDetail;
-  onSaved?: (ata: AtaDetail) => void;
-  /** The API refused because the ATA changed meanwhile: the page reloads it (§5). */
-  onStale?: () => void;
-}) {
+export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => void }) {
   const { handleSessionError } = useSession();
   const router = useRouter();
   const editing = ata !== undefined;
   const locked = editing && ata.status !== "rascunho";
   const initial = ata ? valuesOf(ata) : EMPTY;
+  const back = editing ? `/atas/${ata.id}` : "/atas";
 
-  const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Values>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<ApiError | null>(null);
@@ -133,12 +142,6 @@ export function AtaForm({
   useEffect(() => {
     focusFirst(ORDER, errors, "ata");
   }, [errors]);
-
-  function reset() {
-    setValues(ata ? valuesOf(ata) : EMPTY);
-    setErrors({});
-    setFailure(null);
-  }
 
   function set(key: Key, value: string) {
     setValues((current) => ({ ...current, [key]: key === "fornecedor.cnpj" ? formatCnpj(value) : value }));
@@ -161,7 +164,7 @@ export function AtaForm({
       .map((field) => field.key)
       .filter((key) => !editing || values[key].trim() !== initial[key].trim());
     if (editing && keys.length === 0) {
-      setOpen(false);
+      router.push(back);
       return;
     }
 
@@ -172,13 +175,8 @@ export function AtaForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload(values, keys)),
       });
-      if (editing) {
-        setOpen(false);
-        onSaved?.(saved);
-      } else {
-        setFlash("ATA cadastrada como rascunho.");
-        router.push(`/atas/${saved.id}`);
-      }
+      setFlash(editing ? "ATA atualizada." : "ATA cadastrada como rascunho.");
+      router.push(`/atas/${saved.id}`);
     } catch (err) {
       if (handleSessionError(err)) return;
       const error = err instanceof ApiError ? err : unavailable();
@@ -188,71 +186,73 @@ export function AtaForm({
       if (Object.keys(named).length > 0) setErrors(named);
       else setFailure(error);
       if (editing && error.status === 409) onStale?.();
-    } finally {
       setPending(false);
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) reset();
-        setOpen(next);
-      }}
-    >
-      <DialogTrigger asChild>
-        {editing ? (
-          <Button variant="outline">
-            <Pencil aria-hidden />
-            Editar
-          </Button>
-        ) : (
-          <Button>
-            <Plus aria-hidden />
-            Cadastrar ATA
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
-        <form className="grid gap-4" onSubmit={onSubmit} noValidate>
-          <DialogHeader>
-            <DialogTitle>{editing ? `Editar ATA ${ata.number}` : "Cadastrar ATA"}</DialogTitle>
-            <DialogDescription>
-              {locked
-                ? "Depois de ativada, valores e prazos só mudam por aditivo."
-                : editing
-                  ? "Enquanto rascunho, todos os campos podem mudar."
-                  : "A ATA é cadastrada como rascunho e passa a valer quando for ativada."}
-            </DialogDescription>
-          </DialogHeader>
-          {FIELDS.map((field) => {
-            const readOnly = locked && field.locks;
-            return (
-              <Field key={field.key} id={`ata-${field.key.replace(".", "-")}`} label={field.label} error={errors[field.key]}>
-                {(props) => (
-                  <Input
-                    {...props}
-                    type={field.type === "date" ? "date" : "text"}
-                    inputMode={field.type === "money" ? "decimal" : field.key === "fornecedor.cnpj" ? "numeric" : undefined}
-                    placeholder={field.type === "money" ? "0,00" : field.key === "fornecedor.cnpj" ? "00.000.000/0000-00" : undefined}
-                    value={values[field.key]}
-                    readOnly={readOnly}
-                    disabled={readOnly}
-                    onChange={(e) => set(field.key, e.target.value)}
-                  />
-                )}
-              </Field>
-            );
-          })}
-          {failure && <ErrorNotice error={failure} />}
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : editing ? "Salvar" : "Cadastrar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={onSubmit} noValidate className="space-y-6">
+      {locked && <Notice>Depois de ativada, valores e prazos só mudam por aditivo.</Notice>}
+
+      <div className="divide-y rounded-lg border border-border/70 bg-card shadow-sm">
+        {SECTIONS.map((section) => (
+          <section
+            key={section.title}
+            aria-labelledby={`secao-${section.title}`}
+            className="grid gap-x-8 gap-y-4 p-5 sm:p-6 md:grid-cols-[13rem_minmax(0,1fr)]"
+          >
+            <div className="space-y-1">
+              <h2 id={`secao-${section.title}`} className="text-base font-normal">
+                {section.title}
+              </h2>
+              <p className="text-sm font-light text-muted-foreground">{section.hint}</p>
+            </div>
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              {section.fields.map((field) => {
+                const readOnly = locked && field.locks;
+                return (
+                  <div key={field.key} className={cn("min-w-0", field.wide && "sm:col-span-2")}>
+                    <Field id={`ata-${field.key.replace(".", "-")}`} label={field.label} error={errors[field.key]}>
+                      {(props) => (
+                        <Input
+                          {...props}
+                          type={field.type === "date" ? "date" : "text"}
+                          inputMode={
+                            field.type === "money" ? "decimal" : field.key === "fornecedor.cnpj" ? "numeric" : undefined
+                          }
+                          placeholder={
+                            field.type === "money"
+                              ? "0,00"
+                              : field.key === "fornecedor.cnpj"
+                                ? "00.000.000/0000-00"
+                                : undefined
+                          }
+                          value={values[field.key]}
+                          readOnly={readOnly}
+                          disabled={readOnly}
+                          onChange={(e) => set(field.key, e.target.value)}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {failure && <ErrorNotice error={failure} />}
+
+      {/* The actions stay in view however long the form (AC-0013-07). */}
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:flex-row sm:justify-end sm:px-6">
+        <Link href={back} className={buttonVariants({ variant: "outline" })}>
+          Voltar
+        </Link>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Salvando..." : editing ? "Salvar" : "Cadastrar"}
+        </Button>
+      </div>
+    </form>
   );
 }

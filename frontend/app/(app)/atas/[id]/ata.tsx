@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Notice } from "@/components/auth/auth-layout";
-import { AtaForm } from "@/components/atas/ata-form";
 import { SituacaoBadge, StatusBadge } from "@/components/atas/badges";
 import { MoveActions } from "@/components/atas/move-actions";
 import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs";
@@ -147,7 +146,10 @@ export function AtaView() {
         action={
           writes ? (
             <div data-testid="ata-actions" className="flex flex-wrap gap-2">
-              <AtaForm ata={ata} onSaved={(next) => changed(next, "ATA atualizada.")} onStale={reload} />
+              <Link href={`/atas/${ata.id}/editar`} className={buttonVariants({ variant: "outline" })}>
+                <Pencil aria-hidden />
+                Editar
+              </Link>
               <MoveActions ata={ata} onMoved={(next, move) => changed(next, MOVE[move].done)} onStale={reload} />
             </div>
           ) : undefined
