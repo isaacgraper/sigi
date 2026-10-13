@@ -258,6 +258,9 @@ Full version: `CONTRIBUTING.md`.
 - Every screen follows `DESIGN.md` (ADR-0014): the navy shell, the page
   template, the components, the states and the motion rules. Read it before
   building one.
+- Every screen, its sidebar slot and what each perfil may do there is in
+  `docs/product/user-map.md`. A new screen updates its row, and a top-level one
+  is a `Module` in `frontend/lib/modules.ts` in the map's order.
 
 **Both**
 
