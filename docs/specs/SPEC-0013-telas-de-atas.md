@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -95,16 +95,30 @@ first, by the product owner's decision.
 Given ATAs registered
 When  /atas is shown
 Then  a table lists them with the columns Número, Objeto, Fornecedor, Vigência,
-      Valor contratado, Status, Situação and Reajuste em
+      Valor contratado, Status and Reajuste em
 And   Vigência reads "01/01/2026 a 31/12/2026", Valor contratado reads "R$ 1.234.567,89"
-And   Status and Situação are badges with the API's values in words
+And   Status reads as one line of text (DESIGN.md §4): the status word, followed by
+      the situação when the ATA is vigente or suspensa and not plainly vigente
 And   each row opens that ATA
 When  there are more than 25
 Then  the list shows 25 and a control to move between pages, with the total
 ```
 Status words: Rascunho, Vigente, Suspensa, Encerrada, Cancelada. Situação words:
-Vigente, A vencer, Vencida. Both come from the API (`status`,
-`situacao_vigencia`, AC-0002-15); the screen never derives them.
+vigente, a vencer, vencida. Both come from the API (`status`,
+`situacao_vigencia`, AC-0002-15); the screen never derives them, only chooses
+which to show:
+
+| Status | Situação | Reads | Mark |
+| --- | --- | --- | --- |
+| vigente | vigente | Vigente | none |
+| vigente | a_vencer | Vigente · a vencer | amber dot |
+| vigente | vencida | Vigente · vencida | red dot |
+| suspensa | vigente | Suspensa | amber dot |
+| suspensa | a_vencer, vencida | Suspensa · a vencer, Suspensa · vencida | amber, red dot |
+| rascunho, encerrada, cancelada | any | Rascunho, Encerrada, Cancelada | muted text |
+
+The situação of an ATA not running says nothing a person acts on, so it is not
+shown; the Situação filter still applies to every ATA.
 
 **AC-0013-04** — The list filters by status and situação
 ```gherkin
@@ -198,7 +212,7 @@ keeps its 14 digits.
 ```gherkin
 Given an ATA
 When  /atas/{id} is shown
-Then  the page header reads "ATA {número}" with its Status and Situação badges
+Then  the page header reads "ATA {número}" with its status line of AC-0013-03 and its objeto
 And   it shows Objeto, Órgão, Fornecedor (razão social and CNPJ), Data de emissão,
       Vigência, Valor total, Valor contratado, Data do orçamento planilhado and
       Data de reajuste
@@ -389,3 +403,4 @@ choose a member from this screen (§2).
 | 1.0 | 2026-10-13 | Approved by the product owner as drafted, including the moves offered per status as a cosmetic mirror of AC-0002-22. |
 | 1.1 | 2026-10-13 | AC-0013-01 names the room AC-0010-27 and AC-0011-01 leave for it. No behaviour change. |
 | 1.2 | 2026-10-13 | By the product owner's review of the screens: registering and editing move from a dialog to `/atas/nova` and `/atas/{id}/editar`, in the ATA page's sections (AC-0013-07, -14); the two alert cards become one "Vencimentos e reajustes" list ordered by urgency, the 5 most urgent first (AC-0013-02); AC-0013-18 covers the new pages. |
+| 1.3 | 2026-10-13 | Status is one line of text, not two badges, by DESIGN.md §4 as revised by the product owner: the Situação column folds into Status, and the situação shows only where it says something (AC-0013-03, -10). |
