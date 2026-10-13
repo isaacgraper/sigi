@@ -19,6 +19,9 @@ screens show, which must match it.
 
 `✓` sees it · `W` sees it and writes · `—` not shown, and the API refuses it.
 
+Every path through a screen, its fields, validation and screenshots, is in
+[`user-flows/`](user-flows/): [ATAs](user-flows/atas.md).
+
 ### Public, no session
 
 | Route | Screen | Spec | Status |

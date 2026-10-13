@@ -26,6 +26,8 @@ entries are moved into a new dated version section — see
   "Registrar pedido de reajuste". Every perfil reads; only a gestor sees the writes. No
   backend change: the screens use SPEC-0002's endpoints.
 - `docs/product/user-map.md`: every screen, its sidebar slot and what each perfil may do there.
+- `docs/product/user-flows/atas.md`: every path through the ATA screens, each field's rules and
+  the API's refusal for it, with 27 screenshots of the running application.
 
 ### Changed
 
