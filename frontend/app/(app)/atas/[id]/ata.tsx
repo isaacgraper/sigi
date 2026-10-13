@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Notice } from "@/components/auth/auth-layout";
-import { SituacaoBadge, StatusBadge } from "@/components/atas/badges";
+import { AtaStatus } from "@/components/atas/status";
 import { MoveActions } from "@/components/atas/move-actions";
 import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs";
 import { AtaSkeleton } from "@/components/atas/skeletons";
@@ -137,9 +137,9 @@ export function AtaView() {
       <PageHeader
         title={`ATA ${ata.number}`}
         description={
-          <span className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={ata.status} />
-            <SituacaoBadge situacao={ata.situacao_vigencia} />
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <AtaStatus ata={ata} />
+            <span aria-hidden className="h-4 w-px bg-border" />
             <span>{ata.subject}</span>
           </span>
         }

@@ -167,7 +167,6 @@ test.describe("SPEC-0013 the ATA screens", () => {
       "Vigência",
       "Valor contratado",
       "Status",
-      "Situação",
       "Reajuste em",
     ]);
     const cells = row(page, ata.number).getByRole("cell");
@@ -176,7 +175,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await expect(cells.nth(3)).toHaveText("02/01/2026 a 01/12/2026");
     await expect(cells.nth(4)).toHaveText("R$ 1.234.567,89");
     await expect(cells.nth(5)).toHaveText("Rascunho");
-    await expect(cells.nth(7)).toHaveText("10/02/2027");
+    await expect(cells.nth(6)).toHaveText("10/02/2027");
 
     await row(page, ata.number).getByRole("link", { name: ata.number }).click();
     await expect(page).toHaveURL(new RegExp(`/atas/${ata.id}$`));
