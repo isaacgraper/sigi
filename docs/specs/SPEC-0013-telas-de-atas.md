@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -57,6 +57,8 @@ When  any page of the shell is shown
 Then  the sidebar lists "ATAs" after "Painel" and before "Membros"
 And   choosing it opens /atas, whose page header reads "ATAs"
 ```
+This is the entry AC-0010-27 and AC-0011-01 leave room for: a module whose spec
+is Approved takes its place between "Painel" and "Membros".
 
 ### 4.2 The ATA list
 
@@ -357,3 +359,4 @@ choose a member from this screen (§2).
 | --- | --- | --- |
 | 0.1 | 2026-10-13 | Initial draft. The screens for SPEC-0002 v1.1: the list with both alerts, registration, the ATA page, the lifecycle moves, edit, aditivo and reajuste request. No backend change. |
 | 1.0 | 2026-10-13 | Approved by the product owner as drafted, including the moves offered per status as a cosmetic mirror of AC-0002-22. |
+| 1.1 | 2026-10-13 | AC-0013-01 names the room AC-0010-27 and AC-0011-01 leave for it. No behaviour change. |
