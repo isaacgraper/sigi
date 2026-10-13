@@ -69,6 +69,11 @@ jobs:
       - name: Ruff — format
         run: poetry run ruff format --check .
 
+      # The pre-commit hook's twin, for a commit that skipped the hook
+      # (docs/process/coding-standards.md §7).
+      - name: Constants in app/constants
+        run: python ../scripts/check_constants.py
+
       # definition-of-done requires a clean mypy run. It was in the checklist
       # before it was in the pipeline, which is how a checklist stops being one.
       - name: mypy
