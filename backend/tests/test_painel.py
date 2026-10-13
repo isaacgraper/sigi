@@ -8,8 +8,8 @@ from collections.abc import Callable
 import pytest
 from fastapi.testclient import TestClient
 
+from app.constants.painel import SECTIONS
 from app.models.user import User
-from app.services import painel
 
 PAINEL = "/api/v1/painel"
 LOGIN = "/api/v1/auth/login"
@@ -33,7 +33,7 @@ def test_ac_0012_12_every_perfil_reads_every_section_block_by_block(
 ) -> None:
     """AC-0012-12 — 200 for each section, one entry per block, empty rows today."""
     headers = _login(application, create_user, perfil)
-    for section, blocks in painel.SECTIONS.items():
+    for section, blocks in SECTIONS.items():
         response = application.get(f"{PAINEL}/{section}", headers=headers)
         assert response.status_code == 200, response.text
         assert response.json() == {
@@ -44,7 +44,7 @@ def test_ac_0012_12_every_perfil_reads_every_section_block_by_block(
 
 def test_ac_0012_12_the_four_sections_are_the_reports() -> None:
     """AC-0012-12 — the sections are the report's four pages, in its order."""
-    assert list(painel.SECTIONS) == ["atendimento", "consumo", "processos", "itens-em-falta"]
+    assert list(SECTIONS) == ["atendimento", "consumo", "processos", "itens-em-falta"]
 
 
 def test_ac_0012_12_without_a_session_is_refused(application: TestClient) -> None:

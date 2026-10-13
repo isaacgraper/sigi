@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.constants.members import LAST_GESTOR_LOCK_KEY
 from app.models.user import User
 
 
@@ -47,11 +48,6 @@ def create(
     return user
 
 
-# Arbitrary but fixed: an advisory lock key is just a number both sides agree
-# on. Named so that a second guard never picks the same one by accident.
-GESTOR_LOCK = 0x5163_0001
-
-
 def list_page(session: Session, *, page: int, size: int) -> Sequence[User]:
     """One page of members, newest first."""
     return session.scalars(
@@ -84,7 +80,7 @@ def lock_gestores(session: Session) -> None:
     A transaction-scoped advisory lock: released at commit or rollback, with no
     row to hold and no table to contend on.
     """
-    session.execute(text("SELECT pg_advisory_xact_lock(:chave)"), {"chave": GESTOR_LOCK})
+    session.execute(text("SELECT pg_advisory_xact_lock(:chave)"), {"chave": LAST_GESTOR_LOCK_KEY})
 
 
 def count_active_gestores(session: Session, *, excluding: uuid.UUID | None = None) -> int:

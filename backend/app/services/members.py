@@ -16,6 +16,14 @@ from psycopg import errors as pgerrors
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from app.constants.auth import CREDENTIAL_INVITE, CREDENTIAL_RESET
+from app.constants.members import (
+    DEV_ADMIN_EMAIL,
+    DEV_ADMIN_PASSWORD,
+    SQLSTATE_DEADLOCK,
+    SQLSTATE_LAST_GESTOR,
+    STATUS_REVOCATION_REASON,
+)
 from app.core.config import get_settings
 from app.core.passwords import hash_password
 from app.models.user import User
@@ -35,19 +43,6 @@ from app.services.errors import (
     ResetExpired,
     UsuarioNotFound,
 )
-
-# PostgreSQL raises this when the last-gestor trigger's `FOR UPDATE` deadlocks
-# against a concurrent removal. Measured over 40 runs of the AC-0001-29 race:
-# exactly one deactivation always succeeds, and the loser sees a deadlock 39
-# times and the trigger's own SI005 once. Both mean the same thing to the
-# caller, so both become 409.
-SQLSTATE_DEADLOCK = "40P01"
-SQLSTATE_LAST_GESTOR = "SI005"
-
-# `ck_sessao_motivo_valor` fixes the vocabulary of `sessao.revogado_motivo`,
-# and it is not the vocabulary of `usuario.status`. Two languages: one
-# describes the account, the other why the session ended.
-REVOCATION_REASON = {"bloqueado": "bloqueio", "desativado": "desativacao"}
 
 
 def invite(
@@ -87,7 +82,7 @@ def invite(
     grant = credentials.issue(
         session,
         user_id=user.id,
-        kind=credentials.INVITE,
+        kind=CREDENTIAL_INVITE,
         at=at,
         created_by=actor.id,
     )
@@ -133,7 +128,7 @@ def reissue_invite(
     grant = credentials.issue(
         session,
         user_id=user.id,
-        kind=credentials.INVITE,
+        kind=CREDENTIAL_INVITE,
         at=at,
         created_by=actor.id,
     )
@@ -206,10 +201,6 @@ def bootstrap_gestor(
     return user
 
 
-DEV_ADMIN_EMAIL = "admin@sc.gov.br"
-DEV_ADMIN_PASSWORD = "admin"  # noqa: S105 - a development credential, refused elsewhere
-
-
 def seed_dev_admin(
     session: Session,
     *,
@@ -259,7 +250,7 @@ def activate(
     grant is spent, so a password that fails the policy leaves the invitation
     usable. A typo must not burn it and force the gestor to issue another.
     """
-    row = credentials.redeem(session, value=token, kind=credentials.INVITE, at=at)
+    row = credentials.redeem(session, value=token, kind=CREDENTIAL_INVITE, at=at)
     credentials.require_strong_password(password)
 
     user = repo.by_id(session, row.user_id)
@@ -442,7 +433,9 @@ def _change_status(
             raise LastGestor() from exc
         raise
 
-    repo_session.revoke_for_usuario(session, user.id, reason=REVOCATION_REASON[new_status], at=at)
+    repo_session.revoke_for_usuario(
+        session, user.id, reason=STATUS_REVOCATION_REASON[new_status], at=at
+    )
     record(
         session,
         Event(
@@ -512,7 +505,7 @@ def trigger_reset(
     grant = credentials.issue(
         session,
         user_id=user.id,
-        kind=credentials.RESET,
+        kind=CREDENTIAL_RESET,
         at=at,
         created_by=actor.id,
     )
@@ -552,7 +545,7 @@ def redeem_reset(
     row = credentials.redeem(
         session,
         value=token,
-        kind=credentials.RESET,
+        kind=CREDENTIAL_RESET,
         at=at,
         already_used=ResetAlreadyUsed,
         expired=ResetExpired,

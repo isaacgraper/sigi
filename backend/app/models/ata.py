@@ -21,9 +21,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-ATA_STATUS = ("rascunho", "vigente", "suspensa", "encerrada", "cancelada")
-ADITIVO_KINDS = ("valor", "prazo")
-
 
 class Ata(Base):
     """An ata de registro de preços: the root of every supply cycle.

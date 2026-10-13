@@ -14,6 +14,7 @@ import uuid
 from fastapi import Request
 from starlette.applications import Starlette
 
+from app.constants.auth import THROTTLED_PREFIXES
 from app.core.config import get_settings
 from app.core.correlation import current as current_correlation_id
 from app.services import throttle
@@ -94,7 +95,7 @@ def verify_ceilings(app: Starlette) -> None:
     missing = [
         path
         for path, _ in application_routes(app)
-        if path.startswith(throttle.PREFIXES) and path not in cfg.rate_limit_ceilings
+        if path.startswith(THROTTLED_PREFIXES) and path not in cfg.rate_limit_ceilings
     ]
     if missing:
         raise RouteWithoutCeiling(

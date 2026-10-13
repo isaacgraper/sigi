@@ -26,15 +26,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-REVOCATION_REASONS = (
-    "rotacao",
-    "logout",
-    "replay",
-    "desativacao",
-    "bloqueio",
-    "redefinicao",
-)
-
 
 class SessionFamily(Base):
     """One row per login. Binds a family to exactly one user (DB11).

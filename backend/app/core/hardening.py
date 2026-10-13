@@ -10,17 +10,8 @@ import json
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.constants import MAX_BODY_BYTES, SECURITY_HEADERS
 from app.core.correlation import current
-
-MAX_BODY_BYTES = 64 * 1024
-
-# The API serves JSON only: a policy that allows nothing costs nothing, and a
-# response can never be rendered or framed as a page.
-SECURITY_HEADERS = [
-    (b"x-content-type-options", b"nosniff"),
-    (b"x-frame-options", b"DENY"),
-    (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
-]
 
 
 class SecurityHeadersMiddleware:

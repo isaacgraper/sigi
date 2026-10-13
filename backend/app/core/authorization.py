@@ -19,20 +19,21 @@ from fastapi.routing import APIRoute
 from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 
+from app.constants import WRITE_METHODS
+from app.constants.auth import BEARER_SCHEME
+from app.constants.members import PERFIS
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_session
 from app.core.security import TokenInvalid, verify_access_token
-from app.models.user import PERFIS, User
+from app.models.user import User
 from app.repositories import user as repo
 from app.services.errors import InactiveUser, UnauthorizedPerfil
-
-SCHEME = "bearer"
 
 
 def _token_from_header(request: Request) -> str:
     header = request.headers.get("authorization", "")
     kind, _, value = header.partition(" ")
-    if kind.lower() != SCHEME or not value.strip():
+    if kind.lower() != BEARER_SCHEME or not value.strip():
         raise TokenInvalid("Sua sessão não é válida. Entre novamente.")
     return value.strip()
 
@@ -147,9 +148,6 @@ def _audit_refusal(request: Request, user: User) -> None:
 def _correlation_id(request: Request) -> uuid.UUID:
     raw = request.scope.get("state", {}).get("correlation_id")
     return raw if isinstance(raw, uuid.UUID) else current_correlation_id()
-
-
-WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
 def route_decisions(route: APIRoute) -> list[Decision]:

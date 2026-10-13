@@ -19,10 +19,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.constants.auth import JWT_ALGORITHM
 from app.core import security
 from app.core.config import get_settings
 from app.core.security import (
-    ALGORITHM,
     AccessClaims,
     TokenExpired,
     TokenInvalid,
@@ -87,7 +87,7 @@ def test_ac_0001_09_a_signature_from_another_key_is_refused() -> None:
             ),
         },
         pem,
-        algorithm=ALGORITHM,
+        algorithm=JWT_ALGORITHM,
     )
     with pytest.raises(TokenInvalid):
         verify_access_token(forged)
@@ -132,7 +132,7 @@ def test_ac_0001_09_a_foreign_issuer_is_refused() -> None:
             ),
         },
         private_key,
-        algorithm=ALGORITHM,
+        algorithm=JWT_ALGORITHM,
     )
     with pytest.raises(TokenInvalid):
         verify_access_token(from_another_system)
@@ -158,7 +158,7 @@ def test_a_token_of_another_kind_does_not_pass_as_access() -> None:
             ),
         },
         private_key,
-        algorithm=ALGORITHM,
+        algorithm=JWT_ALGORITHM,
     )
     with pytest.raises(TokenInvalid):
         verify_access_token(other_kind)

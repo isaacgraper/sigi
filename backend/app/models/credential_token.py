@@ -15,8 +15,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-TYPES = ("convite", "redefinicao")
-
 
 class CredentialToken(Base):
     """An invitation or a password reset. Only the HMAC of the token is stored.

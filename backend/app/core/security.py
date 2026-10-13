@@ -27,15 +27,10 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from app.constants.auth import ACCESS_TOKEN_TYPE, JWT_ALGORITHM, REFRESH_TOKEN_BYTES
 from app.core.config import get_settings
 from app.core.secrets_hmac import digest_secret
 from app.services.errors import DomainError
-
-ALGORITHM = "RS256"
-ACCESS_TYPE = "access"
-# 256 bits from a CSPRNG. The refresh token is looked up by equality on an
-# indexed column, so its security rests entirely on being unguessable.
-BYTES_REFRESH = 32
 
 
 class TokenExpired(DomainError):
@@ -118,13 +113,13 @@ def issue_access_token(
             "jti": str(uuid.uuid4()),
             "sub": str(user_id),
             "perfil": role,
-            "typ": ACCESS_TYPE,
+            "typ": ACCESS_TOKEN_TYPE,
             "iss": cfg.jwt_issuer,
             "iat": int(now.timestamp()),
             "exp": int(expires.timestamp()),
         },
         _key_pair()[0],
-        algorithm=ALGORITHM,
+        algorithm=JWT_ALGORITHM,
     )
 
 
@@ -142,7 +137,7 @@ def verify_access_token(token: str) -> AccessClaims:
         payload = jwt.decode(
             token,
             _key_pair()[1],
-            algorithms=[ALGORITHM],
+            algorithms=[JWT_ALGORITHM],
             issuer=cfg.jwt_issuer,
             options={"require": ["exp", "iat", "sub", "iss"]},
         )
@@ -151,7 +146,7 @@ def verify_access_token(token: str) -> AccessClaims:
     except jwt.InvalidTokenError as exc:
         raise TokenInvalid("Sua sessão não é válida. Entre novamente.") from exc
 
-    if payload.get("typ") != ACCESS_TYPE:
+    if payload.get("typ") != ACCESS_TOKEN_TYPE:
         # A refresh token is opaque and could never arrive here, but a future
         # token kind could — and accepting one as an access token would be a
         # privilege escalation with no signature error to notice it.
@@ -166,5 +161,5 @@ def verify_access_token(token: str) -> AccessClaims:
 
 def generate_refresh_token() -> tuple[str, bytes]:
     """Return `(value, hash)`. Only the hash is ever stored."""
-    value = secrets.token_urlsafe(BYTES_REFRESH)
+    value = secrets.token_urlsafe(REFRESH_TOKEN_BYTES)
     return value, digest_secret(value)

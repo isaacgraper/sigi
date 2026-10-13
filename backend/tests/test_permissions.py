@@ -24,8 +24,8 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
+from app.constants import WRITE_METHODS
 from app.core.authorization import (
-    WRITE_METHODS,
     Public,
     Requires,
     RouteWithoutDecision,

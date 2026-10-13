@@ -15,6 +15,7 @@ import sys
 import uuid
 from collections.abc import Callable, Sequence
 
+from app.constants.members import DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD
 from app.core.db import session_factory
 from app.services import members
 from app.services.errors import DomainError
@@ -67,9 +68,9 @@ def seed_dev_admin() -> int:
             print(f"{exc.code}: {exc.message_text}", file=sys.stderr)
             return 1
     if user is None:
-        print(f"{members.DEV_ADMIN_EMAIL} already exists.")
+        print(f"{DEV_ADMIN_EMAIL} already exists.")
     else:
-        print(f"Gestor {members.DEV_ADMIN_EMAIL} created, password '{members.DEV_ADMIN_PASSWORD}'.")
+        print(f"Gestor {DEV_ADMIN_EMAIL} created, password '{DEV_ADMIN_PASSWORD}'.")
     return 0
 
 

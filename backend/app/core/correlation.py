@@ -17,7 +17,7 @@ from contextvars import ContextVar
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-HEADER = "X-Correlation-Id"
+from app.constants import CORRELATION_HEADER
 
 _current: ContextVar[uuid.UUID | None] = ContextVar("correlation_id", default=None)
 
@@ -56,7 +56,7 @@ class CorrelationMiddleware:
         async def send_with_header(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
-                headers.append((HEADER.lower().encode(), str(correlation_id).encode()))
+                headers.append((CORRELATION_HEADER.lower().encode(), str(correlation_id).encode()))
                 message = {**message, "headers": headers}
             await send(message)
 
@@ -67,7 +67,7 @@ class CorrelationMiddleware:
 
 
 def _from_header(scope: Scope) -> uuid.UUID | None:
-    target = HEADER.lower().encode()
+    target = CORRELATION_HEADER.lower().encode()
     for nome, value in scope.get("headers", []):
         if nome.lower() == target:
             try:
