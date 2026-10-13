@@ -53,6 +53,13 @@ Controls, in force now:
 
 Tracked as OQ-24.
 
+**Decision changed 2026-10-13 (OQ-24).** The product owner decided that what
+the spreadsheets hold is shown in SIGI, the patient name included, so
+`ENTRADAS NFS` is in scope. Controls 1 and 2 hold until SPEC-0005 specifies
+its importer, and control 4 is now due: before that importer is built, this
+register gains the row for `pacienteNome` with its legal basis under art. 11,
+the perfis that may read it, and an audit of who read it. Control 3 stays.
+
 ## Minimisation issues to resolve
 
 The profile mockup (9.2.1) shows **CPF** and **matrícula SIAPE**. Neither appears
