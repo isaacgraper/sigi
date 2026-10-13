@@ -20,6 +20,15 @@ entries are moved into a new dated version section — see
 - `GET /api/v1/painel/{section}` serves the dashboard's blocks for all three perfis. The page
   shows a skeleton while it waits and "Sem dados" for a block that comes back empty, which
   today is every block (SPEC-0012 v1.1).
+- ATA screens (SPEC-0013): `/atas` with what falls due ("Vencimentos e reajustes", one list
+  ordered by urgency) and the list filtered by status and situação; `/atas/nova` and
+  `/atas/{id}/editar` to register and edit, in sections; `/atas/{id}` with the ATA, its
+  aditivos and reajuste requests, the lifecycle moves, "Registrar aditivo" and
+  "Registrar pedido de reajuste". Every perfil reads; only a gestor sees the writes. No
+  backend change: the screens use SPEC-0002's endpoints.
+- `docs/product/user-map.md`: every screen, its sidebar slot and what each perfil may do there.
+- `docs/product/user-flows/atas.md`: every path through the ATA screens, each field's rules and
+  the API's refusal for it, with 27 screenshots of the running application.
 
 ### Changed
 

@@ -1,4 +1,4 @@
-import { LayoutDashboard, type LucideIcon, Users } from "lucide-react";
+import { FileText, LayoutDashboard, type LucideIcon, Users } from "lucide-react";
 
 import { canSeeMembers, type Me } from "@/lib/me";
 
@@ -20,6 +20,13 @@ export const DASHBOARD: Module = {
 // approved (AC-0011-01). Only what has an Approved spec behind it is listed.
 // Hiding one is cosmetic; the API refuses what a perfil may not do (C5).
 const MODULES: Module[] = [
+  {
+    href: "/atas",
+    name: "ATAs",
+    icon: FileText,
+    // Every perfil reads ATAs (AC-0002-23, AC-0013-01); only a gestor writes.
+    visibleTo: () => true,
+  },
   {
     href: "/members",
     name: "Membros",

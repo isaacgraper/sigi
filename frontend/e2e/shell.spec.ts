@@ -11,17 +11,17 @@ test.describe("shell", () => {
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 
-  test("AC-0010-27 a gestor's navigation lists Painel and Membros", async ({ page }) => {
+  test("AC-0010-27 a gestor's navigation lists Painel, ATAs and Membros", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel", "Membros"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Membros"]);
   });
 
-  test("AC-0010-27 a servidor's navigation lists only Painel", async ({ page }) => {
+  test("AC-0010-27 a servidor's navigation lists Painel and ATAs", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs"]);
   });
 
   test("AC-0010-28 the dashboard states who is signed in", async ({ page }) => {

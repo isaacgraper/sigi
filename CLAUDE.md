@@ -45,8 +45,9 @@ callback, invitation, password reset and member management inside the navy
 shell, proven by Playwright against the real API in Chromium, Firefox
 and WebKit. The dashboard is the stakeholders' CAME report (SPEC-0012, `Approved`): four
 tabs fed by `GET /api/v1/painel/{section}`, a skeleton while it waits, and
-"Sem dados" for every block until its source exists. There are no ATA
-screens yet; they need a screen spec first.
+"Sem dados" for every block until its source exists. The ATA screens
+(SPEC-0013, `Approved`) list, register and run ATAs on SPEC-0002's endpoints;
+every screen and perfil is mapped in `docs/product/user-map.md`.
 
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee
@@ -258,6 +259,9 @@ Full version: `CONTRIBUTING.md`.
 - Every screen follows `DESIGN.md` (ADR-0014): the navy shell, the page
   template, the components, the states and the motion rules. Read it before
   building one.
+- Every screen, its sidebar slot and what each perfil may do there is in
+  `docs/product/user-map.md`. A new screen updates its row, and a top-level one
+  is a `Module` in `frontend/lib/modules.ts` in the map's order.
 
 **Both**
 
