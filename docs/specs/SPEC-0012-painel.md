@@ -2,7 +2,7 @@
 id: SPEC-0012
 title: Painel
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF20]
 depends_on: [SPEC-0011]
@@ -231,7 +231,8 @@ later needs a narrower permission gets its own criterion in that source's spec.
 
 `rows` is a list of rows, each a list of the block's values as text, in its
 column order: a table's columns, a tile's single value, a chart's series. The
-block ids are the keys of `frontend/lib/dashboard.ts`. Each source's spec fills
+block ids are the keys of `SECTIONS` in `frontend/lib/dashboard/constants.ts` and
+`backend/app/constants/painel.py`. Each source's spec fills
 its blocks in the service behind this route; the contract does not change.
 
 ## 8. Audit events
@@ -247,8 +248,9 @@ yet, which the table in §3 names.
 
 - Migration: none.
 - Modules: `backend/app/api/painel.py`, `services/painel.py` and
-  `schemas/painel.py` serve §7. `frontend/lib/dashboard.ts` declares each
-  section and block (title, kind, columns, filters). `frontend/components/dashboard/`
+  `schemas/painel.py` serve §7. `frontend/lib/dashboard/constants.ts` declares each
+  section and block (title, kind, columns, filters), with its types in
+  `lib/dashboard/types.ts`. `frontend/components/dashboard/`
   holds the tabs, the block frame with its empty and error states, and the
   empty table, chart, card and filter shells. `app/(app)/dashboard/dashboard.tsx`
   renders the registry. No chart library until the first chart has data, when
@@ -263,3 +265,4 @@ yet, which the table in §3 names.
 | 0.1 | 2026-10-09 | Initial draft from the stakeholders' `RELATÓRIO GERAL CAME` report (four pages), sent as the design of the home screen. Every block is laid out and reads "Sem dados" until its source exists. |
 | 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
 | 1.1 | 2026-10-09 | The dashboard asks the backend for its data, by the product owner's request: GET /api/v1/painel/{section} (§7, AC-0012-12), a skeleton while it waits (AC-0012-11), and "Sem dados" only when the answer is empty (AC-0012-04). AC-0012-05 becomes testable. |
+| 1.2 | 2026-10-13 | §7 and §10 name the files the block ids moved to under `docs/process/coding-standards.md`. No criterion or behaviour changed. |

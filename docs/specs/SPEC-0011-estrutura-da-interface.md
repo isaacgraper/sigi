@@ -2,7 +2,7 @@
 id: SPEC-0011
 title: Estrutura da interface
 status: Implemented
-version: 1.2
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -339,7 +339,7 @@ and licence are recorded in `DESIGN.md` §5.
 | Module | Change | AC |
 | --- | --- | --- |
 | `app/globals.css` | Navy tokens from `DESIGN.md` §2, sidebar and status tokens, easing variables, the dialog, menu and drawer keyframes, and their reduced-motion variants | 21 |
-| `lib/modules.ts` | One list of modules (path, name, description, icon, who sees it), read by the sidebar, the breadcrumb and the dashboard, so the three cannot disagree | 01, 07, 13 |
+| `lib/constants.ts` (`NAV_DASHBOARD`, `NAV_MODULES`), `lib/modules.ts` | One list of modules (path, name, description, icon, who sees it), read by the sidebar, the breadcrumb and the dashboard, so the three cannot disagree | 01, 07, 13 |
 | `components/shell/sidebar.tsx` | Navy sidebar, collapse control, CSS tooltip when collapsed | 01–03 |
 | `components/shell/mobile-nav.tsx` | Menu button and the drawer, built on the dialog primitive, which traps focus, closes on Escape and the backdrop, and returns focus to its trigger | 04–06 |
 | `components/shell/breadcrumb.tsx`, `user-menu.tsx`, `footer.tsx` | Header and footer parts | 07, 08, 10 |
@@ -415,3 +415,4 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |
 | 1.1 | 2026-10-08 | Implemented, accepted by the product owner with SPEC-0010. Every criterion has a test in `frontend/e2e`; AC-0011-23 is proven by the whole SPEC-0010 suite passing on this shell. No criterion changed. |
 | 1.2 | 2026-10-09 | AC-0011-13 and AC-0011-14 withdrawn: the dashboard is SPEC-0012's report, and the sidebar already lists the modules. |
+| 1.3 | 2026-10-13 | §11: the module list lives in `NAV_MODULES` in `lib/constants.ts` after the refactor to `docs/process/coding-standards.md`; `lib/modules.ts` keeps the lookups. No criterion or behaviour changed. |
