@@ -151,16 +151,39 @@ export const MOVE: Record<
   },
 };
 
-function days(n: number): string {
-  return n === 1 ? "1 dia" : `${n} dias`;
+/** One row of "Vencimentos e reajustes": either alert, with the date it falls due. */
+export interface DueRow {
+  kind: "vencimento" | "reajuste";
+  ata: Ata;
+  date: string;
+  remaining: number;
 }
 
-/** The API's days remaining, in words (AC-0013-02). A negative count has passed. */
-export function daysText(alert: "renovacao" | "reajuste", remaining: number): string {
-  if (alert === "renovacao") {
-    if (remaining === 0) return "Vence hoje";
-    return remaining > 0 ? `Vence em ${days(remaining)}` : `Venceu há ${days(-remaining)}`;
-  }
-  if (remaining === 0) return "Reajuste hoje";
-  return remaining > 0 ? `Reajuste em ${days(remaining)}` : `Reajuste vencido há ${days(-remaining)}`;
+/**
+ * Both alerts as one list ordered by urgency (AC-0013-02). Which ATAs are in
+ * each alert is the API's; this only puts its two answers side by side.
+ */
+export function dueRows(renovacao: AlertRow[], reajuste: AlertRow[]): DueRow[] {
+  return [
+    ...renovacao.map((row) => ({
+      kind: "vencimento" as const,
+      ata: row.ata,
+      date: row.ata.vigencia_fim,
+      remaining: row.days_remaining,
+    })),
+    ...reajuste.map((row) => ({
+      kind: "reajuste" as const,
+      ata: row.ata,
+      date: row.ata.data_reajuste,
+      remaining: row.days_remaining,
+    })),
+  ].sort((a, b) => a.remaining - b.remaining || a.ata.number.localeCompare(b.ata.number));
+}
+
+/** The API's days remaining, in words: "45 dias", "1 dia", "hoje", "há 3 dias". */
+export function dueText(remaining: number): string {
+  if (remaining === 0) return "hoje";
+  const n = Math.abs(remaining);
+  const days = n === 1 ? "1 dia" : `${n} dias`;
+  return remaining > 0 ? days : `há ${days}`;
 }

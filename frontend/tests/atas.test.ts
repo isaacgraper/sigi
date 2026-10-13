@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { daysText, MOVES } from "@/lib/atas";
+import { type AlertRow, type Ata, dueRows, dueText, MOVES } from "@/lib/atas";
 import { formatBRL, formatCnpj, formatDay, parseMoney } from "@/lib/format";
 
 describe("AC-0013-09 money typed in pt-BR", () => {
@@ -53,16 +53,32 @@ describe("AC-0013-12 the moves offered per status", () => {
 });
 
 describe("AC-0013-02 days remaining in words", () => {
-  it("reads the renewal alert", () => {
-    expect(daysText("renovacao", 12)).toBe("Vence em 12 dias");
-    expect(daysText("renovacao", 1)).toBe("Vence em 1 dia");
-    expect(daysText("renovacao", 0)).toBe("Vence hoje");
-    expect(daysText("renovacao", -3)).toBe("Venceu há 3 dias");
+  it("counts down, then says how long ago", () => {
+    expect(dueText(45)).toBe("45 dias");
+    expect(dueText(1)).toBe("1 dia");
+    expect(dueText(0)).toBe("hoje");
+    expect(dueText(-1)).toBe("há 1 dia");
+    expect(dueText(-3)).toBe("há 3 dias");
+  });
+});
+
+describe("AC-0013-02 vencimentos and reajustes in one list", () => {
+  const ata = (number: string): Ata =>
+    ({ number, vigencia_fim: `fim-${number}`, data_reajuste: `reajuste-${number}` }) as Ata;
+  const alert = (number: string, days: number): AlertRow => ({ ata: ata(number), days_remaining: days });
+
+  it("orders both alerts by days remaining, overdue first", () => {
+    const rows = dueRows([alert("012", 45), alert("014", -2)], [alert("012", 25)]);
+    expect(rows.map((r) => [r.kind, r.ata.number, r.remaining])).toEqual([
+      ["vencimento", "014", -2],
+      ["reajuste", "012", 25],
+      ["vencimento", "012", 45],
+    ]);
   });
 
-  it("reads the reajuste alert", () => {
-    expect(daysText("reajuste", 20)).toBe("Reajuste em 20 dias");
-    expect(daysText("reajuste", 0)).toBe("Reajuste hoje");
-    expect(daysText("reajuste", -5)).toBe("Reajuste vencido há 5 dias");
+  it("dates a vencimento by its vigência and a reajuste by its reajuste date", () => {
+    const [reajuste, vencimento] = dueRows([alert("012", 45)], [alert("012", 25)]);
+    expect(reajuste.date).toBe("reajuste-012");
+    expect(vencimento.date).toBe("fim-012");
   });
 });

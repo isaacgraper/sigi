@@ -1,7 +1,7 @@
 import { Skeleton, TableSkeleton } from "@/components/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-/** The rows of an alert while it loads. */
+/** The rows of the due list while it loads. */
 export function AlertSkeletonRows() {
   return (
     <>
@@ -35,20 +35,15 @@ function CardSkeleton({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** /atas in its own shape: header, the two alerts, filters and the table (AC-0013-06). */
+/** /atas in its own shape: header, the due list, filters and the table (AC-0013-06). */
 export function AtasSkeleton() {
   return (
     <div role="status" data-testid="page-skeleton" className="space-y-6">
       <span className="sr-only">Carregando...</span>
       <Header />
-      <div className="grid gap-6 md:grid-cols-2">
-        <CardSkeleton>
-          <AlertSkeletonRows />
-        </CardSkeleton>
-        <CardSkeleton>
-          <AlertSkeletonRows />
-        </CardSkeleton>
-      </div>
+      <CardSkeleton>
+        <AlertSkeletonRows />
+      </CardSkeleton>
       <div className="flex gap-4">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-10 w-48" />
@@ -76,6 +71,27 @@ export function AtaSkeleton() {
       </CardSkeleton>
       <TableSkeleton rows={2} />
       <TableSkeleton rows={2} />
+    </div>
+  );
+}
+
+/** /atas/nova and /atas/{id}/editar in their own shape: header and four sections. */
+export function FormSkeleton() {
+  return (
+    <div role="status" data-testid="page-skeleton" className="space-y-6">
+      <span className="sr-only">Carregando...</span>
+      <Header />
+      <Card aria-hidden className="divide-y">
+        {[0, 1, 2, 3].map((section) => (
+          <div key={section} className="grid gap-4 p-6 md:grid-cols-[13rem_minmax(0,1fr)]">
+            <Skeleton className="h-5 w-32" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </div>
+        ))}
+      </Card>
     </div>
   );
 }

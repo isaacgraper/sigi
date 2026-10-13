@@ -1,19 +1,18 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { AtaAlerts } from "@/components/atas/alerts";
-import { AtaForm } from "@/components/atas/ata-form";
 import { SituacaoBadge, StatusBadge } from "@/components/atas/badges";
+import { Upcoming } from "@/components/atas/upcoming";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -38,6 +37,15 @@ import { formatBRL, formatDay } from "@/lib/format";
 import { apiJson } from "@/lib/session";
 
 const SIZE = 25;
+
+function RegisterLink({ variant = "default" }: { variant?: "default" | "outline" }) {
+  return (
+    <Link href="/atas/nova" className={buttonVariants({ variant })}>
+      <Plus aria-hidden />
+      Cadastrar ATA
+    </Link>
+  );
+}
 const ALL = "todos";
 const COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Valor contratado", "Status", "Situação", "Reajuste em"];
 
@@ -103,10 +111,10 @@ export function Atas() {
       <PageHeader
         title="ATAs"
         description="As Atas de Registro de Preços, o que vence e o reajuste a pedir."
-        action={writes ? <AtaForm /> : undefined}
+        action={writes ? <RegisterLink /> : undefined}
       />
 
-      <AtaAlerts />
+      <Upcoming />
 
       <section aria-label="Lista de ATAs" className="space-y-4">
         <div className="flex flex-wrap items-end gap-4">
@@ -198,7 +206,7 @@ export function Atas() {
                               Voltar à primeira página
                             </Button>
                           ) : writes ? (
-                            <AtaForm />
+                            <RegisterLink variant="outline" />
                           ) : undefined
                         }
                       />
