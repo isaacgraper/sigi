@@ -28,10 +28,11 @@ export const STATUS_LABEL: Record<Status, string> = {
   desativado: "Desativado",
 };
 
-// Green only for health; waiting is slate, attention amber (DESIGN.md §2).
+// Status is text (DESIGN.md §4): an account working normally needs no colour,
+// a blocked one asks for attention, and waiting or gone recedes.
 export const STATUS_TONE = {
-  ativo: "success",
-  pendente: "neutral",
+  ativo: "neutral",
+  pendente: "muted",
   bloqueado: "attention",
   desativado: "muted",
 } as const;

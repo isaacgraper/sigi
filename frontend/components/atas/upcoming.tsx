@@ -7,13 +7,34 @@ import { AlertSkeletonRows } from "@/components/atas/skeletons";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
-import { type AlertRow, type DueRow, dueRows, dueText } from "@/lib/atas";
+import { type AlertRow, type DueRow, dueRows, dueText, SOON_DAYS, type Urgency, urgency } from "@/lib/atas";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDay } from "@/lib/format";
 import { apiJson } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 const KIND = { vencimento: "Vencimento", reajuste: "Reajuste" } as const;
+
+// Colour answers "do I act now?" before anything is read: red once past, amber
+// when close, nothing when there is time. A bar on the left edge carries it for
+// a scanning eye, and the words carry it for anyone who cannot see the colour.
+const LOUDNESS: Record<Urgency, { row: string; days: string; kind: string }> = {
+  overdue: {
+    row: "border-l-danger bg-danger/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-danger/10",
+    days: "text-danger",
+    kind: "text-danger",
+  },
+  soon: {
+    row: "border-l-attention [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50",
+    days: "text-attention",
+    kind: "text-muted-foreground",
+  },
+  later: {
+    row: "border-l-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50",
+    days: "text-foreground",
+    kind: "text-muted-foreground",
+  },
+};
 
 // The block sits above the ATA list; past a handful it would push the list off
 // the screen, and the rest are by definition less urgent.
@@ -24,7 +45,7 @@ function Days({ remaining }: { remaining: number }) {
   const overdue = remaining < 0;
   const n = Math.abs(remaining);
   return (
-    <span className={cn("flex items-baseline gap-1 tabular-nums", overdue ? "text-danger" : "text-foreground")}>
+    <span className={cn("flex items-baseline gap-1 tabular-nums", LOUDNESS[urgency(remaining)].days)}>
       <span className="sr-only">{dueText(remaining)}</span>
       <span aria-hidden className="flex items-baseline gap-1">
         {remaining === 0 ? (
@@ -42,16 +63,23 @@ function Days({ remaining }: { remaining: number }) {
 }
 
 function Row({ row }: { row: DueRow }) {
+  const level = urgency(row.remaining);
   return (
-    <li data-testid="due-row" data-kind={row.kind}>
+    <li data-testid="due-row" data-kind={row.kind} data-urgency={level}>
       <Link
         href={`/atas/${row.ata.id}`}
-        className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-0.5 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[5.5rem_7rem_minmax(0,1fr)_auto] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
+        className={cn(
+          "grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-0.5 border-l-4 py-3 pl-4 pr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[5.5rem_11.5rem_minmax(0,1fr)_auto]",
+          LOUDNESS[level].row,
+        )}
       >
         <span className="row-span-2 sm:row-span-1">
           <Days remaining={row.remaining} />
         </span>
-        <span className="text-xs font-normal uppercase tracking-wide text-muted-foreground">{KIND[row.kind]}</span>
+        <span className={cn("whitespace-nowrap text-xs font-normal uppercase tracking-wide", LOUDNESS[level].kind)}>
+          {KIND[row.kind]}
+          {level === "overdue" && " · em atraso"}
+        </span>
         <span className="min-w-0 truncate text-sm">
           <span className="font-normal">{row.ata.number}</span>
           <span className="font-light text-muted-foreground"> · {row.ata.subject}</span>
@@ -59,6 +87,29 @@ function Row({ row }: { row: DueRow }) {
         <span className="hidden text-sm tabular-nums text-muted-foreground sm:block">{formatDay(row.date)}</span>
       </Link>
     </li>
+  );
+}
+
+/** The answer before any row is read: how many are late, how many are close. */
+function Tally({ rows }: { rows: DueRow[] }) {
+  const late = rows.filter((row) => urgency(row.remaining) === "overdue").length;
+  const soon = rows.filter((row) => urgency(row.remaining) === "soon").length;
+  if (late === 0 && soon === 0) return null;
+  return (
+    <p data-testid="due-tally" className="flex flex-wrap gap-x-4 text-sm">
+      {late > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-danger">
+          <span aria-hidden className="size-1.5 rounded-full bg-danger" />
+          {late} em atraso
+        </span>
+      )}
+      {soon > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-attention">
+          <span aria-hidden className="size-1.5 rounded-full bg-attention" />
+          {soon} em até {SOON_DAYS} dias
+        </span>
+      )}
+    </p>
   );
 }
 
@@ -104,9 +155,12 @@ export function Upcoming() {
       data-testid="due-list"
       className="overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm"
     >
-      <h2 id="due-title" className="border-b px-5 py-3 text-base font-normal">
-        Vencimentos e reajustes
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-5 py-3">
+        <h2 id="due-title" className="text-base font-normal">
+          Vencimentos e reajustes
+        </h2>
+        {rows && <Tally rows={rows} />}
+      </div>
       {failure && (
         <div className="p-5">
           <ErrorNotice error={failure} />

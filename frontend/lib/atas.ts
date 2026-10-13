@@ -1,3 +1,5 @@
+import type { StatusTone } from "@/components/ui/status";
+
 /**
  * The ATA as `/api/v1/atas` returns it (SPEC-0002 §3), and the words the screens
  * use for it (SPEC-0013). Every value here comes from the API; nothing is derived.
@@ -75,26 +77,35 @@ export const STATUS_LABEL: Record<Status, string> = {
   cancelada: "Cancelada",
 };
 
-// Green only for health; waiting is slate, attention amber (DESIGN.md §2).
-export const STATUS_TONE = {
-  rascunho: "neutral",
-  vigente: "success",
-  suspensa: "attention",
-  encerrada: "muted",
-  cancelada: "danger",
-} as const;
-
 export const SITUACAO_LABEL: Record<Situacao, string> = {
   vigente: "Vigente",
   a_vencer: "A vencer",
   vencida: "Vencida",
 };
 
-export const SITUACAO_TONE = {
-  vigente: "success",
-  a_vencer: "attention",
-  vencida: "danger",
-} as const;
+/**
+ * The ATA's status as one line of text (DESIGN.md §4, AC-0013-03): the status
+ * word, then its situação only where it says something, for an ATA still
+ * running and not plainly vigente. Both values are the API's; this only
+ * chooses which to show and whether a dot asks for attention.
+ */
+export function ataStatus(ata: Pick<Ata, "status" | "situacao_vigencia">): {
+  label: string;
+  situacao: string | null;
+  tone: StatusTone;
+} {
+  const label = STATUS_LABEL[ata.status];
+  const running = ata.status === "vigente" || ata.status === "suspensa";
+  if (!running) return { label, situacao: null, tone: "muted" };
+  const situacao = ata.situacao_vigencia === "vigente" ? null : SITUACAO_LABEL[ata.situacao_vigencia].toLowerCase();
+  const tone =
+    ata.situacao_vigencia === "vencida"
+      ? "danger"
+      : ata.situacao_vigencia === "a_vencer" || ata.status === "suspensa"
+        ? "attention"
+        : "neutral";
+  return { label, situacao, tone };
+}
 
 export type Move = "ativar" | "suspender" | "retomar" | "encerrar" | "cancelar";
 
@@ -178,6 +189,20 @@ export function dueRows(renovacao: AlertRow[], reajuste: AlertRow[]): DueRow[] {
       remaining: row.days_remaining,
     })),
   ].sort((a, b) => a.remaining - b.remaining || a.ata.number.localeCompare(b.ata.number));
+}
+
+/**
+ * How close a due date is, for colour only (AC-0013-02): past it, within
+ * SOON_DAYS of it, or further. Which ATAs are due at all is the API's rule;
+ * this only says how loudly to show them. 30 days is the product owner's
+ * "really close", recorded as assumed until a stakeholder names a figure.
+ */
+export const SOON_DAYS = 30;
+export type Urgency = "overdue" | "soon" | "later";
+
+export function urgency(remaining: number): Urgency {
+  if (remaining < 0) return "overdue";
+  return remaining <= SOON_DAYS ? "soon" : "later";
 }
 
 /** The API's days remaining, in words: "45 dias", "1 dia", "hoje", "há 3 dias". */

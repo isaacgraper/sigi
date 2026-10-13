@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { SituacaoBadge, StatusBadge } from "@/components/atas/badges";
+import { AtaStatus } from "@/components/atas/status";
 import { Upcoming } from "@/components/atas/upcoming";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
@@ -47,7 +47,7 @@ function RegisterLink({ variant = "default" }: { variant?: "default" | "outline"
   );
 }
 const ALL = "todos";
-const COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Valor contratado", "Status", "Situação", "Reajuste em"];
+const COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Valor contratado", "Status", "Reajuste em"];
 
 function pageFrom(raw: string | null): number {
   const value = Number.parseInt(raw ?? "1", 10);
@@ -232,10 +232,7 @@ export function Atas() {
                       {formatBRL(ata.valor_contratado)}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={ata.status} />
-                    </TableCell>
-                    <TableCell>
-                      <SituacaoBadge situacao={ata.situacao_vigencia} />
+                      <AtaStatus ata={ata} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">{formatDay(ata.data_reajuste)}</TableCell>
                   </TableRow>

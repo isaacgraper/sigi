@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Notice } from "@/components/auth/auth-layout";
 import { Field, focusFirst } from "@/components/atas/field";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
@@ -192,7 +191,12 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      {locked && <Notice>Depois de ativada, valores e prazos só mudam por aditivo.</Notice>}
+      {/* Information, not success: green is kept for health (DESIGN.md §2). */}
+      {locked && (
+        <p role="note" className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+          Depois de ativada, valores e prazos só mudam por aditivo.
+        </p>
+      )}
 
       <div className="divide-y rounded-lg border border-border/70 bg-card shadow-sm">
         {SECTIONS.map((section) => (

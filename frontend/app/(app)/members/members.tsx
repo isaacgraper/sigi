@@ -13,8 +13,8 @@ import { type MemberPage, STATUS_LABEL, STATUS_TONE } from "@/components/members
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Status } from "@/components/ui/status";
 import {
   Table,
   TableBody,
@@ -137,9 +137,9 @@ export function Members() {
                   <TableCell data-testid="cell-registration">{member.registration ?? "—"}</TableCell>
                   <TableCell>{PERFIL_LABEL[member.perfil]}</TableCell>
                   <TableCell>
-                    <Badge tone={STATUS_TONE[member.status]} data-testid="cell-status">
+                    <Status tone={STATUS_TONE[member.status]} data-testid="cell-status">
                       {STATUS_LABEL[member.status]}
-                    </Badge>
+                    </Status>
                   </TableCell>
                   <TableCell className="tabular-nums">{formatDate(member.created_at)}</TableCell>
                   {manages && (

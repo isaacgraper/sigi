@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type AlertRow, type Ata, dueRows, dueText, MOVES } from "@/lib/atas";
+import { type AlertRow, type Ata, ataStatus, dueRows, dueText, MOVES, urgency } from "@/lib/atas";
 import { formatBRL, formatCnpj, formatDay, parseMoney } from "@/lib/format";
 
 describe("AC-0013-09 money typed in pt-BR", () => {
@@ -80,5 +80,33 @@ describe("AC-0013-02 vencimentos and reajustes in one list", () => {
     const [reajuste, vencimento] = dueRows([alert("012", 45)], [alert("012", 25)]);
     expect(reajuste.date).toBe("reajuste-012");
     expect(vencimento.date).toBe("fim-012");
+  });
+});
+
+describe("AC-0013-03 the status line", () => {
+  const line = (status: Ata["status"], situacao_vigencia: Ata["situacao_vigencia"]) =>
+    ataStatus({ status, situacao_vigencia });
+
+  it("adds the situação only where it says something", () => {
+    expect(line("vigente", "vigente")).toEqual({ label: "Vigente", situacao: null, tone: "neutral" });
+    expect(line("vigente", "a_vencer")).toEqual({ label: "Vigente", situacao: "a vencer", tone: "attention" });
+    expect(line("vigente", "vencida")).toEqual({ label: "Vigente", situacao: "vencida", tone: "danger" });
+    expect(line("suspensa", "vigente")).toEqual({ label: "Suspensa", situacao: null, tone: "attention" });
+    expect(line("suspensa", "vencida")).toEqual({ label: "Suspensa", situacao: "vencida", tone: "danger" });
+  });
+
+  it("lets an ATA that is not running recede", () => {
+    for (const status of ["rascunho", "encerrada", "cancelada"] as const) {
+      expect(line(status, "a_vencer")).toMatchObject({ situacao: null, tone: "muted" });
+    }
+  });
+});
+
+describe("AC-0013-02 how loudly a due row shows", () => {
+  it("is red once past, amber within 30 days, quiet beyond", () => {
+    expect(urgency(-1)).toBe("overdue");
+    expect(urgency(0)).toBe("soon");
+    expect(urgency(30)).toBe("soon");
+    expect(urgency(31)).toBe("later");
   });
 });

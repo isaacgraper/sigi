@@ -72,9 +72,20 @@ derived from today's date and `Fim da vigência`, and nobody sets it:
 | A vencer | 90 days or fewer before it |
 | Vencida | After it |
 
-The two are independent. A rascunho can read "Vigente" in Situação because its
-dates are; an encerrada ATA can read "A vencer". The 90 days are configurable
-(`ATA_ALERT_DAYS`).
+The two are independent, but the screens show them as **one line of text**, with
+the situação only where it says something (DESIGN.md §4):
+
+| Status | Situação | Reads | Mark |
+| --- | --- | --- | --- |
+| Vigente | Vigente | Vigente | none |
+| Vigente | A vencer | Vigente · a vencer | amber dot |
+| Vigente | Vencida | Vigente · vencida | red dot |
+| Suspensa | any | Suspensa (· a vencer, · vencida) | amber dot, red when vencida |
+| Rascunho, Encerrada, Cancelada | any | Rascunho, Encerrada, Cancelada | grey text |
+
+A rascunho or an encerrada ATA still has a situação, and the Situação filter
+still finds it, but it is not shown, because nobody acts on it. The 90 days are
+configurable (`ATA_ALERT_DAYS`).
 
 ---
 
@@ -97,12 +108,24 @@ Sidebar → **ATAs**.
      reajuste recorded. Dated by the reajuste date. It leaves the list as soon
      as a pedido is recorded.
 
+   **Colour says how urgent a row is, before anything is read:**
+
+   | Row | Left bar | Days | Also |
+   | --- | --- | --- | --- |
+   | Date passed | Red | Red, "há 3 dias" | Faint red tint, "· em atraso" after the kind |
+   | Due within 30 days | Amber | Amber | — |
+   | Due later | None | Plain | — |
+
+   The title is followed by the count, for example "● 2 em atraso ● 2 em até 30
+   dias", so the answer is there before any row is read. The 30 days are an
+   assumption to confirm with the stakeholders (OQ-47).
+
    An ATA due on both counts appears twice, once per kind. The five most urgent
    show; "Mostrar todos (N)" shows the rest. When nothing is due, the block is
    one line: "Nenhum vencimento ou reajuste próximo."
 2. **Filters**, Status and Situação.
 3. **The table**: Número, Objeto, Fornecedor, Vigência, Valor contratado,
-   Status, Situação and Reajuste em, newest first, 25 per page.
+   Status (the one-line status above) and Reajuste em, newest first, 25 per page.
 
 Each row of either list opens that ATA. Which ATAs fall due is computed by the
 API; the screen never decides it.
@@ -197,7 +220,7 @@ not turned into 10,01.
 
 From a row, an alert, or the address `/atas/{id}`.
 
-The header shows the número, the Status and Situação badges and the objeto.
+The header shows the número, the status line and the objeto.
 **Dados da ATA** shows Objeto, Órgão, Fornecedor (razão social and CNPJ), Data
 de emissão, Vigência, Valor total, Valor contratado, Data do orçamento
 planilhado and Data de reajuste. Below come **Aditivos** and **Pedidos de
@@ -255,7 +278,7 @@ naming the ATA and what the move does.
 
 ![Confirming Ativar](atas/11-ativar-confirmar.png)
 
-On success the badge changes and the page says "ATA ativada.", "ATA
+On success the status line changes and the page says "ATA ativada.", "ATA
 suspensa.", "ATA retomada.", "ATA encerrada." or "ATA cancelada.".
 
 ![After activation](atas/12-ata-ativada.png)

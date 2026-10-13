@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Implemented
-version: 1.7
+version: 1.8
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -737,9 +737,9 @@ Taken from `docs/product/design-reference.md` (the Lovable prototype), which is
 a style reference ranked below this spec:
 
 - **Colour.** The green `primary` marks brand, primary actions and completion
-  only; nothing "in progress" is green. Member status badges: `ativo` accent,
-  `pendente` slate, `bloqueado` amber, `desativado` muted. Status never relies on
-  colour alone; the badge text carries it.
+  only; nothing "in progress" is green. Member status is text (DESIGN.md §4):
+  `ativo` in the body colour, `pendente` and `desativado` muted, `bloqueado` with
+  an amber dot. Status never relies on colour alone; the word carries it.
 - **Components and layout.** The reference's component set, icons and toasts;
   the split-screen login with the brand panel; the shell with a collapsible
   sidebar and a header holding the user menu; confirmation dialogs; the
@@ -902,3 +902,4 @@ One commit per step, split into two PRs after step 5.
 | 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. Implemented 2026-10-06; the e2e proof is `e2e/members.spec.ts`. |
 | 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |
 | 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |
+| 1.8 | 2026-10-13 | §9: member status is text with an attention dot for `bloqueado`, not a badge, following DESIGN.md §4 as revised by the product owner. No behaviour change. |

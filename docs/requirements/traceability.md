@@ -20,11 +20,11 @@ on an `Approved` spec is a merge blocker.
 | RNF16 (trusted proxy) | SPEC-0001 v1.9 | AC-0001-37, -38 | `tests/test_rate_limiting.py` | **Implemented** |
 | RF02 (development seed) | SPEC-0001 v1.9 | AC-0001-39, -40 | `tests/test_bootstrap.py` | **Implemented** |
 | RNF04, A05 (hardening) | SPEC-0001 v1.9 | AC-0001-41..43 | `tests/test_hardening.py` | **Implemented** |
-| A03, A05 (page headers) | SPEC-0010 v1.7 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Implemented** |
-| RNF14 (errors) | SPEC-0010 v1.7 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Implemented** |
+| A03, A05 (page headers) | SPEC-0010 v1.8 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Implemented** |
+| RNF14 (errors) | SPEC-0010 v1.8 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Implemented** |
 | RNF06, RNF14 (shell) | SPEC-0011 v1.2 | AC-0011-01..24 (AC-0011-13, -14 withdrawn) | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Implemented** |
 | RF20 (painel) | SPEC-0012 v1.1 | AC-0012-01..12 | `backend/tests/test_painel.py`, `frontend/e2e/dashboard.spec.ts`, `frontend/tests/dashboard.test.ts` | **Approved** |
-| RF04, RF08, RF11, RF15, RF16, RF19 (screens) | SPEC-0013 v1.2 | AC-0013-01..18 | `frontend/e2e/atas.spec.ts`, `frontend/tests/atas.test.ts` | **Approved** |
+| RF04, RF08, RF11, RF15, RF16, RF19 (screens) | SPEC-0013 v1.4 | AC-0013-01..18 | `frontend/e2e/atas.spec.ts`, `frontend/tests/atas.test.ts` | **Approved** |
 | RF04, RF08, RF19 | SPEC-0002 v1.1 | AC-0002-01..05, -08, -09, -22..25 (AC-0002-06, -07 withdrawn) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Approved** |
 | RN04, RN13, RN15 | SPEC-0002 v1.1 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 and parts of -13, -14 deferred to SPEC-0003, -0004 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | Draft |
 | RF15 | SPEC-0002 v1.1 | AC-0002-13, -14 | `tests/test_atas.py` | **Approved** |
@@ -37,8 +37,8 @@ on an `Approved` spec is a merge blocker.
 | RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
-| RF01, RF02, RF18 (screens) | SPEC-0010 v1.7 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
-| RNF06, RNF14 | SPEC-0010 v1.7 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
+| RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
+| RNF06, RNF14 | SPEC-0010 v1.8 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
 
 ## Unmapped
 
