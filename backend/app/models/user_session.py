@@ -31,7 +31,7 @@ REVOCATION_REASONS = (
     "logout",
     "replay",
     "desativacao",
-    "lockout",
+    "bloqueio",
     "redefinicao",
 )
 
@@ -97,7 +97,7 @@ class UserSession(Base):
         ),
         CheckConstraint(
             "revogado_motivo IN"
-            " ('rotacao', 'logout', 'replay', 'desativacao', 'lockout', 'redefinicao')",
+            " ('rotacao', 'logout', 'replay', 'desativacao', 'bloqueio', 'redefinicao')",
             name="ck_sessao_motivo_valor",
         ),
         CheckConstraint(
