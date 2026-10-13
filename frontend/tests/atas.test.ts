@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type AlertRow, type Ata, ataStatus, dueRows, dueText, MOVES } from "@/lib/atas";
+import { type AlertRow, type Ata, ataStatus, dueRows, dueText, MOVES, urgency } from "@/lib/atas";
 import { formatBRL, formatCnpj, formatDay, parseMoney } from "@/lib/format";
 
 describe("AC-0013-09 money typed in pt-BR", () => {
@@ -99,5 +99,14 @@ describe("AC-0013-03 the status line", () => {
     for (const status of ["rascunho", "encerrada", "cancelada"] as const) {
       expect(line(status, "a_vencer")).toMatchObject({ situacao: null, tone: "muted" });
     }
+  });
+});
+
+describe("AC-0013-02 how loudly a due row shows", () => {
+  it("is red once past, amber within 30 days, quiet beyond", () => {
+    expect(urgency(-1)).toBe("overdue");
+    expect(urgency(0)).toBe("soon");
+    expect(urgency(30)).toBe("soon");
+    expect(urgency(31)).toBe("later");
   });
 });

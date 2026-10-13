@@ -191,6 +191,20 @@ export function dueRows(renovacao: AlertRow[], reajuste: AlertRow[]): DueRow[] {
   ].sort((a, b) => a.remaining - b.remaining || a.ata.number.localeCompare(b.ata.number));
 }
 
+/**
+ * How close a due date is, for colour only (AC-0013-02): past it, within
+ * SOON_DAYS of it, or further. Which ATAs are due at all is the API's rule;
+ * this only says how loudly to show them. 30 days is the product owner's
+ * "really close", recorded as assumed until a stakeholder names a figure.
+ */
+export const SOON_DAYS = 30;
+export type Urgency = "overdue" | "soon" | "later";
+
+export function urgency(remaining: number): Urgency {
+  if (remaining < 0) return "overdue";
+  return remaining <= SOON_DAYS ? "soon" : "later";
+}
+
 /** The API's days remaining, in words: "45 dias", "1 dia", "hoje", "há 3 dias". */
 export function dueText(remaining: number): string {
   if (remaining === 0) return "hoje";
