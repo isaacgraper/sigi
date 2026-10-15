@@ -127,8 +127,41 @@ never moves saldo and never writes estoque (invariant 5).
   architectural change, cheaper decided before v2 than retrofitted.
 - Whether "pre-ATA" planning (demand, the estudo técnico preliminar) becomes a
   module, since today SIGI starts at the ATA.
+- Market research. That an organisation without history wants traceability and
+  prediction in one platform is the product owner's hypothesis, not yet
+  evidence: who buys, what they use today, what they would pay, and whether
+  prediction or traceability is what makes them buy.
 
 **What the MVP keeps for v2, at no extra cost:** history. A model can only
 learn from what the MVP did not throw away: every dated DOMS snapshot, and the
 NE and NF dates as columns, not only as audit rows. The DOMS import spec
 carries this as a requirement when it is written.
+
+### Research notes (forecasting, capabilities 4 and 6)
+
+*(2026-10-15, from the product owner's PhD advisors.)* To be explored further;
+nothing here is decided.
+
+- **The problem is regression**: consumption per item, the quota to register,
+  a fornecedor's lead time. Consumption is a count and often zero, so Poisson or
+  negative binomial regression is the baseline before anything heavier.
+- **Neural networks for regression** are one candidate. On small tabular data,
+  gradient-boosted trees usually win, so the study compares a count regression,
+  gradient boosting and a neural network on the same data and reports which
+  wins.
+- **The core question is the cold start**: an organisation with no history
+  borrows from a population of similar ones. Hierarchical (multilevel) models
+  and transfer learning are the usual answers.
+- **Real or synthetic data.** The algorithm learns from any sample, but it
+  learns that sample's relationship: a model trained on generated data returns
+  the generator's assumptions, and a sample that does not represent the target
+  population predicts it badly. Synthetic data serves the pipeline, simulation
+  studies with a known ground truth, privacy and rare cases. Real data is
+  required for any reported accuracy and any claim about real organisations.
+- **Candidate public sources**, coverage and granularity to verify: DATASUS
+  (SIA/SIH, what each unit produces), Banco de Preços em Saúde (public purchases
+  with price and quantity), IBGE (population served).
+- **Study design sketch**: target consumption per item, unit and month;
+  features population served, unit type, region, item class, season; a
+  simulation study on synthetic data, then validation on public data; MAE and
+  MASE, not MAPE, which breaks on months with zero demand.
