@@ -130,4 +130,5 @@ never moves saldo and never writes estoque (invariant 5).
 
 **What the MVP keeps for v2, at no extra cost:** history. A model can only
 learn from what the MVP did not throw away: every dated DOMS snapshot, and the
-NE and NF dates as columns, not only as audit rows (OQ-49).
+NE and NF dates as columns, not only as audit rows. The DOMS import spec
+carries this as a requirement when it is written.
