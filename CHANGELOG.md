@@ -32,6 +32,12 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- Navigating between pages no longer flashes a skeleton: the routes under the shell have no
+  `loading.tsx`, a skeleton appears only once a wait passes 300 ms, a page already read in the
+  tab draws its last data at once while the API answers, and resting on an ATA's link fetches it
+  before the click (SPEC-0011 v1.4 AC-0011-18, DESIGN.md §6). The answers live in the tab's
+  memory only and are cleared on login, logout and any write.
+
 - Status reads as text, never as a pill badge (DESIGN.md §4): the word in the body colour, a
   small dot only when it needs attention, and finished states in grey. An ATA's status and
   situação become one line ("Vigente · a vencer"); member status follows the same rule.
