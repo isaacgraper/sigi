@@ -352,6 +352,10 @@ Consequences, which are not optional:
    none. That assumption is contradicted by the export. See OQ-24.
 4. The workbooks must not be committed to this repository.
 
+*(2026-10-13)* The product owner brought `ENTRADAS NFS` into scope, patient
+name included (OQ-24). Points 1 and 2 hold until SPEC-0005 specifies the
+importer, with the safeguards `docs/security/lgpd.md` lists.
+
 ---
 
 ## 14. Cadence

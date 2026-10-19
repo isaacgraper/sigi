@@ -2,7 +2,7 @@
 id: SPEC-0005
 title: Notas Fiscais e conferência
 status: Draft
-version: 0.3
+version: 0.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
@@ -110,3 +110,4 @@ value; that was a misreading and was removed before review.
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF05, §2.5 RN02/RN05, Tela 7 |
 | 0.2 | 2026-09-02 | RN02 confirmed from real data; RN12 now aggregates over ITEM_NOTA_EMPENHO (ADR-0007); atesto SLA recorded as unmodelled (OQ-22); ENTRADAS NFS excluded on privacy and data-quality grounds (OQ-24) |
 | 0.3 | 2026-10-06 | The stakeholder's delivery example (ADR-0015): AC-0005-10 now says launching an NF reduces `quantidade_faltante` and leaves the ATA's saldo alone. AC-0005-12: the NF lists what arrived, per NE item. AC-0005-13: quarantine for an NF with a problem. Four statuses confirmed (OQ-12), atesto deadline deferred (OQ-22). OQ-46 opened |
+| 0.4 | 2026-10-13 | `ENTRADAS NFS` back in scope by the product owner, patient name included (OQ-24). Before approval this spec names the legal basis under LGPD art. 11, which perfis see `pacienteNome`, the audit of who read it, and its exclusion from logs and error messages. |
