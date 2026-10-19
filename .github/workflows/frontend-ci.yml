@@ -17,8 +17,40 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides what the rest has to test. A job with nothing to test is skipped,
+  # and GitHub counts a skipped job as passed, so a required check never hangs
+  # on a PR that only changes documentation.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.diff.outputs.frontend }}
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="$PUSH_BEFORE"
+          [ "$EVENT" = "pull_request" ] && base="$PR_BASE"
+          # No usable base (a new branch, a force push): test everything.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            files="$(printf 'frontend/\nbackend/\n')"
+          else
+            files="$(git diff --name-only "$base" HEAD)"
+          fi
+          if echo "$files" | grep -qE '^(frontend/|\.github/workflows/frontend-ci\.yml$)'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(frontend/|backend/|infra/|\.github/workflows/frontend-ci\.yml$)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend lint, tests and build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,6 +81,9 @@ jobs:
 
   e2e:
     name: End to end (SPEC-0010)
+    # The API is half of what it tests, so a backend change runs it too.
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -134,13 +169,20 @@ jobs:
             curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
           done
 
+      # A PR runs Chromium only; the merge into dev or main runs all three
+      # browsers once, which is where RNF06 is proven. Three browsers on every
+      # push of every PR cost about 20 minutes a run for little extra signal.
       - name: Install browsers
         working-directory: frontend
-        run: npx playwright install --with-deps chromium firefox webkit
+        env:
+          BROWSERS: ${{ github.event_name == 'pull_request' && 'chromium' || 'chromium firefox webkit' }}
+        run: npx playwright install --with-deps $BROWSERS
 
-      - name: Playwright on Chromium, Firefox and WebKit (RNF06)
+      - name: Playwright (Chromium on a PR; Chromium, Firefox and WebKit on dev and main, RNF06)
         working-directory: frontend
-        run: npm run test:e2e
+        env:
+          PROJECTS: ${{ github.event_name == 'pull_request' && '--project=chromium' || '' }}
+        run: npm run test:e2e -- $PROJECTS
 
       - name: Server logs
         if: failure()

@@ -23,7 +23,8 @@ the wiring diagram.
 | No CPF, SIAPE, token or real e-mail | CLAUDE.md · `security/lgpd.md` | `scripts/check_personal_data.py` · `gitleaks` | commit · PR |
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
 | Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` | push · PR |
-| Frontend lint, tests and build | — | `frontend-ci` | PR |
+| Frontend lint, tests and build | — | `frontend-ci`, when `frontend/` changes | PR |
+| End to end in Chromium, Firefox and WebKit (RNF06) | `requirements/non-functional.md` | `frontend-ci`: Chromium on a PR, all three on `dev` and `main` | PR · merge |
 | Constants live in a `constants.ts`, by feature | `process/coding-standards.md` | ESLint `no-restricted-syntax` · `frontend-ci` | PR |
 | Backend constants live in `app/constants/` | `process/coding-standards.md` §7 | `scripts/check_constants.py` · pre-commit and `backend-ci` | commit · PR |
 | Tests run on real PostgreSQL | CLAUDE.md | `pre-push` hook · `backend-ci` | push · PR |
@@ -80,6 +81,32 @@ a gate people bypass protects nothing, and the bypass for a commit hook
 `gitleaks` over the full history and the frontend pipeline. CI is not a
 duplicate of the hooks; it is the half that runs on code arriving from
 someone else's machine, where no hook was installed.
+
+**CI runs only what a change touches** *(2026-10-19, by the product owner: GitHub
+minutes and bandwidth are paid for)*. Each workflow starts with a `changes` job
+that diffs the PR against its base, or a push against the commit before it, and
+the heavy jobs run only when their files changed:
+
+| Job | Runs when the change touches |
+| --- | --- |
+| `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`, its workflow |
+| `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow |
+| `frontend-ci` · End to end | `frontend/`, `backend/`, `infra/`, its workflow (the API is half of what it tests) |
+| `backend-ci` · Secret scan | always: it scans the history, not a tree |
+
+A skipped job counts as passed, so a PR that only changes `docs/` runs the
+secret scan and nothing else, and no required check waits for a run that never
+comes. With no usable base (a new branch, a rewritten one) everything runs.
+
+**End to end: Chromium on a PR, three browsers on `dev` and `main`.** A PR runs
+Playwright on Chromium only; the merge into `dev` or `main` runs Chromium,
+Firefox and WebKit once, which is where RNF06 is proven. A browser-specific
+failure therefore surfaces on `dev`, not on the PR, and is fixed by a PR of its
+own. Running all three on every push of every PR cost about twenty minutes a run.
+
+**No video in the repository unless the product owner asks for one.**
+Screenshots document a screen (DESIGN.md §9); a video is a large binary every
+clone downloads forever, and git keeps it after it is deleted.
 
 ### Naming a synthetic password in a test
 

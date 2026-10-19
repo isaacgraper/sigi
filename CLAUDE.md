@@ -190,6 +190,12 @@ ruff format, mypy, the commit-message convention and the ban on committing
 personal data; `pytest` runs at push. `docs/process/sop-qualidade.md` says which
 rule is checked where, and names the two that nothing checks.
 
+**CI runs only what a change touches.** A `changes` job skips the backend, the
+frontend and the end-to-end jobs when their files did not change, so a
+docs-only PR runs only the secret scan. Playwright runs Chromium on a PR and all
+three browsers on `dev` and `main`. No video is committed unless the product
+owner asks for one. Details in `docs/process/sop-qualidade.md`.
+
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
 "Testing expectations". `psql`, `alembic downgrade` and `docker compose down -v`
 are denied in `.claude/settings.json` by design, and so is pushing to `dev`,
