@@ -32,6 +32,18 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- Registering an ATA ends in a review, "Confira os dados antes de cadastrar", and saves only on
+  "Confirmar cadastro". The ATA is vigente from that moment: there is no rascunho and no
+  "Ativar" (SPEC-0002 v1.2, SPEC-0013 v1.7). Migration `0004_ata_sem_rascunho` moves any
+  rascunho to vigente.
+- "Editar" corrects every field of a vigente or suspensa ATA, the figures included, with the
+  previous values in the audit trail; an encerrada or cancelada ATA is not edited
+  (AC-0002-24). Once NEs exist, an NE emitida locks the figures (AC-0002-26, SPEC-0004).
+- No success banner after a write on the ATA screens: the result is the confirmation, and
+  assistive technology still hears it (DESIGN.md §4 Notice).
+- Every field of the ATA form and dialogs explains itself behind an "i" (AC-0013-19, DESIGN.md
+  §4 Field help).
+
 - Status reads as text, never as a pill badge (DESIGN.md §4): the word in the body colour, a
   small dot only when it needs attention, and finished states in grey. An ATA's status and
   situação become one line ("Vigente · a vencer"); member status follows the same rule.
@@ -47,6 +59,9 @@ entries are moved into a new dated version section — see
   withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
 
 ### Fixed
+
+- The alphanumeric CNPJ the Receita Federal issues since July 2026 (IN RFB nº 2.229/2024) was
+  refused; it is accepted and stored uppercased (AC-0002-25).
 
 - The ORM model of `sessao` listed `lockout` where migration 0001 created `bloqueio` in
   `ck_sessao_motivo_valor`. The database was right and the code only ever wrote
