@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cached } from "@/lib/api-cache";
 import {
   ATAS_PAGE_SIZE,
   FILTER_ALL,
@@ -35,7 +36,7 @@ import {
 import type { AtaPage, Situacao, Status } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatBRL, formatDay } from "@/lib/format";
-import { apiJson } from "@/lib/session";
+import { apiJson, warm } from "@/lib/session";
 
 function RegisterLink({ variant = "default" }: { variant?: "default" | "outline" }) {
   return (
@@ -82,7 +83,9 @@ export function Atas() {
   // The answer is kept with the request it answers, so a new filter shows the
   // skeleton until its own answer lands, never the previous filter's rows.
   const [answer, setAnswer] = useState<{ path: string; data?: AtaPage; refusal?: ApiError } | null>(null);
-  const current = answer?.path === path ? answer : null;
+  // A page seen before draws its last answer at once while the new one comes.
+  const remembered = cached<AtaPage>(path);
+  const current = answer?.path === path ? answer : remembered ? { path, data: remembered } : null;
   const data = current?.data ?? null;
   const refusal = current?.refusal ?? null;
   // Hiding the writes is cosmetic; the API refuses them (AC-0013-07, invariant 8).
@@ -215,6 +218,8 @@ export function Atas() {
                     <TableCell className="whitespace-nowrap font-normal">
                       <Link
                         href={`/atas/${ata.id}`}
+                        onPointerEnter={() => warm(`/api/v1/atas/${ata.id}`)}
+                        onFocus={() => warm(`/api/v1/atas/${ata.id}`)}
                         className="text-primary underline-offset-4 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
                       >
                         {ata.number}

@@ -65,6 +65,10 @@ export const URGENCY_CLASSES: Record<Urgency, { row: string; days: string; kind:
   },
 };
 
+// The two alerts the list merges (SPEC-0002 AC-0002-09, -20).
+export const RENOVACAO_PATH = "/api/v1/atas/alertas/renovacao";
+export const REAJUSTE_PATH = "/api/v1/atas/alertas/reajuste";
+
 // ── Moves ───────────────────────────────────────────────────────────────────
 
 /**

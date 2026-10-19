@@ -116,6 +116,32 @@
   }
 }
 
+/*
+ * A wait shorter than 300 ms shows no skeleton at all (DESIGN.md §6): the page
+ * keeps what it showed and swaps once, instead of flashing a placeholder that
+ * the data replaces a moment later. Past 300 ms the skeleton appears and pulses.
+ * Nothing moves, so reduced motion needs no variant.
+ */
+@keyframes hidden-at-first {
+  from,
+  to {
+    opacity: 0;
+  }
+}
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.reveal-late {
+  animation: hidden-at-first 1ms linear 300ms backwards;
+}
+.skeleton-pulse {
+  animation:
+    skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite,
+    hidden-at-first 1ms linear 300ms backwards;
+}
+
 /* AC-0011-21: under reduced motion nothing moves or resizes; it only fades. */
 @media (prefers-reduced-motion: reduce) {
   :root {

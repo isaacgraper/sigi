@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cached } from "@/lib/api-cache";
 import { MOVE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
@@ -64,7 +65,8 @@ function Section({
 export function AtaView() {
   const { id } = useParams<{ id: string }>();
   const { me, handleSessionError } = useSession();
-  const [ata, setAta] = useState<AtaDetail | null>(null);
+  // An ATA seen before, or warmed from its link, draws at once and refreshes.
+  const [ata, setAta] = useState<AtaDetail | null>(() => cached<AtaDetail>(`/api/v1/atas/${id}`) ?? null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [version, setVersion] = useState(0);

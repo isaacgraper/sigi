@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cached } from "@/lib/api-cache";
 import { PERFIL_LABEL } from "@/lib/constants";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
@@ -39,7 +40,8 @@ export function Members() {
   const router = useRouter();
   const page = pageFrom(useSearchParams().get("page"));
 
-  const [data, setData] = useState<MemberPage | null>(null);
+  const path = `/api/v1/usuarios?page=${page}&size=${MEMBERS_PAGE_SIZE}`;
+  const [data, setData] = useState<MemberPage | null>(() => cached<MemberPage>(path) ?? null);
   const [refusal, setRefusal] = useState<ApiError | null>(null);
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [version, setVersion] = useState(0);
@@ -51,7 +53,7 @@ export function Members() {
 
   useEffect(() => {
     let cancelled = false;
-    apiJson<MemberPage>(`/api/v1/usuarios?page=${page}&size=${MEMBERS_PAGE_SIZE}`)
+    apiJson<MemberPage>(path)
       .then((value) => {
         if (cancelled) return;
         setData(value);
@@ -64,7 +66,7 @@ export function Members() {
     return () => {
       cancelled = true;
     };
-  }, [page, version, handleSessionError]);
+  }, [path, version, handleSessionError]);
 
   const lastPage = data ? Math.max(1, Math.ceil(data.total / data.size)) : 1;
 
