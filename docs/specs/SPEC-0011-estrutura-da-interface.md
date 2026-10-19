@@ -2,7 +2,7 @@
 id: SPEC-0011
 title: Estrutura da interface
 status: Implemented
-version: 1.3
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -194,13 +194,30 @@ And   everything it stands beside is also stated in text on the page
 
 ### 4.5 Loading and empty states
 
-**AC-0011-18** — A loading page shows its shape, not a blank
+**AC-0011-18** — A loading page shows its shape, not a blank, and never flashes
 ```gherkin
 Given a signed-in usuario opening an authenticated page whose data has not arrived
-When  the page is waiting
+When  the wait passes 300 ms
 Then  the shell is shown with a placeholder of the page's layout in place of its content
 And   a status message "Carregando..." is announced to assistive technology
+When  the data arrives within 300 ms
+Then  no placeholder is seen: the page appears once, with its data
+Given a page whose data this tab has already read in this session
+When  it is opened again
+Then  that data is shown at once and replaced by the API's answer when it arrives
+Given a link to an ATA
+When  a pointer rests on it, or the keyboard reaches it
+Then  the ATA's data is requested, so the page it opens has it
 ```
+*(v1.4)* By the product owner's test: every click drew a skeleton that the data
+replaced a moment later, twice when the route's own `loading.tsx` came first,
+and the platform felt slow although the API answered in milliseconds. The
+routes under the shell lose `loading.tsx`, so a navigation keeps the page on
+screen until the next one can draw; a placeholder shown for less than 300 ms is
+a flash, not information. What a page read is kept in the tab's memory only,
+never in storage, cleared on login, logout, a failed refresh and any successful
+write, because a write can change what any list shows. Every page still asks
+the API on arrival, so what is shown from memory is replaced, never trusted.
 
 **AC-0011-19** — An empty table says so
 ```gherkin
@@ -416,3 +433,4 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 1.1 | 2026-10-08 | Implemented, accepted by the product owner with SPEC-0010. Every criterion has a test in `frontend/e2e`; AC-0011-23 is proven by the whole SPEC-0010 suite passing on this shell. No criterion changed. |
 | 1.2 | 2026-10-09 | AC-0011-13 and AC-0011-14 withdrawn: the dashboard is SPEC-0012's report, and the sidebar already lists the modules. |
 | 1.3 | 2026-10-13 | §11: the module list lives in `NAV_MODULES` in `lib/constants.ts` after the refactor to `docs/process/coding-standards.md`; `lib/modules.ts` keeps the lookups. No criterion or behaviour changed. |
+| 1.4 | 2026-10-19 | AC-0011-18: a placeholder only after 300 ms, no route `loading.tsx`, a page already read draws from the tab's memory while the API answers, and an ATA link warms its data on hover or focus, by the product owner's test of the screens. |

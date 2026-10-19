@@ -2,7 +2,7 @@
 id: SPEC-0012
 title: Painel
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF20]
 depends_on: [SPEC-0011]
@@ -110,8 +110,9 @@ Given a section whose request is still pending
 When  it is shown
 Then  every block shows a skeleton of its own shape, in the report's layout
 And   the wait is announced once as "Carregando..."
-And   the route's first paint (loading.tsx) shows the same skeleton
 ```
+*(v1.3)* The skeleton shows only once the wait passes 300 ms, and the route has
+no `loading.tsx` (SPEC-0011 AC-0011-18): the blocks' frames are the first paint.
 The skeleton has the blocks' shape so nothing moves when the answer lands
 (DESIGN.md §6, "Loading a page").
 
@@ -266,3 +267,4 @@ yet, which the table in §3 names.
 | 1.0 | 2026-10-09 | Approved by the product owner, to be refined while it is built; the screen must match the report or improve on it. §4.3 keeps the e-mail in the header, as AC-0010-28 requires. |
 | 1.1 | 2026-10-09 | The dashboard asks the backend for its data, by the product owner's request: GET /api/v1/painel/{section} (§7, AC-0012-12), a skeleton while it waits (AC-0012-11), and "Sem dados" only when the answer is empty (AC-0012-04). AC-0012-05 becomes testable. |
 | 1.2 | 2026-10-13 | §7 and §10 name the files the block ids moved to under `docs/process/coding-standards.md`. No criterion or behaviour changed. |
+| 1.3 | 2026-10-19 | AC-0012-11 follows SPEC-0011 v1.4: no route `loading.tsx`, the skeleton after 300 ms. |
