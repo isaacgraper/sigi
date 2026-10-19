@@ -185,7 +185,6 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("GET", "/api/v1/atas/{ata_id}"): frozenset({"gestor", "servidor", "auditor"}),
     ("POST", "/api/v1/atas"): frozenset({"gestor"}),
     ("PATCH", "/api/v1/atas/{ata_id}"): frozenset({"gestor"}),
-    ("POST", "/api/v1/atas/{ata_id}/ativar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/suspender"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/retomar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/encerrar"): frozenset({"gestor"}),

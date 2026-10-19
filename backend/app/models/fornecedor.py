@@ -14,8 +14,8 @@ from app.models.base import Base
 class Fornecedor(Base):
     """A supplier. Found by its CNPJ, created by the first ATA that names it (AC-0002-25).
 
-    The CNPJ is stored as its 14 digits, so two spellings of one company are one
-    row; punctuation is presentation.
+    The CNPJ is stored as its 14 normalised characters, so two spellings of one
+    company are one row; punctuation is presentation.
     """
 
     __tablename__ = "fornecedor"
