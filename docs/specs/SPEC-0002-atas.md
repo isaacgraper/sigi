@@ -2,7 +2,7 @@
 id: SPEC-0002
 title: ATAs de Registro de Preços
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
@@ -24,8 +24,10 @@ The RFC conflates two orthogonal concepts: the ENUM `(em_andamento, concluida,
 cancelada)` in the data model, and the badges `Vigente / A vencer / Vencida /
 Encerrada / Suspensa` in Tela 4. These are separated here.
 
-- **`status`** (stored, explicit lifecycle): `rascunho → vigente → encerrada`,
-  with `suspensa` and `cancelada` reachable from `vigente`.
+- **`status`** (stored, explicit lifecycle): `vigente → encerrada`, with
+  `suspensa` and `cancelada` reachable from `vigente`. *(v1.2)* There is no
+  `rascunho`: an ATA is registered after the gestor has reviewed it, so it is
+  vigente from the start (AC-0002-01).
 - **`situacao_vigencia`** (derived, never stored): `vigente` |
   `a_vencer` (≤ 90 days remaining) | `vencida`, computed from
   `vigencia_fim` against the current date.
@@ -47,7 +49,7 @@ implemented. Nothing is renumbered.
 Given a gestor
 When  an ATA is registered with numero, objeto, orgao, fornecedor, vigencia_inicio,
       vigencia_fim, valor_total and data_orcamento_planilhado
-Then  the response is 201 and the ATA has status "rascunho" and the gestor as responsavel
+Then  the response is 201 and the ATA has status "vigente" and the gestor as responsavel
 And   an audit row "ata.criada" records it
 When  any of those fields is missing or malformed
 Then  the response is 422 with error code "INVALID_DATA" and `fields` naming each one
@@ -108,17 +110,28 @@ no ATA is hidden from a profile.
 
 **AC-0002-24** — What can be edited
 ```gherkin
-Given an ATA in "rascunho"
-When  a gestor edits any of its fields
+Given a "vigente" or "suspensa" ATA
+When  a gestor edits any of its fields, the fornecedor included
 Then  the change is saved and an audit row "ata.editada" records the prior values
-Given an ATA that is not "rascunho"
-When  a gestor edits numero, vigencia_inicio, vigencia_fim, valor_total or data_orcamento_planilhado
+Given an "encerrada" or "cancelada" ATA
+When  a gestor edits any field
 Then  the response is 409 with error code "ATA_NAO_EDITAVEL"
 And   nothing is changed
 ```
-After activation, the figures change only through an aditivo (AC-0002-13), so the
-history of what was contracted is never overwritten. objeto, orgao and
-responsavel stay editable. `ATA_NAO_EDITAVEL` is new in v0.4.
+*(v1.2)* An edit corrects what was typed; an aditivo changes what was contracted
+(AC-0002-13). Both leave the prior values in the audit trail, so nothing is
+overwritten without a record. A closed or cancelled ATA is history and is not
+edited. Once an NE has been issued against an ATA its figures lock (AC-0002-26).
+
+**AC-0002-26** — *Deferred to SPEC-0004.* An ATA with an NE locks its figures
+```gherkin
+Given an ATA with at least one NE at "ne_emitida"
+When  a gestor edits numero, fornecedor, vigencia_inicio, vigencia_fim, valor_total or data_orcamento_planilhado
+Then  the response is 409 with error code "ATA_NAO_EDITAVEL"
+And   nothing is changed
+```
+From that point the figures change only through an aditivo, because an NE was
+committed against them. New in v1.2, by the product owner's decision.
 
 **AC-0002-06** — *Withdrawn in v0.3.* It specified a CSV upload of ATAs exported
 from e-Publica. No such export exists, and the stakeholder confirmed that ATAs
@@ -143,15 +156,23 @@ And   no ATA and no fornecedor is created
 ```
 The data model asks for the CNPJ to be validated with its check digits and gives
 the fornecedor no screen of its own, so the ATA is where one first appears. The
-CNPJ is stored as its 14 digits, whatever punctuation was typed.
+CNPJ is stored as its 14 characters, whatever punctuation was typed.
+
+*(v1.2)* Since July 2026 the Receita Federal also issues **alphanumeric** CNPJs
+(IN RFB nº 2.229/2024): the first 12 characters are digits or uppercase letters
+and the last 2 are numeric check digits, computed with the same weights and
+modulo 11 as before, each character valued at its ASCII code minus 48. A CNPJ
+is accepted when, after removing `.`, `/`, `-` and spaces and uppercasing, it has
+14 such characters, is not one character repeated, and its check digits are
+right. A numeric CNPJ is the special case with no letters.
 
 ### 3.2 Lifecycle
 
 **AC-0002-22** — The lifecycle has a fixed set of moves
 ```gherkin
 Given an ATA
-When  a gestor moves it along rascunho to vigente, vigente to suspensa, suspensa to vigente,
-      vigente or suspensa to encerrada, or rascunho, vigente or suspensa to cancelada
+When  a gestor moves it along vigente to suspensa, suspensa to vigente,
+      vigente or suspensa to encerrada, or vigente or suspensa to cancelada
 Then  the status changes and an audit row for that move is written
 When  a gestor asks for any other move, including any move out of "encerrada" or "cancelada"
 Then  the response is 409 with error code "TRANSICAO_INVALIDA"
@@ -160,6 +181,7 @@ When  the move is to "cancelada" and no justification is given
 Then  the response is 422 with error code "INVALID_DATA" and `fields` naming justification
 ```
 The set of moves is an assumption (OQ-45): nobody at the entity has described it.
+*(v1.2)* "Ativar" is gone with `rascunho`.
 
 **AC-0002-10** — Closing records who and when
 ```gherkin
@@ -333,8 +355,8 @@ reaches an issued NE.
 | Aditivo above 25% | 422 | `ADITIVO_ACIMA_DO_LIMITE` | "O aditivo passa de 25% do valor original da ATA. Reduza o valor." |
 | Malformed SEI process | 422 | `PROCESSO_SEI_INVALIDO` | "Número de processo SEI inválido. Use o formato NNNNN.NNNNNN/AAAA-DD." |
 | Move not allowed | 409 | `TRANSICAO_INVALIDA` | "Esta ATA não pode passar de {origem} para {destino}." |
-| ATA past "rascunho" edited in a locked field | 409 | `ATA_NAO_EDITAVEL` | "Depois de ativada, valores e prazos só mudam por aditivo." |
-| Aditivo on an ATA that is not vigente | 409 | `ATA_NAO_VIGENTE` | "A ATA precisa estar vigente. Ative ou retome a ATA antes." |
+| Edit of an encerrada or cancelada ATA | 409 | `ATA_NAO_EDITAVEL` | "Uma ATA encerrada ou cancelada não pode ser editada." |
+| Aditivo on an ATA that is not vigente | 409 | `ATA_NAO_VIGENTE` | "A ATA precisa estar vigente." |
 | Unknown ATA | 404 | `NOT_FOUND` | "ATA não encontrada." |
 | Not a gestor | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
 
@@ -342,7 +364,7 @@ reaches an issued NE.
 | --- | --- | --- |
 | Register | `ata` | `ata.criada` |
 | Edit | `ata` | `ata.editada` |
-| Activate, suspend, resume | `ata` | `ata.ativada`, `ata.suspensa`, `ata.retomada` |
+| Suspend, resume | `ata` | `ata.suspensa`, `ata.retomada` |
 | Close, cancel | `ata` | `ata.encerrada`, `ata.cancelada` (with the justification) |
 | Aditivo | `ata` | `ata.aditivo_registrado` |
 | Reajuste request | `ata` | `ata.reajuste_registrado` |
@@ -408,6 +430,11 @@ date (OQ-42, `Assumed`).
 
 ## Implementation plan
 
+*(v1.2)* Migration `0004_ata_sem_rascunho` moves any `rascunho` ATA to `vigente`,
+drops `rascunho` from `ck_ata_status` and makes `vigente` the default, and widens
+`ck_fornecedor_cnpj` to `^[0-9A-Z]{12}[0-9]{2}$`. No deployment holds data yet, so
+the moved ATAs get no audit row; the migration says so.
+
 *Written 2026-10-06, after the spec was approved.*
 
 **Data** (migration `0003_atas`): `fornecedor`, `ata`, `ata_aditivo` and
@@ -465,3 +492,4 @@ override (SPEC-0003), the NE guards (SPEC-0004), `ATA_COM_NE_PENDENTE`.
 | 0.4 | 2026-10-06 | MVP slice. Every criterion is Given/When/Then. Added: the lifecycle moves (AC-0002-22), reading for all profiles (AC-0002-23), what is editable (AC-0002-24), permissions, errors and audit events (§3.7). AC-0002-08 reworded; AC-0002-11, -12 and the saldo and quantity parts of -13 and -14 are *deferred* to SPEC-0003, SPEC-0004 and SPEC-0006. OQ-11 settled for the MVP (fornecedor on the ATA, optional override on the item). RF15 added to `satisfies`. OQ-45 opened |
 | 1.0 | 2026-10-06 | Approved. AC-0002-25: a fornecedor is found by its CNPJ or created, with the check digits validated, because the ATA is the only place one first appears. Implementation plan added |
 | 1.1 | 2026-10-06 | Backend implemented. AC-0002-09 states that a vigente ATA already past its end stays in the renewal alert, with negative days remaining. No other criterion changed |
+| 1.2 | 2026-10-19 | By the product owner's review of the screens: no `rascunho`, an ATA is registered vigente after the gestor reviews it (AC-0002-01, -22); every field of a vigente or suspensa ATA can be corrected, with the prior values audited, and an encerrada or cancelada one cannot (AC-0002-24); the figures lock once an NE exists (AC-0002-26, deferred to SPEC-0004); the alphanumeric CNPJ of IN RFB nº 2.229/2024 is accepted (AC-0002-25). Migration `0004_ata_sem_rascunho` |
