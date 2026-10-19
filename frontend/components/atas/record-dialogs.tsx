@@ -18,7 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ADITIVO_CODES, ADITIVO_ORDER, REAJUSTE_CODES, REAJUSTE_ORDER } from "@/lib/atas/constants";
+import {
+  ADITIVO_CODES,
+  ADITIVO_ORDER,
+  DIALOG_HELP,
+  REAJUSTE_CODES,
+  REAJUSTE_ORDER,
+} from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { parseMoney } from "@/lib/format";
@@ -152,7 +158,7 @@ export function AditivoDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata:
             </div>
           </fieldset>
           {kind === "valor" ? (
-            <Field id="aditivo-valor_acrescimo" label="Acréscimo (R$)" error={record.errors.valor_acrescimo}>
+            <Field id="aditivo-valor_acrescimo" help={DIALOG_HELP.valor_acrescimo} label="Acréscimo (R$)" error={record.errors.valor_acrescimo}>
               {(props) => (
                 <Input
                   {...props}
@@ -164,11 +170,11 @@ export function AditivoDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata:
               )}
             </Field>
           ) : (
-            <Field id="aditivo-nova_vigencia_fim" label="Novo fim da vigência" error={record.errors.nova_vigencia_fim}>
+            <Field id="aditivo-nova_vigencia_fim" help={DIALOG_HELP.nova_vigencia_fim} label="Novo fim da vigência" error={record.errors.nova_vigencia_fim}>
               {(props) => <Input {...props} type="date" value={novoFim} onChange={(e) => setNovoFim(e.target.value)} />}
             </Field>
           )}
-          <Field id="aditivo-justification" label="Justificativa" error={record.errors.justification}>
+          <Field id="aditivo-justification" help={DIALOG_HELP.justification} label="Justificativa" error={record.errors.justification}>
             {(props) => (
               <Textarea
                 {...props}
@@ -241,6 +247,7 @@ export function ReajusteDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata
             id="reajuste-processo_sei"
             label="Processo SEI"
             hint="Formato NNNNN.NNNNNN/AAAA-DD"
+            help={DIALOG_HELP.processo_sei}
             error={record.errors.processo_sei}
           >
             {(props) => (
@@ -252,7 +259,7 @@ export function ReajusteDialog({ ata, onSaved }: { ata: AtaDetail; onSaved: (ata
               />
             )}
           </Field>
-          <Field id="reajuste-requested_on" label="Data do pedido" error={record.errors.requested_on}>
+          <Field id="reajuste-requested_on" help={DIALOG_HELP.requested_on} label="Data do pedido" error={record.errors.requested_on}>
             {(props) => (
               <Input {...props} type="date" value={requestedOn} onChange={(e) => setRequestedOn(e.target.value)} />
             )}

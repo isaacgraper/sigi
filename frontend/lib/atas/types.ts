@@ -3,7 +3,7 @@
  * screens build around it (SPEC-0013).
  */
 
-export type Status = "rascunho" | "vigente" | "suspensa" | "encerrada" | "cancelada";
+export type Status = "vigente" | "suspensa" | "encerrada" | "cancelada";
 export type Situacao = "vigente" | "a_vencer" | "vencida";
 
 export interface Fornecedor {
@@ -64,7 +64,7 @@ export interface AlertRow {
   days_remaining: number;
 }
 
-export type Move = "ativar" | "suspender" | "retomar" | "encerrar" | "cancelar";
+export type Move = "suspender" | "retomar" | "encerrar" | "cancelar";
 
 export type DueKind = "vencimento" | "reajuste";
 
@@ -96,8 +96,8 @@ export interface FormField {
   label: string;
   type?: "date" | "money";
   optional?: boolean;
-  /** Past "rascunho" it changes only through an aditivo (AC-0002-24). */
-  locks?: boolean;
+  /** What the "i" beside the label says (AC-0013-19). */
+  help: string;
   wide?: boolean;
 }
 
