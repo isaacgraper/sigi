@@ -566,7 +566,10 @@ cell, with the line numbered as a spreadsheet numbers it (the header is line 1).
 | Set a servidor's grupos | `usuario` | `usuario.grupos_alterados` |
 
 An import writes the row of each insumo or item it creates or corrects, with the
-`acao` above. Item rows sit on the ATA, so the ATA's history shows its items.
+`acao` above and the justificativa "Importado de arquivo CSV.". Item rows sit on the
+ATA, so the ATA's history shows its items; because the row's entity is the ATA,
+`dados_anteriores` names the item (`item_ata_id`, `sku`) even on an addition. A
+substitution's row names the substitute's SKU the same way.
 
 ## 4. Note on the `estoque` column
 
@@ -693,13 +696,15 @@ Asked by the product owner while preparing this spec for approval:
   `usuario_grupo_material`, whose rows are a set replaced whole; the audit row keeps
   the prior set.
 
-**Layers:** `models/insumo.py`, `models/grupo_material.py`, `models/item_ata.py`;
-`repositories/insumo.py`, `repositories/item_ata.py`; `services/insumos.py` (the
-catalogue, substitution, scope), `services/itens_ata.py` (items and the quantity
-ceiling), `services/importacao.py` (reading the file: separator, numbers, encoding,
-the §12 hazards, the line report), shared by both imports; `schemas/insumo.py`,
-`schemas/item_ata.py`; `api/insumos.py`, `api/grupos.py`, and the item routes in
-`api/atas.py`. Constants and messages in `app/constants/insumos.py`.
+**Layers:** `models/insumo.py` (the four tables); `repositories/insumo.py`,
+`repositories/item_ata.py`; `services/insumos.py` (the catalogue, grupos,
+substitution, scope and the catalogue file), `services/itens_ata.py` (items, the
+quantity ceiling and the items file), `services/importacao.py` (reading a file:
+separator, numbers, encoding, the line report), shared by both imports;
+`schemas/insumo.py`, `schemas/item_ata.py`; `api/insumos.py` (insumos and grupos),
+the item routes in `api/atas.py`, the grupos of a servidor in `api/users.py`, and
+`api/uploads.py` for the CSV body. Constants and messages in `app/constants/insumos.py`.
+*(v1.1: as built; the plan named three model files and an `api/grupos.py`.)*
 
 **Endpoints**
 
