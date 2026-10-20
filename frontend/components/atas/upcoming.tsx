@@ -7,13 +7,21 @@ import { AlertSkeletonRows } from "@/components/atas/skeletons";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
-import { DUE_KIND_LABEL, DUE_LIST_FIRST, SOON_DAYS, URGENCY_CLASSES } from "@/lib/atas/constants";
+import { cached } from "@/lib/api-cache";
+import {
+  DUE_KIND_LABEL,
+  DUE_LIST_FIRST,
+  REAJUSTE_PATH,
+  RENOVACAO_PATH,
+  SOON_DAYS,
+  URGENCY_CLASSES,
+} from "@/lib/atas/constants";
 import { dueRows, dueText } from "@/lib/atas/due";
 import { urgency } from "@/lib/atas/status";
 import type { AlertRow, DueRow } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDay } from "@/lib/format";
-import { apiJson } from "@/lib/session";
+import { apiJson, warm } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 /** The days as the row's figure: the number large, its unit small. */
@@ -44,6 +52,8 @@ function Row({ row }: { row: DueRow }) {
     <li data-testid="due-row" data-kind={row.kind} data-urgency={level}>
       <Link
         href={`/atas/${row.ata.id}`}
+        onPointerEnter={() => warm(`/api/v1/atas/${row.ata.id}`)}
+        onFocus={() => warm(`/api/v1/atas/${row.ata.id}`)}
         className={cn(
           "grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-0.5 border-l-4 py-3 pl-4 pr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[5.5rem_11.5rem_minmax(0,1fr)_auto]",
           URGENCY_CLASSES[level].row,
@@ -98,15 +108,20 @@ function Tally({ rows }: { rows: DueRow[] }) {
  */
 export function Upcoming() {
   const { handleSessionError } = useSession();
-  const [rows, setRows] = useState<DueRow[] | null>(null);
+  // Both alerts seen before draw at once while the new answers come.
+  const [rows, setRows] = useState<DueRow[] | null>(() => {
+    const renovacao = cached<AlertRow[]>(RENOVACAO_PATH);
+    const reajuste = cached<AlertRow[]>(REAJUSTE_PATH);
+    return renovacao && reajuste ? dueRows(renovacao, reajuste) : null;
+  });
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [all, setAll] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      apiJson<AlertRow[]>("/api/v1/atas/alertas/renovacao"),
-      apiJson<AlertRow[]>("/api/v1/atas/alertas/reajuste"),
+      apiJson<AlertRow[]>(RENOVACAO_PATH),
+      apiJson<AlertRow[]>(REAJUSTE_PATH),
     ])
       .then(([renovacao, reajuste]) => !cancelled && setRows(dueRows(renovacao, reajuste)))
       .catch((err: unknown) => {

@@ -8,6 +8,7 @@ import { panelId, SectionTabs, tabId } from "@/components/dashboard/section-tabs
 import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
+import { cached } from "@/lib/api-cache";
 import { PERFIL_LABEL } from "@/lib/constants";
 import { ATENDIMENTO, CONSUMO, ITENS_EM_FALTA, PROCESSOS, SECTIONS } from "@/lib/dashboard/constants";
 import { sectionFor } from "@/lib/dashboard/sections";
@@ -44,7 +45,9 @@ export function Dashboard() {
   }, [selected.id, handleSessionError]);
 
   // An answer or a failure for another tab is stale: this tab is still loading.
-  const current = answer?.section === selected.id ? answer : null;
+  // A tab seen before draws its last answer at once while the new one comes.
+  const current =
+    answer?.section === selected.id ? answer : (cached<PainelOut>(`/api/v1/painel/${selected.id}`) ?? null);
   const error = failure?.section === selected.id ? failure.error : null;
   const rowsOf = (block: string): Rows => current?.blocks[block]?.rows;
 

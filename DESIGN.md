@@ -222,15 +222,17 @@ here. None is licensed yet.
 
 | State | How it looks |
 | --- | --- |
-| **Loading a page** | A skeleton of the page's own layout (title bar, cards, table rows) in `bg-muted` blocks with a slow pulse, `role="status"` and "Carregando..." for screen readers. Never a blank page, never a centred spinner for a whole page. |
+| **Loading a page** | A skeleton of the page's own layout (title bar, cards, table rows) in `bg-muted` blocks with a slow pulse, `role="status"` and "Carregando..." for screen readers, shown only once the wait passes 300 ms (`.reveal-late`, `.skeleton-pulse`): a shorter wait shows nothing new rather than a flash. A page already read in this tab draws its last data at once and refreshes. Never a blank page, never a centred spinner for a whole page. |
 | **Loading an action** | The button disables and relabels; the rest of the page stays usable. |
 | **Empty** | Inside the table or card: the empty illustration, one sentence ("Nenhum membro encontrado."), and the action that fills it when the perfil has one. |
 | **Error** | The error notice, in place, without clearing what the person typed except passwords. |
 | **Not found** | The not-found status page (AC-0010-55). |
 | **Crash** | The error status page (AC-0010-56). |
 
-Pages are split by route, so each page's code loads when it is opened, and each
-authenticated route has a `loading.tsx` skeleton shown while its data arrives.
+Pages are split by route, so each page's code loads when it is opened. The
+authenticated routes have no `loading.tsx`: a navigation keeps the current page
+until the next can draw, and the page's own skeleton covers a slow answer
+(SPEC-0011 AC-0011-18).
 
 ---
 

@@ -11,6 +11,7 @@
  * across tabs (AC-0010-47). A tab that waits for the lock refreshes with the
  * cookie the other tab already rotated, which is valid, not a replay.
  */
+import { cached, forgetAnswers, remember } from "@/lib/api-cache";
 import { REFRESH_LOCK_NAME } from "@/lib/constants";
 import { ApiError, readError, unavailable } from "@/lib/errors";
 
@@ -46,6 +47,7 @@ export function refresh(): Promise<string> {
       const response = await send("/api/v1/auth/refresh", { method: "POST" });
       if (!response.ok) {
         accessToken = null;
+        forgetAnswers();
         throw await readError(response);
       }
       const body = (await response.json()) as { access_token: string };
@@ -85,14 +87,25 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     await refresh();
     response = await send(path, withBearer(init, accessToken));
   }
+  if (response.ok && (init.method ?? "GET").toUpperCase() !== "GET") forgetAnswers();
   return response;
 }
 
-/** `apiFetch`, then the parsed body, or the API's error thrown. */
+/** `apiFetch`, then the parsed body, or the API's error thrown. A read is remembered (lib/api-cache). */
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await apiFetch(path, init);
   if (!response.ok) throw await readError(response);
-  return (await response.json()) as T;
+  const body = (await response.json()) as T;
+  return (init.method ?? "GET").toUpperCase() === "GET" ? remember(path, body) : body;
+}
+
+/**
+ * Fetch a read before it is needed, when a pointer rests on its link or the
+ * keyboard reaches it, so the page it opens already has its data. A failure is
+ * silent: the page asks again and shows it.
+ */
+export function warm(path: string): void {
+  if (cached(path) === undefined) void apiJson(path).catch(() => undefined);
 }
 
 export async function login(email: string, password: string): Promise<void> {
@@ -102,11 +115,13 @@ export async function login(email: string, password: string): Promise<void> {
     body: JSON.stringify({ email, password }),
   });
   if (!response.ok) throw await readError(response);
+  forgetAnswers();
   accessToken = ((await response.json()) as { access_token: string }).access_token;
 }
 
 export async function adopt(response: Response): Promise<void> {
   if (!response.ok) throw await readError(response);
+  forgetAnswers();
   accessToken = ((await response.json()) as { access_token: string }).access_token;
 }
 
@@ -115,6 +130,7 @@ export async function logout(): Promise<void> {
     await send("/api/v1/auth/logout", { method: "POST" });
   } finally {
     accessToken = null;
+    forgetAnswers();
   }
 }
 

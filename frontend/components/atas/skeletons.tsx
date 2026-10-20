@@ -35,28 +35,10 @@ function CardSkeleton({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** /atas in its own shape: header, the due list, filters and the table (AC-0013-06). */
-export function AtasSkeleton() {
-  return (
-    <div role="status" data-testid="page-skeleton" className="space-y-6">
-      <span className="sr-only">Carregando...</span>
-      <Header />
-      <CardSkeleton>
-        <AlertSkeletonRows />
-      </CardSkeleton>
-      <div className="flex gap-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-10 w-48" />
-      </div>
-      <TableSkeleton />
-    </div>
-  );
-}
-
 /** /atas/{id} in its own shape: header, the ATA's fields, aditivos and reajustes. */
 export function AtaSkeleton() {
   return (
-    <div role="status" data-testid="page-skeleton" className="space-y-6">
+    <div role="status" data-testid="page-skeleton" className="reveal-late space-y-6">
       <span className="sr-only">Carregando...</span>
       <Header />
       <CardSkeleton>
@@ -78,7 +60,7 @@ export function AtaSkeleton() {
 /** /atas/nova and /atas/{id}/editar in their own shape: header and four sections. */
 export function FormSkeleton() {
   return (
-    <div role="status" data-testid="page-skeleton" className="space-y-6">
+    <div role="status" data-testid="page-skeleton" className="reveal-late space-y-6">
       <span className="sr-only">Carregando...</span>
       <Header />
       <Card aria-hidden className="divide-y">

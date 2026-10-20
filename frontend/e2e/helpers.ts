@@ -89,7 +89,10 @@ export async function openFromSidebar(page: Page, name: string) {
 
 /** A date `days` from today, as the API reads it (`2026-10-13`). */
 export function isoDay(days: number): string {
-  const date = new Date();
+  // Today as the API counts it, in America/Sao_Paulo: from 21h there the UTC date
+  // is already tomorrow, and every "N days" would be off by one.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const date = new Date(`${today}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }

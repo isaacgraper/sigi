@@ -12,6 +12,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { buttonVariants } from "@/components/ui/button";
+import { cached } from "@/lib/api-cache";
 import { NOT_EDITABLE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
@@ -50,7 +51,7 @@ export function NewAtaPage() {
 export function EditAtaPage() {
   const { id } = useParams<{ id: string }>();
   const { me, handleSessionError } = useSession();
-  const [ata, setAta] = useState<AtaDetail | null>(null);
+  const [ata, setAta] = useState<AtaDetail | null>(() => cached<AtaDetail>(`/api/v1/atas/${id}`) ?? null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);

@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cached, remember } from "@/lib/api-cache";
 import { MOVE, NOT_EDITABLE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
@@ -62,7 +63,8 @@ function Section({
 export function AtaView() {
   const { id } = useParams<{ id: string }>();
   const { me, handleSessionError } = useSession();
-  const [ata, setAta] = useState<AtaDetail | null>(null);
+  // An ATA seen before, or warmed from its link, draws at once and refreshes.
+  const [ata, setAta] = useState<AtaDetail | null>(() => cached<AtaDetail>(`/api/v1/atas/${id}`) ?? null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   // Read by assistive technology only: the page itself shows the result (AC-0013-12).
   const [announcement, setAnnouncement] = useState("");
@@ -90,7 +92,7 @@ export function AtaView() {
   }, [id, version, handleSessionError]);
 
   function changed(next: AtaDetail, message: string) {
-    setAta(next);
+    setAta(remember(`/api/v1/atas/${next.id}`, next));
     setAnnouncement(message);
   }
 
