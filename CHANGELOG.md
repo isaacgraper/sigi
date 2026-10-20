@@ -34,7 +34,12 @@ entries are moved into a new dated version section — see
 
 - SPEC-0002 v1.3 and SPEC-0013 v1.8 are `Implemented`, accepted by the product owner. The three
   SPEC-0002 criteria that need NEs move to SPEC-0004 v0.5 (AC-0004-17, -25, -26).
-
+- SPEC-0003 v0.4 specifies the insumo catalogue and the items of an ATA for approval: grupos in
+  the three levels of the DOMS hierarchy, substitution and discontinuation, a catalogue file and
+  an items file per ATA with a dry run, the pt-BR number rules and the hazards measured in the
+  source files, one item at a time on the ATA, the aditivo de quantidade with its 25% ceiling,
+  and RN07 on the grupo axis. ADR-0016 keeps the unit price at five decimals and every total
+  at two.
 - Registering an ATA ends in a review, "Confira os dados antes de cadastrar", and saves only on
   "Confirmar cadastro". The ATA is vigente from that moment: there is no rascunho and no
   "Ativar" (SPEC-0002 v1.2, SPEC-0013 v1.7). Migration `0004_ata_sem_rascunho` moves any
