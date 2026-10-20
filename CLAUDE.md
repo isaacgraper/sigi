@@ -55,16 +55,17 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Three migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Four migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
-`0002_registro_funcional` adds the member's registration, and `0003_atas` adds
-`fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`. `alembic check`
+`0002_registro_funcional` adds the member's registration, `0003_atas` adds
+`fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`, and `0004_ata_sem_rascunho`
+drops the draft status and admits the alphanumeric CNPJ. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.9), `SPEC-0010` (v1.7) and `SPEC-0011` (v1.3) are
-`Implemented`. `SPEC-0002` (v1.1) is `Approved` with its backend built.
+`Implemented`. `SPEC-0002` (v1.2) is `Approved` with its backend built.
 SPEC-0003 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be
 implemented**.
 
@@ -189,6 +190,12 @@ appends still resolve.
 ruff format, mypy, the commit-message convention and the ban on committing
 personal data; `pytest` runs at push. `docs/process/sop-qualidade.md` says which
 rule is checked where, and names the two that nothing checks.
+
+**CI runs only what a change touches.** A `changes` job skips the backend, the
+frontend and the end-to-end jobs when their files did not change, so a
+docs-only PR runs only the secret scan. Playwright runs Chromium on a PR and all
+three browsers on `dev` and `main`. No video is committed unless the product
+owner asks for one. Details in `docs/process/sop-qualidade.md`.
 
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
 "Testing expectations". `psql`, `alembic downgrade` and `docker compose down -v`

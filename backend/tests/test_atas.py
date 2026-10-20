@@ -65,18 +65,11 @@ def body(**override: object) -> dict[str, object]:
     return data
 
 
-def make(
-    application: TestClient, headers: dict[str, str], *, activate: bool = False, **override: object
-) -> dict:
-    """Register an ATA through the API, and activate it when asked."""
+def make(application: TestClient, headers: dict[str, str], **override: object) -> dict:
+    """Register an ATA through the API; it is vigente from the start (AC-0002-01)."""
     response = application.post(ATAS, json=body(**override), headers=headers)
     assert response.status_code == 201, response.text
-    ata = response.json()
-    if activate:
-        moved = application.post(f"{ATAS}/{ata['id']}/ativar", headers=headers)
-        assert moved.status_code == 200, moved.text
-        ata = moved.json()
-    return ata
+    return response.json()
 
 
 def audit_rows(db_session: Session, ata_id: str, acao: str | None = None) -> list:
@@ -105,12 +98,12 @@ def freeze(monkeypatch: pytest.MonkeyPatch, day: str) -> None:
 def test_ac_0002_01_a_gestor_registers_an_ata(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
-    """AC-0002-01 — 201, `rascunho`, the gestor as responsavel, and an audit row."""
+    """AC-0002-01 — 201, `vigente`, the gestor as responsavel, and an audit row."""
     response = application.post(ATAS, json=body(), headers=gestor)
 
     assert response.status_code == 201, response.text
     ata = response.json()
-    assert ata["status"] == "rascunho"
+    assert ata["status"] == "vigente"
     assert ata["fornecedor"]["cnpj"] == "11222333000181"
     assert decimal.Decimal(ata["total_value"]) == decimal.Decimal("100000.00")
     rows = audit_rows(db_session, ata["id"], "ata.criada")
@@ -206,7 +199,7 @@ def test_ac_0002_05_only_a_gestor_writes(
     perfil: str,
 ) -> None:
     """AC-0002-05 — every write answers 403 `PERFIL_NAO_AUTORIZADO` and changes nothing."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
     headers = _login(application, create_user, perfil)
     number = f"ATA-{uuid.uuid4().hex[:10]}"
     calls = [
@@ -313,6 +306,31 @@ def test_ac_0002_25_a_bad_cnpj_is_refused_and_creates_nothing(
     )
 
 
+@pytest.mark.parametrize("given", ["12.ABC.345/01DE-35", "12abc34501de35", "12ABC34501DE35"])
+def test_ac_0002_25_an_alphanumeric_cnpj_is_accepted(
+    application: TestClient, gestor: dict[str, str], given: str
+) -> None:
+    """AC-0002-25 — IN RFB nº 2.229/2024: letters in the first twelve, stored uppercased."""
+    ata = make(application, gestor, fornecedor={"cnpj": given, "legal_name": "Empresa Nova Ltda"})
+
+    assert ata["fornecedor"]["cnpj"] == "12ABC34501DE35"
+
+
+@pytest.mark.parametrize("bad", ["12.ABC.345/01DE-36", "12ABC34501DEAB", "12ABC3450*DE35"])
+def test_ac_0002_25_a_bad_alphanumeric_cnpj_is_refused(
+    application: TestClient, gestor: dict[str, str], bad: str
+) -> None:
+    """AC-0002-25 — a wrong check digit, letters in the check digits, a stray character."""
+    response = application.post(
+        ATAS,
+        json=body(fornecedor={"cnpj": bad, "legal_name": "Empresa Inventada"}),
+        headers=gestor,
+    )
+
+    assert response.status_code == 422
+    assert "fornecedor.cnpj" in response.json()["error"]["fields"]
+
+
 # ── AC-0002-23 — reading ────────────────────────────────────────────────────
 
 
@@ -324,7 +342,7 @@ def test_ac_0002_23_every_perfil_reads_atas(
     perfil: str,
 ) -> None:
     """AC-0002-23 — a page with status and situacao_vigencia; the detail with its history."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
     headers = _login(application, create_user, perfil)
 
     page = application.get(f"{ATAS}?size=100", headers=headers)
@@ -351,9 +369,10 @@ def test_ac_0002_23_the_list_filters_by_status_and_by_situacao_vigencia(
 ) -> None:
     """AC-0002-23 — both filters, against a frozen clock."""
     freeze(monkeypatch, "2026-06-01")
-    vigente = make(application, gestor, activate=True, vigencia_fim="2026-12-31")
-    a_vencer = make(application, gestor, activate=True, vigencia_fim="2026-07-15")
+    vigente = make(application, gestor, vigencia_fim="2026-12-31")
+    a_vencer = make(application, gestor, vigencia_fim="2026-07-15")
     vencida = make(application, gestor, vigencia_fim="2026-05-31")
+    application.post(f"{ATAS}/{vencida['id']}/suspender", headers=gestor)
 
     def ids(query: str) -> set[str]:
         page = application.get(f"{ATAS}?size=100&{query}", headers=gestor).json()
@@ -363,17 +382,17 @@ def test_ac_0002_23_the_list_filters_by_status_and_by_situacao_vigencia(
     assert ids("situacao_vigencia=vigente") & mine == {vigente["id"]}
     assert ids("situacao_vigencia=a_vencer") & mine == {a_vencer["id"]}
     assert ids("situacao_vigencia=vencida") & mine == {vencida["id"]}
-    assert ids("status=rascunho") & mine == {vencida["id"]}
+    assert ids("status=suspensa") & mine == {vencida["id"]}
     assert ids("status=vigente") & mine == {vigente["id"], a_vencer["id"]}
 
 
 # ── AC-0002-24 — editing ────────────────────────────────────────────────────
 
 
-def test_ac_0002_24_a_draft_is_editable_and_the_prior_values_are_audited(
+def test_ac_0002_24_a_vigente_ata_is_corrected_and_the_prior_values_are_audited(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
-    """AC-0002-24 — everything while `rascunho`; the audit row keys are columns."""
+    """AC-0002-24 — the figures too; the audit row keys are columns."""
     ata = make(application, gestor)
 
     response = application.patch(
@@ -392,68 +411,77 @@ def test_ac_0002_24_a_draft_is_editable_and_the_prior_values_are_audited(
     }
 
 
+@pytest.mark.parametrize("status", ["vigente", "suspensa"])
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("number", "OUTRO-NUMERO"),
+        ("number", None),
         ("vigencia_inicio", "2026-02-01"),
         ("vigencia_fim", "2027-02-01"),
         ("total_value", "1.00"),
         ("budget_date", "2026-04-01"),
         ("issued_on", "2026-01-02"),
         ("fornecedor", {"cnpj": OTHER_CNPJ, "legal_name": "Outra Empresa Ltda"}),
+        ("subject", "Corrigido"),
+        ("organ", "Outro órgão"),
     ],
 )
-def test_ac_0002_24_the_figures_are_locked_after_activation(
-    application: TestClient, gestor: dict[str, str], db_session: Session, field: str, value: object
+def test_ac_0002_24_every_field_of_a_running_ata_can_be_corrected(
+    application: TestClient,
+    gestor: dict[str, str],
+    db_session: Session,
+    status: str,
+    field: str,
+    value: object,
+) -> None:
+    """AC-0002-24 — vigente or suspensa, any field; one audit row records it."""
+    ata = _reach(application, gestor, status)
+    new = f"ATA-{uuid.uuid4().hex[:10]}" if field == "number" else value
+
+    response = application.patch(f"{ATAS}/{ata['id']}", json={field: new}, headers=gestor)
+
+    assert response.status_code == 200, response.text
+    assert len(audit_rows(db_session, ata["id"], "ata.editada")) == 1
+
+
+@pytest.mark.parametrize("status", ["encerrada", "cancelada"])
+def test_ac_0002_24_a_closed_or_cancelled_ata_is_not_edited(
+    application: TestClient, gestor: dict[str, str], db_session: Session, status: str
 ) -> None:
     """AC-0002-24 — 409 `ATA_NAO_EDITAVEL`, and nothing changes."""
-    ata = make(application, gestor, activate=True)
+    ata = _reach(application, gestor, status)
 
-    response = application.patch(f"{ATAS}/{ata['id']}", json={field: value}, headers=gestor)
+    response = application.patch(
+        f"{ATAS}/{ata['id']}", json={"subject": "Corrigido"}, headers=gestor
+    )
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "ATA_NAO_EDITAVEL"
-    assert application.get(f"{ATAS}/{ata['id']}", headers=gestor).json()["number"] == ata["number"]
-    assert audit_rows(db_session, ata["id"], "ata.editada") == []
-
-
-def test_ac_0002_24_objeto_and_orgao_stay_editable_after_activation(
-    application: TestClient, gestor: dict[str, str]
-) -> None:
-    """AC-0002-24 — what is not a figure can still be corrected."""
-    ata = make(application, gestor, activate=True)
-
-    response = application.patch(
-        f"{ATAS}/{ata['id']}", json={"subject": "Corrigido", "organ": "Outro órgão"}, headers=gestor
+    assert (
+        application.get(f"{ATAS}/{ata['id']}", headers=gestor).json()["subject"] == ata["subject"]
     )
-
-    assert response.status_code == 200
-    assert (response.json()["subject"], response.json()["organ"]) == ("Corrigido", "Outro órgão")
+    assert audit_rows(db_session, ata["id"], "ata.editada") == []
 
 
 # ── AC-0002-22, -10, -17 — the lifecycle ────────────────────────────────────
 
 VALID_MOVES = [
-    ("rascunho", "ativar", "vigente"),
     ("vigente", "suspender", "suspensa"),
     ("suspensa", "retomar", "vigente"),
     ("vigente", "encerrar", "encerrada"),
     ("suspensa", "encerrar", "encerrada"),
-    ("rascunho", "cancelar", "cancelada"),
     ("vigente", "cancelar", "cancelada"),
     ("suspensa", "cancelar", "cancelada"),
 ]
-ALL_MOVES = ("ativar", "suspender", "retomar", "encerrar", "cancelar")
+ALL_MOVES = ("suspender", "retomar", "encerrar", "cancelar")
 
 
 def _reach(application: TestClient, headers: dict[str, str], status: str) -> dict:
     """An ATA in the given status, by the shortest legitimate path."""
     path = {
-        "rascunho": [],
-        "vigente": ["ativar"],
-        "suspensa": ["ativar", "suspender"],
-        "encerrada": ["ativar", "encerrar"],
+        "vigente": [],
+        "suspensa": ["suspender"],
+        "encerrada": ["encerrar"],
         "cancelada": ["cancelar"],
     }[status]
     ata = make(application, headers)
@@ -473,7 +501,7 @@ def test_ac_0002_22_every_valid_move_changes_the_status_and_is_audited(
     move: str,
     destination: str,
 ) -> None:
-    """AC-0002-22 — the eight moves the lifecycle allows."""
+    """AC-0002-22 — the six moves the lifecycle allows."""
     ata = _reach(application, gestor, origin)
     payload = {"justification": "Motivo da ata."} if move == "cancelar" else None
 
@@ -482,7 +510,6 @@ def test_ac_0002_22_every_valid_move_changes_the_status_and_is_audited(
     assert response.status_code == 200, response.text
     assert response.json()["status"] == destination
     acao = {
-        "ativar": "ata.ativada",
         "suspender": "ata.suspensa",
         "retomar": "ata.retomada",
         "encerrar": "ata.encerrada",
@@ -496,7 +523,7 @@ def test_ac_0002_22_every_valid_move_changes_the_status_and_is_audited(
 
 INVALID_MOVES = [
     (origin, move)
-    for origin in ("rascunho", "vigente", "suspensa", "encerrada", "cancelada")
+    for origin in ("vigente", "suspensa", "encerrada", "cancelada")
     for move in ALL_MOVES
     if not any(o == origin and m == move for o, m, _ in VALID_MOVES)
 ]
@@ -526,7 +553,7 @@ def test_ac_0002_22_cancelling_needs_a_justification(
         response = application.post(f"{ATAS}/{ata['id']}/cancelar", json=payload, headers=gestor)
         assert response.status_code == 422
         assert "justification" in response.json()["error"]["fields"]
-    assert application.get(f"{ATAS}/{ata['id']}", headers=gestor).json()["status"] == "rascunho"
+    assert application.get(f"{ATAS}/{ata['id']}", headers=gestor).json()["status"] == "vigente"
 
 
 def test_ac_0002_10_closing_records_who_and_when(
@@ -536,7 +563,7 @@ def test_ac_0002_10_closing_records_who_and_when(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AC-0002-10 — the audit row carries the gestor and the time."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
     freeze(monkeypatch, "2026-08-20")
 
     response = application.post(f"{ATAS}/{ata['id']}/encerrar", headers=gestor)
@@ -569,7 +596,7 @@ def test_ac_0002_15_situacao_vigencia_is_derived_at_read_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AC-0002-15 — three dates, the same row, no write between the reads."""
-    ata = make(application, gestor, activate=True, vigencia_fim="2026-12-31")
+    ata = make(application, gestor, vigencia_fim="2026-12-31")
     before = audit_rows(db_session, ata["id"])
     updated = db_session.execute(
         text("SELECT atualizado_em FROM ata WHERE id = :i"), {"i": ata["id"]}
@@ -608,17 +635,18 @@ def test_ac_0002_09_the_renewal_alert_lists_the_ending_atas_soonest_first(
 ) -> None:
     """AC-0002-09 — within 90 days, no aditivo de prazo, ordered by days remaining."""
     freeze(monkeypatch, "2026-06-01")
-    late = make(application, gestor, activate=True, vigencia_fim="2026-08-15")
-    soon = make(application, gestor, activate=True, vigencia_fim="2026-06-20")
-    far = make(application, gestor, activate=True, vigencia_fim="2027-06-01")
-    draft = make(application, gestor, vigencia_fim="2026-06-25")
-    extended = make(application, gestor, activate=True, vigencia_fim="2026-07-01")
+    late = make(application, gestor, vigencia_fim="2026-08-15")
+    soon = make(application, gestor, vigencia_fim="2026-06-20")
+    far = make(application, gestor, vigencia_fim="2027-06-01")
+    suspended = make(application, gestor, vigencia_fim="2026-06-25")
+    application.post(f"{ATAS}/{suspended['id']}/suspender", headers=gestor)
+    extended = make(application, gestor, vigencia_fim="2026-07-01")
     application.post(
         f"{ATAS}/{extended['id']}/aditivos",
         json={"kind": "prazo", "nova_vigencia_fim": "2027-07-01", "justification": "Prorrogada."},
         headers=gestor,
     )
-    only_value = make(application, gestor, activate=True, vigencia_fim="2026-07-10")
+    only_value = make(application, gestor, vigencia_fim="2026-07-10")
     application.post(
         f"{ATAS}/{only_value['id']}/aditivos",
         json={"kind": "valor", "valor_acrescimo": "1000.00", "justification": "Mais verba."},
@@ -629,7 +657,7 @@ def test_ac_0002_09_the_renewal_alert_lists_the_ending_atas_soonest_first(
     response = application.get(f"{ATAS}/alertas/renovacao", headers=servidor)
 
     assert response.status_code == 200
-    mine = {late["id"], soon["id"], far["id"], draft["id"], extended["id"], only_value["id"]}
+    mine = {late["id"], soon["id"], far["id"], suspended["id"], extended["id"], only_value["id"]}
     listed = [row for row in response.json() if row["ata"]["id"] in mine]
     assert [row["ata"]["id"] for row in listed] == [soon["id"], only_value["id"], late["id"]]
     assert [row["days_remaining"] for row in listed] == [19, 39, 75]
@@ -642,7 +670,7 @@ def test_ac_0002_13_an_aditivo_of_value_raises_valor_contratado(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
     """AC-0002-13 — its own record, with its justification, and an audit row."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     response = application.post(
         f"{ATAS}/{ata['id']}/aditivos",
@@ -666,7 +694,7 @@ def test_ac_0002_13_an_aditivo_of_prazo_sets_the_new_vigencia_fim(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
     """AC-0002-13 — the end moves; the audit row keeps the old one."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     response = application.post(
         f"{ATAS}/{ata['id']}/aditivos",
@@ -695,7 +723,7 @@ def test_ac_0002_13_an_incomplete_aditivo_is_refused(
     application: TestClient, gestor: dict[str, str], db_session: Session, payload: dict
 ) -> None:
     """AC-0002-13 — no justification, no figure, or a date that does not extend: 422."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     response = application.post(f"{ATAS}/{ata['id']}/aditivos", json=payload, headers=gestor)
 
@@ -704,14 +732,12 @@ def test_ac_0002_13_an_incomplete_aditivo_is_refused(
     assert application.get(f"{ATAS}/{ata['id']}", headers=gestor).json()["aditivos"] == []
 
 
-@pytest.mark.parametrize("move", [None, "suspender", "encerrar"])
+@pytest.mark.parametrize("status", ["suspensa", "encerrada", "cancelada"])
 def test_ac_0002_13_an_aditivo_needs_a_vigente_ata(
-    application: TestClient, gestor: dict[str, str], move: str | None
+    application: TestClient, gestor: dict[str, str], status: str
 ) -> None:
-    """AC-0002-13 — a draft, suspended or closed ATA answers 409 `ATA_NAO_VIGENTE`."""
-    ata = make(application, gestor, activate=move is not None)
-    if move:
-        application.post(f"{ATAS}/{ata['id']}/{move}", headers=gestor)
+    """AC-0002-13 — a suspended, closed or cancelled ATA answers 409 `ATA_NAO_VIGENTE`."""
+    ata = _reach(application, gestor, status)
 
     response = application.post(
         f"{ATAS}/{ata['id']}/aditivos",
@@ -727,7 +753,7 @@ def test_ac_0002_14_the_aditivos_of_value_stop_at_a_quarter(
     application: TestClient, gestor: dict[str, str]
 ) -> None:
     """AC-0002-14 — 20.000 plus 6.000 on 100.000 is refused; exactly 25.000 is the ceiling."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     def aditivo(value: str) -> httpx2.Response:
         return application.post(
@@ -753,7 +779,7 @@ def test_ac_0002_19_a_gestor_records_a_reajuste_request(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
     """AC-0002-19 — stored against the ATA, and audited with the gestor as actor."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     response = application.post(
         f"{ATAS}/{ata['id']}/reajustes",
@@ -774,7 +800,7 @@ def test_ac_0002_19_a_malformed_processo_sei_is_refused(
     application: TestClient, gestor: dict[str, str], bad: str
 ) -> None:
     """AC-0002-19 — 422 `PROCESSO_SEI_INVALIDO`, the message stating the format."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     response = application.post(
         f"{ATAS}/{ata['id']}/reajustes",
@@ -790,8 +816,8 @@ def test_ac_0002_19_a_malformed_processo_sei_is_refused(
 def test_ac_0002_19_a_request_needs_a_vigente_ata(
     application: TestClient, gestor: dict[str, str]
 ) -> None:
-    """AC-0002-19 — a draft ATA answers 409 `ATA_NAO_VIGENTE`."""
-    ata = make(application, gestor)
+    """AC-0002-19 — a suspended ATA answers 409 `ATA_NAO_VIGENTE`."""
+    ata = _reach(application, gestor, "suspensa")
 
     response = application.post(
         f"{ATAS}/{ata['id']}/reajustes",
@@ -807,7 +833,7 @@ def test_ac_0002_08_the_processo_sei_is_checked_by_format_and_nothing_else(
     application: TestClient, gestor: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-0002-08 — no name is resolved and no connection is opened to an external system."""
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
     lookups: list[object] = []
     real = socket.getaddrinfo
 
@@ -860,12 +886,13 @@ def test_ac_0002_20_the_reajuste_alert(
 ) -> None:
     """AC-0002-20 — within the window or past, soonest first, gone once a request exists."""
     freeze(monkeypatch, "2026-06-01")
-    past = make(application, gestor, activate=True, budget_date="2025-05-20")  # due 2026-05-20
-    soon = make(application, gestor, activate=True, budget_date="2025-06-15")  # due 2026-06-15
-    later = make(application, gestor, activate=True, budget_date="2025-08-01")  # due 2026-08-01
-    far = make(application, gestor, activate=True, budget_date="2026-03-01")  # due 2027-03-01
-    draft = make(application, gestor, budget_date="2025-06-10")
-    mine = {past["id"], soon["id"], later["id"], far["id"], draft["id"]}
+    past = make(application, gestor, budget_date="2025-05-20")  # due 2026-05-20
+    soon = make(application, gestor, budget_date="2025-06-15")  # due 2026-06-15
+    later = make(application, gestor, budget_date="2025-08-01")  # due 2026-08-01
+    far = make(application, gestor, budget_date="2026-03-01")  # due 2027-03-01
+    suspended = make(application, gestor, budget_date="2025-06-10")
+    application.post(f"{ATAS}/{suspended['id']}/suspender", headers=gestor)
+    mine = {past["id"], soon["id"], later["id"], far["id"], suspended["id"]}
 
     def listed() -> list[dict]:
         rows = application.get(f"{ATAS}/alertas/reajuste", headers=gestor).json()
@@ -888,7 +915,7 @@ def test_ac_0002_20_the_alert_follows_the_clock(
     application: TestClient, gestor: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-0002-20 — the same ATA at three dates, with no write between them."""
-    ata = make(application, gestor, activate=True, budget_date="2025-09-01")  # due 2026-09-01
+    ata = make(application, gestor, budget_date="2025-09-01")  # due 2026-09-01
 
     def present(day: str) -> bool:
         freeze(monkeypatch, day)
@@ -910,7 +937,7 @@ def test_ac_0002_21_recording_a_request_changes_no_price(
     The criterion speaks of an `ITEM_ATA`, which SPEC-0003 owns; until it exists
     the figures a reajuste could touch are the ATA's own.
     """
-    ata = make(application, gestor, activate=True)
+    ata = make(application, gestor)
 
     application.post(
         f"{ATAS}/{ata['id']}/reajustes",

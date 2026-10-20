@@ -44,7 +44,7 @@ class Ata(Base):
     vigencia_fim: Mapped[datetime.date] = mapped_column(Date)
     total_value: Mapped[decimal.Decimal] = mapped_column("valor_total", Numeric(15, 2))
     budget_date: Mapped[datetime.date] = mapped_column("data_orcamento_planilhado", Date)
-    status: Mapped[str] = mapped_column(String(20), server_default="rascunho")
+    status: Mapped[str] = mapped_column(String(20), server_default="vigente")
     owner_id: Mapped[uuid.UUID] = mapped_column("responsavel_id", Uuid, ForeignKey("usuario.id"))
     criado_em: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
@@ -55,7 +55,7 @@ class Ata(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('rascunho', 'vigente', 'suspensa', 'encerrada', 'cancelada')",
+            "status IN ('vigente', 'suspensa', 'encerrada', 'cancelada')",
             name="ck_ata_status",
         ),
         # Expressed in the database as well as in the service: a constraint

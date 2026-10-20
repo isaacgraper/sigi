@@ -3,11 +3,13 @@ import type { DueKind, FormKey, FormSection, FormValues, Move, Situacao, Status,
 
 // ── Status and situação ─────────────────────────────────────────────────────
 
-export const STATUSES: Status[] = ["rascunho", "vigente", "suspensa", "encerrada", "cancelada"];
+export const STATUSES: Status[] = ["vigente", "suspensa", "encerrada", "cancelada"];
+
+// Mirrors AC-0002-24: history, not corrected, so "Editar" is not offered.
+export const NOT_EDITABLE: Status[] = ["encerrada", "cancelada"];
 export const SITUACOES: Situacao[] = ["vigente", "a_vencer", "vencida"];
 
 export const STATUS_LABEL: Record<Status, string> = {
-  rascunho: "Rascunho",
   vigente: "Vigente",
   suspensa: "Suspensa",
   encerrada: "Encerrada",
@@ -76,7 +78,6 @@ export const REAJUSTE_PATH = "/api/v1/atas/alertas/reajuste";
  * a button that can only fail; the API stays the authority (AC-0013-12).
  */
 export const MOVES: Record<Status, Move[]> = {
-  rascunho: ["ativar", "cancelar"],
   vigente: ["suspender", "encerrar", "cancelar"],
   suspensa: ["retomar", "encerrar", "cancelar"],
   encerrada: [],
@@ -87,13 +88,6 @@ export const MOVE: Record<
   Move,
   { label: string; title: string; body: string; done: string; destructive: boolean }
 > = {
-  ativar: {
-    label: "Ativar",
-    title: "Ativar ATA?",
-    body: "A ATA passa a vigente. Depois disso, valores e prazos só mudam por aditivo.",
-    done: "ATA ativada.",
-    destructive: false,
-  },
   suspender: {
     label: "Suspender",
     title: "Suspender ATA?",
@@ -132,34 +126,78 @@ export const FORM_SECTIONS: FormSection[] = [
     title: "Identificação",
     hint: "O número é único entre as ATAs.",
     fields: [
-      { key: "number", label: "Número", locks: true },
-      { key: "organ", label: "Órgão" },
-      { key: "subject", label: "Objeto", wide: true },
+      {
+        key: "number",
+        label: "Número",
+        help: "Número da ATA como consta no documento, ex. 012/2026. Não pode repetir outra ATA cadastrada.",
+      },
+      { key: "organ", label: "Órgão", help: "Órgão que gerencia a ATA." },
+      { key: "subject", label: "Objeto", wide: true, help: "O que a ATA registra, como escrito no documento." },
     ],
   },
   {
     title: "Fornecedor",
     hint: "Se o CNPJ já estiver cadastrado, a razão social dele é mantida.",
     fields: [
-      { key: "fornecedor.cnpj", label: "CNPJ do fornecedor", locks: true },
-      { key: "fornecedor.legal_name", label: "Razão social", locks: true },
+      {
+        key: "fornecedor.cnpj",
+        label: "CNPJ do fornecedor",
+        help:
+          "14 caracteres, com ou sem pontuação; desde 2026 pode ter letras nos 12 primeiros. " +
+          "Os dois últimos são dígitos verificadores: um número digitado errado é recusado.",
+      },
+      {
+        key: "fornecedor.legal_name",
+        label: "Razão social",
+        help: "Nome jurídico do fornecedor. Se o CNPJ já estiver cadastrado, o nome existente é mantido.",
+      },
     ],
   },
   {
     title: "Vigência",
     hint: "O fim precisa ser depois do início.",
     fields: [
-      { key: "vigencia_inicio", label: "Início da vigência", type: "date", locks: true },
-      { key: "vigencia_fim", label: "Fim da vigência", type: "date", locks: true },
-      { key: "issued_on", label: "Data de emissão (opcional)", type: "date", optional: true, locks: true },
+      {
+        key: "vigencia_inicio",
+        label: "Início da vigência",
+        type: "date",
+        help: "Primeiro dia em que a ATA pode ser usada.",
+      },
+      {
+        key: "vigencia_fim",
+        label: "Fim da vigência",
+        type: "date",
+        help:
+          "Último dia em que a ATA pode ser usada; precisa ser depois do início. " +
+          "Para prorrogar uma ATA vigente, registre um aditivo de prazo.",
+      },
+      {
+        key: "issued_on",
+        label: "Data de emissão (opcional)",
+        type: "date",
+        optional: true,
+        help: "Data de assinatura da ATA, se constar no documento.",
+      },
     ],
   },
   {
     title: "Valores",
     hint: "O reajuste vence um ano depois do orçamento planilhado.",
     fields: [
-      { key: "total_value", label: "Valor total (R$)", type: "money", locks: true },
-      { key: "budget_date", label: "Data do orçamento planilhado", type: "date", locks: true },
+      {
+        key: "total_value",
+        label: "Valor total (R$)",
+        type: "money",
+        help:
+          "Valor registrado na ATA. Para aumentar o valor contratado, " +
+          "registre um aditivo de valor, até 25% do original.",
+      },
+      {
+        key: "budget_date",
+        label: "Data do orçamento planilhado",
+        type: "date",
+        help: "Data da planilha de preços que originou a ATA. O reajuste vence um ano depois dela.",
+      },
     ],
   },
 ];
@@ -181,3 +219,19 @@ export const ADITIVO_CODES: Record<string, string> = { ADITIVO_ACIMA_DO_LIMITE: 
 
 export const REAJUSTE_ORDER = ["processo_sei", "requested_on"];
 export const REAJUSTE_CODES: Record<string, string> = { PROCESSO_SEI_INVALIDO: "processo_sei" };
+
+// What the "i" beside each dialog field says (AC-0013-19).
+export const DIALOG_HELP = {
+  valor_acrescimo:
+    "Quanto o aditivo soma ao valor. Todos os aditivos de valor juntos não passam de 25% do valor original.",
+  nova_vigencia_fim: "Novo último dia da ATA; precisa ser depois do fim atual.",
+  justification: "Por que o aditivo foi feito. Fica no histórico da ATA.",
+  processo_sei:
+    "Número do processo de reajuste no SEI, no formato NNNNN.NNNNNN/AAAA-DD, ex. 00412.005120/2026-07.",
+  requested_on: "Data em que o pedido de reajuste foi aberto no SEI.",
+} as const;
+
+// ── Registration review ─────────────────────────────────────────────────────
+
+/** Shown for an optional field left empty on the review (AC-0013-07). */
+export const REVIEW_EMPTY = "Não informado";

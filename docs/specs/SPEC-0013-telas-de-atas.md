@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Approved
-version: 1.6
+version: 1.7
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -115,7 +115,7 @@ And   each row opens that ATA
 When  there are more than 25
 Then  the list shows 25 and a control to move between pages, with the total
 ```
-Status words: Rascunho, Vigente, Suspensa, Encerrada, Cancelada. Situação words:
+Status words: Vigente, Suspensa, Encerrada, Cancelada. Situação words:
 vigente, a vencer, vencida. Both come from the API (`status`,
 `situacao_vigencia`, AC-0002-15); the screen never derives them, only chooses
 which to show:
@@ -127,7 +127,7 @@ which to show:
 | vigente | vencida | Vigente · vencida | red dot |
 | suspensa | vigente | Suspensa | amber dot |
 | suspensa | a_vencer, vencida | Suspensa · a vencer, Suspensa · vencida | amber, red dot |
-| rascunho, encerrada, cancelada | any | Rascunho, Encerrada, Cancelada | muted text |
+| encerrada, cancelada | any | Encerrada, Cancelada | muted text |
 
 The situação of an ATA not running says nothing a person acts on, so it is not
 shown; the Situação filter still applies to every ATA.
@@ -175,17 +175,30 @@ Then  /atas/nova opens with the page header "Nova ATA" and the fields in four se
       Identificação (Número, Objeto, Órgão), Fornecedor (CNPJ do fornecedor, Razão social),
       Vigência (Início da vigência, Fim da vigência, Data de emissão (opcional)) and
       Valores (Valor total, Data do orçamento planilhado)
-And   "Cadastrar" and "Voltar" stay in view at the foot of the page
-When  it is submitted with valid values
+And   "Revisar cadastro" and "Voltar" stay in view at the foot of the page
+When  "Revisar cadastro" is chosen with every required field filled
+Then  the page shows "Confira os dados antes de cadastrar" with every value as it will be
+      sent, in the same four sections, and "Voltar e corrigir" and "Confirmar cadastro"
+And   nothing has been sent
+When  "Voltar e corrigir" is chosen
+Then  the form returns with every value kept
+When  "Confirmar cadastro" is chosen
 Then  POST /api/v1/atas is called once
-And   the new ATA's page opens, saying "ATA cadastrada como rascunho."
-When  "Voltar" is chosen
+And   the new ATA's page opens, vigente, with no banner
+When  the API refuses it
+Then  the form returns with the refusal on its field (AC-0013-08)
+When  "Voltar" is chosen on the form
 Then  /atas returns and nothing is sent
 Given a servidor or an auditor on /atas
 Then  "Cadastrar ATA" is not offered
 And   /atas/nova, opened by its address, says "Seu perfil não permite esta ação." with a link back
 ```
 Hiding the control is cosmetic; the API refuses the write (AC-0002-05).
+
+*(v1.7)* Nothing is saved until the gestor confirms. Before v1.7 "Cadastrar"
+saved a `rascunho` that then needed "Ativar", so an ATA nobody had confirmed sat
+in the list; the review replaces both, by the product owner's decision
+(SPEC-0002 v1.2).
 
 *(v1.2)* Ten fields with validation are a document, not a quick task, and a
 dialog that scrolls hid half of them; the sections follow the ATA page's own
@@ -215,8 +228,9 @@ When  "10,005" is typed
 Then  the API receives "10.005" and refuses it, and nothing is rounded (AC-0002-04)
 ```
 The value goes from text to text and never through a floating-point number. The
-CNPJ is shown as 00.000.000/0000-00 while it is typed and sent as typed; the API
-keeps its 14 digits.
+CNPJ is shown as 00.000.000/0000-00 while it is typed, letters uppercased, and
+sent as typed; the API keeps its 14 characters (SPEC-0002 AC-0002-25, which
+accepts the alphanumeric CNPJ).
 
 ### 4.4 The ATA page
 
@@ -251,14 +265,14 @@ Then  it reads "Nenhum aditivo registrado." or "Nenhum pedido de reajuste regist
 **AC-0013-12** — The lifecycle moves offered follow the status
 ```gherkin
 Given a gestor on an ATA's page
-Then  a "Rascunho" ATA offers "Ativar" and "Cancelar"
-And   a "Vigente" ATA offers "Suspender", "Encerrar" and "Cancelar"
+Then  a "Vigente" ATA offers "Suspender", "Encerrar" and "Cancelar"
 And   a "Suspensa" ATA offers "Retomar", "Encerrar" and "Cancelar"
 And   an "Encerrada" or "Cancelada" ATA offers no move
 When  a move is chosen
 Then  a confirmation names the ATA and what the move does
 When  it is confirmed
-Then  the page shows the status the API returned, and the change is announced
+Then  the page shows the status the API returned, with no banner
+And   the change is announced to assistive technology only
 When  the API refuses it
 Then  the confirmation shows the API's message and the page reloads the ATA
 ```
@@ -275,20 +289,18 @@ When  it is confirmed with a justification
 Then  POST /api/v1/atas/{id}/cancelar carries it
 ```
 
-**AC-0013-14** — A gestor edits what may still change, on its own page
+**AC-0013-14** — A gestor corrects an ATA on its own page
 ```gherkin
-Given a gestor on a "Rascunho" ATA
+Given a gestor on a "Vigente" or "Suspensa" ATA
 When  "Editar" is chosen
 Then  /atas/{id}/editar opens with the page header "Editar ATA {número}" and the
       sections of AC-0013-07, filled and editable
-Given a gestor on an ATA past "Rascunho"
-When  "Editar" is chosen
-Then  only Objeto and Órgão are editable
-And   the others are shown read-only with "Depois de ativada, valores e prazos só mudam por aditivo."
 When  the edit is saved
 Then  PATCH /api/v1/atas/{id} carries only the fields that changed
-And   the ATA's page opens, saying "ATA atualizada."
+And   the ATA's page opens with the new values, with no banner
 And   a refusal lands on its field as in AC-0013-08
+Given an "Encerrada" or "Cancelada" ATA
+Then  "Editar" is not offered
 When  "Voltar" is chosen
 Then  the ATA's page returns and nothing is sent
 ```
@@ -300,7 +312,7 @@ When  "Registrar aditivo" is chosen
 Then  a dialog asks for Tipo ("Valor" or "Prazo") and a Justificativa
 And   "Valor" asks for the Acréscimo, and "Prazo" for the Novo fim da vigência
 When  it is submitted
-Then  the aditivo appears in "Aditivos" and the page shows the ATA the API returned
+Then  the aditivo appears in "Aditivos" and the page shows the ATA the API returned, with no banner
 When  the API answers 422 "ADITIVO_ACIMA_DO_LIMITE"
 Then  Acréscimo shows "O aditivo passa de 25% do valor original da ATA. Reduza o valor."
 Given an ATA that is not "Vigente"
@@ -315,7 +327,7 @@ When  "Registrar pedido de reajuste" is chosen
 Then  a dialog asks for the Processo SEI and the Data do pedido
 And   the Processo SEI field shows the format NNNNN.NNNNNN/AAAA-DD
 When  it is submitted
-Then  the request appears in "Pedidos de reajuste"
+Then  the request appears in "Pedidos de reajuste", with no banner
 When  the API answers 422 "PROCESSO_SEI_INVALIDO"
 Then  Processo SEI shows "Número de processo SEI inválido. Use o formato NNNNN.NNNNNN/AAAA-DD."
 Given an ATA that is not "Vigente"
@@ -329,7 +341,43 @@ Then  the ATA, its aditivos and its reajuste requests are shown
 And   no edit, move, aditivo or reajuste control is offered
 ```
 
-### 4.6 Layout
+### 4.6 Field help
+
+**AC-0013-19** — Every field says what it is
+```gherkin
+Given the registration or the edit page, or the aditivo or reajuste dialog
+Then  each field below has an "i" button beside its label, named "Sobre {label}"
+When  it is chosen by pointer, Enter or Space
+Then  the field's explanation opens beside it
+When  Escape is pressed, or anything outside it is chosen
+Then  it closes and focus returns to the button
+```
+
+| Field | Explanation |
+| --- | --- |
+| Número | Número da ATA como consta no documento, ex. 012/2026. Não pode repetir outra ATA cadastrada. |
+| Órgão | Órgão que gerencia a ATA. |
+| Objeto | O que a ATA registra, como escrito no documento. |
+| CNPJ do fornecedor | 14 caracteres, com ou sem pontuação; desde 2026 pode ter letras nos 12 primeiros. Os dois últimos são dígitos verificadores: um número digitado errado é recusado. |
+| Razão social | Nome jurídico do fornecedor. Se o CNPJ já estiver cadastrado, o nome existente é mantido. |
+| Início da vigência | Primeiro dia em que a ATA pode ser usada. |
+| Fim da vigência | Último dia em que a ATA pode ser usada; precisa ser depois do início. Para prorrogar uma ATA vigente, registre um aditivo de prazo. |
+| Data de emissão (opcional) | Data de assinatura da ATA, se constar no documento. |
+| Valor total (R$) | Valor registrado na ATA. Para aumentar o valor contratado, registre um aditivo de valor, até 25% do original. |
+| Data do orçamento planilhado | Data da planilha de preços que originou a ATA. O reajuste vence um ano depois dela. |
+| Acréscimo (R$) | Quanto o aditivo soma ao valor. Todos os aditivos de valor juntos não passam de 25% do valor original. |
+| Novo fim da vigência | Novo último dia da ATA; precisa ser depois do fim atual. |
+| Justificativa | Por que o aditivo foi feito. Fica no histórico da ATA. |
+| Processo SEI | Número do processo de reajuste no SEI, no formato NNNNN.NNNNNN/AAAA-DD, ex. 00412.005120/2026-07. |
+| Data do pedido | Data em que o pedido de reajuste foi aberto no SEI. |
+
+*(v1.7)* By the product owner's request: an explanation that is objective, not
+vague, on the field itself. An "i", not a "!", because "!" reads as a warning;
+opened by choice, not by hover, because hover does not exist on a phone or a
+keyboard. Every rule an explanation states is the API's (SPEC-0002), so the text
+describes what the system enforces and enforces nothing itself.
+
+### 4.7 Layout
 
 **AC-0013-18** — Every page holds at every width
 ```gherkin
@@ -421,3 +469,4 @@ choose a member from this screen (§2).
 | 1.4 | 2026-10-13 | AC-0013-02: due rows are coloured by urgency (red once past, amber within 30 days, none beyond) and the block states how many are late and how many close, by the product owner's request. 30 days assumed (OQ-47). |
 | 1.5 | 2026-10-13 | §10 names the files `lib/atas.ts` and `lib/modules.ts` became under `docs/process/coding-standards.md`. No criterion or behaviour changed. |
 | 1.6 | 2026-10-13 | OQ-47 decided by the product owner: 30 days, as built. No criterion or behaviour changed. |
+| 1.7 | 2026-10-19 | By the product owner's test of the screens: registration ends in a review, "Confira os dados antes de cadastrar", and saves only on "Confirmar cadastro", vigente, with no `rascunho` and no "Ativar" (AC-0013-07, -12); "Editar" corrects every field of a vigente or suspensa ATA (AC-0013-14); no success banner after any write (AC-0013-07, -12, -14, -15, -16); every field explains itself behind an "i" (AC-0013-19, new); the CNPJ field takes letters (AC-0013-09). Follows SPEC-0002 v1.2 |

@@ -3,6 +3,9 @@ import { expect, test } from "@playwright/test";
 import { invite, LONG_ENOUGH, pathOf } from "./helpers";
 
 async function fillPasswords(page: import("@playwright/test").Page, first: string, second = first) {
+  // The button is enabled once React has hydrated; a value typed before that is
+  // reset when it does, and the two fields then disagree (seen on WebKit).
+  await expect(page.getByRole("button", { name: "Ativar conta" })).toBeEnabled();
   await page.getByLabel("Nova senha").fill(first);
   await page.getByLabel("Confirme a senha").fill(second);
   await page.getByRole("button", { name: "Ativar conta" }).click();

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Notice } from "@/components/auth/auth-layout";
 import { AtaStatus } from "@/components/atas/status";
 import { MoveActions } from "@/components/atas/move-actions";
 import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs";
@@ -25,10 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cached } from "@/lib/api-cache";
-import { MOVE } from "@/lib/atas/constants";
+import { MOVE, NOT_EDITABLE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
-import { takeFlash } from "@/lib/flash";
 import { formatBRL, formatCnpj, formatDate, formatDay } from "@/lib/format";
 import { apiJson } from "@/lib/session";
 
@@ -68,20 +66,13 @@ export function AtaView() {
   // An ATA seen before, or warmed from its link, draws at once and refreshes.
   const [ata, setAta] = useState<AtaDetail | null>(() => cached<AtaDetail>(`/api/v1/atas/${id}`) ?? null);
   const [failure, setFailure] = useState<ApiError | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Read by assistive technology only: the page itself shows the result (AC-0013-12).
+  const [announcement, setAnnouncement] = useState("");
   const [version, setVersion] = useState(0);
   // Hiding the writes is cosmetic; the API refuses them (AC-0013-17, invariant 8).
   const writes = me.perfil === "gestor";
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-
-  useEffect(() => {
-    // "ATA cadastrada como rascunho." arrives from the registration (AC-0013-07).
-    // sessionStorage exists only in the browser, so it is read after mount.
-    const flash = takeFlash();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (flash) setNotice(flash);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +93,7 @@ export function AtaView() {
 
   function changed(next: AtaDetail, message: string) {
     setAta(next);
-    setNotice(message);
+    setAnnouncement(message);
   }
 
   // A malformed id never reaches a row either; to the person it is the same ATA that is not there.
@@ -149,17 +140,21 @@ export function AtaView() {
         action={
           writes ? (
             <div data-testid="ata-actions" className="flex flex-wrap gap-2">
-              <Link href={`/atas/${ata.id}/editar`} className={buttonVariants({ variant: "outline" })}>
-                <Pencil aria-hidden />
-                Editar
-              </Link>
+              {!NOT_EDITABLE.includes(ata.status) && (
+                <Link href={`/atas/${ata.id}/editar`} className={buttonVariants({ variant: "outline" })}>
+                  <Pencil aria-hidden />
+                  Editar
+                </Link>
+              )}
               <MoveActions ata={ata} onMoved={(next, move) => changed(next, MOVE[move].done)} onStale={reload} />
             </div>
           ) : undefined
         }
       />
 
-      {notice && <Notice>{notice}</Notice>}
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
 
       <Card>
         <CardHeader className="pb-3">

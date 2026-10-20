@@ -20,8 +20,38 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides what the rest has to test. A job with nothing to test is skipped,
+  # and GitHub counts a skipped job as passed, so a required check never hangs
+  # on a PR that only changes documentation.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="$PUSH_BEFORE"
+          [ "$EVENT" = "pull_request" ] && base="$PR_BASE"
+          # No usable base (a new branch, a force push): test everything.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            files="$(printf 'frontend/\nbackend/\n')"
+          else
+            files="$(git diff --name-only "$base" HEAD)"
+          fi
+          if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$|\.github/workflows/backend-ci\.yml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
+
   backend:
     name: Backend lint and tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

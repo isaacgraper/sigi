@@ -1,20 +1,24 @@
+import { InfoTip } from "@/components/ui/info-tip";
 import { Label } from "@/components/ui/label";
 
 /**
  * A labelled control with the API's refusal below it (DESIGN.md §4): the
  * message is linked with `aria-describedby` and the control marked invalid.
+ * `help` puts the field's explanation behind an "i" beside the label (AC-0013-19).
  */
 export function Field({
   id,
   label,
   error,
   hint,
+  help,
   children,
 }: {
   id: string;
   label: string;
   error?: string;
   hint?: string;
+  help?: string;
   children: (props: {
     id: string;
     "aria-invalid"?: true;
@@ -24,7 +28,10 @@ export function Field({
   const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ");
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+        <Label htmlFor={id}>{label}</Label>
+        {help && <InfoTip label={label}>{help}</InfoTip>}
+      </div>
       {children({
         id,
         "aria-invalid": error ? true : undefined,

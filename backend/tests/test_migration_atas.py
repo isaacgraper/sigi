@@ -1,4 +1,4 @@
-"""Migration `0003_atas` — what the schema guarantees for SPEC-0002.
+"""Migrations `0003_atas` and `0004_ata_sem_rascunho`: what the schema guarantees.
 
 These prove the schema rather than an AC: the database refuses what the service
 also refuses, so a second writer cannot bypass the service, and the application
@@ -41,7 +41,7 @@ def _ata(connection: psycopg.Connection, **override: object) -> uuid.UUID:
         "vigencia_inicio": "2026-01-01",
         "vigencia_fim": "2026-12-31",
         "valor_total": "100.00",
-        "status": "rascunho",
+        "status": "vigente",
     }
     values.update(override)
     ata_id = uuid.uuid4()
@@ -94,10 +94,11 @@ def test_a_valor_that_is_not_positive_is_refused(
         _ata(admin_connection, valor_total=value)
 
 
-def test_an_unknown_status_is_refused(admin_connection: psycopg.Connection) -> None:
-    """AC-0002-22 — `ck_ata_status`."""
+@pytest.mark.parametrize("status", ["aprovada", "rascunho"])
+def test_an_unknown_status_is_refused(admin_connection: psycopg.Connection, status: str) -> None:
+    """AC-0002-22 — `ck_ata_status`; `rascunho` is gone since 0004 (SPEC-0002 v1.2)."""
     with pytest.raises(psycopg.errors.CheckViolation):
-        _ata(admin_connection, status="aprovada")
+        _ata(admin_connection, status=status)
 
 
 def test_a_numero_cannot_repeat(admin_connection: psycopg.Connection) -> None:
@@ -131,12 +132,21 @@ def test_an_aditivo_carries_the_figure_of_its_kind_and_not_the_other(
         )
 
 
-@pytest.mark.parametrize("cnpj", ["123", "1122233300018A", "11.222.333/0001-81"])
-def test_a_cnpj_is_stored_as_fourteen_digits(
+@pytest.mark.parametrize("cnpj", ["123", "1122233300018A", "11.222.333/0001-81", "12abc34501de35"])
+def test_a_cnpj_is_stored_as_fourteen_normalised_characters(
     admin_connection: psycopg.Connection, cnpj: str
 ) -> None:
-    """AC-0002-25 — `ck_fornecedor_cnpj` and the column width: punctuation is never stored."""
+    """AC-0002-25 — `ck_fornecedor_cnpj` and the column width: no punctuation, no lowercase."""
     with pytest.raises((psycopg.errors.CheckViolation, psycopg.errors.StringDataRightTruncation)):
         admin_connection.execute(
             "INSERT INTO fornecedor (cnpj, razao_social) VALUES (%s, 'Empresa')", (cnpj,)
         )
+
+
+def test_an_alphanumeric_cnpj_is_stored(admin_connection: psycopg.Connection) -> None:
+    """AC-0002-25 — `ck_fornecedor_cnpj` admits the letters of IN RFB nº 2.229/2024."""
+    # The column checks the shape, not the check digits: those are the service's.
+    cnpj = uuid.uuid4().hex[:12].upper() + "00"
+    admin_connection.execute(
+        "INSERT INTO fornecedor (cnpj, razao_social) VALUES (%s, 'Empresa')", (cnpj,)
+    )

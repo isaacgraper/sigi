@@ -174,7 +174,8 @@ tokens above. Prefer extending one of these to adding a new one.
 | **Menu** | Opens from its trigger and is not modal: the page behind stays readable by assistive technology, and Escape, Tab or a click outside closes it. Row actions and the user menu use it. |
 | **Dialog** | Centred, `max-w-xl` for forms, `max-w-md` for confirmations. Destructive confirmations use `AlertDialog` and name the consequence ("não pode ser desfeita"). |
 | **Error notice** | Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
-| **Notice** | Success or information after an action, in a tinted box with `role="status"`. |
+| **Notice** | Information a person needs before acting, in a tinted box with `role="status"`. Never success: a write's result is the confirmation (the new status, the new row, the page that opens), so no banner repeats it; assistive technology still hears it through a visually hidden `role="status"`. |
+| **Field help** | An "i" beside a label (`components/ui/info-tip.tsx`) that opens the field's explanation below the label by click, Enter or Space, and closes on Escape or a click elsewhere. Never "!", which reads as a warning, and never on hover alone, which a phone and a keyboard cannot reach. The text states what the API enforces, objectively. |
 | **Toast** | Sonner, top right, for confirmations that need no reading ("Convite criado"). Never for errors a person must act on: those stay on the page. |
 | **Icons** | `lucide-react`, 16 px in controls, 20 px in tiles and the sidebar, `aria-hidden` next to a label. |
 

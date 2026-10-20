@@ -43,11 +43,15 @@ describe("AC-0013-09 the CNPJ", () => {
     expect(formatCnpj("11222")).toBe("11.222");
     expect(formatCnpj("112223330001811234")).toBe("11.222.333/0001-81");
   });
+
+  it("keeps the letters of the alphanumeric CNPJ, uppercased (AC-0002-25)", () => {
+    expect(formatCnpj("12abc34501de35")).toBe("12.ABC.345/01DE-35");
+    expect(formatCnpj("12.ABC.345/01DE-35")).toBe("12.ABC.345/01DE-35");
+  });
 });
 
 describe("AC-0013-12 the moves offered per status", () => {
   it("mirrors AC-0002-22", () => {
-    expect(MOVES.rascunho).toEqual(["ativar", "cancelar"]);
     expect(MOVES.vigente).toEqual(["suspender", "encerrar", "cancelar"]);
     expect(MOVES.suspensa).toEqual(["retomar", "encerrar", "cancelar"]);
     expect(MOVES.encerrada).toEqual([]);
@@ -99,7 +103,7 @@ describe("AC-0013-03 the status line", () => {
   });
 
   it("lets an ATA that is not running recede", () => {
-    for (const status of ["rascunho", "encerrada", "cancelada"] as const) {
+    for (const status of ["encerrada", "cancelada"] as const) {
       expect(line(status, "a_vencer")).toMatchObject({ situacao: null, tone: "muted" });
     }
   });

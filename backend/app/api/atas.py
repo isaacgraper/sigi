@@ -132,7 +132,7 @@ def list_atas(
     size: Annotated[int, Query(ge=1, le=100)] = 25,
     status_filter: Annotated[
         str | None,
-        Query(alias="status", pattern="^(rascunho|vigente|suspensa|encerrada|cancelada)$"),
+        Query(alias="status", pattern="^(vigente|suspensa|encerrada|cancelada)$"),
     ] = None,
     situacao_vigencia: Annotated[str | None, Query(pattern="^(vigente|a_vencer|vencida)$")] = None,
 ) -> AtaPage:
@@ -171,7 +171,7 @@ def get_ata(ata_id: uuid.UUID, actor: Reader, session: DbSession) -> AtaDetailOu
 def edit_ata(
     ata_id: uuid.UUID, body: AtaPatch, actor: Gestor, request: Request, session: DbSession
 ) -> AtaDetailOut:
-    """Edit an ATA; past `rascunho` only objeto, orgao and responsavel (AC-0002-24)."""
+    """Correct an ATA that is not encerrada or cancelada (SPEC-0002 AC-0002-24)."""
     at = clock.now()
     sent = body.model_dump(exclude_unset=True)
     # An explicit null is a way to clear `issued_on` and a mistake anywhere else.
@@ -210,14 +210,6 @@ def _move(
         correlation_id=_correlation(request),
     )
     return _detail_out(atas.get(session, ata_id, at=at))
-
-
-@router.post("/{ata_id}/ativar", response_model=AtaDetailOut)
-def activate(
-    ata_id: uuid.UUID, actor: Gestor, request: Request, session: DbSession
-) -> AtaDetailOut:
-    """Move an ATA from rascunho to vigente (SPEC-0002 AC-0002-22)."""
-    return _move(ata_id, "ativar", actor, request, session)
 
 
 @router.post("/{ata_id}/suspender", response_model=AtaDetailOut)

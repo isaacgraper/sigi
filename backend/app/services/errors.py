@@ -414,14 +414,14 @@ class TransicaoInvalida(DomainError):
 
 
 class AtaNaoEditavel(DomainError):
-    """A locked field of an ATA that is past `rascunho` (AC-0002-24)."""
+    """An edit of an ATA that is `encerrada` or `cancelada` (AC-0002-24)."""
 
     code = "ATA_NAO_EDITAVEL"
     http = 409
 
     def __init__(self) -> None:
-        """Build the error, pointing at the aditivo that is the way to change them."""
-        super().__init__("Depois de ativada, valores e prazos só mudam por aditivo.")
+        """Build the error."""
+        super().__init__("Uma ATA encerrada ou cancelada não pode ser editada.")
 
 
 class AtaNaoVigente(DomainError):
@@ -431,8 +431,8 @@ class AtaNaoVigente(DomainError):
     http = 409
 
     def __init__(self) -> None:
-        """Build the error, saying what to do first."""
-        super().__init__("A ATA precisa estar vigente. Ative ou retome a ATA antes.")
+        """Build the error."""
+        super().__init__("A ATA precisa estar vigente.")
 
 
 class AditivoAcimaDoLimite(DomainError):
