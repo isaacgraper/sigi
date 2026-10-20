@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cached } from "@/lib/api-cache";
+import { cached, remember } from "@/lib/api-cache";
 import { MOVE, NOT_EDITABLE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
@@ -92,7 +92,7 @@ export function AtaView() {
   }, [id, version, handleSessionError]);
 
   function changed(next: AtaDetail, message: string) {
-    setAta(next);
+    setAta(remember(`/api/v1/atas/${next.id}`, next));
     setAnnouncement(message);
   }
 

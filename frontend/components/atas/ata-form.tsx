@@ -9,6 +9,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { remember } from "@/lib/api-cache";
 import {
   FORM_CODE_FIELD,
   FORM_EMPTY,
@@ -120,6 +121,8 @@ export function AtaForm({ ata, onStale }: { ata?: AtaDetail; onStale?: () => voi
         body: JSON.stringify(payload(values, keys)),
       });
       // The page that opens is the result; no banner repeats it (AC-0013-07, -14).
+      // It draws from the write's own reply rather than asking again.
+      remember(`/api/v1/atas/${saved.id}`, saved);
       router.push(`/atas/${saved.id}`);
     } catch (err) {
       if (handleSessionError(err)) return;
