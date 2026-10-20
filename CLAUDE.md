@@ -253,7 +253,9 @@ Full version: `CONTRIBUTING.md`.
 - Domain rules raise typed domain exceptions (`SaldoInsuficienteError`,
   `TransicaoInvalidaError`); the API layer maps them to HTTP responses. Do not
   raise `HTTPException` from a service.
-- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`.
+- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`, except
+  `ITEM_ATA.valor_unitario`, `NUMERIC(15,5)`, rounded half up to the centavo once
+  it becomes an amount (ADR-0016).
 - All primary keys are UUIDv4. Never expose sequential IDs.
 - Timestamps are `TIMESTAMPTZ`, stored UTC, presented in `America/Sao_Paulo`.
 - Every write endpoint records a `HISTORICO_MOVIMENTACAO` row in the same

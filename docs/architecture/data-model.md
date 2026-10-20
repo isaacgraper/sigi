@@ -293,10 +293,14 @@ item, so a per-item date may be needed later (OQ-42).
 
 ### INSUMO
 `id UUID PK`, `sku VARCHAR NOT NULL UNIQUE`, `codigo_doms VARCHAR NULL UNIQUE`,
-`descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NULL`,
+`descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NOT NULL`,
 `codigo_externo VARCHAR NULL`, `quantidade_referencia NUMERIC NULL`,
-`ativo BOOL`, `substituido_por_id FK → INSUMO NULL`,
-`descontinuado_em DATE NULL`.
+`substituido_por_id FK → INSUMO NULL`, `descontinuado_em DATE NULL`.
+
+***(2026-10-20)* No `ativo` column, and `grupo_id` is required** (SPEC-0003 v0.4).
+The situação, `ativo`, `descontinuado` or `substituido`, is derived from
+`descontinuado_em` and `substituido_por_id`; a flag beside them said the same thing
+twice. An insumo with no grupo would be invisible to every scoped servidor (RN07).
 
 **No `ata_id`.** RF03's "ATA vinculada" is realised through `ITEM_ATA` (SPEC-0003 §2).
 
@@ -329,13 +333,19 @@ Self-referencing, three levels: `Grupo mercadoria` → `SubGrupo Mercadoria` →
 
 ### ITEM_ATA
 `id UUID PK`, `ata_id FK`, `insumo_id FK`, `fornecedor_id FK → FORNECEDOR NULL`,
-`quantidade NUMERIC`, `valor_unitario NUMERIC(15,4)`, `UNIQUE(ata_id, insumo_id)`.
+`numero_item VARCHAR NULL`, `quantidade NUMERIC(15,3)`, `valor_unitario NUMERIC(15,5)`,
+`removido_em TIMESTAMPTZ NULL`, `UNIQUE(ata_id, insumo_id)` among the items not removed.
 
 ***(2026-10-06)* `fornecedor_id` overrides the ATA's** for the 29 of 456 ATAs
 with more than one fornecedor (OQ-11). `NULL` means the ATA's own fornecedor.
 
-Unit price uses four decimals: unit prices for consumables are frequently
-sub-centavo, and rounding at storage time compounds across thousands of units.
+Unit price uses five decimals *(2026-10-20, ADR-0016; was four, which still lost
+the measured `0,00599`)*: unit prices for consumables are frequently sub-centavo,
+and rounding at storage time compounds across thousands of units. The item's value
+is derived, rounded half up to the centavo once. `quantidade` is what was
+contracted; aditivos de quantidade sit in `ATA_ADITIVO` with `item_ata_id`, and
+`quantidade_contratada` is their sum with it (SPEC-0003 AC-0003-27). `Nº ITEM` is
+`numero_item`.
 
 ### NOTA_EMPENHO
 `id UUID PK`, `numero UNIQUE`, `processo_sei VARCHAR`, `data_emissao DATE`,
