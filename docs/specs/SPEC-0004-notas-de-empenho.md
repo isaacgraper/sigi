@@ -2,7 +2,7 @@
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
 status: Draft
-version: 0.4
+version: 0.5
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN11]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0006, SPEC-0007]
@@ -266,13 +266,38 @@ And   the release is recorded in the audit trail
 
 ### 4.3 ATA eligibility
 
-**AC-0004-17** — Expired or closed ATA (RN11)
+**AC-0004-17** — Expired, suspended or closed ATA (RN11)
 ```gherkin
-Given an ATA whose vigencia_fim is in the past, or whose status is "encerrada" or "cancelada"
+Given an ATA whose vigencia_fim is in the past, or whose status is "suspensa", "encerrada" or "cancelada"
 When  an NE is opened against it
 Then  the response is 409 with error code "ATA_NAO_ELEGIVEL"
-And   the message names the reason (vencida / encerrada / cancelada)
+And   the message names the reason (vencida / suspensa / encerrada / cancelada)
+And   the ATA's audit rows are still readable
 ```
+*(v0.5)* `suspensa` and the readable audit rows come from SPEC-0002 AC-0002-12,
+deferred here because it needs NEs: an ATA suspended and still accepting
+commitments would defeat suspending it (OQ-45).
+
+**AC-0004-25** — An ATA with NEs in progress is not closed (RN13)
+```gherkin
+Given an ATA with an NE in a non-terminal state
+When  a gestor closes it
+Then  the response is 409 with error code "ATA_COM_NE_PENDENTE"
+And   the message names the blocking NEs
+And   the ATA stays as it was
+```
+Terminal means `ne_emitida` or `cancelada` (AC-0004-11). Carried from SPEC-0002
+AC-0002-11, deferred here because it needs NEs.
+
+**AC-0004-26** — An NE emitida locks the ATA's figures
+```gherkin
+Given an ATA with at least one NE at "ne_emitida"
+When  a gestor edits numero, fornecedor, vigencia_inicio, vigencia_fim, valor_total or data_orcamento_planilhado
+Then  the response is 409 with error code "ATA_NAO_EDITAVEL"
+And   nothing is changed
+```
+From then on the figures change only through an aditivo (SPEC-0002 AC-0002-13),
+because an NE was committed against them. Carried from SPEC-0002 AC-0002-26.
 
 ### 4.4 Indicators
 
@@ -474,3 +499,4 @@ partially advanced NE.
 | 0.2 | 2026-09-02 | OQ-05 resolved from data: NEs are multi-item (27,8%, up to 37 insumos). ADR-0007. Impact on AC-0004-01/02/12-16 described; state machine unaffected; OQ-27 opened |
 | 0.3 | 2026-09-02 | ACs rewritten for multi-item NEs (ADR-0007): 01, 02, 12, 13, 14, 16 revised; 19–24 added, covering empty NEs, duplicate and foreign items, frozen itens (OQ-27), price snapshot and quantity exhaustion (OQ-20). OQ-05/OQ-06 resolved; OQ-07/OQ-27 marked Assumed |
 | 0.4 | 2026-10-06 | OQ-03 resolved by the stakeholder's example: reserved from `pre_empenho`, committed at `ne_emitida`, saldo unchanged by emission (ADR-0015). AC-0004-15 points at the display (`700 (300)`, then `700`) and at delivery. OQ-07 and OQ-27 confirmed |
+| 0.5 | 2026-10-20 | Carries the three SPEC-0002 criteria that need NEs: a suspended ATA takes no NE (AC-0004-17, from AC-0002-12), an ATA with NEs in progress is not closed (AC-0004-25, from AC-0002-11), an NE emitida locks the ATA's figures (AC-0004-26, from AC-0002-26). |

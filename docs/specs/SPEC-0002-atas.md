@@ -1,8 +1,8 @@
 ---
 id: SPEC-0002
 title: ATAs de Registro de Preços
-status: Approved
-version: 1.2
+status: Implemented
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19, RN04, RN11, RN13, RN15]
 depends_on: [SPEC-0001]
@@ -493,3 +493,4 @@ override (SPEC-0003), the NE guards (SPEC-0004), `ATA_COM_NE_PENDENTE`.
 | 1.0 | 2026-10-06 | Approved. AC-0002-25: a fornecedor is found by its CNPJ or created, with the check digits validated, because the ATA is the only place one first appears. Implementation plan added |
 | 1.1 | 2026-10-06 | Backend implemented. AC-0002-09 states that a vigente ATA already past its end stays in the renewal alert, with negative days remaining. No other criterion changed |
 | 1.2 | 2026-10-19 | By the product owner's review of the screens: no `rascunho`, an ATA is registered vigente after the gestor reviews it (AC-0002-01, -22); every field of a vigente or suspensa ATA can be corrected, with the prior values audited, and an encerrada or cancelada one cannot (AC-0002-24); the figures lock once an NE exists (AC-0002-26, deferred to SPEC-0004); the alphanumeric CNPJ of IN RFB nº 2.229/2024 is accepted (AC-0002-25). Migration `0004_ata_sem_rascunho` |
+| 1.3 | 2026-10-20 | Implemented, accepted by the product owner after testing the screens of SPEC-0013 v1.7. Every live criterion has a test in `backend/tests/test_atas.py` or `test_migration_atas.py`; AC-0002-06 and -07 are withdrawn; AC-0002-11, -12 and -26 are carried by SPEC-0004 (AC-0004-17, -25, -26). No criterion changed. |

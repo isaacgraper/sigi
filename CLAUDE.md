@@ -36,9 +36,10 @@ development-only seed, a permission matrix checked when the app is assembled,
 and per-source rate limiting with a trusted-proxy list. The audit trail is
 written in the caller's transaction and is append-only at the database level.
 
-**SPEC-0002's backend is implemented**: ATAs, fornecedores, the lifecycle,
-aditivos, reajuste requests and the renewal and reajuste alerts under
-`/api/v1/atas`. 320 backend tests run against a real PostgreSQL 16.
+**SPEC-0002 is implemented**: ATAs, fornecedores, the lifecycle without a
+draft, corrections, aditivos, reajuste requests and the renewal and reajuste
+alerts under `/api/v1/atas`, with the alphanumeric CNPJ. 332 backend tests run
+against a real PostgreSQL 16.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
 callback, invitation, password reset and member management inside the navy
@@ -46,7 +47,7 @@ shell, proven by Playwright against the real API in Chromium, Firefox
 and WebKit. The dashboard is the stakeholders' CAME report (SPEC-0012, `Approved`): four
 tabs fed by `GET /api/v1/painel/{section}`, a skeleton while it waits, and
 "Sem dados" for every block until its source exists. The ATA screens
-(SPEC-0013, `Approved`) list, register and run ATAs on SPEC-0002's endpoints;
+(SPEC-0013, `Implemented`) list, register after a review and run ATAs on SPEC-0002's endpoints;
 every screen and perfil is mapped in `docs/product/user-map.md`.
 
 **Two database roles are not optional.** The application connects as a
@@ -64,10 +65,10 @@ drops the draft status and admits the alphanumeric CNPJ. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` (v1.9), `SPEC-0010` (v1.7) and `SPEC-0011` (v1.3) are
-`Implemented`. `SPEC-0002` (v1.2) is `Approved` with its backend built.
-SPEC-0003 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be
-implemented**.
+**Specs:** `SPEC-0001` (v1.9), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
+`SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
+is `Approved` and built, waiting for its data sources. SPEC-0003 to SPEC-0009
+are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 

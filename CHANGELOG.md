@@ -32,6 +32,9 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- SPEC-0002 v1.3 and SPEC-0013 v1.8 are `Implemented`, accepted by the product owner. The three
+  SPEC-0002 criteria that need NEs move to SPEC-0004 v0.5 (AC-0004-17, -25, -26).
+
 - Registering an ATA ends in a review, "Confira os dados antes de cadastrar", and saves only on
   "Confirmar cadastro". The ATA is vigente from that moment: there is no rascunho and no
   "Ativar" (SPEC-0002 v1.2, SPEC-0013 v1.7). Migration `0004_ata_sem_rascunho` moves any
