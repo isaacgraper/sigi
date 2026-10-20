@@ -125,7 +125,7 @@ def register(
     _require_interval(vigencia_inicio, vigencia_fim)
     if repo.by_number(session, number) is not None:
         raise AtaDuplicada()
-    supplier = _find_or_create_fornecedor(session, fornecedor)
+    supplier = find_or_create_fornecedor(session, fornecedor)
 
     ata = Ata(
         number=number,
@@ -149,7 +149,7 @@ def register(
             repo.add(session, ata)
     except IntegrityError as exc:
         raise AtaDuplicada() from exc
-    _audit(session, ata, "ata.criada", actor, correlation_id, at, previous=None)
+    audit_ata(session, ata, "ata.criada", actor, correlation_id, at, previous=None)
     return ata
 
 
@@ -168,12 +168,12 @@ def edit(
     both leave the prior values in the audit row. An `encerrada` or `cancelada`
     ATA is history and is refused before anything is looked up.
     """
-    ata = _lock(session, ata_id)
+    ata = lock_ata(session, ata_id)
     if ata.status in NOT_EDITABLE_STATUS:
         raise AtaNaoEditavel()
     supplier: Fornecedor | None = None
     if "fornecedor" in changes:
-        supplier = _find_or_create_fornecedor(session, changes.pop("fornecedor"))
+        supplier = find_or_create_fornecedor(session, changes.pop("fornecedor"))
         changes["fornecedor_id"] = supplier.id
 
     effective = {key: value for key, value in changes.items() if getattr(ata, key) != value}
@@ -200,7 +200,7 @@ def edit(
             session.flush()
     except IntegrityError as exc:
         raise AtaDuplicada() from exc
-    _audit(session, ata, "ata.editada", actor, correlation_id, at, previous=previous)
+    audit_ata(session, ata, "ata.editada", actor, correlation_id, at, previous=previous)
     return ata
 
 
@@ -220,7 +220,7 @@ def move(
     `encerrada` or `cancelada`, is refused and changes nothing.
     """
     allowed_from, destination, acao = MOVES[move_name]
-    ata = _lock(session, ata_id)
+    ata = lock_ata(session, ata_id)
     if ata.status not in allowed_from:
         raise TransicaoInvalida(ata.status, destination)
 
@@ -228,7 +228,7 @@ def move(
     ata.status = destination
     ata.atualizado_em = at
     session.flush()
-    _audit(
+    audit_ata(
         session,
         ata,
         acao,
@@ -254,7 +254,7 @@ def add_aditivo(
     correlation_id: uuid.UUID,
 ) -> AtaAditivo:
     """Record an aditivo of value or of prazo on a vigente ATA (AC-0002-13, -14)."""
-    ata = _lock(session, ata_id)
+    ata = lock_ata(session, ata_id)
     if ata.status != "vigente":
         raise AtaNaoVigente()
 
@@ -287,7 +287,7 @@ def add_aditivo(
             criado_em=at,
         ),
     )
-    _audit(
+    audit_ata(
         session,
         ata,
         "ata.aditivo_registrado",
@@ -317,7 +317,7 @@ def add_reajuste(
     """
     if not processo_sei.is_valid(processo):
         raise ProcessoSeiInvalido(PROCESSO_SEI_FORMAT)
-    ata = _lock(session, ata_id)
+    ata = lock_ata(session, ata_id)
     if ata.status != "vigente":
         raise AtaNaoVigente()
 
@@ -331,7 +331,7 @@ def add_reajuste(
             criado_em=at,
         ),
     )
-    _audit(session, ata, "ata.reajuste_registrado", actor, correlation_id, at, previous=None)
+    audit_ata(session, ata, "ata.reajuste_registrado", actor, correlation_id, at, previous=None)
     return reajuste
 
 
@@ -402,7 +402,8 @@ def reajuste_alert(session: Session, *, at: datetime.datetime) -> list[AlertItem
     ]
 
 
-def _lock(session: Session, ata_id: uuid.UUID) -> Ata:
+def lock_ata(session: Session, ata_id: uuid.UUID) -> Ata:
+    """Find an ATA and lock it for this transaction, or refuse with 404."""
     ata = repo.by_id_for_update(session, ata_id)
     if ata is None:
         raise AtaNotFound()
@@ -428,7 +429,8 @@ def _require_interval(start: datetime.date, end: datetime.date) -> None:
         raise InvalidData({"vigencia_fim": "A vigência precisa terminar depois de começar."})
 
 
-def _find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Fornecedor:
+def find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Fornecedor:
+    """Find a fornecedor by its CNPJ, or create it, the check digits validated (AC-0002-25)."""
     if not cnpj_lib.is_valid(given.cnpj):
         raise InvalidData({"fornecedor.cnpj": "CNPJ inválido."})
     cnpj = cnpj_lib.normalise(given.cnpj)
@@ -440,7 +442,7 @@ def _find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Forn
     return repo.create_fornecedor(session, cnpj=cnpj, legal_name=given.legal_name.strip())
 
 
-def _audit(
+def audit_ata(
     session: Session,
     ata: Ata,
     acao: str,
@@ -451,6 +453,7 @@ def _audit(
     previous: dict[str, Any] | None,
     justification: str | None = None,
 ) -> None:
+    """Write the audit row of a mutation on an ATA, in the caller's transaction."""
     record(
         session,
         Event(
@@ -458,7 +461,7 @@ def _audit(
             entidade_id=ata.id,
             acao=acao,
             user_id=actor.id,
-            dados_anteriores=_jsonable(previous) if previous is not None else None,
+            dados_anteriores=jsonable(previous) if previous is not None else None,
             justificativa=justification,
         ),
         correlation_id=correlation_id,
@@ -466,7 +469,7 @@ def _audit(
     )
 
 
-def _jsonable(values: dict[str, Any]) -> dict[str, Any]:
+def jsonable(values: dict[str, Any]) -> dict[str, Any]:
     """Make prior values storable as JSON: dates as ISO text, money and ids as text."""
     return {
         key: value.isoformat()

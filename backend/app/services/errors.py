@@ -26,11 +26,15 @@ class DomainError(Exception):
         *,
         fields: dict[str, str] | None = None,
         retry_after: int | None = None,
+        extra: dict[str, object] | None = None,
     ) -> None:
         """Build the error with its pt-BR message, field detail and retry hint."""
         super().__init__(message)
         self.message_text = message
         self.fields = fields or {}
+        # Keys the envelope carries beside `fields`, such as the `rows` of a
+        # refused import (SPEC-0003 AC-0003-07).
+        self.extra = extra or {}
         # Seconds for a `Retry-After` header. A 429 whose only statement of
         # "when" is inside a pt-BR sentence is a 429 no client can obey.
         self.retry_after = retry_after
@@ -455,3 +459,166 @@ class ProcessoSeiInvalido(DomainError):
     def __init__(self, expected: str) -> None:
         """Build the error stating the expected format."""
         super().__init__(f"Número de processo SEI inválido. Use o formato {expected}.")
+
+
+# ── SPEC-0003: insumos, grupos and the items of an ATA ──────────────────────
+
+
+class InvalidSku(DomainError):
+    """A SKU that does not match the configured pattern (AC-0003-02)."""
+
+    code = "INVALID_SKU"
+    http = 422
+
+    def __init__(self, example: str) -> None:
+        """Build the error showing the format and an example."""
+        hint = f"Use só letras e números, sem espaços nem pontos, como {example}."
+        super().__init__(f"SKU inválido. {hint}", fields={"sku": hint})
+
+
+class InvalidDomsCode(DomainError):
+    """A DOMS code that is not digits only, such as `2888.0` (AC-0003-02)."""
+
+    code = "INVALID_DOMS_CODE"
+    http = 422
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        hint = "Use só números, como 26829."
+        super().__init__(f"Código DOMS inválido. {hint}", fields={"codigo_doms": hint})
+
+
+class InsumoDuplicado(DomainError):
+    """The SKU or the DOMS code belongs to another insumo (AC-0003-03).
+
+    Named only when the caller can see it: a scoped servidor learns that the code
+    is taken and nothing more (AC-0003-29).
+    """
+
+    code = "INSUMO_DUPLICADO"
+    http = 409
+
+    def __init__(self, existing: str | None) -> None:
+        """Build the error, naming the existing insumo when given."""
+        if existing:
+            super().__init__(f"Já existe um insumo com este código: {existing}. Use o existente.")
+        else:
+            super().__init__("Já existe um insumo com este código. Use o existente.")
+
+
+class InsumoNotFound(DomainError):
+    """No insumo has this id, or it is outside the servidor's grupos (AC-0003-12, -29)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Insumo não encontrado.")
+
+
+class GrupoNotFound(DomainError):
+    """No grupo has this id (AC-0003-13)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Grupo não encontrado.")
+
+
+class DuplicateGroup(DomainError):
+    """A sibling grupo has this name, ignoring case (AC-0003-09, -13)."""
+
+    code = "DUPLICATE_GROUP"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Já existe um grupo com este nome aqui.")
+
+
+class InvalidSubstitute(DomainError):
+    """The substitute is the insumo itself, or is not ativo (AC-0003-15)."""
+
+    code = "INVALID_SUBSTITUTE"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("O substituto precisa ser outro insumo, ativo.")
+
+
+class InsumoDescontinuado(DomainError):
+    """A discontinued insumo sent into a new item (AC-0003-17)."""
+
+    code = "INSUMO_DESCONTINUADO"
+    http = 409
+
+    def __init__(self, substitute_sku: str | None) -> None:
+        """Build the error, naming the substitute when there is one."""
+        message = "Este insumo foi descontinuado e não entra em itens novos."
+        if substitute_sku:
+            message += f" Use {substitute_sku}."
+        super().__init__(message)
+
+
+class ItemAtaDuplicado(DomainError):
+    """The insumo is already an item of this ATA (AC-0003-20)."""
+
+    code = "ITEM_ATA_DUPLICADO"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Este insumo já é um item desta ATA. Corrija o item existente.")
+
+
+class ItemAtaNotFound(DomainError):
+    """No item of this ATA has this id, or it was removed (AC-0003-24)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Item não encontrado.")
+
+
+class AditivoDeQuantidadeAcimaDoLimite(AditivoAcimaDoLimite):
+    """The aditivos de quantidade of an item pass 25% of its quantidade (AC-0003-28, RN15)."""
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        DomainError.__init__(
+            self, "O aditivo passa de 25% da quantidade do item. Reduza a quantidade."
+        )
+
+
+class InvalidFile(DomainError):
+    """The file cannot be read, is too large, or lacks a column (AC-0003-18)."""
+
+    code = "INVALID_FILE"
+    http = 422
+
+    def __init__(self, detail: str | None = None) -> None:
+        """Build the error, with what exactly is wrong when it is known."""
+        super().__init__(
+            "Não foi possível ler o arquivo. Use CSV em UTF-8, até 5 MB, com as colunas do modelo.",
+            fields={"file": detail} if detail else None,
+        )
+
+
+class ImportRejected(DomainError):
+    """At least one line of the file is invalid, so nothing was written (AC-0003-07)."""
+
+    code = "IMPORT_REJECTED"
+    http = 422
+
+    def __init__(self, rows: list[dict[str, object]]) -> None:
+        """Build the error carrying every invalid cell, not only the first."""
+        super().__init__(
+            "Nenhuma linha foi importada. Corrija as linhas indicadas e envie de novo.",
+            extra={"rows": rows},
+        )

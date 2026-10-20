@@ -12,6 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.api.uploads import csv_body
 from app.core import clock
 from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
@@ -27,12 +28,23 @@ from app.schemas.ata import (
     AtaPage,
     AtaPatch,
     CancelIn,
+    FornecedorIn,
     FornecedorOut,
     ReajusteIn,
     ReajusteOut,
 )
-from app.services import atas
+from app.schemas.item_ata import (
+    ItemIn,
+    ItemInsumoOut,
+    ItemOut,
+    ItemPatch,
+    ItemsOut,
+    ItemsReportOut,
+)
+from app.services import atas, itens_ata
 from app.services.atas import AlertItem, AtaDetail, AtaView, FornecedorInput
+from app.services.insumos import status_of
+from app.services.itens_ata import ItemsView
 
 router = APIRouter(prefix="/api/v1/atas", tags=["atas"])
 
@@ -79,6 +91,8 @@ def _detail_out(detail: AtaDetail) -> AtaDetailOut:
                 kind=a.kind,
                 valor_acrescimo=a.valor_acrescimo,
                 nova_vigencia_fim=a.nova_vigencia_fim,
+                item_id=a.item_ata_id,
+                quantity=a.quantidade_acrescimo,
                 justification=a.justification,
                 created_at=a.criado_em,
             )
@@ -242,8 +256,23 @@ def cancel(
 def add_aditivo(
     ata_id: uuid.UUID, body: AditivoIn, actor: Gestor, request: Request, session: DbSession
 ) -> AtaDetailOut:
-    """Record an aditivo of value or of prazo (SPEC-0002 AC-0002-13, -14)."""
+    """Record an aditivo of value, of prazo or of quantity.
+
+    SPEC-0002 AC-0002-13, -14; the aditivo of quantity is SPEC-0003 AC-0003-27, -28.
+    """
     at = clock.now()
+    if body.kind == "quantidade":
+        itens_ata.add_quantity_aditivo(
+            session,
+            actor=actor,
+            ata_id=ata_id,
+            item_id=body.item_id,
+            quantity=body.quantity,
+            justification=body.justification,
+            at=at,
+            correlation_id=_correlation(request),
+        )
+        return _detail_out(atas.get(session, ata_id, at=at))
     atas.add_aditivo(
         session,
         actor=actor,
@@ -276,3 +305,144 @@ def add_reajuste(
         correlation_id=_correlation(request),
     )
     return _detail_out(atas.get(session, ata_id, at=at))
+
+
+# ── Items (SPEC-0003 §3.5) ──────────────────────────────────────────────────
+
+
+def _items_out(view: ItemsView) -> ItemsOut:
+    return ItemsOut(
+        items=[
+            ItemOut(
+                id=v.item.id,
+                insumo=ItemInsumoOut(
+                    id=v.insumo.id,
+                    sku=v.insumo.sku,
+                    description=v.insumo.description,
+                    unit=v.insumo.unit,
+                    status=status_of(v.insumo),
+                ),
+                item_number=v.item.item_number,
+                quantity=v.item.quantity,
+                contracted_quantity=v.contracted_quantity,
+                unit_price=v.item.unit_price,
+                total_value=v.total_value,
+                fornecedor=FornecedorOut(
+                    id=v.fornecedor.id, cnpj=v.fornecedor.cnpj, legal_name=v.fornecedor.legal_name
+                ),
+                own_fornecedor=v.item.fornecedor_id is not None,
+            )
+            for v in view.items
+        ],
+        items_value=view.items_value,
+        total_value=view.total_value,
+        items_value_differs=view.items_value != view.total_value,
+    )
+
+
+@router.get("/{ata_id}/itens", response_model=ItemsOut)
+def list_items(ata_id: uuid.UUID, actor: Reader, session: DbSession) -> ItemsOut:
+    """An ATA's items and their sum (SPEC-0003 AC-0003-22, -29)."""
+    return _items_out(itens_ata.list_items(session, ata_id, actor=actor))
+
+
+@router.post("/{ata_id}/itens", response_model=ItemsOut, status_code=status.HTTP_201_CREATED)
+def add_item(
+    ata_id: uuid.UUID, body: ItemIn, actor: Gestor, request: Request, session: DbSession
+) -> ItemsOut:
+    """Add an insumo to an ATA (SPEC-0003 AC-0003-17, -20, -23)."""
+    itens_ata.add_item(
+        session,
+        actor=actor,
+        ata_id=ata_id,
+        insumo_id=body.insumo_id,
+        quantity=body.quantity,
+        unit_price=body.unit_price,
+        item_number=body.item_number,
+        fornecedor=_fornecedor(body.fornecedor),
+        at=clock.now(),
+        correlation_id=_correlation(request),
+    )
+    return _items_out(itens_ata.list_items(session, ata_id, actor=actor))
+
+
+@router.post("/{ata_id}/itens/importacao", response_model=ItemsReportOut)
+def import_items(
+    ata_id: uuid.UUID,
+    actor: Gestor,
+    request: Request,
+    session: DbSession,
+    content: Annotated[bytes, Depends(csv_body)],
+    dry_run: bool = False,
+) -> ItemsReportOut:
+    """Add or correct an ATA's items from a CSV file (SPEC-0003 AC-0003-26)."""
+    report = itens_ata.import_items(
+        session,
+        actor=actor,
+        ata_id=ata_id,
+        content=content,
+        dry_run=dry_run,
+        at=clock.now(),
+        correlation_id=_correlation(request),
+    )
+    return ItemsReportOut(
+        added=report.added,
+        corrected=report.corrected,
+        unchanged=report.unchanged,
+        ignored_columns=list(report.ignored_columns),
+        dry_run=report.dry_run,
+    )
+
+
+@router.patch("/{ata_id}/itens/{item_id}", response_model=ItemsOut)
+def edit_item(
+    ata_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: ItemPatch,
+    actor: Gestor,
+    request: Request,
+    session: DbSession,
+) -> ItemsOut:
+    """Correct an item (SPEC-0003 AC-0003-23, -24, -28)."""
+    sent = body.model_dump(exclude_unset=True)
+    # An explicit null clears `item_number` and the item's own fornecedor, and is
+    # a mistake anywhere else.
+    changes = {
+        key: value
+        for key, value in sent.items()
+        if value is not None or key in ("item_number", "fornecedor")
+    }
+    if "fornecedor" in changes:
+        changes["fornecedor"] = _fornecedor(body.fornecedor)
+    itens_ata.edit_item(
+        session,
+        actor=actor,
+        ata_id=ata_id,
+        item_id=item_id,
+        changes=changes,
+        at=clock.now(),
+        correlation_id=_correlation(request),
+    )
+    return _items_out(itens_ata.list_items(session, ata_id, actor=actor))
+
+
+@router.post("/{ata_id}/itens/{item_id}/remover", response_model=ItemsOut)
+def remove_item(
+    ata_id: uuid.UUID, item_id: uuid.UUID, actor: Gestor, request: Request, session: DbSession
+) -> ItemsOut:
+    """Remove an item, keeping its history (SPEC-0003 AC-0003-24)."""
+    itens_ata.remove_item(
+        session,
+        actor=actor,
+        ata_id=ata_id,
+        item_id=item_id,
+        at=clock.now(),
+        correlation_id=_correlation(request),
+    )
+    return _items_out(itens_ata.list_items(session, ata_id, actor=actor))
+
+
+def _fornecedor(given: FornecedorIn | None) -> FornecedorInput | None:
+    if given is None:
+        return None
+    return FornecedorInput(cnpj=given.cnpj, legal_name=given.legal_name)
