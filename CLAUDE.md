@@ -67,8 +67,8 @@ instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.9), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
 `SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
-is `Approved` and built, waiting for its data sources. SPEC-0003 to SPEC-0009
-are `Draft`, and **a spec at `Draft` may not be implemented**.
+is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.0) is
+`Approved`. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 
@@ -84,7 +84,7 @@ are `Draft`, and **a spec at `Draft` may not be implemented**.
   through the audit row and the session revocation, not impossible.
 - **OQ-32** — the trusted-proxy list exists (AC-0001-37/38) and is empty by
   default; which addresses go in it needs the deployment topology.
-- `RN07` is meant to land in SPEC-0003 but its `satisfies` does not claim it.
+- `RN07`'s unidade axis waits for `UNIDADE`; SPEC-0003 enforces the grupo axis.
 
 ## Non-negotiable domain rules
 

@@ -1,8 +1,8 @@
 ---
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
-status: Draft
-version: 0.4
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -668,7 +668,7 @@ Asked by the product owner while preparing this spec for approval:
 
 ## Implementation plan
 
-*Proposed with v0.4, for approval with the spec.*
+*Proposed with v0.4 and approved with the spec in v1.0.*
 
 **Data** (migration `0005_insumos`):
 
@@ -744,3 +744,4 @@ of AC-0003-25.
 | 0.2 | 2026-09-02 | Four item identifiers recorded (OQ-29); three-level hierarchy replaces flat `categoria`; substitution/discontinuation modelled (OQ-23); concrete import hazards from real files |
 | 0.3 | 2026-10-02 | The SKU is the item's identity, by the stakeholder's answer (OQ-29 resolved, reversing the DOMS-code proposal): ACs 01 to 04, 06 and 08 now key on `sku`, the DOMS code moves to `codigo_doms`, and a catalogue import refuses a row with no SKU. Substitution confirmed (OQ-23). OQ-43 resolved on 2026-10-06 (every item has one, none repeats); AC-0003-04: a gestor can change a SKU with a justification, because new codes are often known only after the first purchase |
 | 0.4 | 2026-10-20 | Rewritten for approval, every criterion in Given/When/Then. The flat category list of AC-0003-09 is replaced by the three-level DOMS hierarchy it contradicted (`data-sources.md` §5), and `grupo_id` becomes required. Substitution, discontinuation and reactivation get criteria (AC-0003-14 to -17). The catalogue file follows the model and gains `dry_run`, the pt-BR number rules and the §12 hazards (AC-0003-06, -18, -19). `ITEM_ATA` is specified: by hand and by a file per ATA, the unit price at five decimals (ADR-0016), the item's own fornecedor (OQ-11), correction and removal (AC-0003-20 to -26). The aditivo de quantidade and its 25% ceiling, deferred by AC-0002-13 and -14, land here (AC-0003-27, -28). RN07 is claimed on the grupo axis (AC-0003-29, -30). The `ativo` flag is dropped for the derived situação. Permissions, errors, audit events and an implementation plan added. RF15 and RN15 claimed for their quantity half |
+| 1.0 | 2026-10-20 | Approved by the product owner after review. No criterion changed |
