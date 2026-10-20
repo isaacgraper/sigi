@@ -29,9 +29,9 @@ on an `Approved` spec is a merge blocker.
 | RN04, RN13, RN15 | SPEC-0002 v1.3 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 carried by SPEC-0004 AC-0004-25, -17; parts of -13, -14 deferred to SPEC-0003 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Implemented** (RN13's NE half with SPEC-0004) |
 | RF15 | SPEC-0002 v1.3 | AC-0002-13, -14 | `tests/test_atas.py` | **Implemented** |
 | RF16 | SPEC-0002 v1.3 | AC-0002-18..21 | `tests/test_atas.py` | **Implemented** |
-| RF03, RF07, RF11, RN14 | SPEC-0003 v1.1 | AC-0003-01..24, -26, -31 (AC-0003-25 deferred to SPEC-0004) | _pending_ | **Approved** |
-| RF15, RN15 (quantity) | SPEC-0003 v1.1 | AC-0003-27, -28 | _pending_ | **Approved** |
-| RN07 (grupo axis) | SPEC-0003 v1.1 | AC-0003-29, -30 | _pending_ | **Approved** |
+| RF03, RF07, RF11, RN14 | SPEC-0003 v1.1 | AC-0003-01..24, -26, -31 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Approved** |
+| RF15, RN15 (quantity) | SPEC-0003 v1.1 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Approved** |
+| RN07 (grupo axis) | SPEC-0003 v1.1 | AC-0003-29, -30 | `tests/test_insumos.py` | **Approved** |
 | RF13, RN03, RN08, RN09 | SPEC-0004 v0.4 | AC-0004-01..24 | _pending_ | Draft |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.3 | AC-0005-01..11 | _pending_ | Draft |
 | RN17 | SPEC-0006 v0.4, SPEC-0004 v0.4, SPEC-0005 v0.3 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
