@@ -65,9 +65,9 @@ drops the draft status and admits the alphanumeric CNPJ. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` (v1.9), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
+**Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
 `SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
-is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.0) is
+is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.1) is
 `Approved`. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**

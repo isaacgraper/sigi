@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -306,7 +306,8 @@ Then  the response is 422 with error code "INVALID_FILE" and nothing is written
 for thousands and `,` for decimals. The separator decides how a number reads
 because `1.000` is a thousand in a Brazilian Excel file and one anywhere else, and
 guessing per cell would read the same column two ways. 10.000 lines is seven times
-the SKU sheet (1.425 rows).
+the SKU sheet (1.425 rows). Those routes are the only ones allowed past the 64 KiB body
+ceiling of AC-0001-42, which SPEC-0001 v1.10 amends for them.
 
 **AC-0003-19** — The hazards measured in the source files are caught
 ```gherkin
@@ -745,3 +746,4 @@ of AC-0003-25.
 | 0.3 | 2026-10-02 | The SKU is the item's identity, by the stakeholder's answer (OQ-29 resolved, reversing the DOMS-code proposal): ACs 01 to 04, 06 and 08 now key on `sku`, the DOMS code moves to `codigo_doms`, and a catalogue import refuses a row with no SKU. Substitution confirmed (OQ-23). OQ-43 resolved on 2026-10-06 (every item has one, none repeats); AC-0003-04: a gestor can change a SKU with a justification, because new codes are often known only after the first purchase |
 | 0.4 | 2026-10-20 | Rewritten for approval, every criterion in Given/When/Then. The flat category list of AC-0003-09 is replaced by the three-level DOMS hierarchy it contradicted (`data-sources.md` §5), and `grupo_id` becomes required. Substitution, discontinuation and reactivation get criteria (AC-0003-14 to -17). The catalogue file follows the model and gains `dry_run`, the pt-BR number rules and the §12 hazards (AC-0003-06, -18, -19). `ITEM_ATA` is specified: by hand and by a file per ATA, the unit price at five decimals (ADR-0016), the item's own fornecedor (OQ-11), correction and removal (AC-0003-20 to -26). The aditivo de quantidade and its 25% ceiling, deferred by AC-0002-13 and -14, land here (AC-0003-27, -28). RN07 is claimed on the grupo axis (AC-0003-29, -30). The `ativo` flag is dropped for the derived situação. Permissions, errors, audit events and an implementation plan added. RF15 and RN15 claimed for their quantity half |
 | 1.0 | 2026-10-20 | Approved by the product owner after review. No criterion changed |
+| 1.1 | 2026-10-20 | While implementing: AC-0003-18's 5 MB file conflicted with the 64 KiB body ceiling of SPEC-0001 AC-0001-42; SPEC-0001 v1.10 gives the two import routes their own ceiling |
