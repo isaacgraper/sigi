@@ -21,8 +21,8 @@ from sqlalchemy.orm import Session
 from app.constants.atas import (
     ADITIVO_CEILING,
     EDITABLE_COLUMN,
-    LOCKED_AFTER_DRAFT,
     MOVES,
+    NOT_EDITABLE_STATUS,
     PROCESSO_SEI_FORMAT,
 )
 from app.core import cnpj as cnpj_lib
@@ -117,7 +117,11 @@ def register(
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Ata:
-    """Register an ATA as `rascunho` (AC-0002-01, -02, -03, -25)."""
+    """Register an ATA, vigente from the start (AC-0002-01, -02, -03, -25).
+
+    The gestor has already reviewed it on the screen, so nothing waits for an
+    activation (SPEC-0002 v1.2).
+    """
     _require_interval(vigencia_inicio, vigencia_fim)
     if repo.by_number(session, number) is not None:
         raise AtaDuplicada()
@@ -133,7 +137,7 @@ def register(
         vigencia_fim=vigencia_fim,
         total_value=total_value,
         budget_date=budget_date,
-        status="rascunho",
+        status="vigente",
         owner_id=actor.id,
         criado_em=at,
         atualizado_em=at,
@@ -158,21 +162,21 @@ def edit(
     at: datetime.datetime,
     correlation_id: uuid.UUID,
 ) -> Ata:
-    """Change fields of an ATA (AC-0002-24).
+    """Correct any field of an ATA that is not history (AC-0002-24).
 
-    Everything while `rascunho`. After that only the fields outside
-    `LOCKED_AFTER_DRAFT`: what was contracted is changed by an aditivo, so the
-    history of it is never overwritten.
+    An edit corrects what was typed, an aditivo changes what was contracted;
+    both leave the prior values in the audit row. An `encerrada` or `cancelada`
+    ATA is history and is refused before anything is looked up.
     """
     ata = _lock(session, ata_id)
+    if ata.status in NOT_EDITABLE_STATUS:
+        raise AtaNaoEditavel()
     supplier: Fornecedor | None = None
     if "fornecedor" in changes:
         supplier = _find_or_create_fornecedor(session, changes.pop("fornecedor"))
         changes["fornecedor_id"] = supplier.id
 
     effective = {key: value for key, value in changes.items() if getattr(ata, key) != value}
-    if ata.status != "rascunho" and any(key in LOCKED_AFTER_DRAFT for key in effective):
-        raise AtaNaoEditavel()
     if not effective:
         return ata
 
@@ -427,13 +431,13 @@ def _require_interval(start: datetime.date, end: datetime.date) -> None:
 def _find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Fornecedor:
     if not cnpj_lib.is_valid(given.cnpj):
         raise InvalidData({"fornecedor.cnpj": "CNPJ inválido."})
-    digits = cnpj_lib.digits_of(given.cnpj)
-    existing = repo.fornecedor_by_cnpj(session, digits)
+    cnpj = cnpj_lib.normalise(given.cnpj)
+    existing = repo.fornecedor_by_cnpj(session, cnpj)
     if existing is not None:
         # The razão social already on record is kept: an ATA is not the place to
         # rename a company.
         return existing
-    return repo.create_fornecedor(session, cnpj=digits, legal_name=given.legal_name.strip())
+    return repo.create_fornecedor(session, cnpj=cnpj, legal_name=given.legal_name.strip())
 
 
 def _audit(

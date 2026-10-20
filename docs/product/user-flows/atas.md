@@ -6,7 +6,7 @@ something is refused. The behaviour is SPEC-0013's (screens) and SPEC-0002's
 (rules); where this file and a spec disagree, the spec wins.
 
 The screenshots under [`atas/`](atas/) were taken from the running application
-on 13/10/2026, with fictional ATAs and fornecedores, in a 1440 px browser set
+on 19/10/2026, with fictional ATAs and fornecedores, in a 1440 px browser set
 to pt-BR. A screenshot ages with the screen: retake it in the PR that changes
 what it shows.
 
@@ -17,7 +17,7 @@ what it shows.
 | See the list, the alerts and any ATA | ✓ | ✓ | ✓ |
 | Cadastrar ATA | ✓ | — | — |
 | Editar | ✓ | — | — |
-| Ativar, Suspender, Retomar, Encerrar, Cancelar | ✓ | — | — |
+| Suspender, Retomar, Encerrar, Cancelar | ✓ | — | — |
 | Registrar aditivo | ✓ | — | — |
 | Registrar pedido de reajuste | ✓ | — | — |
 | Delete an ATA | — | — | — |
@@ -32,10 +32,12 @@ flowchart LR
   sidebar[Sidebar: ATAs] --> lista["/atas"]
   lista -->|row or alert| ata["/atas/{id}"]
   lista -->|Cadastrar ATA| cadastro["/atas/nova"]
-  cadastro -->|201| ata
+  cadastro -->|Revisar cadastro| revisao[Confira os dados]
+  revisao -->|Voltar e corrigir| cadastro
+  revisao -->|Confirmar cadastro, 201| ata
   cadastro -->|Voltar| lista
   ata -->|Editar| edicao["/atas/{id}/editar"]
-  ata -->|Ativar, Suspender, Retomar, Encerrar| confirmacao[Confirmation]
+  ata -->|Suspender, Retomar, Encerrar| confirmacao[Confirmation]
   ata -->|Cancelar| cancelamento[Confirmation with Justificativa]
   ata -->|Registrar aditivo| aditivo[Dialog: Registrar aditivo]
   ata -->|Registrar pedido de reajuste| reajuste[Dialog: Registrar pedido de reajuste]
@@ -50,13 +52,11 @@ flowchart LR
 
 ```mermaid
 stateDiagram-v2
-  [*] --> rascunho: Cadastrar ATA
-  rascunho --> vigente: Ativar
+  [*] --> vigente: Confirmar cadastro
   vigente --> suspensa: Suspender
   suspensa --> vigente: Retomar
   vigente --> encerrada: Encerrar
   suspensa --> encerrada: Encerrar
-  rascunho --> cancelada: Cancelar (justificativa)
   vigente --> cancelada: Cancelar (justificativa)
   suspensa --> cancelada: Cancelar (justificativa)
   encerrada --> [*]
@@ -81,9 +81,9 @@ the situação only where it says something (DESIGN.md §4):
 | Vigente | A vencer | Vigente · a vencer | amber dot |
 | Vigente | Vencida | Vigente · vencida | red dot |
 | Suspensa | any | Suspensa (· a vencer, · vencida) | amber dot, red when vencida |
-| Rascunho, Encerrada, Cancelada | any | Rascunho, Encerrada, Cancelada | grey text |
+| Encerrada, Cancelada | any | Encerrada, Cancelada | grey text |
 
-A rascunho or an encerrada ATA still has a situação, and the Situação filter
+An encerrada or cancelada ATA still has a situação, and the Situação filter
 still finds it, but it is not shown, because nobody acts on it. The 90 days are
 configurable (`ATA_ALERT_DAYS`).
 
@@ -164,11 +164,20 @@ reads as empty.
 the way the ATA page groups them: **Identificação** (Número, Órgão, Objeto),
 **Fornecedor** (CNPJ, Razão social), **Vigência** (Início, Fim, Data de
 emissão) and **Valores** (Valor total, Data do orçamento planilhado). "Voltar"
-and "Cadastrar" stay at the foot of the screen however far down the page is
-scrolled. The ATA is created as a **rascunho**: it counts for nothing until a
-gestor activates it. "Voltar" returns to the list and saves nothing.
+and "Revisar cadastro" stay at the foot of the screen however far down the page
+is scrolled. "Voltar" returns to the list and saves nothing.
 
-![The empty dialog](atas/05-cadastrar-vazio.png)
+**Nothing is saved until the gestor confirms.** "Revisar cadastro" shows every
+value as it will be saved; "Confirmar cadastro" saves the ATA, **vigente** from
+that moment. There is no rascunho and no activation step.
+
+![The empty form](atas/05-cadastrar-vazio.png)
+
+Every field has an **"i"** beside its label. Choosing it (click, Enter or
+Space) opens what the field is and what the system accepts; Escape or a click
+anywhere else closes it.
+
+![A field's explanation](atas/07-ajuda-campo.png)
 
 ### Fields
 
@@ -177,7 +186,7 @@ gestor activates it. "Voltar" returns to the list and saves nothing.
 | Número | Yes | Up to 60 characters, unique among all ATAs | Not empty | "Use no máximo 60 caracteres." · "Já existe uma ATA com este número. Confira o número ou abra a existente." |
 | Objeto | Yes | Free text | Not empty | "Campo obrigatório." |
 | Órgão | Yes | Up to 200 characters | Not empty | "Use no máximo 200 caracteres." |
-| CNPJ do fornecedor | Yes | 14 digits with valid check digits, typed with or without punctuation; shown as 00.000.000/0000-00 while typing | Not empty | "CNPJ inválido." (wrong length, wrong check digits, or all digits equal) |
+| CNPJ do fornecedor | Yes | 14 characters with valid check digits, typed with or without punctuation; since 2026 the first 12 may be letters (alphanumeric CNPJ); shown as 00.000.000/0000-00 while typing, letters uppercased | Not empty | "CNPJ inválido." (wrong length, wrong check digits, letters in the check digits, or one character repeated) |
 | Razão social | Yes | Up to 200 characters | Not empty | "Use no máximo 200 caracteres." |
 | Data de emissão (opcional) | No | A date | — | "Data inválida." |
 | Início da vigência | Yes | A date | Not empty | "Data inválida." |
@@ -193,26 +202,35 @@ typed. There is no separate fornecedor screen.
 **Money is never rounded.** "10,005" is sent as `10.005` and refused; it is
 not turned into 10,01.
 
-### What happens on Cadastrar
+### What happens on Revisar cadastro and Confirmar cadastro
 
 1. The screen checks only that every required field is filled. An empty one
-   reads "Campo obrigatório." and nothing is sent.
+   reads "Campo obrigatório." and the review does not open.
 
    ![Required fields left empty](atas/06-cadastrar-obrigatorios.png)
 
-2. The API checks the rest. Each refusal appears under the field it names, the
-   field is outlined in red, the cursor moves to the first one, and everything
-   typed stays. The API reports schema errors (lengths, formats) all at once,
-   and business errors (vigência, CNPJ, número repetido) one at a time, so
-   fixing one may reveal the next.
+2. **Confira os dados antes de cadastrar** lists every value as it will be
+   saved: dates as dd/MM/yyyy, money as R$, an empty optional field as "Não
+   informado". Nothing has been sent yet. "Voltar e corrigir" returns to the
+   form with everything typed kept.
 
-   ![A CNPJ with wrong check digits](atas/07-cadastrar-cnpj-invalido.png)
+   ![The review](atas/08-revisar-cadastro.png)
 
-   ![A número already in use](atas/08-cadastrar-numero-duplicado.png)
+3. "Confirmar cadastro" sends it. The API checks the rest; if it refuses, the
+   form returns and each refusal appears under the field it names, the field is
+   outlined in red, the cursor moves to the first one, and everything typed
+   stays. The API reports schema errors (lengths, formats) all at once, and
+   business errors (vigência, CNPJ, número repetido) one at a time, so fixing
+   one may reveal the next.
 
-3. On success the ATA's page opens with "ATA cadastrada como rascunho."
+   ![A CNPJ with wrong check digits](atas/09-cadastrar-cnpj-invalido.png)
 
-   ![The new ATA](atas/09-ata-cadastrada.png)
+   ![A número already in use](atas/10-cadastrar-numero-duplicado.png)
+
+4. On success the new ATA's page opens, vigente. No banner repeats it: the page
+   is the result.
+
+   ![The new ATA](atas/11-ata-cadastrada.png)
 
 ---
 
@@ -240,24 +258,22 @@ ATAs**.
 
 ## 4. Edit an ATA (gestor)
 
-**Editar** opens `/atas/{id}/editar`, the registration page filled in. Only the
-fields that changed are sent; on success the ATA's page opens with "ATA
-atualizada.". "Voltar" returns to the ATA and saves nothing.
+**Editar** corrects what was typed. It opens `/atas/{id}/editar`, the
+registration page filled in, and saves directly, without a review. Only the
+fields that changed are sent; on success the ATA's page opens with the new
+values and no banner. "Voltar" returns to the ATA and saves nothing.
 
 | Status | What can be edited |
 | --- | --- |
-| Rascunho | Every field, including Número, the fornecedor, the dates and the valor |
-| Vigente, Suspensa, Encerrada, Cancelada | Objeto and Órgão only |
+| Vigente, Suspensa | Every field, including Número, the fornecedor, the dates and the valor |
+| Encerrada, Cancelada | Nothing: "Editar" is not offered, and the address reads "Uma ATA encerrada ou cancelada não pode ser editada." |
 
-![Editing a rascunho](atas/10-editar-rascunho.png)
+![Correcting an ATA](atas/12-editar.png)
 
-After activation the other fields are shown greyed out, with "Depois de
-ativada, valores e prazos só mudam por aditivo." The contracted figures change
-only through an aditivo, so what was contracted is never overwritten. If the
-API refuses an edit because the ATA changed meanwhile (`ATA_NAO_EDITAVEL`), the
-message shows on the page and the form reloads the ATA as it now is.
-
-![Editing after activation](atas/13-editar-vigente.png)
+**Editar or aditivo?** Editar corrects a typing mistake; an aditivo changes what
+was contracted, with a justification and the 25% ceiling. Both keep the previous
+values in the ATA's history. Once NEs exist (SPEC-0004), an ATA with an NE
+emitida locks its figures and only an aditivo changes them.
 
 The same field rules as registration apply; a refusal lands on its field.
 
@@ -270,18 +286,15 @@ naming the ATA and what the move does.
 
 | Status | Buttons offered | Result |
 | --- | --- | --- |
-| Rascunho | Ativar, Cancelar | Ativar → Vigente |
 | Vigente | Suspender, Encerrar, Cancelar | Suspender → Suspensa · Encerrar → Encerrada |
 | Suspensa | Retomar, Encerrar, Cancelar | Retomar → Vigente · Encerrar → Encerrada |
 | Encerrada | None | Final |
 | Cancelada | None | Final |
 
-![Confirming Ativar](atas/11-ativar-confirmar.png)
+![Confirming Suspender](atas/13-suspender-confirmar.png)
 
-On success the status line changes and the page says "ATA ativada.", "ATA
-suspensa.", "ATA retomada.", "ATA encerrada." or "ATA cancelada.".
-
-![After activation](atas/12-ata-ativada.png)
+On success the status line changes. No banner is shown; a screen reader hears
+"ATA suspensa.", "ATA retomada.", "ATA encerrada." or "ATA cancelada.".
 
 ![A suspended ATA](atas/18-ata-suspensa.png)
 
@@ -295,7 +308,7 @@ audit trail. The confirmation's own close button reads "Voltar", because
 ![Cancelar with a justificativa](atas/20-cancelar-com-justificativa.png)
 
 Encerrar and Cancelar cannot be undone. An encerrada or cancelada ATA offers no
-move, and Editar there changes only Objeto and Órgão.
+move and no Editar.
 
 ![A cancelled ATA](atas/21-ata-cancelada.png)
 
@@ -311,7 +324,7 @@ the ATA with its real status.
 ## 6. Register an aditivo (gestor, vigente ATA only)
 
 **Registrar aditivo** in the Aditivos section. Not offered unless the ATA is
-vigente; a suspended ATA must be resumed first.
+vigente; a suspended ATA must be resumed first. Each field has its "i", as in the registration.
 
 | Field | Required | Accepts | Refused with |
 | --- | --- | --- | --- |
@@ -329,8 +342,8 @@ takes the sum past it. The API computes this; the screen does not.
 
 ![An aditivo de prazo](atas/15-aditivo-prazo.png)
 
-On success the aditivo appears in the table and the page says "Aditivo
-registrado.". An aditivo de valor raises Valor contratado; an aditivo de prazo
+On success the dialog closes and the aditivo appears in the table, with no
+banner. An aditivo de valor raises Valor contratado; an aditivo de prazo
 moves Fim da vigência and takes its Vencimento row out of **Vencimentos e reajustes**. Aditivos
 cannot be edited or removed.
 
@@ -351,8 +364,8 @@ Only the format is checked; SIGI does not look the process up in SEI.
 
 ![A malformed Processo SEI](atas/16-reajuste-sei-invalido.png)
 
-On success the pedido appears in the table, the page says "Pedido de reajuste
-registrado.", and its Reajuste row leaves **Vencimentos e reajustes**. Recording a pedido
+On success the dialog closes and the pedido appears in the table, with no
+banner, and its Reajuste row leaves **Vencimentos e reajustes**. Recording a pedido
 changes no price.
 
 ![An ATA with aditivos and a pedido de reajuste](atas/17-ata-com-registros.png)

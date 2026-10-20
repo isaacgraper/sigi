@@ -39,9 +39,13 @@ export function parseMoney(typed: string): string {
   return typed.replace(/R\$/g, "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
 }
 
-/** The CNPJ's digits as 00.000.000/0000-00, as far as they have been typed. */
+/**
+ * The CNPJ as 00.000.000/0000-00, as far as it has been typed. Letters are kept
+ * and uppercased, because the alphanumeric CNPJ carries them (SPEC-0002 AC-0002-25);
+ * whether they are in the right place is the API's to say.
+ */
 export function formatCnpj(typed: string): string {
-  const d = typed.replace(/\D/g, "").slice(0, 14);
+  const d = typed.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 14);
   const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12, 14)];
   let out = parts[0];
   if (parts[1]) out += `.${parts[1]}`;

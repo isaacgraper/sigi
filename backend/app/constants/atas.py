@@ -6,8 +6,11 @@ import decimal
 from types import MappingProxyType
 from typing import Final
 
-# Mirrors `ck_ata_status`.
-ATA_STATUS: Final = ("rascunho", "vigente", "suspensa", "encerrada", "cancelada")
+# Mirrors `ck_ata_status` as migration 0004 leaves it: no `rascunho` (SPEC-0002 v1.2).
+ATA_STATUS: Final = ("vigente", "suspensa", "encerrada", "cancelada")
+
+# History, not corrected: an ATA in these is not edited (AC-0002-24).
+NOT_EDITABLE_STATUS: Final = frozenset({"encerrada", "cancelada"})
 
 # Mirrors `ck_ata_aditivo_tipo`.
 ADITIVO_KINDS: Final = ("valor", "prazo")
@@ -20,28 +23,11 @@ ADITIVO_CEILING: Final = decimal.Decimal("0.25")
 # it records (SPEC-0002 §3.7, AC-0002-22).
 MOVES: Final = MappingProxyType(
     {
-        "ativar": (frozenset({"rascunho"}), "vigente", "ata.ativada"),
         "suspender": (frozenset({"vigente"}), "suspensa", "ata.suspensa"),
         "retomar": (frozenset({"suspensa"}), "vigente", "ata.retomada"),
         "encerrar": (frozenset({"vigente", "suspensa"}), "encerrada", "ata.encerrada"),
-        "cancelar": (
-            frozenset({"rascunho", "vigente", "suspensa"}),
-            "cancelada",
-            "ata.cancelada",
-        ),
+        "cancelar": (frozenset({"vigente", "suspensa"}), "cancelada", "ata.cancelada"),
     }
-)
-
-# Past `rascunho` these move only through an aditivo (AC-0002-24). `responsavel`,
-# `objeto` and `orgao` stay editable.
-LOCKED_AFTER_DRAFT: Final = (
-    "number",
-    "fornecedor_id",
-    "issued_on",
-    "vigencia_inicio",
-    "vigencia_fim",
-    "total_value",
-    "budget_date",
 )
 
 # The column behind each attribute that an edit can change, for the audit row's

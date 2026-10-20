@@ -12,6 +12,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { buttonVariants } from "@/components/ui/button";
+import { NOT_EDITABLE } from "@/lib/atas/constants";
 import type { AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { apiJson } from "@/lib/session";
@@ -20,10 +21,10 @@ import { apiJson } from "@/lib/session";
  * A reader who opens the address directly. Cosmetic like every perfil check
  * on screen: the API refuses the write whatever this page shows (AC-0013-07).
  */
-function NotAllowed({ back }: { back: string }) {
+function NotAllowed({ back, message = "Seu perfil não permite esta ação." }: { back: string; message?: string }) {
   return (
     <EmptyState
-      message="Seu perfil não permite esta ação."
+      message={message}
       action={
         <Link href={back} className={buttonVariants({ variant: "outline" })}>
           <ArrowLeft aria-hidden />
@@ -39,7 +40,7 @@ export function NewAtaPage() {
   const { me } = useSession();
   return (
     <div className="space-y-6">
-      <PageHeader title="Nova ATA" description="A ATA é cadastrada como rascunho e passa a valer quando for ativada." />
+      <PageHeader title="Nova ATA" description="Preencha os dados da ATA e revise antes de cadastrar." />
       {me.perfil === "gestor" ? <AtaForm /> : <NotAllowed back="/atas" />}
     </div>
   );
@@ -82,10 +83,12 @@ export function EditAtaPage() {
     <div className="space-y-6">
       <PageHeader title={`Editar ATA ${ata.number}`} description={ata.subject} />
       {/* Remounted on reload, so a stale edit restarts from what the API holds. */}
-      {me.perfil === "gestor" ? (
-        <AtaForm key={version} ata={ata} onStale={reload} />
-      ) : (
+      {me.perfil !== "gestor" ? (
         <NotAllowed back={`/atas/${ata.id}`} />
+      ) : NOT_EDITABLE.includes(ata.status) ? (
+        <NotAllowed back={`/atas/${ata.id}`} message="Uma ATA encerrada ou cancelada não pode ser editada." />
+      ) : (
+        <AtaForm key={version} ata={ata} onStale={reload} />
       )}
     </div>
   );

@@ -53,6 +53,12 @@ async function fillRegistration(page: Page, values: Partial<Record<string, strin
   return v.Número;
 }
 
+/** "Revisar cadastro", then "Confirmar cadastro": nothing is sent before the second (AC-0013-07). */
+async function submitRegistration(page: Page) {
+  await page.locator("main form").getByRole("button", { name: "Revisar cadastro" }).click();
+  await page.getByRole("button", { name: "Confirmar cadastro" }).click();
+}
+
 /** "Cadastrar ATA" opens its own page (AC-0013-07). */
 async function openRegistration(page: Page) {
   await page.getByRole("link", { name: "Cadastrar ATA" }).click();
@@ -79,7 +85,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
 
   test("AC-0013-02 vencimentos and reajustes come first, in one list", async ({ page }) => {
     // Lapses in 30 days, and its reajuste falls due in 20.
-    const ata = await createAta({ vigencia_fim: isoDay(30), budget_date: isoDay(20 - 365) }, ["ativar"]);
+    const ata = await createAta({ vigencia_fim: isoDay(30), budget_date: isoDay(20 - 365) });
     await asGestorOn(page, "/atas");
 
     const list = page.getByTestId("due-list");
@@ -116,7 +122,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
   test("AC-0013-02 an overdue row says how long ago", async ({ page }) => {
     // A vigente ATA past its vigência, as the API reports it (AC-0002-09).
     const ata = await createAta();
-    const real = (await asGestor("post", `/api/v1/atas/${ata.id}/ativar`)).body;
+    const real = ata;
     await page.route("**/api/v1/atas/alertas/renovacao", (route) =>
       route.fulfill({
         status: 200,
@@ -138,7 +144,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
 
   test("AC-0013-02 more than five show the most urgent first", async ({ page }) => {
     const ata = await createAta();
-    const real = (await asGestor("post", `/api/v1/atas/${ata.id}/ativar`)).body;
+    const real = ata;
     const rows = [40, 10, 70, 25, 55, 85, 5].map((days) => ({ ata: real, days_remaining: days }));
     await page.route("**/api/v1/atas/alertas/renovacao", (route) =>
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rows) }),
@@ -185,7 +191,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await expect(cells.nth(2)).toHaveText("MedSul Distribuidora Ltda");
     await expect(cells.nth(3)).toHaveText("02/01/2026 a 01/12/2026");
     await expect(cells.nth(4)).toHaveText("R$ 1.234.567,89");
-    await expect(cells.nth(5)).toHaveText("Rascunho");
+    await expect(cells.nth(5)).toContainText("Vigente");
     await expect(cells.nth(6)).toHaveText("10/02/2027");
 
     await row(page, ata.number).getByRole("link", { name: ata.number }).click();
@@ -194,7 +200,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
 
   test("AC-0013-03 more than 25 ATAs come a page at a time", async ({ page }) => {
     const ata = await createAta();
-    const real = (await asGestor("post", "/api/v1/atas/" + ata.id + "/ativar")).body;
+    const real = ata;
     // The page envelope as the API sends it, with a total past one page.
     await page.route("**/api/v1/atas?*", async (route) => {
       const page2 = new URL(route.request().url()).searchParams.get("page");
@@ -214,22 +220,22 @@ test.describe("SPEC-0013 the ATA screens", () => {
   });
 
   test("AC-0013-04 the list filters by status and situação, kept in the URL", async ({ page }) => {
-    await createAta();
+    await createAta({}, ["suspender"]);
     await asGestorOn(page, "/atas");
     await expect(page.getByTestId("ata-row").first()).toBeVisible();
 
-    const answered = page.waitForRequest((r) => r.url().includes("status=rascunho"));
-    await chooseFilter(page, "Status", "Rascunho");
+    const answered = page.waitForRequest((r) => r.url().includes("status=suspensa"));
+    await chooseFilter(page, "Status", "Suspensa");
     await answered;
-    await expect(page).toHaveURL(/\/atas\?status=rascunho$/);
+    await expect(page).toHaveURL(/\/atas\?status=suspensa$/);
     const statuses = page.getByTestId("ata-row").getByTestId("ata-status");
-    await expect(statuses.first()).toHaveText("Rascunho");
-    for (const text of await statuses.allTextContents()) expect(text).toBe("Rascunho");
+    await expect(statuses.first()).toHaveText("Suspensa");
+    for (const text of await statuses.allTextContents()) expect(text).toBe("Suspensa");
 
     await chooseFilter(page, "Situação", "Vigente");
-    await expect(page).toHaveURL(/\/atas\?status=rascunho&situacao=vigente$/);
+    await expect(page).toHaveURL(/\/atas\?status=suspensa&situacao=vigente$/);
     await page.reload();
-    await expect(page.getByLabel("Status", { exact: true })).toHaveText("Rascunho");
+    await expect(page.getByLabel("Status", { exact: true })).toHaveText("Suspensa");
     await expect(page.getByLabel("Situação", { exact: true })).toHaveText("Vigente");
 
     await page.getByRole("button", { name: "Limpar filtros" }).first().click();
@@ -301,14 +307,36 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await asGestorOn(page, "/atas");
     await openRegistration(page);
     const number = await fillRegistration(page);
+    let sent = false;
+    page.on("request", (r) => {
+      if (r.method() === "POST" && r.url().endsWith("/api/v1/atas")) sent = true;
+    });
+    await page.locator("main form").getByRole("button", { name: "Revisar cadastro" }).click();
+
+    // Nothing is saved before the gestor confirms what will be saved.
+    const review = page.getByTestId("ata-review");
+    await expect(page.getByRole("heading", { name: "Confira os dados antes de cadastrar" })).toBeFocused();
+    await expect(review).toContainText(number);
+    await expect(review).toContainText("R$ 380.500,50");
+    await expect(review).toContainText("28/02/2027");
+    await expect(review).toContainText("11.444.777/0001-61");
+    await expect(review).toContainText("Não informado");
+    expect(sent).toBe(false);
+
+    await page.getByRole("button", { name: "Voltar e corrigir" }).click();
+    await expect(page.locator("main form").getByLabel("Número", { exact: true })).toHaveValue(number);
+    expect(sent).toBe(false);
+
     const posted = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/v1/atas"));
-    await page.locator("main form").getByRole("button", { name: "Cadastrar" }).click();
+    await submitRegistration(page);
     expect(bodyOf(await posted)).toMatchObject({ number, total_value: "380500.50" });
 
     await expect(page).toHaveURL(/\/atas\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`ATA ${number}`);
-    await expect(page.getByRole("status").filter({ hasText: "ATA cadastrada como rascunho." })).toBeVisible();
-    await expect(page.getByTestId("ata-status")).toHaveText("Rascunho");
+    await expect(page.getByTestId("ata-status")).toHaveText("Vigente");
+    await expect(page.getByRole("button", { name: "Ativar" })).toHaveCount(0);
+    // The page is the result: no banner says it again.
+    await expect(page.getByText(/ATA cadastrada/)).toHaveCount(0);
   });
 
   test("AC-0013-07 a servidor and an auditor are not offered registration", async ({ page }) => {
@@ -334,21 +362,21 @@ test.describe("SPEC-0013 the ATA screens", () => {
     // Two refusals the API's schema reports in one answer: a número past 60
     // characters and a valor that is not a number.
     await fillRegistration(page, { Número: "N".repeat(61), "Valor total (R$)": "mil reais" });
-    await form.getByRole("button", { name: "Cadastrar" }).click();
+    await submitRegistration(page);
 
-    const numero = form.getByLabel("Número");
+    const numero = form.getByLabel("Número", { exact: true });
     await expect(numero).toHaveAttribute("aria-invalid", "true");
-    await expect(form.getByLabel("Valor total (R$)")).toHaveAttribute("aria-invalid", "true");
+    await expect(form.getByLabel("Valor total (R$)", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(form.getByTestId("field-error")).toHaveCount(2);
     await expect(numero).toBeFocused();
-    await expect(form.getByLabel("Objeto")).toHaveValue("Luvas de procedimento, caixa com 100");
+    await expect(form.getByLabel("Objeto", { exact: true })).toHaveValue("Luvas de procedimento, caixa com 100");
 
     // A CNPJ with wrong check digits is the service's refusal, named on its field.
     await numero.fill(ataNumber());
-    await form.getByLabel("Valor total (R$)").fill("100,00");
-    await form.getByLabel("CNPJ do fornecedor").fill("11444777000162");
-    await form.getByRole("button", { name: "Cadastrar" }).click();
-    const cnpj = form.getByLabel("CNPJ do fornecedor");
+    await form.getByLabel("Valor total (R$)", { exact: true }).fill("100,00");
+    await form.getByLabel("CNPJ do fornecedor", { exact: true }).fill("11444777000162");
+    await submitRegistration(page);
+    const cnpj = form.getByLabel("CNPJ do fornecedor", { exact: true });
     await expect(cnpj).toHaveAttribute("aria-invalid", "true");
     await expect(form.getByTestId("field-error")).toHaveCount(1);
     await expect(cnpj).toBeFocused();
@@ -361,11 +389,11 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await openRegistration(page);
     await fillRegistration(page, { Número: ata.number });
     const form = page.locator("main form");
-    await form.getByRole("button", { name: "Cadastrar" }).click();
+    await submitRegistration(page);
     await expect(form.locator("#ata-number-error")).toHaveText(
       "Já existe uma ATA com este número. Confira o número ou abra a existente.",
     );
-    await expect(form.getByLabel("Número")).toBeFocused();
+    await expect(form.getByLabel("Número", { exact: true })).toBeFocused();
   });
 
   test("AC-0013-09 money is typed in pt-BR and sent exactly", async ({ page }) => {
@@ -373,16 +401,19 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await openRegistration(page);
     const form = page.locator("main form");
     await fillRegistration(page, { "Valor total (R$)": "10,005" });
-    await expect(form.getByLabel("CNPJ do fornecedor")).toHaveValue("11.444.777/0001-61");
+    await expect(form.getByLabel("CNPJ do fornecedor", { exact: true })).toHaveValue("11.444.777/0001-61");
+    // The alphanumeric CNPJ keeps its letters, uppercased (AC-0002-25).
+    await form.getByLabel("CNPJ do fornecedor", { exact: true }).fill("12abc34501de35");
+    await expect(form.getByLabel("CNPJ do fornecedor", { exact: true })).toHaveValue("12.ABC.345/01DE-35");
 
     const posted = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/v1/atas"));
-    await form.getByRole("button", { name: "Cadastrar" }).click();
+    await submitRegistration(page);
     expect(bodyOf(await posted).total_value).toBe("10.005");
-    await expect(form.getByLabel("Valor total (R$)")).toHaveAttribute("aria-invalid", "true");
+    await expect(form.getByLabel("Valor total (R$)", { exact: true })).toHaveAttribute("aria-invalid", "true");
 
-    await form.getByLabel("Valor total (R$)").fill("1.234.567,89");
+    await form.getByLabel("Valor total (R$)", { exact: true }).fill("1.234.567,89");
     const again = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/v1/atas"));
-    await form.getByRole("button", { name: "Cadastrar" }).click();
+    await submitRegistration(page);
     expect(bodyOf(await again).total_value).toBe("1234567.89");
     await expect(page).toHaveURL(/\/atas\/[0-9a-f-]{36}$/);
   });
@@ -393,7 +424,7 @@ test.describe("SPEC-0013 the ATA page", () => {
   test.use({ timezoneId: "America/Los_Angeles" });
 
   test("AC-0013-10 the ATA page shows the ATA as the API holds it", async ({ page }) => {
-    const ata = await createAta({ issued_on: "2026-01-01" }, ["ativar"]);
+    const ata = await createAta({ issued_on: "2026-01-01" });
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
     await expect(page.getByTestId("ata-status")).toHaveText("Vigente");
@@ -450,18 +481,14 @@ test.describe("SPEC-0013 the ATA page", () => {
       }
     };
 
-    await moves(["Ativar", "Cancelar"]);
-    await actions.getByRole("button", { name: "Ativar", exact: true }).click();
-    const confirm = page.getByRole("alertdialog");
-    await expect(confirm).toContainText(`ATA ${ata.number}.`);
-    await confirm.getByRole("button", { name: "Ativar" }).click();
-    await expect(page.getByTestId("ata-status")).toHaveText("Vigente");
-    await expect(page.getByRole("status").filter({ hasText: "ATA ativada." })).toBeVisible();
-
     await moves(["Suspender", "Encerrar", "Cancelar"]);
     await actions.getByRole("button", { name: "Suspender", exact: true }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Suspender" }).click();
+    const confirm = page.getByRole("alertdialog");
+    await expect(confirm).toContainText(`ATA ${ata.number}.`);
+    await confirm.getByRole("button", { name: "Suspender" }).click();
     await expect(page.getByTestId("ata-status")).toHaveText("Suspensa");
+    // Announced to assistive technology, never shown as a banner.
+    await expect(page.getByRole("status").filter({ hasText: "ATA suspensa." })).toHaveClass(/sr-only/);
 
     await moves(["Retomar", "Encerrar", "Cancelar"]);
     await actions.getByRole("button", { name: "Encerrar", exact: true }).click();
@@ -471,7 +498,7 @@ test.describe("SPEC-0013 the ATA page", () => {
   });
 
   test("AC-0013-12 a move the API refuses is shown and the ATA reloaded", async ({ page }) => {
-    const ata = await createAta({}, ["ativar"]);
+    const ata = await createAta({});
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
     // Someone else suspends it while this page still shows it vigente.
@@ -491,14 +518,14 @@ test.describe("SPEC-0013 the ATA page", () => {
     const confirm = page.getByRole("alertdialog");
     const submit = confirm.getByRole("button", { name: "Cancelar ATA" });
     await expect(submit).toBeDisabled();
-    await confirm.getByLabel("Justificativa").fill("Registrada em duplicidade.");
+    await confirm.getByLabel("Justificativa", { exact: true }).fill("Registrada em duplicidade.");
     const posted = page.waitForRequest((r) => r.url().endsWith("/cancelar"));
     await submit.click();
     expect(bodyOf(await posted)).toEqual({ justification: "Registrada em duplicidade." });
     await expect(page.getByTestId("ata-status")).toHaveText("Cancelada");
   });
 
-  test("AC-0013-14 a gestor edits what may still change, on its own page", async ({ page }) => {
+  test("AC-0013-14 a gestor corrects any field, on its own page", async ({ page }) => {
     const ata = await createAta();
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
@@ -507,54 +534,58 @@ test.describe("SPEC-0013 the ATA page", () => {
     await expect(page).toHaveURL(new RegExp(`/atas/${ata.id}/editar$`));
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Editar ATA ${ata.number}`);
     let form = page.locator("main form");
-    await expect(form.getByLabel("Número")).toBeEditable();
-    await expect(form.getByLabel("Valor total (R$)")).toHaveValue("1.234.567,89");
-    await form.getByLabel("Objeto").fill("Seringas de 10 ml");
+    for (const label of ["Número", "CNPJ do fornecedor", "Fim da vigência", "Valor total (R$)"]) {
+      await expect(form.getByLabel(label, { exact: true })).toBeEditable();
+    }
+    await expect(form.getByLabel("Valor total (R$)", { exact: true })).toHaveValue("1.234.567,89");
+    await form.getByLabel("Objeto", { exact: true }).fill("Seringas de 10 ml");
+    await form.getByLabel("Valor total (R$)", { exact: true }).fill("1.300.000,00");
     const patched = page.waitForRequest((r) => r.method() === "PATCH");
     await form.getByRole("button", { name: "Salvar" }).click();
-    expect(bodyOf(await patched)).toEqual({ subject: "Seringas de 10 ml" });
+    expect(bodyOf(await patched)).toEqual({ subject: "Seringas de 10 ml", total_value: "1300000.00" });
     await expect(page).toHaveURL(new RegExp(`/atas/${ata.id}$`));
-    await expect(page.getByRole("status").filter({ hasText: "ATA atualizada." })).toBeVisible();
     await expect(page.getByTestId("ata-dados")).toContainText("Seringas de 10 ml");
-
-    await asGestor("post", `/api/v1/atas/${ata.id}/ativar`);
-    await page.goto(`/atas/${ata.id}/editar`);
-    form = page.locator("main form");
-    await expect(form).toContainText("Depois de ativada, valores e prazos só mudam por aditivo.");
-    for (const label of ["Número", "CNPJ do fornecedor", "Fim da vigência", "Valor total (R$)"]) {
-      await expect(form.getByLabel(label)).toBeDisabled();
-    }
-    await expect(form.getByLabel("Objeto")).toBeEditable();
-    await expect(form.getByLabel("Órgão")).toBeEditable();
+    await expect(page.getByTestId("ata-dados")).toContainText("R$ 1.300.000,00");
+    await expect(page.getByText("ATA atualizada.")).toHaveCount(0);
 
     // "Voltar" returns to the ATA and sends nothing.
+    await page.getByRole("link", { name: "Editar" }).click();
+    form = page.locator("main form");
     let sent = false;
     page.on("request", (r) => {
       if (r.method() === "PATCH") sent = true;
     });
-    await form.getByLabel("Objeto").fill("Não salvar");
+    await form.getByLabel("Objeto", { exact: true }).fill("Não salvar");
     await form.getByRole("link", { name: "Voltar" }).click();
     await expect(page).toHaveURL(new RegExp(`/atas/${ata.id}$`));
     await expect(page.getByTestId("ata-dados")).toContainText("Seringas de 10 ml");
     expect(sent).toBe(false);
+
+    // A cancelled ATA is history: no "Editar", and its address says why.
+    await asGestor("post", `/api/v1/atas/${ata.id}/cancelar`, { justification: "Teste." });
+    await page.reload();
+    await expect(page.getByTestId("ata-status")).toHaveText("Cancelada");
+    await expect(page.getByRole("link", { name: "Editar" })).toHaveCount(0);
+    await page.goto(`/atas/${ata.id}/editar`);
+    await expect(page.getByTestId("empty-state")).toContainText("Uma ATA encerrada ou cancelada não pode ser editada.");
   });
 
   test("AC-0013-15 a gestor records an aditivo", async ({ page }) => {
-    const ata = await createAta({ total_value: "100000.00" }, ["ativar"]);
+    const ata = await createAta({ total_value: "100000.00" });
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
     const aditivos = page.getByRole("region", { name: "Aditivos" });
 
     await aditivos.getByRole("button", { name: "Registrar aditivo" }).click();
     let dialog = page.getByRole("dialog");
-    await dialog.getByLabel("Acréscimo (R$)").fill("26.000,00");
-    await dialog.getByLabel("Justificativa").fill("Demanda acima do previsto.");
+    await dialog.getByLabel("Acréscimo (R$)", { exact: true }).fill("26.000,00");
+    await dialog.getByLabel("Justificativa", { exact: true }).fill("Demanda acima do previsto.");
     await dialog.getByRole("button", { name: "Registrar" }).click();
     await expect(dialog.locator("#aditivo-valor_acrescimo-error")).toHaveText(
       "O aditivo passa de 25% do valor original da ATA. Reduza o valor.",
     );
 
-    await dialog.getByLabel("Acréscimo (R$)").fill("20.000,00");
+    await dialog.getByLabel("Acréscimo (R$)", { exact: true }).fill("20.000,00");
     await dialog.getByRole("button", { name: "Registrar" }).click();
     await expect(aditivos.getByTestId("aditivo-row")).toHaveCount(1);
     await expect(aditivos.getByTestId("aditivo-row")).toContainText("R$ 20.000,00");
@@ -563,15 +594,15 @@ test.describe("SPEC-0013 the ATA page", () => {
     await aditivos.getByRole("button", { name: "Registrar aditivo" }).click();
     dialog = page.getByRole("dialog");
     await dialog.getByLabel("Prazo").check();
-    await dialog.getByLabel("Novo fim da vigência").fill("2027-06-30");
-    await dialog.getByLabel("Justificativa").fill("Prorrogação.");
+    await dialog.getByLabel("Novo fim da vigência", { exact: true }).fill("2027-06-30");
+    await dialog.getByLabel("Justificativa", { exact: true }).fill("Prorrogação.");
     await dialog.getByRole("button", { name: "Registrar" }).click();
     await expect(aditivos.getByTestId("aditivo-row")).toHaveCount(2);
     await expect(page.getByTestId("ata-dados")).toContainText("02/01/2026 a 30/06/2027");
   });
 
   test("AC-0013-15 an ATA that is not vigente offers no aditivo", async ({ page }) => {
-    const ata = await createAta();
+    const ata = await createAta({}, ["suspender"]);
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
     await expect(page.getByRole("button", { name: "Registrar aditivo" })).toHaveCount(0);
@@ -579,7 +610,7 @@ test.describe("SPEC-0013 the ATA page", () => {
   });
 
   test("AC-0013-16 a gestor records a reajuste request", async ({ page }) => {
-    const ata = await createAta({}, ["ativar"]);
+    const ata = await createAta({});
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
     const reajustes = page.getByRole("region", { name: "Pedidos de reajuste" });
@@ -587,21 +618,21 @@ test.describe("SPEC-0013 the ATA page", () => {
     await reajustes.getByRole("button", { name: "Registrar pedido de reajuste" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText("Formato NNNNN.NNNNNN/AAAA-DD");
-    await dialog.getByLabel("Processo SEI").fill("123/2026");
-    await dialog.getByLabel("Data do pedido").fill("2026-10-01");
+    await dialog.getByLabel("Processo SEI", { exact: true }).fill("123/2026");
+    await dialog.getByLabel("Data do pedido", { exact: true }).fill("2026-10-01");
     await dialog.getByRole("button", { name: "Registrar" }).click();
     await expect(dialog.locator("#reajuste-processo_sei-error")).toHaveText(
       "Número de processo SEI inválido. Use o formato NNNNN.NNNNNN/AAAA-DD.",
     );
 
-    await dialog.getByLabel("Processo SEI").fill("12345.123456/2026-12");
+    await dialog.getByLabel("Processo SEI", { exact: true }).fill("12345.123456/2026-12");
     await dialog.getByRole("button", { name: "Registrar" }).click();
     await expect(reajustes.getByTestId("reajuste-row")).toContainText("12345.123456/2026-12");
     await expect(reajustes.getByTestId("reajuste-row")).toContainText("01/10/2026");
   });
 
   test("AC-0013-17 readers read", async ({ page }) => {
-    const ata = await createAta({}, ["ativar"]);
+    const ata = await createAta({});
     await asGestor("post", `/api/v1/atas/${ata.id}/reajustes`, {
       processo_sei: "12345.123456/2026-12",
       requested_on: "2026-10-01",
@@ -620,7 +651,7 @@ test.describe("SPEC-0013 the ATA page", () => {
 test.describe("SPEC-0013 layout", () => {
   for (const width of [360, 768, 1440]) {
     test(`AC-0013-18 every page holds at ${width}px`, async ({ page }) => {
-      const ata = await createAta({}, ["ativar"]);
+      const ata = await createAta({});
       await page.setViewportSize({ width, height: 900 });
       await signIn(page, GESTOR.email, GESTOR.password);
       const overflow = () =>
@@ -644,7 +675,7 @@ test.describe("SPEC-0013 layout", () => {
   }
 
   test("AC-0013-18 every page passes the accessibility check", async ({ page }) => {
-    const ata = await createAta({ vigencia_fim: isoDay(30) }, ["ativar"]);
+    const ata = await createAta({ vigencia_fim: isoDay(30) });
     await signIn(page, GESTOR.email, GESTOR.password);
     await page.goto("/atas");
     await expect(page.getByTestId("ata-row").first()).toBeVisible();
@@ -663,19 +694,50 @@ test.describe("SPEC-0013 layout", () => {
     await noSeriousViolations(page);
   });
 
+  test("AC-0013-19 every field says what it is", async ({ page }) => {
+    await asGestorOn(page, "/atas/nova");
+    const form = page.locator("main form");
+    const about = form.getByRole("button", { name: "Sobre CNPJ do fornecedor" });
+    await expect(form.getByTestId("info-tip")).toHaveCount(10);
+    await expect(about).toHaveAttribute("aria-expanded", "false");
+
+    await about.click();
+    await expect(about).toHaveAttribute("aria-expanded", "true");
+    await expect(form).toContainText("desde 2026 pode ter letras nos 12 primeiros");
+    await page.keyboard.press("Escape");
+    await expect(about).toHaveAttribute("aria-expanded", "false");
+    await expect(about).toBeFocused();
+
+    // By keyboard, and closed by a choice anywhere else.
+    await page.keyboard.press("Enter");
+    await expect(form).toContainText("dígitos verificadores");
+    await page.getByRole("heading", { level: 1 }).click();
+    await expect(about).toHaveAttribute("aria-expanded", "false");
+
+    // The dialogs explain theirs too, and Escape closes the explanation, not the dialog.
+    const ata = await createAta();
+    await openAta(page, ata.id, ata.number);
+    await page.getByRole("button", { name: "Registrar aditivo" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Sobre Justificativa" }).click();
+    await expect(dialog).toContainText("Fica no histórico da ATA.");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+  });
+
   test("AC-0013-18 every action can be reached and confirmed with the keyboard", async ({ page }) => {
     const ata = await createAta();
     await signIn(page, GESTOR.email, GESTOR.password);
     await openAta(page, ata.id, ata.number);
-    const ativar = page.getByTestId("ata-actions").getByRole("button", { name: "Ativar", exact: true });
-    await ativar.focus();
+    const suspender = page.getByTestId("ata-actions").getByRole("button", { name: "Suspender", exact: true });
+    await suspender.focus();
     await page.keyboard.press("Enter");
-    const confirm = page.getByRole("alertdialog").getByRole("button", { name: "Ativar" });
+    const confirm = page.getByRole("alertdialog").getByRole("button", { name: "Suspender" });
     await expect(page.getByRole("alertdialog")).toBeVisible();
     // Focus starts on "Voltar"; Tab reaches the confirmation.
     await page.keyboard.press("Tab");
     await expect(confirm).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("ata-status")).toHaveText("Vigente");
+    await expect(page.getByTestId("ata-status")).toHaveText("Suspensa");
   });
 });

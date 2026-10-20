@@ -19,7 +19,7 @@ from app.models.fornecedor import Fornecedor
 
 
 def fornecedor_by_cnpj(session: Session, cnpj: str) -> Fornecedor | None:
-    """Find a fornecedor by its 14 digits, or None."""
+    """Find a fornecedor by its 14 normalised characters, or None."""
     return session.scalars(select(Fornecedor).where(Fornecedor.cnpj == cnpj)).one_or_none()
 
 
