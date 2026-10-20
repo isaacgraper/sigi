@@ -24,7 +24,6 @@ LOGIN = "/api/v1/auth/login"
 LONG_ENOUGH = "SenhaLongaOSuficiente-2026"
 
 CNPJ = "11.222.333/0001-81"
-OTHER_CNPJ = "45.723.174/0001-10"
 CSV_HEADERS = {"Content-Type": "text/csv"}
 
 
@@ -142,6 +141,19 @@ def audit_rows(db_session: Session, entidade_id: str, acao: str | None = None) -
         sql += " AND acao = :a"
         params["a"] = acao
     return list(db_session.execute(text(sql + " ORDER BY ocorrido_em"), params).all())
+
+
+def new_cnpj() -> str:
+    """A valid CNPJ no other test has registered, with letters in it (IN RFB nº 2.229/2024)."""
+    weights = (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
+
+    def digit(base: str, w: tuple[int, ...]) -> int:
+        remainder = sum((ord(c) - 48) * x for c, x in zip(base, w, strict=True)) % 11
+        return 0 if remainder < 2 else 11 - remainder
+
+    base = "Z" + uuid.uuid4().hex[:11].upper()
+    first = digit(base, weights)
+    return f"{base}{first}{digit(base + str(first), (6, *weights))}"
 
 
 def csv(*lines: str, encoding: str = "utf-8") -> bytes:

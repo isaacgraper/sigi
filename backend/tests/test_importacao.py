@@ -18,7 +18,6 @@ from tests.catalogue import (
     CSV_HEADERS,
     GRUPOS,
     INSUMOS,
-    OTHER_CNPJ,
     add_item,
     audit_rows,
     csv,
@@ -28,6 +27,7 @@ from tests.catalogue import (
     login,
     make_ata,
     make_insumo,
+    new_cnpj,
     sku,
     unique,
 )
@@ -407,6 +407,7 @@ def test_ac_0003_26_a_gestor_imports_an_atas_items(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
     """AC-0003-26 — added, corrected, unchanged; an item not in the file is left alone."""
+    other = new_cnpj()
     raiz = grupo(application, gestor)
     a, b, c, d = (make_insumo(application, gestor, raiz["id"]) for _ in range(4))
     ata = make_ata(application, gestor)
@@ -419,7 +420,7 @@ def test_ac_0003_26_a_gestor_imports_an_atas_items(
         gestor,
         csv(
             ITEMS_HEADER,
-            f"{a['sku']};1.000;R$ 0,00599;1;{OTHER_CNPJ};Distribuidora B Ltda",
+            f"{a['sku']};1.000;R$ 0,00599;1;{other};Distribuidora B Ltda",
             f"{b['sku']};12;2;2;;",
             f"{c['sku'].lower()};5;3;;;",
         ),
@@ -433,7 +434,7 @@ def test_ac_0003_26_a_gestor_imports_an_atas_items(
     new = item_of(items, a["id"])
     assert decimal.Decimal(new["unit_price"]) == decimal.Decimal("0.00599")
     assert decimal.Decimal(new["total_value"]) == decimal.Decimal("5.99")
-    assert new["fornecedor"]["cnpj"] == "45723174000110"
+    assert new["fornecedor"]["cnpj"] == other
     assert decimal.Decimal(item_of(items, b["id"])["quantity"]) == 12
     assert decimal.Decimal(item_of(items, d["id"])["quantity"]) == 7
     assert len(audit_rows(db_session, ata["id"], "ata.item_editado")) == 1
@@ -484,7 +485,7 @@ def test_ac_0003_26_a_new_fornecedor_needs_its_razao_social(
     response = send(
         application,
         gestor,
-        csv(ITEMS_HEADER, f"{insumo['sku']};1;1;;12.ABC.345/01DE-35;"),
+        csv(ITEMS_HEADER, f"{insumo['sku']};1;1;;{new_cnpj()};"),
         route=f"{ATAS}/{ata['id']}/itens/importacao",
     )
 

@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from tests.catalogue import (
     ATAS,
-    OTHER_CNPJ,
     add_item,
     audit_rows,
     grupo,
@@ -24,6 +23,7 @@ from tests.catalogue import (
     login,
     make_ata,
     make_insumo,
+    new_cnpj,
 )
 
 
@@ -238,6 +238,7 @@ def test_ac_0003_23_an_item_can_have_its_own_fornecedor(
     application: TestClient, gestor: dict[str, str], raiz: dict, ata: dict
 ) -> None:
     """AC-0003-23 — B on one item, A on the others; none, or A's own CNPJ, reads as A."""
+    other = new_cnpj()
     a = make_insumo(application, gestor, raiz["id"])
     b = make_insumo(application, gestor, raiz["id"])
     c = make_insumo(application, gestor, raiz["id"])
@@ -247,7 +248,7 @@ def test_ac_0003_23_an_item_can_have_its_own_fornecedor(
         gestor,
         ata["id"],
         b["id"],
-        fornecedor={"cnpj": OTHER_CNPJ, "legal_name": "Distribuidora B Ltda"},
+        fornecedor={"cnpj": other, "legal_name": "Distribuidora B Ltda"},
     )
     items = add_item(
         application,
@@ -259,7 +260,7 @@ def test_ac_0003_23_an_item_can_have_its_own_fornecedor(
 
     assert item_of(items, a["id"])["fornecedor"]["cnpj"] == "11222333000181"
     assert item_of(items, a["id"])["own_fornecedor"] is False
-    assert item_of(items, b["id"])["fornecedor"]["cnpj"] == "45723174000110"
+    assert item_of(items, b["id"])["fornecedor"]["cnpj"] == other
     assert item_of(items, b["id"])["own_fornecedor"] is True
     assert item_of(items, c["id"])["own_fornecedor"] is False
 
