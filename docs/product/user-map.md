@@ -38,17 +38,17 @@ Every path through a screen, its fields, validation and screenshots, is in
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | Painel: the CAME report, four tabs | Painel (1st) | ✓ | ✓ | ✓ | SPEC-0012 | Approved, built |
 | `/atas` | ATAs: vencimentos e reajustes, list | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved, built |
-| `/atas/{id}` | One ATA: aditivos, reajustes, moves; its items (SPEC-0014 §4.7, Approved) | under ATAs | W | ✓, items of its grupos | ✓ | SPEC-0013, SPEC-0014 | Approved, built; items Approved |
+| `/atas/{id}` | One ATA: aditivos, reajustes, moves; its items (SPEC-0014 §4.7) | under ATAs | W | ✓, items of its grupos | ✓ | SPEC-0013, SPEC-0014 | Approved, built |
 | `/atas/nova` | Nova ATA: the registration, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
 | `/atas/{id}/editar` | Editar ATA: the edit, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
-| `/atas/{id}/itens/importar` | Importar itens: an ATA's items file, checked first | under ATAs | W | — | — | SPEC-0014 §4.6 | Approved |
-| `/insumos` | Insumos: the catalogue, searched and filtered | Insumos (3rd) | W | W, its grupos | ✓ | SPEC-0014 §4.2 | Approved |
-| `/insumos/{id}` | One insumo: its ATAs, SKU, discontinue, substitute, reactivate | under Insumos | W | ✓, its grupos | ✓ | SPEC-0014 §4.4 | Approved |
-| `/insumos/novo` | Novo insumo | under Insumos | W | W, its grupos | — | SPEC-0014 §4.3 | Approved |
-| `/insumos/{id}/editar` | Editar insumo | under Insumos | W | W, its grupos | — | SPEC-0014 §4.3 | Approved |
-| `/insumos/grupos` | Grupos de materiais: the tree, create, rename | under Insumos | W | ✓, its grupos | ✓ | SPEC-0014 §4.5 | Approved |
-| `/insumos/importar` | Importar catálogo: the file, checked first | under Insumos | W | — | — | SPEC-0014 §4.6 | Approved |
-| `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved |
+| `/atas/{id}/itens/importar` | Importar itens: an ATA's items file, checked first | under ATAs | W | — | — | SPEC-0014 §4.6 | Approved, built |
+| `/insumos` | Insumos: the catalogue, searched and filtered | Insumos (3rd) | W | W, its grupos | ✓ | SPEC-0014 §4.2 | Approved, built |
+| `/insumos/{id}` | One insumo: its ATAs, SKU, discontinue, substitute, reactivate | under Insumos | W | ✓, its grupos | ✓ | SPEC-0014 §4.4 | Approved, built |
+| `/insumos/novo` | Novo insumo | under Insumos | W | W, its grupos | — | SPEC-0014 §4.3 | Approved, built |
+| `/insumos/{id}/editar` | Editar insumo | under Insumos | W | W, its grupos | — | SPEC-0014 §4.3 | Approved, built |
+| `/insumos/grupos` | Grupos de materiais: the tree, create, rename | under Insumos | W | ✓, its grupos | ✓ | SPEC-0014 §4.5 | Approved, built |
+| `/insumos/importar` | Importar catálogo: the file, checked first | under Insumos | W | — | — | SPEC-0014 §4.6 | Approved, built |
+| `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved, built |
 
 ### Planned, with no screen spec yet
 

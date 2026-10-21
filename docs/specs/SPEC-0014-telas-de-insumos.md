@@ -2,7 +2,7 @@
 id: SPEC-0014
 title: Telas de insumos
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0003, SPEC-0010, SPEC-0011, SPEC-0013]
@@ -616,27 +616,34 @@ None block this version.
   only, answering `UserGruposOut` from `insumos.grupos_of_user`, 404 for an unknown
   member; a test for AC-0003-32 and its row in the permission matrix. No migration.
 - Modules:
-  - `NAV_MODULES` in `frontend/lib/constants.ts` gains "Insumos" after "ATAs".
+  - `NAV_MODULES` in `frontend/lib/constants.ts` gains "Insumos" after "ATAs";
+    `FILTER_ALL` moves there from `lib/atas/constants.ts`, since two lists use it.
   - `frontend/lib/insumos/` holds the types, the words for each situação, the
-    import columns and the field help (`constants.ts`), the grupo paths and the
-    "included by" rule of AC-0014-28 (`grupos.ts`), and the model files
-    (`template.ts`).
+    form, the import columns and the field help (`constants.ts`), the grupo paths
+    and the "included by" rule of AC-0014-28 (`grupos.ts`), and the model files
+    and the report's counts (`template.ts`).
   - `frontend/lib/format.ts` gains pt-BR quantity parsing and formatting, and the
-    unit price with 2 to 5 decimals.
+    unit price with 2 to 5 decimals; `frontend/lib/errors.ts` reads the `rows` of
+    `IMPORT_REJECTED`.
+  - `frontend/lib/use-read.ts` and `frontend/lib/use-post.ts` hold the one read
+    and the one write every page and dialog of this spec repeats; `Field` moves
+    from `components/atas/` to `components/ui/field.tsx`, shared by both features.
   - `frontend/app/(app)/insumos/` holds the list, `novo/`, `[id]/`, `[id]/editar/`,
     `grupos/` and `importar/`; `frontend/app/(app)/atas/[id]/itens/importar/` the
     items import.
-  - `frontend/components/insumos/` holds the insumo form, the situação, the grupo
-    picker, the insumo search, the action dialogs, the grupo tree and the import
-    flow, shared by both files; `frontend/components/atas/items.tsx` the items
-    section and its dialogs; `frontend/components/members/grupos-dialog.tsx`.
+  - `frontend/components/insumos/` holds the insumo form and its pages, the
+    situação, the grupo select, the insumo search, the action dialogs, the grupo
+    tree and its page, and the import flow and its two pages;
+    `frontend/components/atas/items.tsx` the items section and its dialogs;
+    `frontend/components/members/grupos-dialog.tsx`.
 - New dependencies: none.
 - Tests:
   - `frontend/tests/insumos.test.ts` (Vitest) covers quantity and unit price
     parsing and formatting, the grupo paths, the "included by" rule and the model
     files.
-  - `frontend/e2e/insumos.spec.ts` (Playwright, against the real API) has one test
-    per AC; AC-0014-30 joins `responsive.spec.ts` and `accessibility.spec.ts`.
+  - `frontend/e2e/insumos.spec.ts` (Playwright, against the real API) has a test
+    for every AC, AC-0014-30 included; AC-0014-11 is proven inside the tests of
+    AC-0014-08 and -23, by the body each sends.
 
 ## 11. Changelog
 
@@ -644,3 +651,4 @@ None block this version.
 | --- | --- | --- |
 | 0.1 | 2026-10-21 | Initial draft. The screens for SPEC-0003 v1.1: the catalogue, its form and its page with the gestor's actions, the grupo tree, both imports with a check before writing, the items section of the ATA page with the aditivo de quantidade, and a servidor's grupos on the member list. One endpoint added to SPEC-0003 (AC-0003-32). |
 | 1.0 | 2026-10-21 | Approved by the product owner as drafted, with SPEC-0003 v1.2. |
+| 1.1 | 2026-10-21 | Built. §10 names the files as built: two shared hooks, `Field` moved to `components/ui/`, `FILTER_ALL` moved to `lib/constants.ts`, and the layout test in the spec's own e2e file. No criterion changed. |
