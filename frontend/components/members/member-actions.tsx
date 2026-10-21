@@ -1,9 +1,10 @@
 "use client";
 
-import { Ban, KeyRound, MailPlus, MoreHorizontal, UserCheck, UserX } from "lucide-react";
+import { Ban, FolderTree, KeyRound, MailPlus, MoreHorizontal, UserCheck, UserX } from "lucide-react";
 import { useState } from "react";
 
 import { CopyLink } from "@/components/members/copy-link";
+import { GruposDialog } from "@/components/members/grupos-dialog";
 import { useSession } from "@/components/session-provider";
 import {
   AlertDialog,
@@ -55,15 +56,18 @@ export function MemberActions({
   const [justification, setJustification] = useState("");
   const [pending, setPending] = useState(false);
   const [unblockError, setUnblockError] = useState<ApiError | null>(null);
+  const [grupos, setGrupos] = useState(false);
 
   // A deactivated account has nothing left to act on (AC-0010-41); block and
   // reset apply only to an active one (AC-0010-37, -40), and unblock only to a
   // blocked one (AC-0010-59).
-  const available: (MemberAction | "unblock")[] = [];
+  const available: (MemberAction | "unblock" | "grupos")[] = [];
   if (member.status === "ativo") available.push("block", "resetPassword");
   if (member.status === "bloqueado") available.push("unblock");
   // A pending account's only link may have been lost; this replaces it (AC-0010-61).
   if (member.status === "pendente") available.push("reinvite");
+  // Only a servidor is scoped by grupos (AC-0003-30, AC-0014-28).
+  if (member.perfil === "servidor" && member.status !== "desativado") available.push("grupos");
   if (member.status !== "desativado") available.push("deactivate");
   if (available.length === 0) return null;
 
@@ -149,6 +153,12 @@ export function MemberActions({
               Redefinir senha
             </DropdownMenuItem>
           )}
+          {available.includes("grupos") && (
+            <DropdownMenuItem onSelect={() => setGrupos(true)}>
+              <FolderTree aria-hidden />
+              Grupos de materiais
+            </DropdownMenuItem>
+          )}
           {available.includes("deactivate") && (
             <DropdownMenuItem onSelect={() => setAction("deactivate")} className="text-destructive">
               <UserX aria-hidden />
@@ -213,6 +223,8 @@ export function MemberActions({
           </form>
         </DialogContent>
       </Dialog>
+
+      {grupos && <GruposDialog member={member} onClose={() => setGrupos(false)} />}
 
       <Dialog open={oneTime !== null} onOpenChange={(open) => !open && setOneTime(null)}>
         <DialogContent>
