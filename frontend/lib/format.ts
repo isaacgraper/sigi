@@ -40,6 +40,35 @@ export function parseMoney(typed: string): string {
 }
 
 /**
+ * A quantity typed in pt-BR (`1.000`, `2,5`) as the decimal text the API reads
+ * (`1000`, `2.5`). Text to text, as money is: an extra decimal reaches the API
+ * and is refused there (SPEC-0014 AC-0014-11).
+ */
+export function parseQuantity(typed: string): string {
+  return parseMoney(typed);
+}
+
+/** A decimal from the API (`"1000.000"`) as pt-BR, without trailing zeros: `1.000`, `2,5`. */
+export function formatQuantity(decimal: string): string {
+  const negative = decimal.trim().startsWith("-");
+  const [whole, fraction = ""] = decimal.trim().replace(/^-/, "").split(".");
+  const grouped = whole.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const kept = fraction.replace(/0+$/, "");
+  return `${negative ? "-" : ""}${grouped}${kept ? `,${kept}` : ""}`;
+}
+
+/**
+ * A unit price from the API (`"0.00599"`, `"1.50000"`) with at least 2 and up to
+ * 5 decimals, `R$ 0,00599`, `R$ 1,50`: the five places are kept only where they
+ * say something (ADR-0016, AC-0014-21).
+ */
+export function formatUnitPrice(decimal: string): string {
+  const [whole, fraction = ""] = decimal.trim().split(".");
+  const kept = fraction.replace(/0+$/, "").padEnd(2, "0");
+  return formatBRL(`${whole}.${kept}`);
+}
+
+/**
  * The CNPJ as 00.000.000/0000-00, as far as it has been typed. Letters are kept
  * and uppercased, because the alphanumeric CNPJ carries them (SPEC-0002 AC-0002-25);
  * whether they are in the right place is the API's to say.
