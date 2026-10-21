@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { Field, focusFirst } from "@/components/atas/field";
+import { Field, focusFirst } from "@/components/ui/field";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button, buttonVariants } from "@/components/ui/button";

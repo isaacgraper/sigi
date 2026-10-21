@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Field } from "@/components/atas/field";
+import { Field } from "@/components/ui/field";
 import { useSession } from "@/components/session-provider";
 import {
   AlertDialog,

@@ -27,9 +27,6 @@ export const SITUACAO_LABEL: Record<Situacao, string> = {
 // Mirrors AC-0013-03.
 export const ATAS_PAGE_SIZE = 25;
 
-/** The filter value that means "no filter"; never a status or a situação. */
-export const FILTER_ALL = "todos";
-
 export const LIST_COLUMNS = ["Número", "Objeto", "Fornecedor", "Vigência", "Valor contratado", "Status", "Reajuste em"];
 
 // ── Vencimentos e reajustes ─────────────────────────────────────────────────

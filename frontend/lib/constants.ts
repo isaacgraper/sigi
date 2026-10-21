@@ -38,6 +38,11 @@ export const NAV_MODULES: Module[] = [
   },
 ];
 
+// ── Lists ───────────────────────────────────────────────────────────────────
+
+/** The filter value that means "no filter"; never a status, a situação or an id. */
+export const FILTER_ALL = "todos";
+
 // ── Perfis ──────────────────────────────────────────────────────────────────
 
 export const PERFIL_LABEL: Record<Perfil, string> = {

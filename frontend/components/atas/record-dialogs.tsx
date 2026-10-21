@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Field, focusFirst } from "@/components/atas/field";
+import { Field, focusFirst } from "@/components/ui/field";
 import { ErrorNotice } from "@/components/error-notice";
 import { useSession } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
