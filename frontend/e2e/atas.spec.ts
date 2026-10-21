@@ -76,7 +76,7 @@ test.describe("SPEC-0013 the ATA screens", () => {
     const auditor = await member("auditor");
     await signIn(page, auditor.email, auditor.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Membros"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Membros"]);
     await openFromSidebar(page, "ATAs");
     await expect(page).toHaveURL(/\/atas$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("ATAs");
