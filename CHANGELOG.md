@@ -13,6 +13,10 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- SPEC-0014, the screens for SPEC-0003, as a draft: the catalogue, the insumo page and its
+  gestor actions, the grupo tree, both CSV imports checked before writing, the items section
+  of the ATA page and a servidor's grupos on the member list. SPEC-0003 v1.2 adds AC-0003-32,
+  a gestor reads a servidor's grupos.
 - The insumo catalogue (SPEC-0003): `/api/v1/insumos` registers, corrects, searches,
   discontinues, substitutes and reactivates insumos by SKU, and changes a SKU with a
   justification; `/api/v1/grupos-materiais` holds the three levels of the DOMS hierarchy.
