@@ -225,6 +225,13 @@ def trigger_reset(
     return ResetTriggerOutput(id=user.id, reset_link=link)
 
 
+@router.get("/{user_id}/grupos-materiais", response_model=UserGruposOut)
+def get_grupos(user_id: uuid.UUID, actor: Gestor, session: DbSession) -> UserGruposOut:
+    """The grupos a servidor owns, before a gestor replaces them (SPEC-0003 AC-0003-32)."""
+    grupos = insumos.user_grupos(session, user_id)
+    return UserGruposOut(user_id=user_id, grupo_ids=sorted(grupos, key=str))
+
+
 @router.post("/{user_id}/grupos-materiais", response_model=UserGruposOut)
 def set_grupos(
     user_id: uuid.UUID,

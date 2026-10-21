@@ -160,6 +160,13 @@ def set_user_grupos(
     return wanted
 
 
+def user_grupos(session: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
+    """The grupos a member owns, without those below them (AC-0003-32)."""
+    if repo_user.by_id(session, user_id) is None:
+        raise UsuarioNotFound()
+    return repo.grupos_of_user(session, user_id)
+
+
 # ── Grupos (AC-0003-09, -13) ────────────────────────────────────────────────
 
 

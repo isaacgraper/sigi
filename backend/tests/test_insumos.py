@@ -774,6 +774,32 @@ def test_ac_0003_30_a_gestor_sets_a_servidors_grupos(
     assert rows[-1].dados_anteriores == {"grupos": [first["id"]]}
 
 
+def test_ac_0003_32_a_gestor_reads_a_servidors_grupos(
+    application: TestClient, create_user: Callable[..., User], gestor: dict[str, str]
+) -> None:
+    """AC-0003-32 — the stored set, without the grupos below it; 404 and 403 as stated."""
+    first = grupo(application, gestor)
+    below = grupo(application, gestor, parent=first["id"])
+    second = grupo(application, gestor)
+    servidor, user = login(application, create_user, "servidor")
+    auditor, _ = login(application, create_user, "auditor")
+    route = f"/api/v1/usuarios/{user.id}/grupos-materiais"
+    application.post(route, json={"grupo_ids": [first["id"], second["id"]]}, headers=gestor)
+
+    response = application.get(route, headers=gestor)
+
+    assert response.status_code == 200, response.text
+    assert set(response.json()["grupo_ids"]) == {first["id"], second["id"]}
+    assert below["id"] not in response.json()["grupo_ids"]
+    missing = application.get(f"/api/v1/usuarios/{uuid.uuid4()}/grupos-materiais", headers=gestor)
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "NOT_FOUND"
+    for headers in (servidor, auditor):
+        refused = application.get(route, headers=headers)
+        assert refused.status_code == 403
+        assert refused.json()["error"]["code"] == "PERFIL_NAO_AUTORIZADO"
+
+
 def test_ac_0003_30_only_a_servidor_has_grupos(
     application: TestClient, create_user: Callable[..., User], gestor: dict[str, str], raiz: dict
 ) -> None:
