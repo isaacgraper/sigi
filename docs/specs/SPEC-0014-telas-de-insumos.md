@@ -1,8 +1,8 @@
 ---
 id: SPEC-0014
 title: Telas de insumos
-status: Draft
-version: 0.1
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0003, SPEC-0010, SPEC-0011, SPEC-0013]
@@ -643,3 +643,4 @@ None block this version.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-10-21 | Initial draft. The screens for SPEC-0003 v1.1: the catalogue, its form and its page with the gestor's actions, the grupo tree, both imports with a check before writing, the items section of the ATA page with the aditivo de quantidade, and a servidor's grupos on the member list. One endpoint added to SPEC-0003 (AC-0003-32). |
+| 1.0 | 2026-10-21 | Approved by the product owner as drafted, with SPEC-0003 v1.2. |
