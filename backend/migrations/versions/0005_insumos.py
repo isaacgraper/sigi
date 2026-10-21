@@ -125,7 +125,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Restore the 0004 aditivo checks and drop the new tables; fails while a quantity aditivo exists."""
+    """Restore the 0004 aditivo checks and drop the new tables.
+
+    Fails while a quantity aditivo exists.
+    """
     op.execute("ALTER TABLE ata_aditivo DROP CONSTRAINT ck_ata_aditivo_campos")
     op.execute("""
         ALTER TABLE ata_aditivo ADD CONSTRAINT ck_ata_aditivo_campos
@@ -135,7 +138,8 @@ def downgrade() -> None:
     """)
     op.execute("ALTER TABLE ata_aditivo DROP CONSTRAINT ck_ata_aditivo_tipo")
     op.execute("""
-        ALTER TABLE ata_aditivo ADD CONSTRAINT ck_ata_aditivo_tipo CHECK (tipo IN ('valor', 'prazo'))
+        ALTER TABLE ata_aditivo ADD CONSTRAINT ck_ata_aditivo_tipo
+          CHECK (tipo IN ('valor', 'prazo'))
     """)
     op.execute("DROP INDEX IF EXISTS ix_ata_aditivo_item_ata_id")
     op.execute("ALTER TABLE ata_aditivo DROP COLUMN quantidade_acrescimo")
