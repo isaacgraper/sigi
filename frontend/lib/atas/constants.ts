@@ -1,5 +1,5 @@
 /** What the ATA screens read (SPEC-0013). Shared values live in lib/constants.ts. */
-import type { DueKind, FormKey, FormSection, FormValues, Move, Situacao, Status, Urgency } from "@/lib/atas/types";
+import type { Aditivo, DueKind, FormKey, FormSection, FormValues, Move, Situacao, Status, Urgency } from "@/lib/atas/types";
 
 // ── Status and situação ─────────────────────────────────────────────────────
 
@@ -210,6 +210,12 @@ export const FORM_EMPTY = Object.fromEntries(FORM_ORDER.map((key) => [key, ""]))
 export const FORM_CODE_FIELD: Record<string, FormKey> = { ATA_DUPLICADA: "number" };
 
 // ── Aditivo and reajuste dialogs ────────────────────────────────────────────
+
+export const ADITIVO_KIND_LABEL: Record<Aditivo["kind"], string> = {
+  valor: "Valor",
+  prazo: "Prazo",
+  quantidade: "Quantidade",
+};
 
 export const ADITIVO_ORDER = ["kind", "valor_acrescimo", "nova_vigencia_fim", "justification"];
 export const ADITIVO_CODES: Record<string, string> = { ADITIVO_ACIMA_DO_LIMITE: "valor_acrescimo" };

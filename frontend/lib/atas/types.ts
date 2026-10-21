@@ -33,9 +33,12 @@ export interface Ata {
 
 export interface Aditivo {
   id: string;
-  kind: "valor" | "prazo";
+  kind: "valor" | "prazo" | "quantidade";
   valor_acrescimo: string | null;
   nova_vigencia_fim: string | null;
+  /** The item a quantity aditivo raises, and by how much (SPEC-0003 AC-0003-27). */
+  item_id: string | null;
+  quantity: string | null;
   justification: string;
   created_at: string;
 }

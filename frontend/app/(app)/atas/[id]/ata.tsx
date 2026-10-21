@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { ItemsSection } from "@/components/atas/items";
 import { AtaStatus } from "@/components/atas/status";
 import { MoveActions } from "@/components/atas/move-actions";
 import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs";
@@ -24,11 +25,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cached, remember } from "@/lib/api-cache";
-import { MOVE, NOT_EDITABLE } from "@/lib/atas/constants";
-import type { AtaDetail } from "@/lib/atas/types";
+import { ADITIVO_KIND_LABEL, MOVE, NOT_EDITABLE } from "@/lib/atas/constants";
+import type { Aditivo, AtaDetail } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
-import { formatBRL, formatCnpj, formatDate, formatDay } from "@/lib/format";
+import { formatBRL, formatCnpj, formatDate, formatDay, formatQuantity } from "@/lib/format";
+import type { Items } from "@/lib/insumos/types";
 import { apiJson } from "@/lib/session";
+import { useRead } from "@/lib/use-read";
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -72,7 +75,13 @@ export function AtaView() {
   // Hiding the writes is cosmetic; the API refuses them (AC-0013-17, invariant 8).
   const writes = me.perfil === "gestor";
 
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  // The items are a block of their own: a servidor reads its grupos' share (AC-0014-21, -22).
+  const items = useRead<Items>(`/api/v1/atas/${id}/itens`);
+  const reloadItems = items.reload;
+  const reload = useCallback(() => {
+    setVersion((v) => v + 1);
+    reloadItems();
+  }, [reloadItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +201,24 @@ export function AtaView() {
         </CardContent>
       </Card>
 
+      <ItemsSection
+        ata={ata}
+        items={items.data}
+        failure={items.failure}
+        writes={writes}
+        scoped={me.perfil === "servidor"}
+        onItems={(next, message) => {
+          items.replace(next);
+          setAnnouncement(message);
+        }}
+        onAta={(next, message) => {
+          changed(next, message);
+          // An aditivo de quantidade raises its item's contracted quantity (AC-0014-25).
+          items.reload();
+        }}
+        onStale={reload}
+      />
+
       <Section
         title="Aditivos"
         action={writes && vigente ? <AditivoDialog ata={ata} onSaved={(next) => changed(next, "Aditivo registrado.")} /> : undefined}
@@ -215,14 +242,8 @@ export function AtaView() {
             )}
             {ata.aditivos.map((aditivo) => (
               <TableRow key={aditivo.id} data-testid="aditivo-row">
-                <TableCell>{aditivo.kind === "valor" ? "Valor" : "Prazo"}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">
-                  {aditivo.kind === "valor" && aditivo.valor_acrescimo
-                    ? formatBRL(aditivo.valor_acrescimo)
-                    : aditivo.nova_vigencia_fim
-                      ? formatDay(aditivo.nova_vigencia_fim)
-                      : "—"}
-                </TableCell>
+                <TableCell>{ADITIVO_KIND_LABEL[aditivo.kind]}</TableCell>
+                <TableCell className="whitespace-nowrap tabular-nums">{aditivoText(aditivo, items.data)}</TableCell>
                 <TableCell className="min-w-56">{aditivo.justification}</TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">{formatDate(aditivo.created_at)}</TableCell>
               </TableRow>
@@ -267,4 +288,20 @@ export function AtaView() {
       </Section>
     </div>
   );
+}
+
+/**
+ * What an aditivo added: money, a new end, or "+20 UN · CLORDEG21" for a quantity
+ * (AC-0014-26). An item outside a servidor's grupos is not in its items, so only
+ * the quantity shows.
+ */
+function aditivoText(aditivo: Aditivo, items: Items | null): string {
+  if (aditivo.kind === "valor" && aditivo.valor_acrescimo) return formatBRL(aditivo.valor_acrescimo);
+  if (aditivo.kind === "prazo" && aditivo.nova_vigencia_fim) return formatDay(aditivo.nova_vigencia_fim);
+  if (aditivo.kind === "quantidade" && aditivo.quantity) {
+    const item = items?.items.find((candidate) => candidate.id === aditivo.item_id);
+    const added = `+${formatQuantity(aditivo.quantity)}`;
+    return item ? `${added} ${item.insumo.unit} · ${item.insumo.sku}` : added;
+  }
+  return "—";
 }
