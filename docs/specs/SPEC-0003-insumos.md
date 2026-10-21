@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -508,6 +508,20 @@ Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 The scope is read on every request, not carried in the token, so a change applies
 at once.
 
+**AC-0003-32** — A gestor reads a servidor's grupos
+```gherkin
+Given a servidor whose grupos are "MATERIAL ODONTOLÓGICO" and "MATERIAL DE LIMPEZA"
+When  a gestor requests that member's grupos
+Then  the response is 200 with those two grupo ids, and nothing below them
+When  the member does not exist
+Then  the response is 404 with error code "NOT_FOUND"
+When  a servidor or an auditor requests it
+Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+```
+*(v1.2)* The member screen shows the set before a gestor replaces it (SPEC-0014
+AC-0014-28). The grupos below are in scope but not stored, so they are not
+returned; the read writes no audit row.
+
 ### 3.8 Audit
 
 **AC-0003-31** — Every mutation is audited in the same transaction
@@ -530,7 +544,7 @@ Then  the mutation is not saved
 | Import the catalogue | yes | no | no |
 | Create and rename a grupo | yes | no | no |
 | Add, correct, remove and import an ATA's items; aditivo de quantidade | yes | no | no |
-| Set a servidor's grupos | yes | no | no |
+| Set and read a servidor's grupos | yes | no | no |
 | Read the catalogue, the grupos and an ATA's items | yes | yes, in its grupos | yes |
 
 | Condition | HTTP | Error code | Message (pt-BR) |
@@ -597,11 +611,11 @@ a sequencing matter, not a question.
 
 ## 6. Screens
 
-The catalogue (`/insumos`, its form and its import) and the items section of the
-ATA page (add, correct, remove, import, aditivo de quantidade) are specified as
-screens after this spec is approved: the catalogue in a new screen spec, the ATA's
-items as a revision of SPEC-0013. The member page gains the servidor's grupos as a
-revision of SPEC-0010. Each follows `DESIGN.md` and updates `docs/product/user-map.md`.
+The catalogue (`/insumos`, its form and its import), the items section of the
+ATA page (add, correct, remove, import, aditivo de quantidade) and a servidor's
+grupos on the member page are specified in SPEC-0014. *(v1.2: one screen spec, not
+a new spec plus revisions of SPEC-0013 and SPEC-0010, so the screens of this backend
+are approved and proven together.)*
 
 ## Revision 2026-09-02 — validated against operational data
 
@@ -721,7 +735,7 @@ the item routes in `api/atas.py`, the grupos of a servidor in `api/users.py`, an
 | POST | `/api/v1/atas/{id}/itens/{item_id}/remover` | 24 |
 | POST | `/api/v1/atas/{id}/itens/importacao?dry_run=` | 26 |
 | POST | `/api/v1/atas/{id}/aditivos` (`tipo: "quantidade"`) | 27, 28 |
-| POST | `/api/v1/usuarios/{id}/grupos-materiais` | 30 |
+| GET, POST | `/api/v1/usuarios/{id}/grupos-materiais` | 30, 32 (GET added in v1.2) |
 
 DELETE answers 405 (AC-0003-10). A file arrives as the request body, `Content-Type:
 text/csv`, rather than as `multipart/form-data`, which FastAPI reads only through
@@ -752,3 +766,4 @@ of AC-0003-25.
 | 0.4 | 2026-10-20 | Rewritten for approval, every criterion in Given/When/Then. The flat category list of AC-0003-09 is replaced by the three-level DOMS hierarchy it contradicted (`data-sources.md` §5), and `grupo_id` becomes required. Substitution, discontinuation and reactivation get criteria (AC-0003-14 to -17). The catalogue file follows the model and gains `dry_run`, the pt-BR number rules and the §12 hazards (AC-0003-06, -18, -19). `ITEM_ATA` is specified: by hand and by a file per ATA, the unit price at five decimals (ADR-0016), the item's own fornecedor (OQ-11), correction and removal (AC-0003-20 to -26). The aditivo de quantidade and its 25% ceiling, deferred by AC-0002-13 and -14, land here (AC-0003-27, -28). RN07 is claimed on the grupo axis (AC-0003-29, -30). The `ativo` flag is dropped for the derived situação. Permissions, errors, audit events and an implementation plan added. RF15 and RN15 claimed for their quantity half |
 | 1.0 | 2026-10-20 | Approved by the product owner after review. No criterion changed |
 | 1.1 | 2026-10-20 | While implementing: AC-0003-18's 5 MB file conflicted with the 64 KiB body ceiling of SPEC-0001 AC-0001-42; SPEC-0001 v1.10 gives the two import routes their own ceiling |
+| 1.2 | 2026-10-21 | For the screens of SPEC-0014: AC-0003-32, a gestor reads a servidor's grupos, so the member dialog shows the set it replaces. §6 points to SPEC-0014, one screen spec in place of a new one plus two revisions |
