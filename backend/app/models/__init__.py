@@ -15,6 +15,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.credential_token import CredentialToken
 from app.models.fornecedor import Fornecedor
+from app.models.insumo import GrupoMaterial, Insumo, ItemAta, UsuarioGrupoMaterial
 from app.models.login_attempt import LoginAttempt
 from app.models.rate_limit import RateLimit
 from app.models.user import User
@@ -28,9 +29,13 @@ __all__ = [
     "Base",
     "CredentialToken",
     "Fornecedor",
+    "GrupoMaterial",
+    "Insumo",
+    "ItemAta",
     "LoginAttempt",
     "RateLimit",
     "SessionFamily",
     "User",
+    "UsuarioGrupoMaterial",
     "UserSession",
 ]

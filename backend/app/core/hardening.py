@@ -11,6 +11,8 @@ import json
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.constants import MAX_BODY_BYTES, SECURITY_HEADERS
+from app.constants.insumos import IMPORT_PATHS
+from app.core.config import get_settings
 from app.core.correlation import current
 
 
@@ -80,9 +82,16 @@ class BodyLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # The CSV import routes take a file, which 64 KiB cannot hold; they get
+        # their own ceiling and nothing else does (AC-0001-42 v1.10).
+        ceiling = (
+            get_settings().import_max_bytes
+            if IMPORT_PATHS.match(scope.get("path", ""))
+            else self.max_bytes
+        )
         declared = dict(scope.get("headers", [])).get(b"content-length")
         if declared is not None:
-            if declared.isdigit() and int(declared) > self.max_bytes:
+            if declared.isdigit() and int(declared) > ceiling:
                 await _refuse(send)
                 return
             await self.app(scope, receive, send)
@@ -96,7 +105,7 @@ class BodyLimitMiddleware:
                 break
             chunk = message.get("body", b"")
             size += len(chunk)
-            if size > self.max_bytes:
+            if size > ceiling:
                 await _refuse(send)
                 return
             chunks.append(chunk)

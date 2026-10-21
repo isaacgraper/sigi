@@ -13,6 +13,7 @@ from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
 from app.core.db import get_session
 from app.models.user import User
+from app.schemas.insumo import UserGruposIn, UserGruposOut
 from app.schemas.user import (
     InviteInput,
     InviteOutput,
@@ -21,7 +22,7 @@ from app.schemas.user import (
     ResetTriggerOutput,
     UnblockInput,
 )
-from app.services import members
+from app.services import insumos, members
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
 
@@ -222,3 +223,23 @@ def trigger_reset(
         correlation_id=_correlation(request),
     )
     return ResetTriggerOutput(id=user.id, reset_link=link)
+
+
+@router.post("/{user_id}/grupos-materiais", response_model=UserGruposOut)
+def set_grupos(
+    user_id: uuid.UUID,
+    body: UserGruposIn,
+    actor: Gestor,
+    request: Request,
+    session: DbSession,
+) -> UserGruposOut:
+    """Set the grupos a servidor owns, which scope what it sees (SPEC-0003 AC-0003-30, RN07)."""
+    grupos = insumos.set_user_grupos(
+        session,
+        actor=actor,
+        user_id=user_id,
+        grupo_ids=body.grupo_ids,
+        at=datetime.datetime.now(datetime.UTC),
+        correlation_id=_correlation(request),
+    )
+    return UserGruposOut(user_id=user_id, grupo_ids=sorted(grupos, key=str))

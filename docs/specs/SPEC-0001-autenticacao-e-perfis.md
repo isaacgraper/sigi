@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Implemented
-version: 1.9
+version: 1.10
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -747,7 +747,13 @@ Given any route
 When  a request body larger than 64 KiB arrives
 Then  the response is 413 "PAYLOAD_TOO_LARGE"
 And   the body is not parsed
+Given one of the two CSV import routes of SPEC-0003
+When  a request body larger than import_max_bytes arrives
+Then  the response is the same 413, and the body is not parsed either
 ```
+*(v1.10)* The import routes take a file of up to 5 MB (SPEC-0003 AC-0003-18), which
+64 KiB cannot hold: the SKU sheet alone is 1.425 rows. They get their own ceiling,
+named in configuration, and every other route keeps 64 KiB.
 
 **AC-0001-43** — Every API response forbids sniffing and framing
 ```gherkin
@@ -1333,3 +1339,4 @@ guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 | 1.7 | 2026-10-02 | AC-0001-44: a gestor unblocks an account, with a justification (OQ-34, stakeholder question 10). AC-0001-45: the invitation carries the full name and the registration, both mandatory (OQ-35, question 11; purpose and basis OQ-41). AC-0001-14 anonymises the registration. `NOT_BLOCKED` added to §5. |
 | 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |
 | 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
+| 1.10 | 2026-10-20 | AC-0001-42: the two CSV import routes of SPEC-0003 take a body up to `import_max_bytes` (5 MB), because a catalogue file does not fit in 64 KiB. Every other route keeps 64 KiB |

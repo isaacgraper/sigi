@@ -38,8 +38,14 @@ written in the caller's transaction and is append-only at the database level.
 
 **SPEC-0002 is implemented**: ATAs, fornecedores, the lifecycle without a
 draft, corrections, aditivos, reajuste requests and the renewal and reajuste
-alerts under `/api/v1/atas`, with the alphanumeric CNPJ. 332 backend tests run
-against a real PostgreSQL 16.
+alerts under `/api/v1/atas`, with the alphanumeric CNPJ.
+
+**SPEC-0003's backend is implemented**: the insumo catalogue, its three-level
+grupos, substitution and discontinuation, the items of an ATA with the unit price
+at five decimals (ADR-0016), the aditivo de quantidade, a CSV import for the
+catalogue and one for an ATA's items, and RN07 on the grupo axis, under
+`/api/v1/insumos`, `/api/v1/grupos-materiais` and `/api/v1/atas/{id}/itens`.
+450 backend tests run against a real PostgreSQL 16.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
 callback, invitation, password reset and member management inside the navy
@@ -56,19 +62,21 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Four migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Five migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
 `0002_registro_funcional` adds the member's registration, `0003_atas` adds
 `fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`, and `0004_ata_sem_rascunho`
-drops the draft status and admits the alphanumeric CNPJ. `alembic check`
+drops the draft status and admits the alphanumeric CNPJ, and `0005_insumos` adds
+`grupo_material`, `insumo`, `item_ata`, `usuario_grupo_material` and the aditivo
+de quantidade. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` (v1.9), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
+**Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
 `SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
-is `Approved` and built, waiting for its data sources. SPEC-0003 to SPEC-0009
-are `Draft`, and **a spec at `Draft` may not be implemented**.
+is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.1) is
+`Approved` with its backend built. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 
@@ -84,7 +92,7 @@ are `Draft`, and **a spec at `Draft` may not be implemented**.
   through the audit row and the session revocation, not impossible.
 - **OQ-32** — the trusted-proxy list exists (AC-0001-37/38) and is empty by
   default; which addresses go in it needs the deployment topology.
-- `RN07` is meant to land in SPEC-0003 but its `satisfies` does not claim it.
+- `RN07`'s unidade axis waits for `UNIDADE`; SPEC-0003 enforces the grupo axis.
 
 ## Non-negotiable domain rules
 
@@ -253,7 +261,9 @@ Full version: `CONTRIBUTING.md`.
 - Domain rules raise typed domain exceptions (`SaldoInsuficienteError`,
   `TransicaoInvalidaError`); the API layer maps them to HTTP responses. Do not
   raise `HTTPException` from a service.
-- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`.
+- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`, except
+  `ITEM_ATA.valor_unitario`, `NUMERIC(15,5)`, rounded half up to the centavo once
+  it becomes an amount (ADR-0016).
 - All primary keys are UUIDv4. Never expose sequential IDs.
 - Timestamps are `TIMESTAMPTZ`, stored UTC, presented in `America/Sao_Paulo`.
 - Every write endpoint records a `HISTORICO_MOVIMENTACAO` row in the same

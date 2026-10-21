@@ -313,7 +313,7 @@ otherwise corrupts data silently.
 | Dates as Excel serials | `46213.70138888889`, `45447.0` | Parsed as a number, a date becomes a quantity |
 | Money as formatted text | `R$ 4.892,88000` | `.` thousands, `,` decimal, **5 decimal places** |
 | Money at 5 decimals | `valorUnitario` `0,00599` | `NUMERIC(15,2)` truncates to `0,01` — a 67% error |
-| Unit price at 4 decimals | `ITEM_ATA.valor_unitario NUMERIC(15,4)` | Correct for `4,582`, still lossy for `0,00599` |
+| Unit price at 4 decimals | `ITEM_ATA.valor_unitario NUMERIC(15,4)` | Correct for `4,582`, still lossy for `0,00599`. *(2026-10-20: now `NUMERIC(15,5)`, ADR-0016)* |
 | **Unit collision on the same concept** | `diasEstoque` = `119` (**days**, DOMS) vs. `TEMPO DE ESTOQUE` = `2,876` (**months**, CAME) | Same name, same meaning, 30× apart |
 | SEI in scientific notation | `1.9596093E7` | Loses leading zeros and formatting |
 | Codes typed as floats | `mercadoriaId` `2888.0`, `empenho` `1316.0` | `1316.0` is not a key that joins to `1316` |

@@ -191,6 +191,27 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/atas/{ata_id}/cancelar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/aditivos"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/reajustes"): frozenset({"gestor"}),
+    # SPEC-0003 §3.9: every perfil reads the catalogue, the grupos and an ATA's
+    # items; a servidor and a gestor register and correct insumos; the rest is
+    # the gestor's.
+    ("GET", "/api/v1/insumos"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/insumos/{insumo_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/insumos"): frozenset({"gestor", "servidor"}),
+    ("PATCH", "/api/v1/insumos/{insumo_id}"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/insumos/importacao"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/alterar-sku"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/descontinuar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/substituir"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/reativar"): frozenset({"gestor"}),
+    ("GET", "/api/v1/grupos-materiais"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/grupos-materiais"): frozenset({"gestor"}),
+    ("PATCH", "/api/v1/grupos-materiais/{grupo_id}"): frozenset({"gestor"}),
+    ("GET", "/api/v1/atas/{ata_id}/itens"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens/importacao"): frozenset({"gestor"}),
+    ("PATCH", "/api/v1/atas/{ata_id}/itens/{item_id}"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens/{item_id}/remover"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
 }
 
 
@@ -241,6 +262,9 @@ def _call(
     concrete = (
         path.replace("{user_id}", str(uuid.uuid4()))
         .replace("{ata_id}", str(uuid.uuid4()))
+        .replace("{insumo_id}", str(uuid.uuid4()))
+        .replace("{grupo_id}", str(uuid.uuid4()))
+        .replace("{item_id}", str(uuid.uuid4()))
         .replace("{section}", "consumo")
     )
     if method == "GET":

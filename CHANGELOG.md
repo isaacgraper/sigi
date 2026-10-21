@@ -13,6 +13,19 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- The insumo catalogue (SPEC-0003): `/api/v1/insumos` registers, corrects, searches,
+  discontinues, substitutes and reactivates insumos by SKU, and changes a SKU with a
+  justification; `/api/v1/grupos-materiais` holds the three levels of the DOMS hierarchy.
+- The items of an ATA under `/api/v1/atas/{id}/itens`: added, corrected and removed one by
+  one, with the unit price at five decimals and the item's value rounded once to the centavo
+  (ADR-0016), an optional fornecedor per item, and their sum beside the ATA's valor_total. The
+  aditivo de quantidade raises one item, at most 25% of its quantity.
+- CSV import for the catalogue and for an ATA's items: all or nothing, a dry run, pt-BR
+  numbers in a `;` file, UTF-8 or Windows-1252, and the hazards measured in the source files.
+  The two import routes take a body up to 5 MB (SPEC-0001 v1.10).
+- RN07 on the grupo axis: a gestor sets a servidor's grupos, and the servidor sees only the
+  insumos and items in them. Migration `0005_insumos`.
+
 - The dashboard is the stakeholders' `RELATÓRIO GERAL CAME` report (SPEC-0012): four tabs,
   Atendimento por unidade, Consumo, Processos licitatórios and Itens em falta, with every
   filter, card, table and chart the report shows. Each block reads "Sem dados" until SIGI
@@ -34,7 +47,12 @@ entries are moved into a new dated version section — see
 
 - SPEC-0002 v1.3 and SPEC-0013 v1.8 are `Implemented`, accepted by the product owner. The three
   SPEC-0002 criteria that need NEs move to SPEC-0004 v0.5 (AC-0004-17, -25, -26).
-
+- SPEC-0003 v0.4 specifies the insumo catalogue and the items of an ATA for approval: grupos in
+  the three levels of the DOMS hierarchy, substitution and discontinuation, a catalogue file and
+  an items file per ATA with a dry run, the pt-BR number rules and the hazards measured in the
+  source files, one item at a time on the ATA, the aditivo de quantidade with its 25% ceiling,
+  and RN07 on the grupo axis. ADR-0016 keeps the unit price at five decimals and every total
+  at two.
 - Registering an ATA ends in a review, "Confira os dados antes de cadastrar", and saves only on
   "Confirmar cadastro". The ATA is vigente from that moment: there is no rascunho and no
   "Ativar" (SPEC-0002 v1.2, SPEC-0013 v1.7). Migration `0004_ata_sem_rascunho` moves any

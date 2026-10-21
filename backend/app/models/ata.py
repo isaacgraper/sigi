@@ -68,7 +68,11 @@ class Ata(Base):
 
 
 class AtaAditivo(Base):
-    """An aditivo of value or of prazo, with its justification (AC-0002-13)."""
+    """An aditivo of value, of prazo or of quantity, with its justification.
+
+    Value and prazo are SPEC-0002's (AC-0002-13); an aditivo of quantity raises
+    one item of the ATA (SPEC-0003 AC-0003-27).
+    """
 
     __tablename__ = "ata_aditivo"
 
@@ -79,6 +83,8 @@ class AtaAditivo(Base):
     kind: Mapped[str] = mapped_column("tipo", String(10))
     valor_acrescimo: Mapped[decimal.Decimal | None] = mapped_column(Numeric(15, 2))
     nova_vigencia_fim: Mapped[datetime.date | None] = mapped_column(Date)
+    item_ata_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("item_ata.id"))
+    quantidade_acrescimo: Mapped[decimal.Decimal | None] = mapped_column(Numeric(15, 3))
     justification: Mapped[str] = mapped_column("justificativa", Text)
     created_by: Mapped[uuid.UUID] = mapped_column("criado_por", Uuid, ForeignKey("usuario.id"))
     criado_em: Mapped[datetime.datetime] = mapped_column(
@@ -86,15 +92,21 @@ class AtaAditivo(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("tipo IN ('valor', 'prazo')", name="ck_ata_aditivo_tipo"),
-        # Each kind carries its own figure and not the other's.
+        CheckConstraint("tipo IN ('valor', 'prazo', 'quantidade')", name="ck_ata_aditivo_tipo"),
+        # Each kind carries its own figure and not the others'.
         CheckConstraint(
             "(tipo = 'valor' AND valor_acrescimo IS NOT NULL AND valor_acrescimo > 0"
-            " AND nova_vigencia_fim IS NULL)"
-            " OR (tipo = 'prazo' AND valor_acrescimo IS NULL AND nova_vigencia_fim IS NOT NULL)",
+            " AND nova_vigencia_fim IS NULL AND item_ata_id IS NULL"
+            " AND quantidade_acrescimo IS NULL)"
+            " OR (tipo = 'prazo' AND valor_acrescimo IS NULL AND nova_vigencia_fim IS NOT NULL"
+            " AND item_ata_id IS NULL AND quantidade_acrescimo IS NULL)"
+            " OR (tipo = 'quantidade' AND valor_acrescimo IS NULL AND nova_vigencia_fim IS NULL"
+            " AND item_ata_id IS NOT NULL AND quantidade_acrescimo IS NOT NULL"
+            " AND quantidade_acrescimo > 0)",
             name="ck_ata_aditivo_campos",
         ),
         Index("ix_ata_aditivo_ata_id", "ata_id"),
+        Index("ix_ata_aditivo_item_ata_id", "item_ata_id"),
     )
 
 

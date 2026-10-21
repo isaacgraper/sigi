@@ -82,6 +82,13 @@ class Settings(BaseSettings):
     # because OQ-42 assumes the two are alike until the entity says otherwise.
     ata_alert_days: int = 90
 
+    # ── Insumos and imports (SPEC-0003) ─────────────────────────────────────
+    # Fits the two examples of the CAME sheet, `CLORDEG21` and `SER5D` (RF07).
+    sku_pattern: str = "^[A-Z0-9]+$"
+    # Seven times the SKU sheet (1.425 rows) fits in either (AC-0003-18).
+    import_max_bytes: int = 5 * 1024 * 1024
+    import_max_lines: int = 10_000
+
     # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
     max_login_attempts: int = 5
     # ── Per-source rate limiting (AC-0001-33, ADR-0012) ────────────────────

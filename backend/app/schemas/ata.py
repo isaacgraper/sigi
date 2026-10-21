@@ -70,11 +70,13 @@ class CancelIn(BaseModel):
 
 
 class AditivoIn(BaseModel):
-    """The body of an aditivo (AC-0002-13)."""
+    """The body of an aditivo (AC-0002-13; of quantity, SPEC-0003 AC-0003-27)."""
 
-    kind: Literal["valor", "prazo"]
+    kind: Literal["valor", "prazo", "quantidade"]
     valor_acrescimo: Money | None = None
     nova_vigencia_fim: datetime.date | None = None
+    item_id: uuid.UUID | None = None
+    quantity: Annotated[decimal.Decimal | None, Field(gt=0, max_digits=15, decimal_places=3)] = None
     justification: Justification
 
 
@@ -102,6 +104,8 @@ class AditivoOut(BaseModel):
     kind: str
     valor_acrescimo: decimal.Decimal | None
     nova_vigencia_fim: datetime.date | None
+    item_id: uuid.UUID | None
+    quantity: decimal.Decimal | None
     justification: str
     created_at: datetime.datetime
 

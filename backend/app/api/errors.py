@@ -32,6 +32,7 @@ def register_handlers(app: FastAPI) -> None:
         # is omitted rather than sent empty so the client can branch on presence.
         if exc.fields:
             body["fields"] = exc.fields
+        body.update(exc.extra)
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
         return JSONResponse(status_code=exc.http, content={"error": body}, headers=headers)
 
