@@ -111,13 +111,14 @@ function TallyCard({
 }) {
   const active = value > 0;
   return (
-    <div data-testid={testId} className="rounded-lg border border-border/70 bg-card px-4 py-3 shadow-sm sm:min-w-40">
-      <p className="flex items-center gap-1.5 text-xs font-light text-muted-foreground">
-        {active && (
-          <span aria-hidden className={cn("size-1.5 rounded-full", tone === "danger" ? "bg-danger" : "bg-attention")} />
-        )}
-        {label}
-      </p>
+    <div
+      data-testid={testId}
+      className={cn(
+        "rounded-md border border-b-2 border-border/70 bg-card px-4 py-3 shadow-sm sm:min-w-40",
+        tone === "danger" ? "border-b-danger/70" : "border-b-attention/70",
+      )}
+    >
+      <p className="text-xs font-light text-muted-foreground">{label}</p>
       <p
         className={cn(
           "text-2xl font-normal leading-tight tabular-nums",
