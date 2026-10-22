@@ -13,6 +13,8 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- `python -m app.cli seed-demo`: a fictitious sample for a development install, loaded
+  through the services with its audit rows, once, and refused outside development.
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema
   from `create_app()` on every push to `dev` and publishes it with Swagger UI, read-only, on
   the `gh-pages` branch.
@@ -103,6 +105,9 @@ entries are moved into a new dated version section — see
 
 ### Fixed
 
+- A write's transaction was committed after its response had left, so a read made at once
+  could miss the row it had just been told about: a new ATA's page opened on "ATA não
+  encontrada" now and then. The session dependency now commits before the response is sent.
 - The alphanumeric CNPJ the Receita Federal issues since July 2026 (IN RFB nº 2.229/2024) was
   refused; it is accepted and stored uppercased (AC-0002-25).
 

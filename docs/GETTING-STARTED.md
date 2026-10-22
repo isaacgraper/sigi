@@ -60,6 +60,18 @@ docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.go
 docker compose exec backend python -m app.cli seed-dev-admin
 ```
 
+To fill the screens with a fictitious sample, load it on top: three-level grupos,
+twelve insumos, four fornecedores with valid but invented CNPJs, six ATAs in every
+state the list shows (one lapsing, one past its vigência, one encerrada, one
+suspensa), their items, a value and a quantity aditivo and a reajuste request,
+plus `servidor@sc.gov.br` / `servidor`, scoped to one grupo, and
+`auditor@sc.gov.br` / `auditor`. Everything goes through the services, so each row
+has its audit row. It runs once, and refuses outside `APP_ENV=development`.
+
+```bash
+docker compose exec backend python -m app.cli seed-demo
+```
+
 **The support contact.** Set `SUPPORT_CONTACT_EMAIL` on the frontend to the
 mailbox the gestores read. Every error a servidor cannot fix names it as a
 mailto link, with the error's reference in the e-mail body (AC-0010-57). Unset,

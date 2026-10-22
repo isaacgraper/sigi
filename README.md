@@ -44,6 +44,19 @@ Abra <http://localhost:3000> e entre com `admin@sc.gov.br` / `admin`. Esse
 gestor só existe em desenvolvimento (`APP_ENV=development`); em produção o
 primeiro gestor é criado com `python -m app.cli bootstrap-gestor`.
 
+Para ter dados fictícios nas telas (grupos, insumos, fornecedores, ATAs em vários
+estados, itens, aditivos e reajustes), carregue a amostra de demonstração. Ela
+também cria `servidor@sc.gov.br` / `servidor` e `auditor@sc.gov.br` / `auditor`,
+roda uma vez só e também só em desenvolvimento:
+
+```bash
+docker compose exec backend python -m app.cli seed-demo
+```
+
+Depois de atualizar o código, rode `alembic upgrade head` de novo: o container
+não aplica migrations sozinho, e uma tabela que falta aparece nas telas como
+"Não foi possível concluir".
+
 ## Desenvolvimento
 
 Pré-requisitos: Python 3.12, [Poetry](https://python-poetry.org) 2.x,

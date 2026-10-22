@@ -29,7 +29,9 @@ function Days({ remaining }: { remaining: number }) {
   const overdue = remaining < 0;
   const n = Math.abs(remaining);
   return (
-    <span className={cn("flex items-baseline gap-1 tabular-nums", URGENCY_CLASSES[urgency(remaining)].days)}>
+    <span
+      className={cn("flex items-baseline gap-1 whitespace-nowrap tabular-nums", URGENCY_CLASSES[urgency(remaining)].days)}
+    >
       <span className="sr-only">{dueText(remaining)}</span>
       <span aria-hidden className="flex items-baseline gap-1">
         {remaining === 0 ? (
@@ -37,7 +39,7 @@ function Days({ remaining }: { remaining: number }) {
         ) : (
           <>
             {overdue && <span className="text-xs font-light">há</span>}
-            <span className="text-2xl font-normal leading-none">{n}</span>
+            <span className="text-xl font-normal leading-none sm:text-2xl">{n}</span>
             <span className="text-xs font-light">{n === 1 ? "dia" : "dias"}</span>
           </>
         )}
@@ -46,6 +48,9 @@ function Days({ remaining }: { remaining: number }) {
   );
 }
 
+// The first column fits "há 9999 dias": an ATA left vigente years past its end
+// is rare but real, and its figure must never run into the kind beside it. On a
+// phone the kind wraps instead, so the column can stay narrower.
 function Row({ row }: { row: DueRow }) {
   const level = urgency(row.remaining);
   return (
@@ -55,7 +60,7 @@ function Row({ row }: { row: DueRow }) {
         onPointerEnter={() => warm(`/api/v1/atas/${row.ata.id}`)}
         onFocus={() => warm(`/api/v1/atas/${row.ata.id}`)}
         className={cn(
-          "grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-0.5 border-l-4 py-3 pl-4 pr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[5.5rem_11.5rem_minmax(0,1fr)_auto]",
+          "grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-x-4 sm:gap-x-5 gap-y-0.5 border-l-4 py-3 pl-4 pr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[8.5rem_11.5rem_minmax(0,1fr)_auto]",
           URGENCY_CLASSES[level].row,
         )}
       >
@@ -63,7 +68,7 @@ function Row({ row }: { row: DueRow }) {
           <Days remaining={row.remaining} />
         </span>
         <span
-          className={cn("whitespace-nowrap text-xs font-normal uppercase tracking-wide", URGENCY_CLASSES[level].kind)}
+          className={cn("text-xs font-normal uppercase tracking-wide sm:whitespace-nowrap", URGENCY_CLASSES[level].kind)}
         >
           {DUE_KIND_LABEL[row.kind]}
           {level === "overdue" && " · em atraso"}
