@@ -16,14 +16,13 @@ from typing import Annotated
 from fastapi import Depends, Request
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
-from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 
 from app.constants import WRITE_METHODS
 from app.constants.auth import BEARER_SCHEME
 from app.constants.members import PERFIS
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.core.security import TokenInvalid, verify_access_token
 from app.models.user import User
 from app.repositories import user as repo
@@ -38,7 +37,7 @@ def _token_from_header(request: Request) -> str:
     return value.strip()
 
 
-def current_usuario(request: Request, session: Annotated[Session, Depends(get_session)]) -> User:
+def current_usuario(request: Request, session: DbSession) -> User:
     """Resolve the bearer token to a user, and refuse one that is not ativo.
 
     The active check runs here, on every request, rather than only at login.

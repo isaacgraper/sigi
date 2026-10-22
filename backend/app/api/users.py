@@ -7,11 +7,10 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy.orm import Session
 
 from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.models.user import User
 from app.schemas.insumo import UserGruposIn, UserGruposOut
 from app.schemas.user import (
@@ -26,7 +25,6 @@ from app.services import insumos, members
 
 router = APIRouter(prefix="/api/v1/usuarios", tags=["usuarios"])
 
-DbSession = Annotated[Session, Depends(get_session)]
 
 # AC-0001-13: only a gestor manages members. Enforced server side on the route,
 # which is the only place it counts (A01).

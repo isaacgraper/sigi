@@ -4,17 +4,15 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
 from app.api.auth import _set_cookie
 from app.constants.auth import OIDC_STATE_COOKIE, OIDC_STATE_COOKIE_PATH
 from app.core.config import get_settings
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.core.throttling import enforce
 from app.repositories import user as repo_user
 from app.schemas.auth import SessionOutput
@@ -23,8 +21,6 @@ from app.services.audit import Event, record, record_standalone
 from app.services.errors import RouteUnavailable, UnprovisionedUsuario
 
 router = APIRouter(prefix="/api/v1/auth/oidc", tags=["auth"], dependencies=[Depends(enforce)])
-
-DbSession = Annotated[Session, Depends(get_session)]
 
 
 def _correlation_id(request: Request) -> uuid.UUID:

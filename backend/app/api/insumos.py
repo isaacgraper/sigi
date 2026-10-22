@@ -11,13 +11,12 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy.orm import Session
 
 from app.api.uploads import csv_body
 from app.core import clock
 from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.models.user import User
 from app.schemas.insumo import (
     CatalogueReportOut,
@@ -42,7 +41,6 @@ from app.services.insumos import GrupoNode, InsumoDetail, InsumoView
 router = APIRouter(prefix="/api/v1/insumos", tags=["insumos"])
 grupos_router = APIRouter(prefix="/api/v1/grupos-materiais", tags=["insumos"])
 
-DbSession = Annotated[Session, Depends(get_session)]
 Gestor = Annotated[User, Depends(Requires("gestor"))]
 Writer = Annotated[User, Depends(Requires("gestor", "servidor"))]
 Reader = Annotated[User, Depends(Requires("gestor", "servidor", "auditor"))]
