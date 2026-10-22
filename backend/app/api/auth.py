@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ from app.constants.auth import REFRESH_COOKIE_PATH
 from app.core.authorization import CurrentUser, Public
 from app.core.config import get_settings
 from app.core.correlation import current
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.core.throttling import enforce
 from app.models.user import User
 from app.repositories import user as repo_usuario
@@ -30,8 +29,6 @@ from app.services.authentication import authenticate_local
 from app.services.errors import InactiveUser, InvalidRefresh
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"], dependencies=[Depends(enforce)])
-
-DbSession = Annotated[Session, Depends(get_session)]
 
 
 def _correlation_id(request: Request) -> uuid.UUID:
