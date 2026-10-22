@@ -2,7 +2,7 @@
 id: SPEC-0014
 title: Telas de insumos
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0003, SPEC-0010, SPEC-0011, SPEC-0013]
@@ -530,7 +530,7 @@ And   it opens and closes as AC-0013-19 says
 
 | Field | Explanation |
 | --- | --- |
-| SKU | Código do item no CAME, só letras e números, sem espaços nem pontos, ex. CLORDEG21. Não pode repetir outro insumo. |
+| SKU | Código do item no CAME, letras e números com ao menos uma letra, sem espaços nem pontos, ex. CLORDEG21. Não pode repetir outro insumo. |
 | Descrição | Nome do item como deve aparecer nas ATAs e nas notas. Sem o código DOMS na frente. |
 | Unidade | Unidade de dispensação, ex. UN, CX, L. |
 | Grupo | Grupo de materiais do DOMS. Um servidor só vê os insumos dos seus grupos. |
@@ -668,3 +668,4 @@ None block this version.
 | 1.0 | 2026-10-21 | Approved by the product owner as drafted, with SPEC-0003 v1.2. |
 | 1.1 | 2026-10-21 | Built. §10 names the files as built: two shared hooks, `Field` moved to `components/ui/`, `FILTER_ALL` moved to `lib/constants.ts`, and the layout test in the spec's own e2e file. No criterion changed. |
 | 1.2 | 2026-10-22 | By the product owner's review of the import screen: choosing the file checks it at once, with no "Conferir arquivo" (AC-0014-18); the check and the result show the lines as the API read them, and one "Confirmar importação" imports (AC-0014-19, -20); a file over 5 MB or not .csv is refused before sending (AC-0014-18). Follows SPEC-0003 v1.3 |
+| 1.3 | 2026-10-22 | The SKU's explanation (AC-0014-29) says it needs at least one letter, after SPEC-0003 v1.4 (AC-0003-35). No other criterion changed |

@@ -958,7 +958,7 @@ test.describe("SPEC-0014 the insumo screens", () => {
     await expect(form.getByTestId("info-tip")).toHaveCount(7);
     const about = form.getByRole("button", { name: "Sobre SKU" });
     await about.click();
-    await expect(form).toContainText("Código do item no CAME, só letras e números");
+    await expect(form).toContainText("Código do item no CAME, letras e números com ao menos uma letra");
     await page.keyboard.press("Escape");
     await expect(about).toHaveAttribute("aria-expanded", "false");
     await expect(about).toBeFocused();

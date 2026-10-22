@@ -222,7 +222,7 @@ export const QUANTITY_ADITIVO_CODE_FIELD: Record<string, string> = { ADITIVO_ACI
 // ── Field help (AC-0014-29) ─────────────────────────────────────────────────
 
 export const HELP = {
-  sku: "Código do item no CAME, só letras e números, sem espaços nem pontos, ex. CLORDEG21. Não pode repetir outro insumo.",
+  sku: "Código do item no CAME, letras e números com ao menos uma letra, sem espaços nem pontos, ex. CLORDEG21. Não pode repetir outro insumo.",
   description: "Nome do item como deve aparecer nas ATAs e nas notas. Sem o código DOMS na frente.",
   unit: "Unidade de dispensação, ex. UN, CX, L.",
   grupo_id: "Grupo de materiais do DOMS. Um servidor só vê os insumos dos seus grupos.",
