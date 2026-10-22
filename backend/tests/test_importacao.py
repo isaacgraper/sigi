@@ -535,3 +535,110 @@ def test_ac_0003_26_a_closed_ata_takes_no_file(
 
     assert response.status_code == 409  # type: ignore[attr-defined]
     assert response.json()["error"]["code"] == "ATA_NAO_EDITAVEL"  # type: ignore[attr-defined]
+
+
+# ── AC-0003-33 — the report shows every line as it will be written ─────────
+
+
+def test_ac_0003_33_the_catalogue_report_lists_every_line(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0003-33 — each line as stored, with its action, in a dry run and in the import."""
+    top = unique("ODONTO")
+    kept = make_insumo(application, gestor, grupo(application, gestor, name=top)["id"], unit="UN")
+    changed = make_insumo(application, gestor, grupo(application, gestor)["id"], unit="UN")
+    new_sku, code = sku(), doms()
+    content = csv(
+        HEADER,
+        f" {new_sku.lower()} ;{code} - CLOREXIDINA 2% - 1 L;UN;{top};SUB;;;",
+        f"{changed['sku']};{changed['description']};CX;{top};;;;",
+        f"{kept['sku']};{kept['description']};UN;{top};;;;",
+    )
+
+    for dry_run in (True, False):
+        response = send(application, gestor, content, dry_run=dry_run)
+        assert response.status_code == 200, response.text  # type: ignore[attr-defined]
+        lines = response.json()["lines"]  # type: ignore[attr-defined]
+        assert [(line["line"], line["sku"], line["action"]) for line in lines] == [
+            (2, new_sku, "created"),
+            (3, changed["sku"], "updated"),
+            (4, kept["sku"], "unchanged"),
+        ]
+        first = lines[0]
+        assert first["description"] == "CLOREXIDINA 2% - 1 L"
+        assert first["codigo_doms"] == code
+        assert first["corrected_description"] is True
+        assert first["grupo_path"] == [top, "SUB"]
+        assert lines[1]["unit"] == "CX"
+
+
+def test_ac_0003_33_the_items_report_lists_every_line(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0003-33 — each item line with the insumo's descrição, the values stored and its action."""
+    other = new_cnpj()
+    raiz = grupo(application, gestor)
+    a, b = (make_insumo(application, gestor, raiz["id"]) for _ in range(2))
+    ata = make_ata(application, gestor)
+    add_item(application, gestor, ata["id"], b["id"], quantity="10", unit_price="2")
+
+    response = send(
+        application,
+        gestor,
+        csv(
+            ITEMS_HEADER,
+            f"{a['sku']};1.000;R$ 0,00599;7;{other};Distribuidora C Ltda",
+            f"{b['sku']};10;2;;;",
+        ),
+        route=f"{ATAS}/{ata['id']}/itens/importacao",
+        dry_run=True,
+    )
+
+    assert response.status_code == 200, response.text  # type: ignore[attr-defined]
+    first, second = response.json()["lines"]  # type: ignore[attr-defined]
+    assert (first["sku"], first["action"], first["item_number"]) == (a["sku"], "added", "7")
+    assert first["description"] == a["description"]
+    assert decimal.Decimal(first["quantity"]) == 1000
+    assert decimal.Decimal(first["unit_price"]) == decimal.Decimal("0.00599")
+    assert first["fornecedor"] == "Distribuidora C Ltda"
+    assert (second["sku"], second["action"], second["fornecedor"]) == (b["sku"], "unchanged", None)
+
+
+# ── AC-0003-34 — control characters and formulas are refused ───────────────
+
+
+@pytest.mark.parametrize(
+    ("cell", "message"),
+    [
+        ("CLOREXIDINA\tDEGERMANTE", "Caractere de controle não permitido."),
+        ('"CLOREXIDINA\nDEGERMANTE"', "Caractere de controle não permitido."),
+        ("CLOREXIDINA\x07", "Caractere de controle não permitido."),
+        ('=HYPERLINK("http://exemplo")', "O texto não pode começar com =, + ou @."),
+        ("+CLOREXIDINA", "O texto não pode começar com =, + ou @."),
+        ("@SUM(A1)", "O texto não pode começar com =, + ou @."),
+    ],
+)
+def test_ac_0003_34_a_control_character_or_a_formula_is_refused(
+    application: TestClient, gestor: dict[str, str], cell: str, message: str
+) -> None:
+    """AC-0003-34 — the cell is named and nothing is written."""
+    new_sku = sku()
+    response = send(application, gestor, csv(HEADER, f"{new_sku};{cell};UN;{unique('G')};;;;"))
+
+    assert response.status_code == 422, response.text  # type: ignore[attr-defined]
+    body = response.json()["error"]  # type: ignore[attr-defined]
+    assert body["code"] == "IMPORT_REJECTED"
+    assert {"line": 2, "field": "descricao", "message": message} in body["rows"]
+    assert found(application, gestor, new_sku) == []
+
+
+def test_ac_0003_34_a_leading_minus_is_not_a_formula(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0003-34 — "-" stays allowed, because descrições start with it."""
+    new_sku = sku()
+    response = send(
+        application, gestor, csv(HEADER, f"{new_sku};- LUVA DE PROCEDIMENTO;UN;{unique('G')};;;;")
+    )
+
+    assert response.status_code == 200, response.text  # type: ignore[attr-defined]

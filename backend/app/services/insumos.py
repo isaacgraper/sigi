@@ -89,9 +89,24 @@ class GrupoNode:
 
 
 @dataclass(frozen=True)
+class CatalogueLine:
+    """A line of a catalogue file as written, and what the import does to it (AC-0003-33)."""
+
+    line: int
+    sku: str
+    description: str
+    unit: str
+    grupo_path: tuple[str, ...]
+    codigo_doms: str | None
+    action: str
+    corrected: bool
+
+
+@dataclass(frozen=True)
 class CatalogueReport:
     """What a catalogue import did, or would do with `dry_run` (AC-0003-06 to -08)."""
 
+    lines: tuple[CatalogueLine, ...]
     created: int
     updated: int
     unchanged: int
@@ -630,7 +645,7 @@ def import_catalogue(
     so the report is exactly what the import would do.
     """
     sheet = importacao.read(content, required=CATALOGUE_REQUIRED, optional=CATALOGUE_OPTIONAL)
-    report = importacao.Report()
+    report = importacao.Report.of(sheet)
     rows = _parse_catalogue(sheet, report)
 
     by_sku = repo.insumos_by_sku(session, {row.sku for row in rows})
@@ -646,6 +661,7 @@ def import_catalogue(
     report.raise_if_any()
 
     created = updated = unchanged = 0
+    written: list[CatalogueLine] = []
     savepoint = session.begin_nested()
     try:
         grupos: dict[tuple[str, ...], uuid.UUID] = {}
@@ -653,6 +669,7 @@ def import_catalogue(
             grupo_id = _grupo_for_path(session, actor, row.path, grupos, at, correlation_id)
             existing = by_sku.get(row.sku)
             if existing is None:
+                written.append(_catalogue_line(row, row.codigo_doms, "created"))
                 insumo = repo.add_insumo(
                     session,
                     Insumo(
@@ -694,9 +711,12 @@ def import_catalogue(
             if row.reference_quantity is not None:
                 wanted["reference_quantity"] = row.reference_quantity
             changes = {k: v for k, v in wanted.items() if getattr(existing, k) != v}
+            stored_code = changes.get("codigo_doms", existing.codigo_doms)
             if not changes:
+                written.append(_catalogue_line(row, stored_code, "unchanged"))
                 unchanged += 1
                 continue
+            written.append(_catalogue_line(row, stored_code, "updated"))
             previous = {INSUMO_EDITABLE_COLUMN[k]: getattr(existing, k) for k in changes}
             for key, value in changes.items():
                 setattr(existing, key, value)
@@ -731,6 +751,7 @@ def import_catalogue(
         if column in IGNORED_COLUMN_NOTES
     )
     return CatalogueReport(
+        lines=tuple(written),
         created=created,
         updated=updated,
         unchanged=unchanged,
@@ -822,6 +843,19 @@ def _parse_catalogue(sheet: importacao.Sheet, report: importacao.Report) -> list
                 )
             )
     return rows
+
+
+def _catalogue_line(row: _CatalogueRow, codigo_doms: str | None, action: str) -> CatalogueLine:
+    return CatalogueLine(
+        line=row.line,
+        sku=row.sku,
+        description=row.description,
+        unit=row.unit,
+        grupo_path=row.path,
+        codigo_doms=codigo_doms,
+        action=action,
+        corrected=row.corrected,
+    )
 
 
 def _grupo_for_path(

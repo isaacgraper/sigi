@@ -163,9 +163,23 @@ class UserGruposOut(BaseModel):
     grupo_ids: list[uuid.UUID]
 
 
-class CatalogueReportOut(BaseModel):
-    """What a catalogue import did, or would do (AC-0003-06 to -08)."""
+class CatalogueLineOut(BaseModel):
+    """One line of the file as it is written, and what the import does to it (AC-0003-33)."""
 
+    line: int
+    sku: str
+    description: str
+    unit: str
+    grupo_path: list[str]
+    codigo_doms: str | None
+    action: str
+    corrected_description: bool
+
+
+class CatalogueReportOut(BaseModel):
+    """What a catalogue import did, or would do (AC-0003-06 to -08, -33)."""
+
+    lines: list[CatalogueLineOut]
     created: int
     updated: int
     unchanged: int

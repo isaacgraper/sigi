@@ -38,6 +38,7 @@ from app.schemas.item_ata import (
     ItemInsumoOut,
     ItemOut,
     ItemPatch,
+    ItemsLineOut,
     ItemsOut,
     ItemsReportOut,
 )
@@ -385,6 +386,19 @@ def import_items(
         correlation_id=_correlation(request),
     )
     return ItemsReportOut(
+        lines=[
+            ItemsLineOut(
+                line=line.line,
+                sku=line.sku,
+                description=line.description,
+                quantity=line.quantity,
+                unit_price=line.unit_price,
+                item_number=line.item_number,
+                fornecedor=line.fornecedor,
+                action=line.action,
+            )
+            for line in report.lines
+        ],
         added=report.added,
         corrected=report.corrected,
         unchanged=report.unchanged,

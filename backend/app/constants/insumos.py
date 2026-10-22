@@ -89,6 +89,14 @@ EMBEDDED_CODE: Final = re.compile(r"^(\d+)\s*-\s*(\S.*)$")
 # `2888.0`: a code exported as a float (data-sources.md §12).
 FLOAT_CODE: Final = re.compile(r"^\d+[.,]\d+$")
 
+# A control character, a tab or a line break inside a cell: none belongs in a
+# code or a descrição, and each breaks an export (AC-0003-34).
+CONTROL_CHARACTER: Final = re.compile(r"[\x00-\x1f\x7f]")
+
+# A cell that starts like a formula runs as one when the data is opened again in
+# a spreadsheet (CSV injection, OWASP). "-" stays allowed: descrições start with it.
+FORMULA_PREFIXES: Final = ("=", "+", "@")
+
 # Excel's two encodings for a Brazilian workstation, tried in this order.
 IMPORT_ENCODINGS: Final = ("utf-8-sig", "cp1252")
 
@@ -119,5 +127,7 @@ IMPORT_MESSAGES: Final = MappingProxyType(
         "cnpj": "CNPJ inválido.",
         "razao_social": "Informe a razão social para um fornecedor novo.",
         "aditivo": "A quantidade deixa os aditivos acima de 25% do item.",
+        "control": "Caractere de controle não permitido.",
+        "formula": "O texto não pode começar com =, + ou @.",
     }
 )

@@ -16,7 +16,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
-from app.constants.insumos import IMPORT_ENCODINGS, IMPORT_MESSAGES
+from app.constants.insumos import (
+    CONTROL_CHARACTER,
+    FORMULA_PREFIXES,
+    IMPORT_ENCODINGS,
+    IMPORT_MESSAGES,
+)
 from app.core.config import get_settings
 from app.services.errors import ImportRejected, InvalidFile
 
@@ -31,6 +36,8 @@ class Sheet:
     separator: str
     lines: Sequence[tuple[int, dict[str, str]]]
     unknown_columns: tuple[str, ...]
+    # Cells refused whatever the column means: (line, column, message key).
+    refused: tuple[tuple[int, str, str], ...] = ()
 
 
 class CellError(ValueError):
@@ -42,6 +49,14 @@ class Report:
     """The invalid cells of a file, every one of them, not only the first."""
 
     rows: list[dict[str, object]] = field(default_factory=list)
+
+    @classmethod
+    def of(cls, sheet: Sheet) -> Report:
+        """A report that starts with the cells the reader refused (AC-0003-34)."""
+        report = cls()
+        for line, column, key in sheet.refused:
+            report.error(line, column, IMPORT_MESSAGES[key])
+        return report
 
     def error(self, line: int, column: str, message: str) -> None:
         """Record one invalid cell."""
@@ -80,8 +95,15 @@ def read(content: bytes, *, required: Sequence[str], optional: Sequence[str]) ->
     unknown = tuple(name for name in header if name and name not in known)
 
     lines: list[tuple[int, dict[str, str]]] = []
+    refused: list[tuple[int, str, str]] = []
     try:
-        for cells in reader:
+        while True:
+            # A quoted cell may span lines; the record is numbered by the line it
+            # starts on, which is the row a spreadsheet shows it in.
+            start = reader.line_num + 1
+            cells = next(reader, None)
+            if cells is None:
+                break
             if not any(cell.strip() for cell in cells):
                 continue
             # Every cell is trimmed before anything is checked: supplier names
@@ -91,12 +113,17 @@ def read(content: bytes, *, required: Sequence[str], optional: Sequence[str]) ->
                 for index, name in enumerate(header)
                 if name
             }
-            lines.append((reader.line_num, named))
+            for name, value in named.items():
+                if CONTROL_CHARACTER.search(value):
+                    refused.append((start, name, "control"))
+                elif value.startswith(FORMULA_PREFIXES):
+                    refused.append((start, name, "formula"))
+            lines.append((start, named))
             if len(lines) > settings.import_max_lines:
                 raise InvalidFile(f"O arquivo passa de {settings.import_max_lines} linhas.")
     except csv.Error as exc:
         raise InvalidFile("O arquivo tem aspas sem fechamento.") from exc
-    return Sheet(separator=separator, lines=lines, unknown_columns=unknown)
+    return Sheet(separator=separator, lines=lines, unknown_columns=unknown, refused=tuple(refused))
 
 
 def number(text: str, *, separator: str, places: int, positive: bool = True) -> decimal.Decimal:
