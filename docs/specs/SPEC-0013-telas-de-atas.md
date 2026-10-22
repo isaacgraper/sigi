@@ -2,7 +2,7 @@
 id: SPEC-0013
 title: Telas de ATAs
 status: Implemented
-version: 1.8
+version: 1.9
 owner: Isaac Kleimmann Graper
 satisfies: [RF04, RF08, RF11, RF15, RF16, RF19]
 depends_on: [SPEC-0002, SPEC-0011]
@@ -79,8 +79,9 @@ And   a row whose date has passed is marked in the danger colour, with a bar on 
 And   a row due within 30 days is marked in the attention colour, with a bar on its
       left edge and its days in amber
 And   a row due later carries no colour
-And   the block's title is followed by how many are "em atraso" and how many fall due
-      "em até 30 dias"
+And   above the block, two small cards say how many rows are "Em atraso" and how many fall due
+      "Em até 30 dias", the first figure in the danger colour and the second in the attention
+      colour, either in muted text when it is zero
 When  there are more than 5 rows
 Then  the 5 most urgent show, and "Mostrar todos (N)" shows the rest
 When  neither alert has rows
@@ -471,3 +472,4 @@ choose a member from this screen (§2).
 | 1.6 | 2026-10-13 | OQ-47 decided by the product owner: 30 days, as built. No criterion or behaviour changed. |
 | 1.7 | 2026-10-19 | By the product owner's test of the screens: registration ends in a review, "Confira os dados antes de cadastrar", and saves only on "Confirmar cadastro", vigente, with no `rascunho` and no "Ativar" (AC-0013-07, -12); "Editar" corrects every field of a vigente or suspensa ATA (AC-0013-14); no success banner after any write (AC-0013-07, -12, -14, -15, -16); every field explains itself behind an "i" (AC-0013-19, new); the CNPJ field takes letters (AC-0013-09). Follows SPEC-0002 v1.2 |
 | 1.8 | 2026-10-20 | Implemented, accepted by the product owner after testing the screens. AC-0013-01 to -19 each have a test in `frontend/e2e/atas.spec.ts` or `frontend/tests/atas.test.ts`. No criterion changed. |
+| 1.9 | 2026-10-22 | By the product owner's review: the counts of late and close rows leave the block's title for two small cards above it (AC-0013-02). The same counts, from the same rows |
