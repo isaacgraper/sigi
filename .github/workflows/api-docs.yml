@@ -1,0 +1,86 @@
+name: api-docs
+
+# Publishes the FastAPI documentation to GitHub Pages: the OpenAPI schema the app
+# builds, read by the same Swagger UI FastAPI serves at /docs. On main only, the
+# default branch, which the github-pages environment allows to deploy; the page
+# documents what was released.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/app/**'
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+      - '.github/pages/**'
+      - '.github/workflows/api-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a newer one never cancels one already publishing.
+concurrency:
+  group: api-docs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Export the OpenAPI schema
+    runs-on: ubuntu-latest
+    env:
+      # Pinned as in backend-ci, for the same reason: setup-python's poetry cache
+      # parses `poetry config --list`.
+      POETRY_VERSION: 2.3.3
+      # The Swagger UI the page serves from its own origin, so it loads no script
+      # from a third party.
+      SWAGGER_UI_VERSION: 5.17.14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Poetry
+        run: |
+          pipx install "poetry==${POETRY_VERSION}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      # The app only, without the dev group: building the schema needs no test tool.
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry sync --only main
+
+      # The schema is built by assembling the app, which needs no database and no
+      # secret: the same create_app() the server runs.
+      - name: Build the page
+        run: |
+          mkdir -p site
+          cp .github/pages/index.html site/
+          npm pack "swagger-ui-dist@${SWAGGER_UI_VERSION}" --silent
+          tar -xzf "swagger-ui-dist-${SWAGGER_UI_VERSION}.tgz"
+          cp package/swagger-ui.css package/swagger-ui-bundle.js site/
+          cd backend
+          poetry run python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), ensure_ascii=False, indent=2))" > ../site/openapi.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
