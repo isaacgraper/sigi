@@ -13,6 +13,8 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- `python -m app.cli seed-demo`: a fictitious sample for a development install, loaded
+  through the services with its audit rows, once, and refused outside development.
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema
   from `create_app()` on every push to `dev` and publishes it with Swagger UI, read-only, on
   the `gh-pages` branch.
