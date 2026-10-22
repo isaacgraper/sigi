@@ -174,3 +174,54 @@ def test_ac_0001_40_the_seed_refuses_outside_development(
     assert cli.main(["seed-dev-admin"]) == 1
     assert "DEVELOPMENT_ONLY" in capsys.readouterr().err
     assert _gestores(operator_db) == []
+
+
+# ── Demo sample (development tooling) ───────────────────────────────────────
+
+
+def test_the_demo_sample_loads_once_through_the_services(
+    operator_db: psycopg.Connection, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Every table the screens read gets rows, each with its audit row; a second run adds none."""
+    assert cli.main(["seed-demo"]) == 0
+    assert "Demo sample loaded" in capsys.readouterr().out
+    counts = {
+        table: operator_db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]  # type: ignore[index]
+        for table in ("grupo_material", "insumo", "ata", "item_ata", "ata_aditivo", "ata_reajuste")
+    }
+    assert counts == {
+        "grupo_material": 11,
+        "insumo": 12,
+        "ata": 6,
+        "item_ata": 12,
+        "ata_aditivo": 2,
+        "ata_reajuste": 1,
+    }
+    statuses: dict[str, str] = dict(
+        operator_db.execute("SELECT numero, status FROM ata WHERE status <> 'vigente'").fetchall()
+    )
+    assert statuses == {"DEMO-005/2025": "encerrada", "DEMO-006/2026": "suspensa"}
+    audited = operator_db.execute(
+        "SELECT count(*) FROM historico_movimentacao WHERE acao = 'ata.item_adicionado'"
+    ).fetchone()
+    assert audited == (12,)
+
+    assert cli.main(["seed-demo"]) == 0
+    assert "already loaded" in capsys.readouterr().out
+    assert operator_db.execute("SELECT count(*) FROM ata").fetchone() == (6,)
+
+
+def test_the_demo_sample_refuses_outside_development(
+    operator_db: psycopg.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Like the admin's seed (AC-0001-40), any other APP_ENV loads nothing."""
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+
+    assert cli.main(["seed-demo"]) == 1
+    assert "DEVELOPMENT_ONLY" in capsys.readouterr().err
+    assert operator_db.execute("SELECT count(*) FROM ata").fetchone() == (0,)
