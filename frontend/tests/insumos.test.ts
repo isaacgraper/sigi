@@ -91,6 +91,7 @@ describe("AC-0014-18, -20 the model files", () => {
 describe("AC-0014-19 the report's counts", () => {
   it("are worded for a check and for the import done", () => {
     const check = reportCounts({
+      lines: [],
       created: 2,
       updated: 1,
       unchanged: 0,
@@ -100,7 +101,7 @@ describe("AC-0014-19 the report's counts", () => {
       dry_run: true,
     });
     expect(check[0]).toEqual({ label: "Serão criados", value: 2 });
-    const done = reportCounts({ added: 3, corrected: 0, unchanged: 1, ignored_columns: [], dry_run: false });
+    const done = reportCounts({ lines: [], added: 3, corrected: 0, unchanged: 1, ignored_columns: [], dry_run: false });
     expect(done.map((count) => count.label)).toEqual(["Adicionados", "Corrigidos", "Sem alteração"]);
   });
 });

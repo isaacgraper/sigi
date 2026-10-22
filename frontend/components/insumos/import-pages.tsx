@@ -22,7 +22,7 @@ export function CatalogueImportPage() {
     <div className="space-y-6">
       <PageHeader
         title="Importar catálogo"
-        description="Cada linha cria o insumo do SKU, ou o atualiza quando o SKU já existe. Nada é gravado antes de conferir."
+        description="Cada linha cria o insumo do SKU, ou o atualiza quando o SKU já existe. Nada é gravado antes de você confirmar."
       />
       {me.perfil === "gestor" ? (
         <ImportFlow

@@ -1,17 +1,25 @@
 "use client";
 
-import { Download, FileUp } from "lucide-react";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ErrorNotice } from "@/components/error-notice";
+import { ErrorNotice, localError } from "@/components/error-notice";
+import { ImportLines } from "@/components/insumos/import-lines";
 import { useSession } from "@/components/session-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError, readError, unavailable } from "@/lib/errors";
-import { HELP, IMPORT_ACCEPT, IMPORT_COLUMNS } from "@/lib/insumos/constants";
+import {
+  HELP,
+  IMPORT_ACCEPT,
+  IMPORT_COLUMNS,
+  IMPORT_MAX_BYTES,
+  IMPORT_NOT_CSV,
+  IMPORT_TOO_LARGE,
+} from "@/lib/insumos/constants";
 import { reportCounts, templateCsv } from "@/lib/insumos/template";
 import type { CatalogueReport, ImportTarget, ItemsReport } from "@/lib/insumos/types";
 import { apiFetch } from "@/lib/session";
@@ -19,7 +27,8 @@ import { apiFetch } from "@/lib/session";
 type Report = CatalogueReport | ItemsReport;
 
 /**
- * Choose a file, check it with `dry_run`, then import it (AC-0014-18 to -20).
+ * Choose a file and it is checked with `dry_run` at once; the lines are shown,
+ * and one confirmation imports them (AC-0014-18 to -20).
  * The import is all or nothing (AC-0003-07), so a refused file offers only to
  * choose another, never to import the valid lines. The file goes as its bytes,
  * so a Windows-1252 file reaches the API as written (AC-0003-18).
@@ -38,7 +47,7 @@ export function ImportFlow({
   const [check, setCheck] = useState<Report | null>(null);
   const [result, setResult] = useState<Report | null>(null);
   const [refusal, setRefusal] = useState<ApiError | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"check" | "import" | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const outcome = useRef<HTMLHeadingElement>(null);
   const columns = IMPORT_COLUMNS[target];
@@ -56,15 +65,33 @@ export function ImportFlow({
     input.current?.focus();
   }
 
-  async function send(dryRun: boolean) {
-    if (!file) return;
-    setPending(true);
+  /** Choosing the file is the check (AC-0014-18): no step between the two. */
+  function choose(chosen: File | null) {
+    setFile(chosen);
+    setCheck(null);
+    setRefusal(null);
+    if (!chosen) return;
+    // Refused here, so a file the API would refuse never travels; the API
+    // refuses it anyway (AC-0003-18).
+    if (!chosen.name.toLowerCase().endsWith(".csv")) {
+      setRefusal(localError("INVALID_FILE", IMPORT_NOT_CSV));
+      return;
+    }
+    if (chosen.size > IMPORT_MAX_BYTES) {
+      setRefusal(localError("INVALID_FILE", IMPORT_TOO_LARGE));
+      return;
+    }
+    void send(chosen, true);
+  }
+
+  async function send(chosen: File, dryRun: boolean) {
+    setPending(dryRun ? "check" : "import");
     setRefusal(null);
     try {
       const response = await apiFetch(`${path}?dry_run=${dryRun}`, {
         method: "POST",
         headers: { "Content-Type": "text/csv" },
-        body: file,
+        body: chosen,
       });
       if (!response.ok) throw await readError(response);
       const report = (await response.json()) as Report;
@@ -75,7 +102,7 @@ export function ImportFlow({
       setCheck(null);
       setRefusal(err instanceof ApiError ? err : unavailable());
     } finally {
-      setPending(false);
+      setPending(null);
     }
   }
 
@@ -95,6 +122,7 @@ export function ImportFlow({
           Importação concluída
         </h2>
         <Counts report={result} />
+        <ImportLines report={result} />
         <Link href={done.href} className={buttonVariants()}>
           {done.label}
         </Link>
@@ -131,37 +159,36 @@ export function ImportFlow({
         </ul>
       </section>
 
-      <div className="space-y-4 rounded-lg border bg-card p-5 shadow-sm sm:p-6">
-        <Field id="import-file" label="Arquivo CSV" help={HELP.file}>
+      <div className="space-y-3 rounded-lg border bg-card p-5 shadow-sm sm:p-6">
+        <Field
+          id="import-file"
+          label="Arquivo CSV"
+          help={HELP.file}
+          hint="Ao escolher o arquivo, ele é conferido. Nada é gravado antes de você confirmar."
+        >
           {(props) => (
             <Input
               {...props}
               ref={input}
               type="file"
               accept={IMPORT_ACCEPT}
+              disabled={pending !== null}
               className="h-auto py-2"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setCheck(null);
-                setRefusal(null);
-              }}
+              onChange={(e) => choose(e.target.files?.[0] ?? null)}
             />
           )}
         </Field>
-        {!check && !refusal && (
-          <div className="flex justify-end">
-            <Button type="button" disabled={!file || pending} onClick={() => void send(true)}>
-              <FileUp aria-hidden />
-              {pending ? "Conferindo..." : "Conferir arquivo"}
-            </Button>
-          </div>
+        {pending === "check" && (
+          <p role="status" className="text-sm font-light text-muted-foreground">
+            Conferindo {file?.name}...
+          </p>
         )}
       </div>
 
       {check && (
         <section aria-labelledby="import-outcome" className="space-y-4" data-testid="import-check">
           <h2 id="import-outcome" ref={outcome} tabIndex={-1} className="text-lg font-normal outline-none">
-            O arquivo pode ser importado
+            Confira os dados antes de importar
           </h2>
           <Counts report={check} />
           {check.ignored_columns.length > 0 && (
@@ -175,12 +202,13 @@ export function ImportFlow({
                 ))}
             </div>
           )}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={restart}>
+          <ImportLines report={check} />
+          <div className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:flex-row sm:justify-end sm:px-6">
+            <Button type="button" variant="outline" disabled={pending !== null} onClick={restart}>
               Escolher outro arquivo
             </Button>
-            <Button type="button" disabled={pending} onClick={() => void send(false)}>
-              {pending ? "Importando..." : "Importar"}
+            <Button type="button" disabled={pending !== null || !file} onClick={() => file && void send(file, false)}>
+              {pending === "import" ? "Importando..." : "Confirmar importação"}
             </Button>
           </div>
         </section>

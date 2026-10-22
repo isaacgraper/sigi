@@ -9,9 +9,9 @@ export function flatten(tree: GrupoNode[], above: GrupoRef[] = []): GrupoEntry[]
   });
 }
 
-/** "MATERIAL ODONTOLÓGICO › RESTAURADORES" (AC-0014-02). */
-export function pathText(path: GrupoRef[]): string {
-  return path.map((grupo) => grupo.name).join(PATH_SEPARATOR);
+/** "MATERIAL ODONTOLÓGICO › RESTAURADORES" (AC-0014-02), from grupos or from their names. */
+export function pathText(path: (GrupoRef | string)[]): string {
+  return path.map((grupo) => (typeof grupo === "string" ? grupo : grupo.name)).join(PATH_SEPARATOR);
 }
 
 /**

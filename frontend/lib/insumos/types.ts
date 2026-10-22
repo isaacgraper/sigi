@@ -119,7 +119,32 @@ export interface Items {
 
 // ── Imports ─────────────────────────────────────────────────────────────────
 
+/** One line of a catalogue file as the API will write it (SPEC-0003 AC-0003-33). */
+export interface CatalogueLine {
+  line: number;
+  sku: string;
+  description: string;
+  unit: string;
+  grupo_path: string[];
+  codigo_doms: string | null;
+  action: "created" | "updated" | "unchanged";
+  corrected_description: boolean;
+}
+
+/** One line of an items file as the API will write it (SPEC-0003 AC-0003-33). */
+export interface ItemsLine {
+  line: number;
+  sku: string;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  item_number: string | null;
+  fornecedor: string | null;
+  action: "added" | "corrected" | "unchanged";
+}
+
 export interface CatalogueReport {
+  lines: CatalogueLine[];
   created: number;
   updated: number;
   unchanged: number;
@@ -130,6 +155,7 @@ export interface CatalogueReport {
 }
 
 export interface ItemsReport {
+  lines: ItemsLine[];
   added: number;
   corrected: number;
   unchanged: number;

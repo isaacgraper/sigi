@@ -144,6 +144,35 @@ export const TEMPLATE_SEPARATOR = ";";
 
 export const IMPORT_ACCEPT = ".csv,text/csv";
 
+// Mirrors AC-0003-18: a file the API would refuse is not sent (AC-0014-18).
+export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+export const IMPORT_TOO_LARGE = "O arquivo passa de 5 MB.";
+export const IMPORT_NOT_CSV = "Escolha um arquivo .csv.";
+
+// The table shows this many lines and says how many more there are, so a
+// 10.000 line file does not weigh down the page (AC-0014-19).
+export const PREVIEW_LINES = 100;
+
+export const LINE_ACTION_LABEL: Record<string, string> = {
+  created: "Novo",
+  added: "Novo",
+  updated: "Atualizado",
+  corrected: "Corrigido",
+  unchanged: "Sem alteração",
+};
+
+export const CATALOGUE_LINE_COLUMNS = ["Linha", "SKU", "Descrição", "Unidade", "Grupo", "Código DOMS", "Ação"];
+export const ITEMS_LINE_COLUMNS = [
+  "Linha",
+  "SKU",
+  "Descrição",
+  "Quantidade",
+  "Valor unitário",
+  "Nº",
+  "Fornecedor",
+  "Ação",
+];
+
 /** Each count of a report, as the check (`dry_run`) and the import word it (AC-0014-19, -20). */
 export const REPORT_LABEL = {
   created: { check: "Serão criados", done: "Criados" },

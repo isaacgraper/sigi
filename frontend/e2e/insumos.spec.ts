@@ -507,11 +507,11 @@ test.describe("SPEC-0014 the insumo screens", () => {
     // A Windows-1252 file goes as its bytes, and its accents arrive intact.
     const sku = uniqueSku();
     const grupo = `GRUPO ${uniqueSku()}`;
+    // Choosing the file is the check: no other action is asked (AC-0014-18).
+    const request = page.waitForRequest((r) => r.url().includes("/api/v1/insumos/importacao"));
     await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles(
       csvFile("catalogo.csv", ["sku;descricao;unidade;grupo", `${sku};SOLUÇÃO FISIOLÓGICA 0,9%;UN;${grupo}`], "latin1"),
     );
-    const request = page.waitForRequest((r) => r.url().includes("/api/v1/insumos/importacao"));
-    await page.getByRole("button", { name: "Conferir arquivo" }).click();
     const sent = await request;
     expect(sent.url()).toContain("dry_run=true");
     expect(sent.headers()["content-type"]).toBe("text/csv");
@@ -522,10 +522,32 @@ test.describe("SPEC-0014 the insumo screens", () => {
     expect((before.body as { total: number }).total).toBe(0);
 
     // Imported, the accents read as the file wrote them: the bytes went unchanged.
-    await page.getByRole("button", { name: "Importar" }).click();
+    await page.getByRole("button", { name: "Confirmar importação" }).click();
     await expect(page.getByTestId("import-result")).toBeVisible();
     const after = await asGestor("get", `/api/v1/insumos?q=${sku}`);
     expect((after.body as { items: { description: string }[] }).items[0].description).toBe("SOLUÇÃO FISIOLÓGICA 0,9%");
+  });
+
+  test("AC-0014-18 a file too large or not a .csv is not sent", async ({ page }) => {
+    await asGestorOn(page, "/insumos/importar");
+    let sent = 0;
+    page.on("request", (r) => {
+      if (r.url().includes("/importacao")) sent += 1;
+    });
+    await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles({
+      name: "planilha.xlsx",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("PK"),
+    });
+    await expect(page.getByTestId("import-refused").getByTestId("form-error")).toHaveText("Escolha um arquivo .csv.");
+    await page.getByRole("button", { name: "Escolher outro arquivo" }).click();
+    await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles({
+      name: "grande.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1, "a"),
+    });
+    await expect(page.getByTestId("import-refused").getByTestId("form-error")).toHaveText("O arquivo passa de 5 MB.");
+    expect(sent).toBe(0);
   });
 
   test("AC-0014-19 the check shows what the import will do, then imports", async ({ page }) => {
@@ -540,19 +562,27 @@ test.describe("SPEC-0014 the insumo screens", () => {
         `${sku};${code} - CLOREXIDINA 2% - 1 L;UN;${grupo};40`,
       ]),
     );
-    await page.getByRole("button", { name: "Conferir arquivo" }).click();
     const check = page.getByTestId("import-check");
-    await expect(check.getByRole("heading")).toHaveText("O arquivo pode ser importado");
+    await expect(check.getByRole("heading")).toHaveText("Confira os dados antes de importar");
     await expect(check.getByTestId("import-counts")).toContainText("Serão criados1");
     await expect(check.getByTestId("import-counts")).toContainText("Descrições a corrigir1");
     await expect(check.getByTestId("import-ignored")).toContainText("estoque");
+    // The lines as the API read them: the code lifted out, the action named (AC-0003-33).
+    const line = check.getByTestId("import-line");
+    await expect(line).toHaveCount(1);
+    await expect(line).toContainText(sku);
+    await expect(line).toContainText("CLOREXIDINA 2% - 1 L");
+    await expect(line).toContainText(code);
+    await expect(line).toContainText(grupo);
+    await expect(line).toContainText("Novo");
 
     const request = page.waitForRequest((r) => r.url().includes("dry_run=false"));
-    await check.getByRole("button", { name: "Importar" }).click();
+    await check.getByRole("button", { name: "Confirmar importação" }).click();
     await request;
     const result = page.getByTestId("import-result");
     await expect(result.getByRole("heading")).toHaveText("Importação concluída");
     await expect(result.getByTestId("import-counts")).toContainText("Criados1");
+    await expect(result.getByTestId("import-line")).toContainText(sku);
     await result.getByRole("link", { name: "Ver o catálogo" }).click();
     await page.goto(`/insumos?q=${sku}`);
     await expect(page.getByTestId("insumo-row")).toContainText("CLOREXIDINA 2% - 1 L");
@@ -563,21 +593,19 @@ test.describe("SPEC-0014 the insumo screens", () => {
     await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles(
       csvFile("catalogo.csv", ["sku;descricao;unidade;grupo", `${uniqueSku()};;UN;G`, `com-hifen;ITEM;UN;G`]),
     );
-    await page.getByRole("button", { name: "Conferir arquivo" }).click();
     const refused = page.getByTestId("import-refused");
     await expect(refused.getByTestId("form-error")).toContainText("Nenhuma linha foi importada.");
     await expect(refused.getByTestId("import-row")).toHaveCount(2);
     await expect(refused.getByTestId("import-row").first()).toContainText("2");
     await expect(refused.getByTestId("import-row").first()).toContainText("descricao");
-    await expect(page.getByRole("button", { name: "Importar", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirmar importação" })).toHaveCount(0);
 
     await refused.getByRole("button", { name: "Escolher outro arquivo" }).click();
     await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles(csvFile("vazio.csv", ["coluna;outra", "a;b"]));
-    await page.getByRole("button", { name: "Conferir arquivo" }).click();
     await expect(page.getByTestId("import-refused").getByTestId("form-error")).toContainText(
       "Não foi possível ler o arquivo",
     );
-    await expect(page.getByRole("button", { name: "Importar", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirmar importação" })).toHaveCount(0);
   });
 
   test("AC-0014-20 a gestor imports an ATA's items the same way", async ({ page }) => {
@@ -596,9 +624,12 @@ test.describe("SPEC-0014 the insumo screens", () => {
     await page.getByLabel("Arquivo CSV", { exact: true }).setInputFiles(
       csvFile("itens.csv", ["sku;quantidade;valor_unitario;numero_item", `${insumo.sku};1.000;0,00599;12`]),
     );
-    await page.getByRole("button", { name: "Conferir arquivo" }).click();
-    await expect(page.getByTestId("import-check").getByTestId("import-counts")).toContainText("Serão adicionados1");
-    await page.getByRole("button", { name: "Importar" }).click();
+    const check = page.getByTestId("import-check");
+    await expect(check.getByTestId("import-counts")).toContainText("Serão adicionados1");
+    await expect(check.getByTestId("import-line")).toContainText("R$ 0,00599");
+    await expect(check.getByTestId("import-line")).toContainText("1.000");
+    await expect(check.getByTestId("import-line")).toContainText("Novo");
+    await page.getByRole("button", { name: "Confirmar importação" }).click();
     await expect(page.getByTestId("import-result").getByTestId("import-counts")).toContainText("Adicionados1");
     await page.getByRole("link", { name: "Voltar para a ATA" }).click();
     await expect(itemRow(page, insumo.sku)).toContainText("R$ 0,00599");
