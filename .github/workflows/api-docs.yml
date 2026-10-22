@@ -1,0 +1,84 @@
+name: api-docs
+
+# Publishes the FastAPI documentation to GitHub Pages: the OpenAPI schema the app
+# builds, read by the same Swagger UI FastAPI serves at /docs. From dev, where
+# the API changes first, onto the gh-pages branch, which Pages serves. A branch
+# rather than the github-pages environment, because that environment deploys
+# only from the default branch, main, which lags dev until a release.
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'backend/app/**'
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+      - '.github/pages/**'
+      - '.github/workflows/api-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a newer one never cancels one already publishing.
+concurrency:
+  group: api-docs
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Export the OpenAPI schema and publish it
+    runs-on: ubuntu-latest
+    # Writes the gh-pages branch, and nothing else.
+    permissions:
+      contents: write
+    env:
+      # Pinned as in backend-ci, for the same reason: setup-python's poetry cache
+      # parses `poetry config --list`.
+      POETRY_VERSION: 2.3.3
+      # The Swagger UI the page serves from its own origin, so it loads no script
+      # from a third party.
+      SWAGGER_UI_VERSION: 5.17.14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Poetry
+        run: |
+          pipx install "poetry==${POETRY_VERSION}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      # The app only, without the dev group: building the schema needs no test tool.
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry sync --only main
+
+      # The schema is built by assembling the app, which needs no database and no
+      # secret: the same create_app() the server runs.
+      - name: Build the page
+        run: |
+          mkdir -p site
+          cp .github/pages/index.html site/
+          # Served as files, not run through Jekyll.
+          touch site/.nojekyll
+          npm pack "swagger-ui-dist@${SWAGGER_UI_VERSION}" --silent
+          tar -xzf "swagger-ui-dist-${SWAGGER_UI_VERSION}.tgz"
+          cp package/swagger-ui.css package/swagger-ui-bundle.js site/
+          cd backend
+          poetry run python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), ensure_ascii=False, indent=2))" > ../site/openapi.json
+
+      # gh-pages holds the current build and nothing else: each publication
+      # replaces the branch with one orphan commit, force pushed, naming the dev
+      # commit it documents. Its history would only be old copies of a generated file.
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./site
+          force_orphan: true
+          full_commit_message: "docs: publish the API documentation of ${{ github.sha }}"

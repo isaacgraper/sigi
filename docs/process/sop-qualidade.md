@@ -93,6 +93,7 @@ the heavy jobs run only when their files changed:
 | `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow |
 | `frontend-ci` · End to end | `frontend/`, `backend/`, `infra/`, its workflow (the API is half of what it tests) |
 | `backend-ci` · Secret scan | always: it scans the history, not a tree |
+| `api-docs` · Export the OpenAPI schema and publish it to `gh-pages` | a push to `dev` touching `backend/app/`, `backend/pyproject.toml`, `backend/poetry.lock`, `.github/pages/` or its workflow; or by hand |
 
 A skipped job counts as passed, so a PR that only changes `docs/` runs the
 secret scan and nothing else, and no required check waits for a run that never
