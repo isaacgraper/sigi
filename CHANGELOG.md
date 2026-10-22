@@ -14,7 +14,8 @@ entries are moved into a new dated version section — see
 ### Added
 
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema
-  from `create_app()` on every push to `main` and publishes it with Swagger UI, read-only.
+  from `create_app()` on every push to `dev` and publishes it with Swagger UI, read-only, on
+  the `gh-pages` branch.
 - The insumo catalogue (SPEC-0003): `/api/v1/insumos` registers, corrects, searches,
   discontinues, substitutes and reactivates insumos by SKU, and changes a SKU with a
   justification; `/api/v1/grupos-materiais` holds the three levels of the DOMS hierarchy.

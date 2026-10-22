@@ -92,7 +92,7 @@ npm run dev        # http://localhost:3000, com a API em http://localhost:8000
 - [`docs/architecture/adr/`](docs/architecture/adr) — decisões de arquitetura
 - [`DESIGN.md`](DESIGN.md) — identidade visual e padrões de tela
 - [Documentação da API](https://isaacgraper.github.io/sigi/) — o OpenAPI do backend
-  no Swagger UI, publicado a cada push na `main`
+  no Swagger UI, publicado a cada push no `dev`
 - [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) — configuração de
   implantação: primeiro gestor, contato de suporte, proxy
 
