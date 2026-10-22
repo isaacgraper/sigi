@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Approved
-version: 1.3
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -72,7 +72,7 @@ When  codigo_doms is not digits only, for example "2888.0"
 Then  the response is 422 with error code "INVALID_DOMS_CODE"
 And   nothing is trimmed or rounded to make it fit
 ```
-The pattern is configurable, default `^[A-Z0-9]+$`, which fits the two examples in
+The pattern is configurable, default `^(?=.*[A-Z])[A-Z0-9]+$` *(v1.4, was `^[A-Z0-9]+$`)*, which fits the two examples in
 the CAME sheet, `CLORDEG21` and `SER5D` (RF07). Uppercasing is normalisation, as the
 CNPJ's is (AC-0002-25); `2888.0` is how the source files spell some codes, and
 turning it into `2888` would be a guess about the file.
@@ -359,6 +359,26 @@ that starts like a formula runs as one when the catalogue is opened again in a
 spreadsheet (CSV injection, OWASP). "-" is not refused: descrições start with it.
 The 5 MB and 10.000 line ceilings of AC-0003-18 already keep a file from
 exhausting the server's memory, and the body is refused before it is read.
+
+**AC-0003-35** — A text field holds at least one letter
+```gherkin
+Given a servidor or a gestor registering or correcting an insumo, or a gestor creating or renaming
+      a grupo, or importing either file
+When  the sku is "123"
+Then  it is refused with error code "INVALID_SKU", whose message asks for at least one letter
+When  the descricao or the unidade is only digits and signs, "2" or "3"
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming it: "Use ao menos uma letra."
+When  a grupo, subgrupo or classificacao name is only digits, "67"
+Then  it is refused the same way, and no grupo is created
+And   in a file, every such cell is named in the report and nothing is written (AC-0003-07)
+And   codigo_doms and codigo_externo stay digits, as AC-0003-02 asks
+```
+*(v1.4)* By the product owner's test: a file of digits only was accepted, with
+SKU "1", descrição "2", unidade "3" and grupos "4", "67" and "5". Every SKU in the
+data carries letters (`CLORDEG21`, `SER5D`, `data-sources.md` §8), which is also what
+tells a SKU from a DOMS code at a glance, and every descrição, unidade and grupo in
+the source files is words. The default `sku_pattern` becomes
+`^(?=.*[A-Z])[A-Z0-9]+$`.
 
 ### 3.5 The items of an ATA
 
@@ -801,3 +821,4 @@ of AC-0003-25.
 | 1.1 | 2026-10-20 | While implementing: AC-0003-18's 5 MB file conflicted with the 64 KiB body ceiling of SPEC-0001 AC-0001-42; SPEC-0001 v1.10 gives the two import routes their own ceiling |
 | 1.2 | 2026-10-21 | For the screens of SPEC-0014: AC-0003-32, a gestor reads a servidor's grupos, so the member dialog shows the set it replaces. §6 points to SPEC-0014, one screen spec in place of a new one plus two revisions |
 | 1.3 | 2026-10-22 | By the product owner's review of the import screen: the report lists every line as it will be written, with its action (AC-0003-33), and a cell with a control character or a leading formula is refused (AC-0003-34) |
+| 1.4 | 2026-10-22 | By the product owner's test: a SKU, descrição, unidade or grupo name of digits only is refused, by hand and by file (AC-0003-35); the default SKU pattern asks for a letter |
