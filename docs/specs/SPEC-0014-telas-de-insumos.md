@@ -2,7 +2,7 @@
 id: SPEC-0014
 title: Telas de insumos
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0003, SPEC-0010, SPEC-0011, SPEC-0013]
@@ -316,7 +316,7 @@ The screen does not offer a fourth level, mirroring AC-0003-09; the API refuses 
 
 ### 4.6 Importing a file
 
-**AC-0014-18** — A gestor checks a catalogue file before importing it
+**AC-0014-18** — Choosing a catalogue file checks it at once
 ```gherkin
 Given a gestor on /insumos
 When  "Importar catálogo" is chosen
@@ -324,33 +324,46 @@ Then  /insumos/importar opens with the page header "Importar catálogo", the col
       which are required, and "Baixar modelo"
 When  "Baixar modelo" is chosen
 Then  a file "modelo-catalogo.csv" downloads with the header line of AC-0003-06, separated by ";"
-When  a .csv file is chosen and "Conferir arquivo" is chosen
-Then  POST /api/v1/insumos/importacao?dry_run=true carries the file's bytes unchanged, as text/csv
+When  a .csv file is chosen
+Then  POST /api/v1/insumos/importacao?dry_run=true carries the file's bytes unchanged, as text/csv,
+      with no other action asked
 And   nothing has been written
+When  the file chosen is larger than 5 MB, or is not a .csv
+Then  it is not sent, and the page says "O arquivo passa de 5 MB." or "Escolha um arquivo .csv."
 ```
 The file goes as bytes, not as text the browser decoded, so a Windows-1252 file
-reaches the API as Windows-1252 and the API reads it (AC-0003-18).
+reaches the API as Windows-1252 and the API reads it (AC-0003-18). The size is
+checked before sending so a file the API would refuse never travels; the API
+refuses it anyway (AC-0003-18).
 
-**AC-0014-19** — The check shows what the import will do
+*(v1.2)* By the product owner's request: no "Conferir arquivo" step. Choosing the
+file is the check.
+
+**AC-0014-19** — The data is shown, and one confirmation imports it
 ```gherkin
 Given a file the dry run accepts
-Then  the page shows "O arquivo pode ser importado" and how many insumos will be created, updated and
-      left unchanged, and how many descrições will be corrected
+Then  the page shows "Confira os dados antes de importar", how many insumos will be created, updated
+      and left unchanged, and how many descrições will be corrected
+And   a table lists every line as the API read it (AC-0003-33): Linha, SKU, Descrição, Unidade, Grupo,
+      Código DOMS and what happens to it, "Novo", "Atualizado" or "Sem alteração"
 And   every ignored column is named, with the API's note beside it, such as the one for estoque
-And   "Importar" and "Escolher outro arquivo" are offered
-When  "Importar" is chosen
+And   "Confirmar importação" and "Escolher outro arquivo" are offered
+When  "Confirmar importação" is chosen
 Then  the same file is sent without dry_run, once
-And   the page shows "Importação concluída" with the counts the API returned and a link to the catalogue
+And   the page shows "Importação concluída", the counts and the table of the lines written, as the
+      API returned them, and a link to the catalogue
 Given a file the dry run refuses with "IMPORT_REJECTED"
 Then  the page shows the API's message and a table of Linha, Coluna and Problema, one row per entry
       of `rows`, in the order the API returns
-And   "Importar" is not offered, only "Escolher outro arquivo"
+And   "Confirmar importação" is not offered, only "Escolher outro arquivo"
 Given a file refused with "INVALID_FILE"
 Then  the page shows the API's message and only "Escolher outro arquivo"
 ```
 The import is all or nothing (AC-0003-07), so the screen never offers to import the
-valid lines. The second request repeats the first, and the counts it returns are
-the ones shown, because the catalogue may have changed in between.
+valid lines. The second request repeats the first, and what it returns is what is
+shown, because the catalogue may have changed in between. The table shows the first
+100 lines and says how many more there are, so a 10.000 line file does not weigh
+down the page.
 
 **AC-0014-20** — A gestor imports an ATA's items the same way
 ```gherkin
@@ -359,8 +372,10 @@ When  "Importar itens" is chosen
 Then  /atas/{id}/itens/importar opens with the page header "Importar itens da ATA {número}",
       the columns of AC-0003-26, which are required, and "Baixar modelo"
 And   "Baixar modelo" downloads "modelo-itens-ata.csv" with that header line, separated by ";"
-And   the file is checked, shown and imported as in AC-0014-18 and -19, against
-      POST /api/v1/atas/{id}/itens/importacao, with the counts of items added, corrected and unchanged
+And   the file is checked as it is chosen, shown and imported as in AC-0014-18 and -19, against
+      POST /api/v1/atas/{id}/itens/importacao, with the counts of items added, corrected and unchanged,
+      and a table of Linha, SKU, Descrição, Quantidade, Valor unitário, Nº, Fornecedor and
+      "Novo", "Corrigido" or "Sem alteração"
 When  the import is concluded
 Then  "Voltar para a ATA" opens the ATA's page, with the items the API now returns
 Given a servidor or an auditor, or an ATA that is "Encerrada" or "Cancelada"
@@ -652,3 +667,4 @@ None block this version.
 | 0.1 | 2026-10-21 | Initial draft. The screens for SPEC-0003 v1.1: the catalogue, its form and its page with the gestor's actions, the grupo tree, both imports with a check before writing, the items section of the ATA page with the aditivo de quantidade, and a servidor's grupos on the member list. One endpoint added to SPEC-0003 (AC-0003-32). |
 | 1.0 | 2026-10-21 | Approved by the product owner as drafted, with SPEC-0003 v1.2. |
 | 1.1 | 2026-10-21 | Built. §10 names the files as built: two shared hooks, `Field` moved to `components/ui/`, `FILTER_ALL` moved to `lib/constants.ts`, and the layout test in the spec's own e2e file. No criterion changed. |
+| 1.2 | 2026-10-22 | By the product owner's review of the import screen: choosing the file checks it at once, with no "Conferir arquivo" (AC-0014-18); the check and the result show the lines as the API read them, and one "Confirmar importação" imports (AC-0014-19, -20); a file over 5 MB or not .csv is refused before sending (AC-0014-18). Follows SPEC-0003 v1.3 |

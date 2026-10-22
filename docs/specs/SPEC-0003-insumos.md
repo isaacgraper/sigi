@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Approved
-version: 1.2
+version: 1.3
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -326,6 +326,39 @@ These are `data-sources.md` §12's code-in-the-name, codes-as-floats and
 leading-whitespace rows. The code is lifted out of the descrição because both facts
 are in the cell and only one belongs there; a float is refused because `2888.0`
 joins to nothing and the file should be fixed where it was produced.
+
+**AC-0003-33** — The report shows every line as it will be written
+```gherkin
+Given a catalogue file of 3 valid lines, one SKU new, one changed and one unchanged
+When  it is imported, with or without dry_run
+Then  the report lists the 3 lines, each with its line number, sku, descricao, unidade, grupo path
+      and codigo_doms as they are stored, after trimming, uppercasing and lifting the code out of
+      the descricao, and what the import does to it: "created", "updated" or "unchanged"
+And   a line whose descricao was corrected says so
+Given an ATA's items file of valid lines
+When  it is imported, with or without dry_run
+Then  the report lists each line with its sku, the insumo's descricao, quantidade, valor_unitario,
+      numero_item and the razão social of its own fornecedor, as stored, and "added", "corrected"
+      or "unchanged"
+```
+*(v1.3)* By the product owner's request: the screen shows the data, not only the
+counts, so the gestor confirms what is about to be written. The values are the
+API's reading of the file, so the screen never parses it.
+
+**AC-0003-34** — A cell with a control character or a formula is refused
+```gherkin
+Given a catalogue or an items file
+When  a cell holds a control character, a tab, or a line break inside quotes
+Then  the file is refused and the report names that cell: "Caractere de controle não permitido."
+When  a text cell starts with "=", "+" or "@"
+Then  the file is refused and the report names that cell: "O texto não pode começar com =, + ou @."
+```
+*(v1.3)* By the product owner's request to keep special characters out. A control
+character has no place in a code or a descrição and breaks every export; a cell
+that starts like a formula runs as one when the catalogue is opened again in a
+spreadsheet (CSV injection, OWASP). "-" is not refused: descrições start with it.
+The 5 MB and 10.000 line ceilings of AC-0003-18 already keep a file from
+exhausting the server's memory, and the body is refused before it is read.
 
 ### 3.5 The items of an ATA
 
@@ -767,3 +800,4 @@ of AC-0003-25.
 | 1.0 | 2026-10-20 | Approved by the product owner after review. No criterion changed |
 | 1.1 | 2026-10-20 | While implementing: AC-0003-18's 5 MB file conflicted with the 64 KiB body ceiling of SPEC-0001 AC-0001-42; SPEC-0001 v1.10 gives the two import routes their own ceiling |
 | 1.2 | 2026-10-21 | For the screens of SPEC-0014: AC-0003-32, a gestor reads a servidor's grupos, so the member dialog shows the set it replaces. §6 points to SPEC-0014, one screen spec in place of a new one plus two revisions |
+| 1.3 | 2026-10-22 | By the product owner's review of the import screen: the report lists every line as it will be written, with its action (AC-0003-33), and a cell with a control character or a leading formula is refused (AC-0003-34) |
