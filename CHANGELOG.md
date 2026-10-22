@@ -16,6 +16,18 @@ entries are moved into a new dated version section — see
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema
   from `create_app()` on every push to `dev` and publishes it with Swagger UI, read-only, on
   the `gh-pages` branch.
+- The insumo screens (SPEC-0014): "Insumos" in the sidebar, the catalogue searched and
+  filtered, registration and correction, the insumo page with its ATAs and the gestor's SKU
+  change, discontinuation, substitution and reactivation, and the grupo tree.
+- Both CSV imports on screen: choosing the file checks it with a dry run at once, the lines are
+  shown as the API read them with what happens to each, and one confirmation imports them. A
+  file over 5 MB or not .csv is refused before it is sent; a cell with a control character or
+  starting with =, + or @ refuses the file (SPEC-0003 v1.3, AC-0003-33, -34).
+- The items section of the ATA page: the unit price at up to five decimals, the contracted
+  quantity with its aditivos, the items' sum beside the ATA's value, and the gestor's add,
+  correct, remove and aditivo de quantidade.
+- A gestor sets a servidor's grupos de materiais from Membros, over the new
+  `GET /api/v1/usuarios/{id}/grupos-materiais` (SPEC-0003 v1.2, AC-0003-32).
 - The insumo catalogue (SPEC-0003): `/api/v1/insumos` registers, corrects, searches,
   discontinues, substitutes and reactivates insumos by SKU, and changes a SKU with a
   justification; `/api/v1/grupos-materiais` holds the three levels of the DOMS hierarchy.
