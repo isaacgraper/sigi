@@ -71,12 +71,14 @@ jobs:
           cd backend
           poetry run python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), ensure_ascii=False, indent=2))" > ../site/openapi.json
 
-      # One commit per publication on top of the branch's history, never a force
-      # push; the commit names the dev commit it documents.
+      # gh-pages holds the current build and nothing else: each publication
+      # replaces the branch with one orphan commit, force pushed, naming the dev
+      # commit it documents. Its history would only be old copies of a generated file.
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./site
+          force_orphan: true
           full_commit_message: "docs: publish the API documentation of ${{ github.sha }}"
