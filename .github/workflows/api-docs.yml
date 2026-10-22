@@ -1,12 +1,13 @@
 name: api-docs
 
 # Publishes the FastAPI documentation to GitHub Pages: the OpenAPI schema the app
-# builds, read by the same Swagger UI FastAPI serves at /docs. On main only, the
-# default branch, which the github-pages environment allows to deploy; the page
-# documents what was released.
+# builds, read by the same Swagger UI FastAPI serves at /docs. From dev, where
+# the API changes first, onto the gh-pages branch, which Pages serves. A branch
+# rather than the github-pages environment, because that environment deploys
+# only from the default branch, main, which lags dev until a release.
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - 'backend/app/**'
       - 'backend/pyproject.toml'
@@ -24,9 +25,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Export the OpenAPI schema
+  publish:
+    name: Export the OpenAPI schema and publish it
     runs-on: ubuntu-latest
+    # Writes the gh-pages branch, and nothing else.
+    permissions:
+      contents: write
     env:
       # Pinned as in backend-ci, for the same reason: setup-python's poetry cache
       # parses `poetry config --list`.
@@ -59,28 +63,20 @@ jobs:
         run: |
           mkdir -p site
           cp .github/pages/index.html site/
+          # Served as files, not run through Jekyll.
+          touch site/.nojekyll
           npm pack "swagger-ui-dist@${SWAGGER_UI_VERSION}" --silent
           tar -xzf "swagger-ui-dist-${SWAGGER_UI_VERSION}.tgz"
           cp package/swagger-ui.css package/swagger-ui-bundle.js site/
           cd backend
           poetry run python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), ensure_ascii=False, indent=2))" > ../site/openapi.json
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      # One commit per publication on top of the branch's history, never a force
+      # push; the commit names the dev commit it documents.
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: site
-
-  deploy:
-    name: Publish to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./site
+          full_commit_message: "docs: publish the API documentation of ${{ github.sha }}"
