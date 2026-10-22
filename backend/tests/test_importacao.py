@@ -642,3 +642,27 @@ def test_ac_0003_34_a_leading_minus_is_not_a_formula(
     )
 
     assert response.status_code == 200, response.text  # type: ignore[attr-defined]
+
+
+# ── AC-0003-35 — a text field holds at least one letter ────────────────────
+
+
+def test_ac_0003_35_a_file_of_digits_only_is_refused_cell_by_cell(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0003-35 — the product owner's file: every text cell named, no grupo created."""
+    grupo_name = f"{doms()}"
+    response = send(application, gestor, csv(HEADER, f"1;2;3;{grupo_name};67;5;6;"))
+
+    assert response.status_code == 422, response.text  # type: ignore[attr-defined]
+    rows = response.json()["error"]["rows"]  # type: ignore[attr-defined]
+    assert {(row["field"], row["message"]) for row in rows} >= {
+        ("descricao", "Use ao menos uma letra."),
+        ("unidade", "Use ao menos uma letra."),
+        ("grupo", "Use ao menos uma letra."),
+        ("subgrupo", "Use ao menos uma letra."),
+        ("classificacao", "Use ao menos uma letra."),
+    }
+    assert any(row["field"] == "sku" and "ao menos uma letra" in row["message"] for row in rows)
+    tree = application.get(GRUPOS, headers=gestor).json()
+    assert all(node["name"] != grupo_name for node in tree)

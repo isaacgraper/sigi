@@ -862,3 +862,35 @@ def test_ac_0003_31_an_insumo_whose_audit_row_fails_is_not_saved(
     db_session.rollback()
 
     assert application.get(INSUMOS, params={"q": code}, headers=gestor).json()["total"] == 0
+
+
+def test_ac_0003_35_a_text_field_holds_at_least_one_letter(
+    application: TestClient, gestor: dict[str, str], raiz: dict
+) -> None:
+    """AC-0003-35 — by hand: a digit only SKU, descrição, unidade or grupo name is refused."""
+    numeric = application.post(INSUMOS, json=insumo_body(raiz["id"], sku="123"), headers=gestor)
+    assert numeric.status_code == 422
+    assert numeric.json()["error"]["code"] == "INVALID_SKU"
+    assert "ao menos uma letra" in numeric.json()["error"]["fields"]["sku"]
+
+    digits = application.post(
+        INSUMOS, json=insumo_body(raiz["id"], description="2", unit="3"), headers=gestor
+    )
+    assert digits.status_code == 422
+    assert digits.json()["error"]["code"] == "INVALID_DATA"
+    assert digits.json()["error"]["fields"] == {
+        "description": "Use ao menos uma letra.",
+        "unit": "Use ao menos uma letra.",
+    }
+
+    insumo = make_insumo(application, gestor, raiz["id"])
+    edited = application.patch(f"{INSUMOS}/{insumo['id']}", json={"unit": "12"}, headers=gestor)
+    assert edited.status_code == 422
+    assert edited.json()["error"]["fields"] == {"unit": "Use ao menos uma letra."}
+
+    for body in ({"name": "67", "parent_id": None}, {"name": "4", "parent_id": raiz["id"]}):
+        refused = application.post(GRUPOS, json=body, headers=gestor)
+        assert refused.status_code == 422
+        assert refused.json()["error"]["fields"] == {"name": "Use ao menos uma letra."}
+    renamed = application.patch(f"{GRUPOS}/{raiz['id']}", json={"name": "5"}, headers=gestor)
+    assert renamed.status_code == 422

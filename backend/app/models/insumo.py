@@ -94,8 +94,9 @@ class Insumo(Base):
     )
 
     __table_args__ = (
-        # The default pattern; a deployment that widens `sku_pattern` widens this
-        # in a migration of its own.
+        # The characters of the default pattern; the letter it also asks for is
+        # the service's (AC-0003-35). A deployment that widens `sku_pattern`
+        # widens this in a migration of its own.
         CheckConstraint("sku ~ '^[A-Z0-9]+$'", name="ck_insumo_sku"),
         CheckConstraint("codigo_doms ~ '^[0-9]+$'", name="ck_insumo_codigo_doms"),
         CheckConstraint(

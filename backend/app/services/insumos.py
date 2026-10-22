@@ -29,10 +29,12 @@ from app.constants.insumos import (
     EMBEDDED_CODE,
     FLOAT_CODE,
     GRUPO_MAX_LEVEL,
+    HAS_LETTER,
     IGNORED_COLUMN_NOTES,
     IMPORT_JUSTIFICATION,
     IMPORT_MESSAGES,
     INSUMO_EDITABLE_COLUMN,
+    LETTER_COLUMNS,
     QUANTITY_PLACES,
     SKU_EXAMPLE,
 )
@@ -211,6 +213,7 @@ def create_grupo(
     justification: str | None = None,
 ) -> GrupoMaterial:
     """Create a grupo at the level below its parent, at most the third (AC-0003-09)."""
+    _require_letters({"name": name})
     level = 1
     if parent_id is not None:
         parent = repo.grupo_by_id(session, parent_id)
@@ -251,6 +254,7 @@ def rename_grupo(
     correlation_id: uuid.UUID,
 ) -> GrupoMaterial:
     """Rename a grupo; every insumo in it stays in it (AC-0003-13)."""
+    _require_letters({"name": name})
     grupo = repo.grupo_by_id(session, grupo_id)
     if grupo is None:
         raise GrupoNotFound()
@@ -317,6 +321,7 @@ def register(
     """Register an insumo (AC-0003-01 to -03); a servidor only inside its grupos."""
     scope = scope_of(session, actor)
     normalised = normalise_sku(sku)
+    _require_letters({"description": description, "unit": unit})
     code = check_codigo_doms(codigo_doms)
     _require_grupo(session, grupo_id, scope)
     _require_unique(session, scope, sku=normalised, codigo_doms=code, other_than=None)
@@ -356,6 +361,7 @@ def edit(
     """Correct an insumo's fields, never its SKU (AC-0003-11)."""
     scope = scope_of(session, actor)
     insumo = _lock_visible(session, insumo_id, scope)
+    _require_letters({key: changes[key] for key in ("description", "unit") if key in changes})
     if "codigo_doms" in changes:
         changes["codigo_doms"] = check_codigo_doms(changes["codigo_doms"])
     if "external_code" in changes:
@@ -771,6 +777,9 @@ def _parse_catalogue(sheet: importacao.Sheet, report: importacao.Report) -> list
         for column in CATALOGUE_REQUIRED:
             if not cells.get(column):
                 report.error(line, column, IMPORT_MESSAGES["required"])
+        for column in LETTER_COLUMNS:
+            if cells.get(column) and not HAS_LETTER.search(cells[column]):
+                report.error(line, column, IMPORT_MESSAGES["letters"])
 
         sku = cells.get("sku", "").upper()
         if sku and not re.fullmatch(get_settings().sku_pattern, sku):
@@ -891,6 +900,17 @@ def _grupo_for_path(
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _require_letters(values: dict[str, str]) -> None:
+    """Refuse a text field made of digits and signs only (AC-0003-35)."""
+    fields = {
+        key: IMPORT_MESSAGES["letters"]
+        for key, value in values.items()
+        if value is not None and not HAS_LETTER.search(value)
+    }
+    if fields:
+        raise InvalidData(fields)
 
 
 def _lock_visible(session: Session, insumo_id: uuid.UUID, scope: Scope) -> Insumo:

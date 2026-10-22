@@ -84,7 +84,9 @@ class Settings(BaseSettings):
 
     # ── Insumos and imports (SPEC-0003) ─────────────────────────────────────
     # Fits the two examples of the CAME sheet, `CLORDEG21` and `SER5D` (RF07).
-    sku_pattern: str = "^[A-Z0-9]+$"
+    # At least one letter: every SKU in the data has one, and it tells a SKU from a
+    # DOMS code at a glance (SPEC-0003 AC-0003-35).
+    sku_pattern: str = "^(?=.*[A-Z])[A-Z0-9]+$"
     # Seven times the SKU sheet (1.425 rows) fits in either (AC-0003-18).
     import_max_bytes: int = 5 * 1024 * 1024
     import_max_lines: int = 10_000
