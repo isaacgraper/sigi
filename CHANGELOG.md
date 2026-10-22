@@ -23,6 +23,8 @@ entries are moved into a new dated version section — see
   shown as the API read them with what happens to each, and one confirmation imports them. A
   file over 5 MB or not .csv is refused before it is sent; a cell with a control character or
   starting with =, + or @ refuses the file (SPEC-0003 v1.3, AC-0003-33, -34).
+- A SKU, descrição, unidade or grupo name made of digits only is refused, by hand and by file,
+  and the default SKU pattern asks for a letter (SPEC-0003 v1.4, AC-0003-35).
 - The items section of the ATA page: the unit price at up to five decimals, the contracted
   quantity with its aditivos, the items' sum beside the ATA's value, and the gestor's add,
   correct, remove and aditivo de quantidade.
