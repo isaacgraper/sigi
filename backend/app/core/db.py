@@ -9,7 +9,9 @@ exists for Alembic and is deliberately not reachable from here.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -64,3 +66,10 @@ def reset_engine() -> None:
         _engine.dispose()
     _engine = None
     _session_factory = None
+
+
+# `scope="function"` closes the session, and so commits, when the route returns,
+# before the response is sent. With FastAPI's default the commit runs after the
+# client already holds the answer, and a read it makes at once can miss the row
+# it was just told about (SPEC-0013 AC-0013-07).
+DbSession = Annotated[Session, Depends(get_session, scope="function")]
