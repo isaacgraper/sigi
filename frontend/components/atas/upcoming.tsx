@@ -83,26 +83,50 @@ function Row({ row }: { row: DueRow }) {
   );
 }
 
-/** The answer before any row is read: how many are late, how many are close. */
+/**
+ * The answer before any row is read: how many are late, how many are close, in
+ * two small cards above the list (AC-0013-02). A zero recedes into muted text.
+ */
 function Tally({ rows }: { rows: DueRow[] }) {
   const late = rows.filter((row) => urgency(row.remaining) === "overdue").length;
   const soon = rows.filter((row) => urgency(row.remaining) === "soon").length;
-  if (late === 0 && soon === 0) return null;
   return (
-    <p data-testid="due-tally" className="flex flex-wrap gap-x-4 text-sm">
-      {late > 0 && (
-        <span className="inline-flex items-center gap-1.5 text-danger">
-          <span aria-hidden className="size-1.5 rounded-full bg-danger" />
-          {late} em atraso
-        </span>
-      )}
-      {soon > 0 && (
-        <span className="inline-flex items-center gap-1.5 text-attention">
-          <span aria-hidden className="size-1.5 rounded-full bg-attention" />
-          {soon} em até {SOON_DAYS} dias
-        </span>
-      )}
-    </p>
+    <div className="grid grid-cols-2 gap-3 sm:flex">
+      <TallyCard testId="due-late" label="Em atraso" value={late} tone="danger" />
+      <TallyCard testId="due-soon" label={`Em até ${SOON_DAYS} dias`} value={soon} tone="attention" />
+    </div>
+  );
+}
+
+function TallyCard({
+  testId,
+  label,
+  value,
+  tone,
+}: {
+  testId: string;
+  label: string;
+  value: number;
+  tone: "danger" | "attention";
+}) {
+  const active = value > 0;
+  return (
+    <div data-testid={testId} className="rounded-lg border border-border/70 bg-card px-4 py-3 shadow-sm sm:min-w-40">
+      <p className="flex items-center gap-1.5 text-xs font-light text-muted-foreground">
+        {active && (
+          <span aria-hidden className={cn("size-1.5 rounded-full", tone === "danger" ? "bg-danger" : "bg-attention")} />
+        )}
+        {label}
+      </p>
+      <p
+        className={cn(
+          "text-2xl font-normal leading-tight tabular-nums",
+          active ? (tone === "danger" ? "text-danger" : "text-attention") : "text-muted-foreground",
+        )}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -148,16 +172,17 @@ export function Upcoming() {
   }
 
   return (
-    <section
-      aria-labelledby="due-title"
-      data-testid="due-list"
-      className="overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-5 py-3">
+    <div className="space-y-3">
+      {rows && <Tally rows={rows} />}
+      <section
+        aria-labelledby="due-title"
+        data-testid="due-list"
+        className="overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm"
+      >
+      <div className="border-b px-5 py-3">
         <h2 id="due-title" className="text-base font-normal">
           Vencimentos e reajustes
         </h2>
-        {rows && <Tally rows={rows} />}
       </div>
       {failure && (
         <div className="p-5">
@@ -191,6 +216,7 @@ export function Upcoming() {
           </Button>
         </div>
       )}
-    </section>
+      </section>
+    </div>
   );
 }
