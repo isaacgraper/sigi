@@ -72,9 +72,23 @@ class ItemsOut(BaseModel):
     items_value_differs: bool
 
 
-class ItemsReportOut(BaseModel):
-    """What an items import did, or would do (AC-0003-26)."""
+class ItemsLineOut(BaseModel):
+    """One line of the file as it is written, and what the import does to it (AC-0003-33)."""
 
+    line: int
+    sku: str
+    description: str
+    quantity: decimal.Decimal
+    unit_price: decimal.Decimal
+    item_number: str | None
+    fornecedor: str | None
+    action: str
+
+
+class ItemsReportOut(BaseModel):
+    """What an items import did, or would do (AC-0003-26, -33)."""
+
+    lines: list[ItemsLineOut]
     added: int
     corrected: int
     unchanged: int

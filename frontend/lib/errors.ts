@@ -7,10 +7,18 @@
 
 import { GENERIC_FAILURE } from "@/lib/constants";
 
+/** One invalid cell of an imported file (SPEC-0003 AC-0003-07). */
+export interface RejectedRow {
+  line: number;
+  field: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fields: Record<string, string>;
+  readonly rows: RejectedRow[];
   readonly correlationId: string | null;
   readonly retryAfter: number | null;
 
@@ -19,6 +27,7 @@ export class ApiError extends Error {
     code: string;
     message: string;
     fields?: Record<string, string>;
+    rows?: RejectedRow[];
     correlationId?: string | null;
     retryAfter?: number | null;
   }) {
@@ -26,6 +35,7 @@ export class ApiError extends Error {
     this.status = options.status;
     this.code = options.code;
     this.fields = options.fields ?? {};
+    this.rows = options.rows ?? [];
     this.correlationId = options.correlationId ?? null;
     this.retryAfter = options.retryAfter ?? null;
   }
@@ -41,6 +51,7 @@ interface Envelope {
     code?: string;
     message?: string;
     fields?: Record<string, string>;
+    rows?: RejectedRow[];
     correlation_id?: string;
   };
 }
@@ -59,6 +70,7 @@ export async function readError(response: Response): Promise<ApiError> {
           code: body.error.code,
           message: body.error.message,
           fields: body.error.fields,
+          rows: body.error.rows,
           correlationId: body.error.correlation_id ?? correlationId,
           retryAfter: Number.isNaN(retryAfter) ? null : retryAfter,
         });

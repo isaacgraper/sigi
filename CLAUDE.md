@@ -45,7 +45,9 @@ grupos, substitution and discontinuation, the items of an ATA with the unit pric
 at five decimals (ADR-0016), the aditivo de quantidade, a CSV import for the
 catalogue and one for an ATA's items, and RN07 on the grupo axis, under
 `/api/v1/insumos`, `/api/v1/grupos-materiais` and `/api/v1/atas/{id}/itens`.
-450 backend tests run against a real PostgreSQL 16.
+451 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014) are
+built: the catalogue under `/insumos`, the grupo tree, both imports checked before
+writing, the items section of the ATA page and a servidor's grupos on Membros.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
 callback, invitation, password reset and member management inside the navy
@@ -75,8 +77,8 @@ instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
 `SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
-is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.1) is
-`Approved` with its backend built. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
+is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.4) is
+`Approved` with its backend built, and `SPEC-0014` (v1.3), its screens, is `Approved` and built. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 

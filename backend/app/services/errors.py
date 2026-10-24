@@ -472,7 +472,9 @@ class InvalidSku(DomainError):
 
     def __init__(self, example: str) -> None:
         """Build the error showing the format and an example."""
-        hint = f"Use só letras e números, sem espaços nem pontos, como {example}."
+        hint = (
+            f"Use letras e números, com ao menos uma letra, sem espaços nem pontos, como {example}."
+        )
         super().__init__(f"SKU inválido. {hint}", fields={"sku": hint})
 
 

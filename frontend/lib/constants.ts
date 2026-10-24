@@ -2,7 +2,7 @@
  * Values the whole application shares (docs/process/coding-standards.md §2).
  * A value one feature owns lives in lib/<feature>/constants.ts instead.
  */
-import { FileText, LayoutDashboard, Users } from "lucide-react";
+import { FileText, LayoutDashboard, Package, Users } from "lucide-react";
 
 import { canSeeMembers } from "@/lib/me";
 import type { Module, Perfil } from "@/lib/types";
@@ -31,12 +31,24 @@ export const NAV_MODULES: Module[] = [
     visibleTo: () => true,
   },
   {
+    href: "/insumos",
+    name: "Insumos",
+    icon: Package,
+    // Every perfil reads the catalogue, a servidor its grupos' share (AC-0014-01, AC-0003-29).
+    visibleTo: () => true,
+  },
+  {
     href: "/members",
     name: "Membros",
     icon: Users,
     visibleTo: (me) => canSeeMembers(me.perfil),
   },
 ];
+
+// ── Lists ───────────────────────────────────────────────────────────────────
+
+/** The filter value that means "no filter"; never a status, a situação or an id. */
+export const FILTER_ALL = "todos";
 
 // ── Perfis ──────────────────────────────────────────────────────────────────
 

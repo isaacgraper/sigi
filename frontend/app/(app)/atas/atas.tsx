@@ -26,13 +26,13 @@ import {
 import { cached } from "@/lib/api-cache";
 import {
   ATAS_PAGE_SIZE,
-  FILTER_ALL,
   LIST_COLUMNS,
   SITUACAO_LABEL,
   SITUACOES,
   STATUS_LABEL,
   STATUSES,
 } from "@/lib/atas/constants";
+import { FILTER_ALL } from "@/lib/constants";
 import type { AtaPage, Situacao, Status } from "@/lib/atas/types";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatBRL, formatDay } from "@/lib/format";

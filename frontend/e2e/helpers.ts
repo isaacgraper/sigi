@@ -53,7 +53,7 @@ export async function member(perfil: Perfil) {
 }
 
 /** Gestor-side action on a member, through the API. */
-export async function asGestor(method: "post", path: string, data?: Record<string, unknown>) {
+export async function asGestor(method: "get" | "post", path: string, data?: Record<string, unknown>) {
   const ctx = await api();
   const token = await tokenFor(ctx, GESTOR.email, GESTOR.password);
   const response = await ctx[method](path, { headers: { Authorization: `Bearer ${token}` }, data });
@@ -140,4 +140,41 @@ export async function noSeriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+}
+
+/** A unique code, so the catalogue suite runs again on the same database. */
+export function uniqueSku(): string {
+  return `E2E${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1e6).toString(36).toUpperCase()}`;
+}
+
+/** A grupo created through the API by the seeded gestor. */
+export async function createGrupo(name = `GRUPO ${uniqueSku()}`, parentId: string | null = null) {
+  const created = await asGestor("post", "/api/v1/grupos-materiais", { name, parent_id: parentId });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { id: string; name: string; level: number };
+}
+
+/** An insumo registered through the API by the seeded gestor. */
+export async function createInsumo(grupoId: string, overrides: Record<string, unknown> = {}) {
+  const created = await asGestor("post", "/api/v1/insumos", {
+    sku: uniqueSku(),
+    description: `CLOREXIDINA 2% 1 L ${uniqueSku()}`,
+    unit: "UN",
+    grupo_id: grupoId,
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { id: string; sku: string; description: string };
+}
+
+/** An item of an ATA, added through the API by the seeded gestor. */
+export async function addItem(ataId: string, insumoId: string, overrides: Record<string, unknown> = {}) {
+  const created = await asGestor("post", `/api/v1/atas/${ataId}/itens`, {
+    insumo_id: insumoId,
+    quantity: "100",
+    unit_price: "1.5",
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { items: { id: string; insumo: { id: string; sku: string } }[] };
 }

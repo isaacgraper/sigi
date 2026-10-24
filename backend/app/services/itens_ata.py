@@ -73,9 +73,24 @@ class ItemsView:
 
 
 @dataclass(frozen=True)
+class ItemsLine:
+    """One line of an items file as it is written, and what the import does to it (AC-0003-33)."""
+
+    line: int
+    sku: str
+    description: str
+    quantity: decimal.Decimal
+    unit_price: decimal.Decimal
+    item_number: str | None
+    fornecedor: str | None
+    action: str
+
+
+@dataclass(frozen=True)
 class ItemsReport:
     """What an items import did, or would do with `dry_run` (AC-0003-26)."""
 
+    lines: tuple[ItemsLine, ...]
     added: int
     corrected: int
     unchanged: int
@@ -271,6 +286,27 @@ class _ItemRow:
     fornecedor: FornecedorInput | None
 
 
+def _items_line(
+    session: Session,
+    row: _ItemRow,
+    fornecedor_id: uuid.UUID | None,
+    item_number: str | None,
+    action: str,
+) -> ItemsLine:
+    """The line as stored; the fornecedor named only when it is not the ATA's own."""
+    fornecedor = repo_ata.fornecedor_by_id(session, fornecedor_id) if fornecedor_id else None
+    return ItemsLine(
+        line=row.line,
+        sku=row.insumo.sku,
+        description=row.insumo.description,
+        quantity=row.quantity,
+        unit_price=row.unit_price,
+        item_number=item_number,
+        fornecedor=fornecedor.legal_name if fornecedor else None,
+        action=action,
+    )
+
+
 def import_items(
     session: Session,
     *,
@@ -289,7 +325,7 @@ def import_items(
     """
     ata = _lock_editable(session, ata_id)
     sheet = importacao.read(content, required=ITEMS_REQUIRED, optional=ITEMS_OPTIONAL)
-    report = importacao.Report()
+    report = importacao.Report.of(sheet)
     catalogue = repo_insumo.insumos_by_sku(
         session, {cells.get("sku", "").upper() for _, cells in sheet.lines}
     )
@@ -351,11 +387,13 @@ def import_items(
     report.raise_if_any()
 
     added = corrected = unchanged = 0
+    written: list[ItemsLine] = []
     savepoint = session.begin_nested()
     for row in rows:
         fornecedor_id = _override(session, ata, row.fornecedor)
         existing = current.get(row.insumo.id)
         if existing is None:
+            written.append(_items_line(session, row, fornecedor_id, row.item_number, "added"))
             item = repo.add_item(
                 session,
                 ItemAta(
@@ -387,9 +425,13 @@ def import_items(
         if row.fornecedor is not None:
             wanted["fornecedor_id"] = fornecedor_id
         changes = {k: v for k, v in wanted.items() if getattr(existing, k) != v}
+        stored_fornecedor = changes.get("fornecedor_id", existing.fornecedor_id)
+        stored_number = changes.get("item_number", existing.item_number)
         if not changes:
+            written.append(_items_line(session, row, stored_fornecedor, stored_number, "unchanged"))
             unchanged += 1
             continue
+        written.append(_items_line(session, row, stored_fornecedor, stored_number, "corrected"))
         previous = {ITEM_EDITABLE_COLUMN[k]: getattr(existing, k) for k in changes}
         previous["item_ata_id"] = existing.id
         for key, value in changes.items():
@@ -412,6 +454,7 @@ def import_items(
     else:
         savepoint.commit()
     return ItemsReport(
+        lines=tuple(written),
         added=added,
         corrected=corrected,
         unchanged=unchanged,

@@ -89,6 +89,22 @@ EMBEDDED_CODE: Final = re.compile(r"^(\d+)\s*-\s*(\S.*)$")
 # `2888.0`: a code exported as a float (data-sources.md §12).
 FLOAT_CODE: Final = re.compile(r"^\d+[.,]\d+$")
 
+# A letter in any alphabet, accented ones included: a descrição, a unidade or a
+# grupo made of digits only is a column shifted or a code typed in the wrong place
+# (AC-0003-35).
+HAS_LETTER: Final = re.compile(r"[^\W\d_]")
+
+# The text fields that must hold a letter, in a catalogue file.
+LETTER_COLUMNS: Final = ("descricao", "unidade", "grupo", "subgrupo", "classificacao")
+
+# A control character, a tab or a line break inside a cell: none belongs in a
+# code or a descrição, and each breaks an export (AC-0003-34).
+CONTROL_CHARACTER: Final = re.compile(r"[\x00-\x1f\x7f]")
+
+# A cell that starts like a formula runs as one when the data is opened again in
+# a spreadsheet (CSV injection, OWASP). "-" stays allowed: descrições start with it.
+FORMULA_PREFIXES: Final = ("=", "+", "@")
+
 # Excel's two encodings for a Brazilian workstation, tried in this order.
 IMPORT_ENCODINGS: Final = ("utf-8-sig", "cp1252")
 
@@ -102,7 +118,7 @@ IMPORT_PATHS: Final = re.compile(r"^/api/v1/(insumos|atas/[0-9a-fA-F-]{36}/itens
 IMPORT_MESSAGES: Final = MappingProxyType(
     {
         "required": "Campo obrigatório.",
-        "sku": f"SKU inválido. Use só letras e números, como {SKU_EXAMPLE}.",
+        "sku": f"SKU inválido. Use letras e números, com ao menos uma letra, como {SKU_EXAMPLE}.",
         "doms": "Código DOMS inválido. Use só números, como 26829.",
         "float_code": "Código escrito como número decimal. Formate a coluna como texto.",
         "embedded_mismatch": "A descrição começa com um código DOMS diferente do informado.",
@@ -119,5 +135,8 @@ IMPORT_MESSAGES: Final = MappingProxyType(
         "cnpj": "CNPJ inválido.",
         "razao_social": "Informe a razão social para um fornecedor novo.",
         "aditivo": "A quantidade deixa os aditivos acima de 25% do item.",
+        "control": "Caractere de controle não permitido.",
+        "letters": "Use ao menos uma letra.",
+        "formula": "O texto não pode começar com =, + ou @.",
     }
 )

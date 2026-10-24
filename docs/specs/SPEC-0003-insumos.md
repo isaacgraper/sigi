@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Approved
-version: 1.1
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -72,7 +72,7 @@ When  codigo_doms is not digits only, for example "2888.0"
 Then  the response is 422 with error code "INVALID_DOMS_CODE"
 And   nothing is trimmed or rounded to make it fit
 ```
-The pattern is configurable, default `^[A-Z0-9]+$`, which fits the two examples in
+The pattern is configurable, default `^(?=.*[A-Z])[A-Z0-9]+$` *(v1.4, was `^[A-Z0-9]+$`)*, which fits the two examples in
 the CAME sheet, `CLORDEG21` and `SER5D` (RF07). Uppercasing is normalisation, as the
 CNPJ's is (AC-0002-25); `2888.0` is how the source files spell some codes, and
 turning it into `2888` would be a guess about the file.
@@ -327,6 +327,59 @@ leading-whitespace rows. The code is lifted out of the descrição because both 
 are in the cell and only one belongs there; a float is refused because `2888.0`
 joins to nothing and the file should be fixed where it was produced.
 
+**AC-0003-33** — The report shows every line as it will be written
+```gherkin
+Given a catalogue file of 3 valid lines, one SKU new, one changed and one unchanged
+When  it is imported, with or without dry_run
+Then  the report lists the 3 lines, each with its line number, sku, descricao, unidade, grupo path
+      and codigo_doms as they are stored, after trimming, uppercasing and lifting the code out of
+      the descricao, and what the import does to it: "created", "updated" or "unchanged"
+And   a line whose descricao was corrected says so
+Given an ATA's items file of valid lines
+When  it is imported, with or without dry_run
+Then  the report lists each line with its sku, the insumo's descricao, quantidade, valor_unitario,
+      numero_item and the razão social of its own fornecedor, as stored, and "added", "corrected"
+      or "unchanged"
+```
+*(v1.3)* By the product owner's request: the screen shows the data, not only the
+counts, so the gestor confirms what is about to be written. The values are the
+API's reading of the file, so the screen never parses it.
+
+**AC-0003-34** — A cell with a control character or a formula is refused
+```gherkin
+Given a catalogue or an items file
+When  a cell holds a control character, a tab, or a line break inside quotes
+Then  the file is refused and the report names that cell: "Caractere de controle não permitido."
+When  a text cell starts with "=", "+" or "@"
+Then  the file is refused and the report names that cell: "O texto não pode começar com =, + ou @."
+```
+*(v1.3)* By the product owner's request to keep special characters out. A control
+character has no place in a code or a descrição and breaks every export; a cell
+that starts like a formula runs as one when the catalogue is opened again in a
+spreadsheet (CSV injection, OWASP). "-" is not refused: descrições start with it.
+The 5 MB and 10.000 line ceilings of AC-0003-18 already keep a file from
+exhausting the server's memory, and the body is refused before it is read.
+
+**AC-0003-35** — A text field holds at least one letter
+```gherkin
+Given a servidor or a gestor registering or correcting an insumo, or a gestor creating or renaming
+      a grupo, or importing either file
+When  the sku is "123"
+Then  it is refused with error code "INVALID_SKU", whose message asks for at least one letter
+When  the descricao or the unidade is only digits and signs, "2" or "3"
+Then  the response is 422 with error code "INVALID_DATA" and `fields` naming it: "Use ao menos uma letra."
+When  a grupo, subgrupo or classificacao name is only digits, "67"
+Then  it is refused the same way, and no grupo is created
+And   in a file, every such cell is named in the report and nothing is written (AC-0003-07)
+And   codigo_doms and codigo_externo stay digits, as AC-0003-02 asks
+```
+*(v1.4)* By the product owner's test: a file of digits only was accepted, with
+SKU "1", descrição "2", unidade "3" and grupos "4", "67" and "5". Every SKU in the
+data carries letters (`CLORDEG21`, `SER5D`, `data-sources.md` §8), which is also what
+tells a SKU from a DOMS code at a glance, and every descrição, unidade and grupo in
+the source files is words. The default `sku_pattern` becomes
+`^(?=.*[A-Z])[A-Z0-9]+$`.
+
 ### 3.5 The items of an ATA
 
 **AC-0003-20** — A gestor adds an item to an ATA
@@ -508,6 +561,20 @@ Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 The scope is read on every request, not carried in the token, so a change applies
 at once.
 
+**AC-0003-32** — A gestor reads a servidor's grupos
+```gherkin
+Given a servidor whose grupos are "MATERIAL ODONTOLÓGICO" and "MATERIAL DE LIMPEZA"
+When  a gestor requests that member's grupos
+Then  the response is 200 with those two grupo ids, and nothing below them
+When  the member does not exist
+Then  the response is 404 with error code "NOT_FOUND"
+When  a servidor or an auditor requests it
+Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+```
+*(v1.2)* The member screen shows the set before a gestor replaces it (SPEC-0014
+AC-0014-28). The grupos below are in scope but not stored, so they are not
+returned; the read writes no audit row.
+
 ### 3.8 Audit
 
 **AC-0003-31** — Every mutation is audited in the same transaction
@@ -530,7 +597,7 @@ Then  the mutation is not saved
 | Import the catalogue | yes | no | no |
 | Create and rename a grupo | yes | no | no |
 | Add, correct, remove and import an ATA's items; aditivo de quantidade | yes | no | no |
-| Set a servidor's grupos | yes | no | no |
+| Set and read a servidor's grupos | yes | no | no |
 | Read the catalogue, the grupos and an ATA's items | yes | yes, in its grupos | yes |
 
 | Condition | HTTP | Error code | Message (pt-BR) |
@@ -597,11 +664,11 @@ a sequencing matter, not a question.
 
 ## 6. Screens
 
-The catalogue (`/insumos`, its form and its import) and the items section of the
-ATA page (add, correct, remove, import, aditivo de quantidade) are specified as
-screens after this spec is approved: the catalogue in a new screen spec, the ATA's
-items as a revision of SPEC-0013. The member page gains the servidor's grupos as a
-revision of SPEC-0010. Each follows `DESIGN.md` and updates `docs/product/user-map.md`.
+The catalogue (`/insumos`, its form and its import), the items section of the
+ATA page (add, correct, remove, import, aditivo de quantidade) and a servidor's
+grupos on the member page are specified in SPEC-0014. *(v1.2: one screen spec, not
+a new spec plus revisions of SPEC-0013 and SPEC-0010, so the screens of this backend
+are approved and proven together.)*
 
 ## Revision 2026-09-02 — validated against operational data
 
@@ -721,7 +788,7 @@ the item routes in `api/atas.py`, the grupos of a servidor in `api/users.py`, an
 | POST | `/api/v1/atas/{id}/itens/{item_id}/remover` | 24 |
 | POST | `/api/v1/atas/{id}/itens/importacao?dry_run=` | 26 |
 | POST | `/api/v1/atas/{id}/aditivos` (`tipo: "quantidade"`) | 27, 28 |
-| POST | `/api/v1/usuarios/{id}/grupos-materiais` | 30 |
+| GET, POST | `/api/v1/usuarios/{id}/grupos-materiais` | 30, 32 (GET added in v1.2) |
 
 DELETE answers 405 (AC-0003-10). A file arrives as the request body, `Content-Type:
 text/csv`, rather than as `multipart/form-data`, which FastAPI reads only through
@@ -752,3 +819,6 @@ of AC-0003-25.
 | 0.4 | 2026-10-20 | Rewritten for approval, every criterion in Given/When/Then. The flat category list of AC-0003-09 is replaced by the three-level DOMS hierarchy it contradicted (`data-sources.md` §5), and `grupo_id` becomes required. Substitution, discontinuation and reactivation get criteria (AC-0003-14 to -17). The catalogue file follows the model and gains `dry_run`, the pt-BR number rules and the §12 hazards (AC-0003-06, -18, -19). `ITEM_ATA` is specified: by hand and by a file per ATA, the unit price at five decimals (ADR-0016), the item's own fornecedor (OQ-11), correction and removal (AC-0003-20 to -26). The aditivo de quantidade and its 25% ceiling, deferred by AC-0002-13 and -14, land here (AC-0003-27, -28). RN07 is claimed on the grupo axis (AC-0003-29, -30). The `ativo` flag is dropped for the derived situação. Permissions, errors, audit events and an implementation plan added. RF15 and RN15 claimed for their quantity half |
 | 1.0 | 2026-10-20 | Approved by the product owner after review. No criterion changed |
 | 1.1 | 2026-10-20 | While implementing: AC-0003-18's 5 MB file conflicted with the 64 KiB body ceiling of SPEC-0001 AC-0001-42; SPEC-0001 v1.10 gives the two import routes their own ceiling |
+| 1.2 | 2026-10-21 | For the screens of SPEC-0014: AC-0003-32, a gestor reads a servidor's grupos, so the member dialog shows the set it replaces. §6 points to SPEC-0014, one screen spec in place of a new one plus two revisions |
+| 1.3 | 2026-10-22 | By the product owner's review of the import screen: the report lists every line as it will be written, with its action (AC-0003-33), and a cell with a control character or a leading formula is refused (AC-0003-34) |
+| 1.4 | 2026-10-22 | By the product owner's test: a SKU, descrição, unidade or grupo name of digits only is refused, by hand and by file (AC-0003-35); the default SKU pattern asks for a letter |

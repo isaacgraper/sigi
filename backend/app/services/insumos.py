@@ -29,10 +29,12 @@ from app.constants.insumos import (
     EMBEDDED_CODE,
     FLOAT_CODE,
     GRUPO_MAX_LEVEL,
+    HAS_LETTER,
     IGNORED_COLUMN_NOTES,
     IMPORT_JUSTIFICATION,
     IMPORT_MESSAGES,
     INSUMO_EDITABLE_COLUMN,
+    LETTER_COLUMNS,
     QUANTITY_PLACES,
     SKU_EXAMPLE,
 )
@@ -89,9 +91,24 @@ class GrupoNode:
 
 
 @dataclass(frozen=True)
+class CatalogueLine:
+    """A line of a catalogue file as written, and what the import does to it (AC-0003-33)."""
+
+    line: int
+    sku: str
+    description: str
+    unit: str
+    grupo_path: tuple[str, ...]
+    codigo_doms: str | None
+    action: str
+    corrected: bool
+
+
+@dataclass(frozen=True)
 class CatalogueReport:
     """What a catalogue import did, or would do with `dry_run` (AC-0003-06 to -08)."""
 
+    lines: tuple[CatalogueLine, ...]
     created: int
     updated: int
     unchanged: int
@@ -160,6 +177,13 @@ def set_user_grupos(
     return wanted
 
 
+def user_grupos(session: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
+    """The grupos a member owns, without those below them (AC-0003-32)."""
+    if repo_user.by_id(session, user_id) is None:
+        raise UsuarioNotFound()
+    return repo.grupos_of_user(session, user_id)
+
+
 # ── Grupos (AC-0003-09, -13) ────────────────────────────────────────────────
 
 
@@ -189,6 +213,7 @@ def create_grupo(
     justification: str | None = None,
 ) -> GrupoMaterial:
     """Create a grupo at the level below its parent, at most the third (AC-0003-09)."""
+    _require_letters({"name": name})
     level = 1
     if parent_id is not None:
         parent = repo.grupo_by_id(session, parent_id)
@@ -229,6 +254,7 @@ def rename_grupo(
     correlation_id: uuid.UUID,
 ) -> GrupoMaterial:
     """Rename a grupo; every insumo in it stays in it (AC-0003-13)."""
+    _require_letters({"name": name})
     grupo = repo.grupo_by_id(session, grupo_id)
     if grupo is None:
         raise GrupoNotFound()
@@ -295,6 +321,7 @@ def register(
     """Register an insumo (AC-0003-01 to -03); a servidor only inside its grupos."""
     scope = scope_of(session, actor)
     normalised = normalise_sku(sku)
+    _require_letters({"description": description, "unit": unit})
     code = check_codigo_doms(codigo_doms)
     _require_grupo(session, grupo_id, scope)
     _require_unique(session, scope, sku=normalised, codigo_doms=code, other_than=None)
@@ -334,6 +361,7 @@ def edit(
     """Correct an insumo's fields, never its SKU (AC-0003-11)."""
     scope = scope_of(session, actor)
     insumo = _lock_visible(session, insumo_id, scope)
+    _require_letters({key: changes[key] for key in ("description", "unit") if key in changes})
     if "codigo_doms" in changes:
         changes["codigo_doms"] = check_codigo_doms(changes["codigo_doms"])
     if "external_code" in changes:
@@ -623,7 +651,7 @@ def import_catalogue(
     so the report is exactly what the import would do.
     """
     sheet = importacao.read(content, required=CATALOGUE_REQUIRED, optional=CATALOGUE_OPTIONAL)
-    report = importacao.Report()
+    report = importacao.Report.of(sheet)
     rows = _parse_catalogue(sheet, report)
 
     by_sku = repo.insumos_by_sku(session, {row.sku for row in rows})
@@ -639,6 +667,7 @@ def import_catalogue(
     report.raise_if_any()
 
     created = updated = unchanged = 0
+    written: list[CatalogueLine] = []
     savepoint = session.begin_nested()
     try:
         grupos: dict[tuple[str, ...], uuid.UUID] = {}
@@ -646,6 +675,7 @@ def import_catalogue(
             grupo_id = _grupo_for_path(session, actor, row.path, grupos, at, correlation_id)
             existing = by_sku.get(row.sku)
             if existing is None:
+                written.append(_catalogue_line(row, row.codigo_doms, "created"))
                 insumo = repo.add_insumo(
                     session,
                     Insumo(
@@ -687,9 +717,12 @@ def import_catalogue(
             if row.reference_quantity is not None:
                 wanted["reference_quantity"] = row.reference_quantity
             changes = {k: v for k, v in wanted.items() if getattr(existing, k) != v}
+            stored_code = changes.get("codigo_doms", existing.codigo_doms)
             if not changes:
+                written.append(_catalogue_line(row, stored_code, "unchanged"))
                 unchanged += 1
                 continue
+            written.append(_catalogue_line(row, stored_code, "updated"))
             previous = {INSUMO_EDITABLE_COLUMN[k]: getattr(existing, k) for k in changes}
             for key, value in changes.items():
                 setattr(existing, key, value)
@@ -724,6 +757,7 @@ def import_catalogue(
         if column in IGNORED_COLUMN_NOTES
     )
     return CatalogueReport(
+        lines=tuple(written),
         created=created,
         updated=updated,
         unchanged=unchanged,
@@ -743,6 +777,9 @@ def _parse_catalogue(sheet: importacao.Sheet, report: importacao.Report) -> list
         for column in CATALOGUE_REQUIRED:
             if not cells.get(column):
                 report.error(line, column, IMPORT_MESSAGES["required"])
+        for column in LETTER_COLUMNS:
+            if cells.get(column) and not HAS_LETTER.search(cells[column]):
+                report.error(line, column, IMPORT_MESSAGES["letters"])
 
         sku = cells.get("sku", "").upper()
         if sku and not re.fullmatch(get_settings().sku_pattern, sku):
@@ -817,6 +854,19 @@ def _parse_catalogue(sheet: importacao.Sheet, report: importacao.Report) -> list
     return rows
 
 
+def _catalogue_line(row: _CatalogueRow, codigo_doms: str | None, action: str) -> CatalogueLine:
+    return CatalogueLine(
+        line=row.line,
+        sku=row.sku,
+        description=row.description,
+        unit=row.unit,
+        grupo_path=row.path,
+        codigo_doms=codigo_doms,
+        action=action,
+        corrected=row.corrected,
+    )
+
+
 def _grupo_for_path(
     session: Session,
     actor: User,
@@ -850,6 +900,17 @@ def _grupo_for_path(
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _require_letters(values: dict[str, str]) -> None:
+    """Refuse a text field made of digits and signs only (AC-0003-35)."""
+    fields = {
+        key: IMPORT_MESSAGES["letters"]
+        for key, value in values.items()
+        if value is not None and not HAS_LETTER.search(value)
+    }
+    if fields:
+        raise InvalidData(fields)
 
 
 def _lock_visible(session: Session, insumo_id: uuid.UUID, scope: Scope) -> Insumo:

@@ -19,6 +19,7 @@ from app.core.correlation import current as current_correlation_id
 from app.core.db import DbSession
 from app.models.user import User
 from app.schemas.insumo import (
+    CatalogueLineOut,
     CatalogueReportOut,
     GrupoIn,
     GrupoNodeOut,
@@ -156,7 +157,7 @@ def import_catalogue(
     content: Annotated[bytes, Depends(csv_body)],
     dry_run: bool = False,
 ) -> CatalogueReportOut:
-    """Create or update insumos from a CSV file (SPEC-0003 AC-0003-06 to -08, -18, -19)."""
+    """Create or update insumos from a CSV file (SPEC-0003 AC-0003-06 to -08, -18, -19, -33)."""
     report = insumos.import_catalogue(
         session,
         actor=actor,
@@ -166,6 +167,19 @@ def import_catalogue(
         correlation_id=_correlation(request),
     )
     return CatalogueReportOut(
+        lines=[
+            CatalogueLineOut(
+                line=line.line,
+                sku=line.sku,
+                description=line.description,
+                unit=line.unit,
+                grupo_path=list(line.grupo_path),
+                codigo_doms=line.codigo_doms,
+                action=line.action,
+                corrected_description=line.corrected,
+            )
+            for line in report.lines
+        ],
         created=report.created,
         updated=report.updated,
         unchanged=report.unchanged,
