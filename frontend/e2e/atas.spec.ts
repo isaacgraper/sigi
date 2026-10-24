@@ -104,7 +104,9 @@ test.describe("SPEC-0013 the ATA screens", () => {
     // 20 and 30 days are close: amber, not yet red.
     await expect(reajuste).toHaveAttribute("data-urgency", "soon");
     await expect(vencimento).toHaveAttribute("data-urgency", "soon");
-    await expect(list.getByTestId("due-tally")).toContainText(/\d+ em até 30 dias/);
+    // The counts sit in their own cards above the list.
+    await expect(page.getByTestId("due-soon")).toContainText("Em até 30 dias");
+    await expect(page.getByTestId("due-soon")).toContainText(/[1-9]\d*/);
     await expect(vencimento).toContainText("Vencimento");
     await expect(vencimento).toContainText(isoDay(30).split("-").reverse().join("/"));
 
@@ -139,7 +141,8 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await expect(row).toContainText("há 3 dias");
     await expect(row).toContainText("em atraso");
     await expect(row).toHaveAttribute("data-urgency", "overdue");
-    await expect(page.getByTestId("due-tally")).toHaveText("1 em atraso");
+    await expect(page.getByTestId("due-late")).toHaveText("Em atraso1");
+    await expect(page.getByTestId("due-soon")).toHaveText("Em até 30 dias0");
   });
 
   test("AC-0013-02 more than five show the most urgent first", async ({ page }) => {
@@ -161,7 +164,8 @@ test.describe("SPEC-0013 the ATA screens", () => {
     await expect(due.last()).toContainText("85 dias");
     // Beyond 30 days there is time: no colour.
     await expect(due.last()).toHaveAttribute("data-urgency", "later");
-    await expect(page.getByTestId("due-tally")).toHaveText("3 em até 30 dias");
+    await expect(page.getByTestId("due-soon")).toHaveText("Em até 30 dias3");
+    await expect(page.getByTestId("due-late")).toHaveText("Em atraso0");
   });
 
   test("AC-0013-02 nothing due is one line", async ({ page }) => {
