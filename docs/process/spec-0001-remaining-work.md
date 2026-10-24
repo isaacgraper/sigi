@@ -50,7 +50,7 @@ feature branch after it inherits correct names instead of adding more to fix.
 - 200 to 600 lines per branch. Split if larger.
 - Change the spec first, then the code, in the same commit.
 - Every test names the AC it verifies.
-- **Never merge.** Open the PR, request `PauloVomScheidt` and `theisgui`, stop.
+- **Never merge.** Open the PR and stop.
 
 ## Commands
 
