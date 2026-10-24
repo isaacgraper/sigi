@@ -1,0 +1,4692 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SIGI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "description": "Report that the process is up.\n\nDeliberately does not touch the database: this answers \"is the process\nserving requests\", and a probe that fails on a database blip takes the\napplication down with it.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Local login, returning an access token and setting the refresh cookie.\n\n[SPEC-0001 AC-0001-01, -02, -04, -05, -24]",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh",
+        "description": "Rotate the token pair without asking for credentials.\n\n[SPEC-0001 AC-0001-06, -07]",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Invalidate the whole refresh family.\n\n[SPEC-0001 AC-0001-07]",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "Report the caller's identity.\n\n[SPEC-0001 AC-0001-08, -22]\n\nThe response model is explicit rather than derived from the ORM object, so\n`senha_hash` cannot arrive here by someone adding a column (AC-0001-05).",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/redefinicoes/confirmar": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Confirm Reset",
+        "description": "Redeem a reset link and replace the credential (SPEC-0001 AC-0001-31).\n\nOpen by definition: whoever holds the link cannot log in, which is why they\nare here. 204 rather than a session, deliberately — unlike activation, a\nreset may have been triggered by someone who is not the account owner, so\nhanding back a session would hand it to whoever redeemed the link.",
+        "operationId": "confirm_reset_api_v1_auth_redefinicoes_confirmar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetConfirmInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/authorize": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Authorize",
+        "description": "Start institutional login (SPEC-0001 AC-0001-19).",
+        "operationId": "authorize_api_v1_auth_oidc_authorize_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Callback",
+        "description": "Complete institutional login (SPEC-0001 AC-0001-19, -20, -21, -22).",
+        "operationId": "callback_api_v1_auth_oidc_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Invite",
+        "description": "Invite a member (SPEC-0001 AC-0001-10, -13, -28).\n\nThe activation link comes back in this response and nowhere else. The gestor\ndelivers it through whatever channel the entity already trusts, because\nthere is no mail transport in this project and every account in the system\nis born from an invitation.",
+        "operationId": "invite_api_v1_usuarios_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "List Members",
+        "description": "List members (SPEC-0001 AC-0001-15, -17).\n\nOpen to an auditor as well as a gestor, per §6. Not AC-0001-13, which is\nabout *managing* members and stays gestor only.",
+        "operationId": "list_members_api_v1_usuarios_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/bloquear": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Block",
+        "description": "Block a member (SPEC-0001 AC-0001-12, -13, -29).",
+        "operationId": "block_api_v1_usuarios__user_id__bloquear_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/desbloquear": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Unblock",
+        "description": "Unblock a member, with a justification (SPEC-0001 AC-0001-13, -44).",
+        "operationId": "unblock_api_v1_usuarios__user_id__desbloquear_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnblockInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/desativar": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Deactivate",
+        "description": "Deactivate and anonymise a member (SPEC-0001 AC-0001-13, -14, -29).",
+        "operationId": "deactivate_api_v1_usuarios__user_id__desativar_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/reemitir-convite": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Reissue Invite",
+        "description": "Issue a new activation link for a pending member (SPEC-0001 AC-0001-13, -46).\n\nReturned once, here, like the first one; the earlier link stops working.",
+        "operationId": "reissue_invite_api_v1_usuarios__user_id__reemitir_convite_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/redefinir-senha": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Trigger Reset",
+        "description": "Trigger a password reset for a member (SPEC-0001 AC-0001-32).\n\nThe link comes back to the gestor, which v1.0 of the spec records as a\ndeliberate loss: with no mail transport there is no channel to the member.\nThe gestor cannot set the password; whoever opens the link does.",
+        "operationId": "trigger_reset_api_v1_usuarios__user_id__redefinir_senha_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetTriggerOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{user_id}/grupos-materiais": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Get Grupos",
+        "description": "The grupos a servidor owns, before a gestor replaces them (SPEC-0003 AC-0003-32).",
+        "operationId": "get_grupos_api_v1_usuarios__user_id__grupos_materiais_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserGruposOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Set Grupos",
+        "description": "Set the grupos a servidor owns, which scope what it sees (SPEC-0003 AC-0003-30, RN07).",
+        "operationId": "set_grupos_api_v1_usuarios__user_id__grupos_materiais_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserGruposIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserGruposOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Register",
+        "description": "Register an ATA as a draft (SPEC-0002 AC-0002-01 to -05, -25).",
+        "operationId": "register_api_v1_atas_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtaIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "List Atas",
+        "description": "List ATAs, filtered by status and by situacao_vigencia (SPEC-0002 AC-0002-23).",
+        "operationId": "list_atas_api_v1_atas_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Size"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(vigente|suspensa|encerrada|cancelada)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "situacao_vigencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(vigente|a_vencer|vencida)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Situacao Vigencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/alertas/renovacao": {
+      "get": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Renewal Alert",
+        "description": "ATAs about to end with no aditivo de prazo (SPEC-0002 AC-0002-09, RF19).",
+        "operationId": "renewal_alert_api_v1_atas_alertas_renovacao_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertOut"
+                  },
+                  "type": "array",
+                  "title": "Response Renewal Alert Api V1 Atas Alertas Renovacao Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/alertas/reajuste": {
+      "get": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Reajuste Alert",
+        "description": "ATAs whose reajuste is near or past with no request (SPEC-0002 AC-0002-20).",
+        "operationId": "reajuste_alert_api_v1_atas_alertas_reajuste_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertOut"
+                  },
+                  "type": "array",
+                  "title": "Response Reajuste Alert Api V1 Atas Alertas Reajuste Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}": {
+      "get": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Get Ata",
+        "description": "One ATA, with its aditivos and reajuste requests (SPEC-0002 AC-0002-23).",
+        "operationId": "get_ata_api_v1_atas__ata_id__get",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Edit Ata",
+        "description": "Correct an ATA that is not encerrada or cancelada (SPEC-0002 AC-0002-24).",
+        "operationId": "edit_ata_api_v1_atas__ata_id__patch",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtaPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/suspender": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Suspend",
+        "description": "Move an ATA from vigente to suspensa (SPEC-0002 AC-0002-22).",
+        "operationId": "suspend_api_v1_atas__ata_id__suspender_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/retomar": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Resume",
+        "description": "Move an ATA from suspensa back to vigente (SPEC-0002 AC-0002-22).",
+        "operationId": "resume_api_v1_atas__ata_id__retomar_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/encerrar": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Close",
+        "description": "Close an ATA (SPEC-0002 AC-0002-10, -22).",
+        "operationId": "close_api_v1_atas__ata_id__encerrar_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/cancelar": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Cancel",
+        "description": "Cancel an ATA, with a justification (SPEC-0002 AC-0002-22).",
+        "operationId": "cancel_api_v1_atas__ata_id__cancelar_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/aditivos": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Add Aditivo",
+        "description": "Record an aditivo of value, of prazo or of quantity.\n\nSPEC-0002 AC-0002-13, -14; the aditivo of quantity is SPEC-0003 AC-0003-27, -28.",
+        "operationId": "add_aditivo_api_v1_atas__ata_id__aditivos_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AditivoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/reajustes": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Add Reajuste",
+        "description": "Record a reajuste request filed in SEI (SPEC-0002 AC-0002-08, -19, -21).",
+        "operationId": "add_reajuste_api_v1_atas__ata_id__reajustes_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReajusteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtaDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/itens": {
+      "get": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "List Items",
+        "description": "An ATA's items and their sum (SPEC-0003 AC-0003-22, -29).",
+        "operationId": "list_items_api_v1_atas__ata_id__itens_get",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Add Item",
+        "description": "Add an insumo to an ATA (SPEC-0003 AC-0003-17, -20, -23).",
+        "operationId": "add_item_api_v1_atas__ata_id__itens_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/itens/importacao": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Import Items",
+        "description": "Add or correct an ATA's items from a CSV file (SPEC-0003 AC-0003-26).",
+        "operationId": "import_items_api_v1_atas__ata_id__itens_importacao_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dry Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsReportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/itens/{item_id}": {
+      "patch": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Edit Item",
+        "description": "Correct an item (SPEC-0003 AC-0003-23, -24, -28).",
+        "operationId": "edit_item_api_v1_atas__ata_id__itens__item_id__patch",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/atas/{ata_id}/itens/{item_id}/remover": {
+      "post": {
+        "tags": [
+          "atas"
+        ],
+        "summary": "Remove Item",
+        "description": "Remove an item, keeping its history (SPEC-0003 AC-0003-24).",
+        "operationId": "remove_item_api_v1_atas__ata_id__itens__item_id__remover_post",
+        "parameters": [
+          {
+            "name": "ata_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ata Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos": {
+      "get": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "List Insumos",
+        "description": "Search the catalogue (SPEC-0003 AC-0003-12, -29).",
+        "operationId": "list_insumos_api_v1_insumos_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Size"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "grupo_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grupo Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(ativo|descontinuado|substituido)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Register",
+        "description": "Register an insumo (SPEC-0003 AC-0003-01 to -03).",
+        "operationId": "register_api_v1_insumos_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsumoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/importacao": {
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Import Catalogue",
+        "description": "Create or update insumos from a CSV file (SPEC-0003 AC-0003-06 to -08, -18, -19, -33).",
+        "operationId": "import_catalogue_api_v1_insumos_importacao_post",
+        "parameters": [
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dry Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/{insumo_id}": {
+      "get": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Get Insumo",
+        "description": "One insumo with the ATAs it is an item of (SPEC-0003 AC-0003-12, -29).",
+        "operationId": "get_insumo_api_v1_insumos__insumo_id__get",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Edit Insumo",
+        "description": "Correct an insumo, never its SKU (SPEC-0003 AC-0003-11).",
+        "operationId": "edit_insumo_api_v1_insumos__insumo_id__patch",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsumoPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/{insumo_id}/alterar-sku": {
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Change Sku",
+        "description": "Change a SKU, with a justification (SPEC-0003 AC-0003-04).",
+        "operationId": "change_sku_api_v1_insumos__insumo_id__alterar_sku_post",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkuChangeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/{insumo_id}/descontinuar": {
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Discontinue",
+        "description": "Discontinue an insumo (SPEC-0003 AC-0003-14).",
+        "operationId": "discontinue_api_v1_insumos__insumo_id__descontinuar_post",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JustificationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/{insumo_id}/substituir": {
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Substitute",
+        "description": "Record that an insumo is substituted by another (SPEC-0003 AC-0003-15).",
+        "operationId": "substitute_api_v1_insumos__insumo_id__substituir_post",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubstituteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insumos/{insumo_id}/reativar": {
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Reactivate",
+        "description": "Reactivate an insumo discontinued by mistake (SPEC-0003 AC-0003-16).",
+        "operationId": "reactivate_api_v1_insumos__insumo_id__reativar_post",
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JustificationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/grupos-materiais": {
+      "get": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Grupo Tree",
+        "description": "The grupo tree; a servidor sees its own grupos (SPEC-0003 AC-0003-09, -29).",
+        "operationId": "grupo_tree_api_v1_grupos_materiais_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GrupoNodeOut"
+                  },
+                  "type": "array",
+                  "title": "Response Grupo Tree Api V1 Grupos Materiais Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Create Grupo",
+        "description": "Create a grupo (SPEC-0003 AC-0003-09).",
+        "operationId": "create_grupo_api_v1_grupos_materiais_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrupoIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrupoNodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/grupos-materiais/{grupo_id}": {
+      "patch": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Rename Grupo",
+        "description": "Rename a grupo (SPEC-0003 AC-0003-13).",
+        "operationId": "rename_grupo_api_v1_grupos_materiais__grupo_id__patch",
+        "parameters": [
+          {
+            "name": "grupo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grupo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrupoPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrupoNodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/painel/{section}": {
+      "get": {
+        "tags": [
+          "painel"
+        ],
+        "summary": "Read Section",
+        "description": "Every block of one section, empty while its source does not exist (AC-0012-12).",
+        "operationId": "read_section_api_v1_painel__section__get",
+        "parameters": [
+          {
+            "name": "section",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Section"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainelOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/convites/ativar": {
+      "post": {
+        "tags": [
+          "convites"
+        ],
+        "summary": "Activate",
+        "description": "Set the password and enter (SPEC-0001 AC-0001-11, -25, -26).\n\nA session is issued here so that activation and first login are one step:\nsending someone to a login screen right after they chose a password is a\nplace to lose them, and they have just proved they hold the credential.",
+        "operationId": "activate_api_v1_convites_ativar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationOutput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActivationInput": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ActivationInput",
+        "description": "The body of an activation.\n\nThe token is a field rather than a path segment (OQ-31). A single-use\ncredential in a URL path lands in access logs, proxy logs and browser\nhistory, none of which this project controls."
+      },
+      "ActivationOutput": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionOutput"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session"
+        ],
+        "title": "ActivationOutput",
+        "description": "Activation and first login are one step (AC-0001-11)."
+      },
+      "AditivoIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "valor",
+              "prazo",
+              "quantidade"
+            ],
+            "title": "Kind"
+          },
+          "valor_acrescimo": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,13}|(?=[\\d.]{1,16}0*$)\\d{0,13}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Acrescimo"
+          },
+          "nova_vigencia_fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nova Vigencia Fim"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,16}0*$)\\d{0,12}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "justification"
+        ],
+        "title": "AditivoIn",
+        "description": "The body of an aditivo (AC-0002-13; of quantity, SPEC-0003 AC-0003-27)."
+      },
+      "AditivoOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "valor_acrescimo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Acrescimo"
+          },
+          "nova_vigencia_fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nova Vigencia Fim"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "valor_acrescimo",
+          "nova_vigencia_fim",
+          "item_id",
+          "quantity",
+          "justification",
+          "created_at"
+        ],
+        "title": "AditivoOut",
+        "description": "An aditivo, with its justification."
+      },
+      "AlertOut": {
+        "properties": {
+          "ata": {
+            "$ref": "#/components/schemas/AtaOut"
+          },
+          "days_remaining": {
+            "type": "integer",
+            "title": "Days Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ata",
+          "days_remaining"
+        ],
+        "title": "AlertOut",
+        "description": "One row of an alert, ordered by days remaining ascending."
+      },
+      "AtaDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "organ": {
+            "type": "string",
+            "title": "Organ"
+          },
+          "fornecedor": {
+            "$ref": "#/components/schemas/FornecedorOut"
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "vigencia_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Inicio"
+          },
+          "vigencia_fim": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Fim"
+          },
+          "total_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Value"
+          },
+          "valor_contratado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Contratado"
+          },
+          "budget_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Budget Date"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "situacao_vigencia": {
+            "type": "string",
+            "title": "Situacao Vigencia"
+          },
+          "data_reajuste": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Reajuste"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "aditivos": {
+            "items": {
+              "$ref": "#/components/schemas/AditivoOut"
+            },
+            "type": "array",
+            "title": "Aditivos"
+          },
+          "reajustes": {
+            "items": {
+              "$ref": "#/components/schemas/ReajusteOut"
+            },
+            "type": "array",
+            "title": "Reajustes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "organ",
+          "fornecedor",
+          "issued_on",
+          "vigencia_inicio",
+          "vigencia_fim",
+          "total_value",
+          "valor_contratado",
+          "budget_date",
+          "status",
+          "situacao_vigencia",
+          "data_reajuste",
+          "owner_id",
+          "created_at",
+          "aditivos",
+          "reajustes"
+        ],
+        "title": "AtaDetailOut",
+        "description": "An ATA with its aditivos and reajuste requests."
+      },
+      "AtaIn": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Subject"
+          },
+          "organ": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Organ"
+          },
+          "fornecedor": {
+            "$ref": "#/components/schemas/FornecedorIn"
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "vigencia_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Inicio"
+          },
+          "vigencia_fim": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Fim"
+          },
+          "total_value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,13}|(?=[\\d.]{1,16}0*$)\\d{0,13}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Total Value"
+          },
+          "budget_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Budget Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "subject",
+          "organ",
+          "fornecedor",
+          "vigencia_inicio",
+          "vigencia_fim",
+          "total_value",
+          "budget_date"
+        ],
+        "title": "AtaIn",
+        "description": "The body of an ATA registration (AC-0002-01)."
+      },
+      "AtaOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "organ": {
+            "type": "string",
+            "title": "Organ"
+          },
+          "fornecedor": {
+            "$ref": "#/components/schemas/FornecedorOut"
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "vigencia_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Inicio"
+          },
+          "vigencia_fim": {
+            "type": "string",
+            "format": "date",
+            "title": "Vigencia Fim"
+          },
+          "total_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Value"
+          },
+          "valor_contratado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Contratado"
+          },
+          "budget_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Budget Date"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "situacao_vigencia": {
+            "type": "string",
+            "title": "Situacao Vigencia"
+          },
+          "data_reajuste": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Reajuste"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "organ",
+          "fornecedor",
+          "issued_on",
+          "vigencia_inicio",
+          "vigencia_fim",
+          "total_value",
+          "valor_contratado",
+          "budget_date",
+          "status",
+          "situacao_vigencia",
+          "data_reajuste",
+          "owner_id",
+          "created_at"
+        ],
+        "title": "AtaOut",
+        "description": "An ATA and what is derived from it."
+      },
+      "AtaPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AtaOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "AtaPage",
+        "description": "A page of ATAs, in the envelope `api-conventions.md` fixes."
+      },
+      "AtaPatch": {
+        "properties": {
+          "number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "organ": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organ"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FornecedorIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "vigencia_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigencia Inicio"
+          },
+          "vigencia_fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigencia Fim"
+          },
+          "total_value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,13}|(?=[\\d.]{1,16}0*$)\\d{0,13}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Value"
+          },
+          "budget_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Date"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          }
+        },
+        "type": "object",
+        "title": "AtaPatch",
+        "description": "The body of an edit: only what is sent is changed (AC-0002-24)."
+      },
+      "BlockOut": {
+        "properties": {
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows"
+        ],
+        "title": "BlockOut",
+        "description": "One block's rows, each a list of its values as text in column order."
+      },
+      "CancelIn": {
+        "properties": {
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "justification"
+        ],
+        "title": "CancelIn",
+        "description": "Cancelling is the one move that asks for a justification (AC-0002-22)."
+      },
+      "CatalogueLineOut": {
+        "properties": {
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "grupo_path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grupo Path"
+          },
+          "codigo_doms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Doms"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "corrected_description": {
+            "type": "boolean",
+            "title": "Corrected Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "line",
+          "sku",
+          "description",
+          "unit",
+          "grupo_path",
+          "codigo_doms",
+          "action",
+          "corrected_description"
+        ],
+        "title": "CatalogueLineOut",
+        "description": "One line of the file as it is written, and what the import does to it (AC-0003-33)."
+      },
+      "CatalogueReportOut": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueLineOut"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "corrected_descriptions": {
+            "type": "integer",
+            "title": "Corrected Descriptions"
+          },
+          "ignored_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ignored Columns"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "created",
+          "updated",
+          "unchanged",
+          "corrected_descriptions",
+          "ignored_columns",
+          "notes",
+          "dry_run"
+        ],
+        "title": "CatalogueReportOut",
+        "description": "What a catalogue import did, or would do (AC-0003-06 to -08, -33)."
+      },
+      "FornecedorIn": {
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Cnpj"
+          },
+          "legal_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Legal Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cnpj",
+          "legal_name"
+        ],
+        "title": "FornecedorIn",
+        "description": "The fornecedor as typed: found by its CNPJ, or created (AC-0002-25)."
+      },
+      "FornecedorOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cnpj": {
+            "type": "string",
+            "title": "Cnpj"
+          },
+          "legal_name": {
+            "type": "string",
+            "title": "Legal Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cnpj",
+          "legal_name"
+        ],
+        "title": "FornecedorOut",
+        "description": "A fornecedor, as an ATA shows it."
+      },
+      "GrupoIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "GrupoIn",
+        "description": "A grupo and, below level 1, its parent (AC-0003-09)."
+      },
+      "GrupoNodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoNodeOut"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "level",
+          "parent_id",
+          "children"
+        ],
+        "title": "GrupoNodeOut",
+        "description": "A grupo of the tree, with its children."
+      },
+      "GrupoPatch": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "GrupoPatch",
+        "description": "A new name for a grupo (AC-0003-13)."
+      },
+      "GrupoRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "level"
+        ],
+        "title": "GrupoRef",
+        "description": "A grupo as a path element."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InsumoAtaOut": {
+        "properties": {
+          "ata_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ata Id"
+          },
+          "ata_number": {
+            "type": "string",
+            "title": "Ata Number"
+          },
+          "ata_status": {
+            "type": "string",
+            "title": "Ata Status"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Item Id"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ata_id",
+          "ata_number",
+          "ata_status",
+          "item_id",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "InsumoAtaOut",
+        "description": "One ATA an insumo is an item of (AC-0003-12)."
+      },
+      "InsumoDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "codigo_doms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Doms"
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "grupo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Grupo Id"
+          },
+          "grupo_path": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoRef"
+            },
+            "type": "array",
+            "title": "Grupo Path"
+          },
+          "reference_quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Quantity"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "discontinued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discontinued On"
+          },
+          "substitute": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubstituteOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "atas": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoAtaOut"
+            },
+            "type": "array",
+            "title": "Atas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "codigo_doms",
+          "external_code",
+          "description",
+          "unit",
+          "grupo_id",
+          "grupo_path",
+          "reference_quantity",
+          "status",
+          "discontinued_on",
+          "substitute",
+          "created_at",
+          "atas"
+        ],
+        "title": "InsumoDetailOut",
+        "description": "An insumo with the ATAs it is an item of."
+      },
+      "InsumoIn": {
+        "properties": {
+          "sku": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Sku"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit"
+          },
+          "grupo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Grupo Id"
+          },
+          "codigo_doms": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Doms"
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code"
+          },
+          "reference_quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,16}0*$)\\d{0,12}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku",
+          "description",
+          "unit",
+          "grupo_id"
+        ],
+        "title": "InsumoIn",
+        "description": "The body of an insumo registration (AC-0003-01)."
+      },
+      "InsumoOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "codigo_doms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Doms"
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "grupo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Grupo Id"
+          },
+          "grupo_path": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoRef"
+            },
+            "type": "array",
+            "title": "Grupo Path"
+          },
+          "reference_quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Quantity"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "discontinued_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discontinued On"
+          },
+          "substitute": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubstituteOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "codigo_doms",
+          "external_code",
+          "description",
+          "unit",
+          "grupo_id",
+          "grupo_path",
+          "reference_quantity",
+          "status",
+          "discontinued_on",
+          "substitute",
+          "created_at"
+        ],
+        "title": "InsumoOut",
+        "description": "An insumo with its grupo path and its derived situação."
+      },
+      "InsumoPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "InsumoPage",
+        "description": "A page of insumos, in the envelope `api-conventions.md` fixes."
+      },
+      "InsumoPatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "grupo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grupo Id"
+          },
+          "codigo_doms": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Doms"
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code"
+          },
+          "reference_quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,16}0*$)\\d{0,12}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "InsumoPatch",
+        "description": "The body of a correction; the SKU changes only by its own route (AC-0003-11)."
+      },
+      "InviteInput": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "perfil": {
+            "type": "string",
+            "pattern": "^(gestor|servidor|auditor)$",
+            "title": "Perfil"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "registration": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Registration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "perfil",
+          "name",
+          "registration"
+        ],
+        "title": "InviteInput",
+        "description": "The body of an invitation (AC-0001-10, -45).\n\n`name` and `registration` are mandatory on a new invitation. The columns stay\nnullable, because accounts created before v1.7 have neither."
+      },
+      "InviteOutput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "perfil": {
+            "type": "string",
+            "title": "Perfil"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "activation_link": {
+            "type": "string",
+            "title": "Activation Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "perfil",
+          "status",
+          "created_at",
+          "activation_link"
+        ],
+        "title": "InviteOutput",
+        "description": "The created account and its activation link.\n\nThe link is returned exactly once, in this response. Only its HMAC reaches\nthe database, so no endpoint can recover it afterwards, and the gestor is\nthe one who delivers it (AC-0001-10)."
+      },
+      "ItemIn": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,16}0*$)\\d{0,12}\\.\\d{0,3}0*$)"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,16}0*$)\\d{0,10}\\.\\d{0,5}0*$)"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "item_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Number"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FornecedorIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "ItemIn",
+        "description": "An insumo added to an ATA (AC-0003-20, -23)."
+      },
+      "ItemInsumoOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "description",
+          "unit",
+          "status"
+        ],
+        "title": "ItemInsumoOut",
+        "description": "The insumo an item holds, as the ATA's page shows it."
+      },
+      "ItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "insumo": {
+            "$ref": "#/components/schemas/ItemInsumoOut"
+          },
+          "item_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Number"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity"
+          },
+          "contracted_quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Contracted Quantity"
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price"
+          },
+          "total_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Value"
+          },
+          "fornecedor": {
+            "$ref": "#/components/schemas/FornecedorOut"
+          },
+          "own_fornecedor": {
+            "type": "boolean",
+            "title": "Own Fornecedor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "insumo",
+          "item_number",
+          "quantity",
+          "contracted_quantity",
+          "unit_price",
+          "total_value",
+          "fornecedor",
+          "own_fornecedor"
+        ],
+        "title": "ItemOut",
+        "description": "An item with what is derived from it (AC-0003-21, -22)."
+      },
+      "ItemPatch": {
+        "properties": {
+          "insumo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insumo Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,16}0*$)\\d{0,12}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,16}0*$)\\d{0,10}\\.\\d{0,5}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "item_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Number"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FornecedorIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ItemPatch",
+        "description": "A correction of an item; `fornecedor` and `item_number` sent as null clear them."
+      },
+      "ItemsLineOut": {
+        "properties": {
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price"
+          },
+          "item_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Number"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fornecedor"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "line",
+          "sku",
+          "description",
+          "quantity",
+          "unit_price",
+          "item_number",
+          "fornecedor",
+          "action"
+        ],
+        "title": "ItemsLineOut",
+        "description": "One line of the file as it is written, and what the import does to it (AC-0003-33)."
+      },
+      "ItemsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "items_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Items Value"
+          },
+          "total_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Value"
+          },
+          "items_value_differs": {
+            "type": "boolean",
+            "title": "Items Value Differs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "items_value",
+          "total_value",
+          "items_value_differs"
+        ],
+        "title": "ItemsOut",
+        "description": "An ATA's items, their sum, and whether it differs from the ATA's valor_total."
+      },
+      "ItemsReportOut": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ItemsLineOut"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          },
+          "corrected": {
+            "type": "integer",
+            "title": "Corrected"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "ignored_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ignored Columns"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "added",
+          "corrected",
+          "unchanged",
+          "ignored_columns",
+          "dry_run"
+        ],
+        "title": "ItemsReportOut",
+        "description": "What an items import did, or would do (AC-0003-26, -33)."
+      },
+      "JustificationIn": {
+        "properties": {
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "justification"
+        ],
+        "title": "JustificationIn",
+        "description": "Discontinuing and reactivating ask for a justification (AC-0003-14, -16)."
+      },
+      "LoginInput": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginInput",
+        "description": "The body of a local login."
+      },
+      "MemberOutput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "perfil": {
+            "type": "string",
+            "title": "Perfil"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "pseudonym": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pseudonym"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "registration",
+          "perfil",
+          "status",
+          "created_at",
+          "pseudonym"
+        ],
+        "title": "MemberOutput",
+        "description": "One member, as the member list shows them.\n\nA deactivated usuario reads with `nome` and `email` null and `pseudonimo`\nset: the record of what they did survives their identifying fields\n(AC-0001-14)."
+      },
+      "MemberPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MemberOutput"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "MemberPage",
+        "description": "A page of members, in the envelope `api-conventions.md` fixes."
+      },
+      "PainelOut": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "blocks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BlockOut"
+            },
+            "type": "object",
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "blocks"
+        ],
+        "title": "PainelOut",
+        "description": "Every block of one section, keyed by the block's id (AC-0012-12)."
+      },
+      "ReajusteIn": {
+        "properties": {
+          "processo_sei": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Processo Sei"
+          },
+          "requested_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Requested On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processo_sei",
+          "requested_on"
+        ],
+        "title": "ReajusteIn",
+        "description": "The body of a reajuste request (AC-0002-19)."
+      },
+      "ReajusteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "processo_sei": {
+            "type": "string",
+            "title": "Processo Sei"
+          },
+          "requested_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Requested On"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "processo_sei",
+          "requested_on",
+          "created_at"
+        ],
+        "title": "ReajusteOut",
+        "description": "A reajuste request: that it was filed, and under which process."
+      },
+      "ResetConfirmInput": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ResetConfirmInput",
+        "description": "The body of a reset confirmation.\n\nThe token is a field rather than a path segment (OQ-30), for the same reason\nas activation: a single-use credential in a path lands in access logs,\nproxies and browser history."
+      },
+      "ResetTriggerOutput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reset_link": {
+            "type": "string",
+            "title": "Reset Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reset_link"
+        ],
+        "title": "ResetTriggerOutput",
+        "description": "The reset link, returned to the gestor who asked for it.\n\nReturned exactly once. Only the HMAC reaches the database, so no endpoint\ncan recover it afterwards (AC-0001-32, as amended in v1.0)."
+      },
+      "SessionOutput": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_at"
+        ],
+        "title": "SessionOutput",
+        "description": "The access token and its expiry. The refresh token travels as a cookie."
+      },
+      "SkuChangeIn": {
+        "properties": {
+          "sku": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Sku"
+          },
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku",
+          "justification"
+        ],
+        "title": "SkuChangeIn",
+        "description": "A new SKU and why (AC-0003-04)."
+      },
+      "SubstituteIn": {
+        "properties": {
+          "substitute_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Substitute Id"
+          },
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "substitute_id",
+          "justification"
+        ],
+        "title": "SubstituteIn",
+        "description": "The insumo that replaces this one, and why (AC-0003-15)."
+      },
+      "SubstituteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "description"
+        ],
+        "title": "SubstituteOut",
+        "description": "The insumo that replaces another."
+      },
+      "UnblockInput": {
+        "properties": {
+          "justification": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "justification"
+        ],
+        "title": "UnblockInput",
+        "description": "The body of an unblock: the justification is the one thing required (AC-0001-44)."
+      },
+      "UserGruposIn": {
+        "properties": {
+          "grupo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Grupo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grupo_ids"
+        ],
+        "title": "UserGruposIn",
+        "description": "The grupos a servidor owns, replacing what it had (AC-0003-30)."
+      },
+      "UserGruposOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "grupo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Grupo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "grupo_ids"
+        ],
+        "title": "UserGruposOut",
+        "description": "The grupos a servidor now owns."
+      },
+      "UserOutput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "perfil": {
+            "type": "string",
+            "title": "Perfil"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "perfil",
+          "status"
+        ],
+        "title": "UserOutput",
+        "description": "The caller's identity, declared field by field so `senha_hash` cannot leak."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

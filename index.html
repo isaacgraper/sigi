@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SIGI · API</title>
+    <!-- The same Swagger UI FastAPI serves at /docs, copied beside this page by the workflow, reading the schema exported there too. -->
+    <link rel="stylesheet" href="swagger-ui.css" />
+    <style>
+      body { margin: 0; background: #ffffff; }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="swagger-ui-bundle.js"></script>
+    <script>
+      // No server sits behind this page, so "Try it out" is off: the page documents, it does not call.
+      window.ui = SwaggerUIBundle({
+        url: "openapi.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        supportedSubmitMethods: [],
+      });
+    </script>
+  </body>
+</html>
