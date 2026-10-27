@@ -33,7 +33,7 @@ on an `Approved` spec is a merge blocker.
 | RF03, RF07, RF11, RN14 | SPEC-0003 v1.5 | AC-0003-01..24, -26, -31, -33..35 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Implemented** |
 | RF15, RN15 (quantity) | SPEC-0003 v1.5 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Implemented** |
 | RN07 (grupo axis) | SPEC-0003 v1.5 | AC-0003-29, -30, -32 | `tests/test_insumos.py` | **Implemented** (the unidade axis waits for `UNIDADE`) |
-| RF13, RN03, RN08, RN09, RN10, RN11, RN13 | SPEC-0004 v1.0 | AC-0004-01..28 (AC-0004-27 from SPEC-0003 AC-0003-25) | _pending_ | **Approved** |
+| RF13, RN03, RN08, RN09, RN10, RN11, RN13 | SPEC-0004 v1.1 | AC-0004-01..29 (AC-0004-27 from SPEC-0003 AC-0003-25) | _pending_ | **Approved** |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.5 | AC-0005-01..13 | _pending_ | Draft |
 | RN17 | SPEC-0006 v1.0, SPEC-0004 v1.0, SPEC-0005 v0.5 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
 | RF14, RN10, RN15 | SPEC-0006 v1.0 | AC-0006-01..16 | _pending_ | **Approved** |

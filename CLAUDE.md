@@ -244,7 +244,8 @@ Full version: `CONTRIBUTING.md`.
   `type: subject`, no module scope, no dashes as punctuation.
 - Work on a branch cut from `dev`. Push once with `git push -u origin HEAD`.
   Never merge, never force.
-- PR against `dev`, with no reviewer requested.
+- PR against `dev`, with no reviewer requested. **One PR implements a spec**, its doc
+  changes included, and one more closes it if needed. No PR for documentation alone.
 - **PR description:** one line, then `## Key Changes` and `## Technical Details`
   as short bullets. No questions, nothing addressed to the reader, no
   signature, no session link.

@@ -2,7 +2,7 @@
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN10, RN11, RN13, RN17]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0007]
@@ -26,7 +26,8 @@ here or nowhere.
 - The five-stage sequential machine and its guards.
 - Reversal with justification.
 - Stage counters for the module header (emitidas / em andamento / total).
-- The NE número, typed in at emission (§9).
+- The NE número, typed in at emission, and the número of the nota de
+  pré-empenho, typed in on entering `pre_empenho` (§9).
 
 **Out of scope**
 - Saldo computation and reservation semantics → SPEC-0006 (this spec calls it
@@ -393,6 +394,19 @@ And   nothing is changed
 From then on the item's quantity changes only by an aditivo, as the ATA's figures
 do (AC-0004-26).
 
+**AC-0004-29** — The nota de pré-empenho is typed in on entering pré-empenho (§9)
+```gherkin
+Given an NE in status "validacao_saldo"
+When  it is advanced to "pre_empenho" without a numero_pre_empenho
+Then  the response is 422 with error code "INVALID_DATA" naming the field numero_pre_empenho
+When  it is advanced with numero_pre_empenho "2026PE000012"
+Then  its status becomes "pre_empenho" and its numero_pre_empenho is "2026PE000012"
+When  another NE is advanced to "pre_empenho" with the same numero_pre_empenho
+Then  the response is 409 with error code "PRE_EMPENHO_DUPLICADO"
+```
+Reversing to `validacao_saldo` clears it, because the reservation it recorded no
+longer holds; the audit row keeps it in `dados_anteriores`.
+
 **AC-0004-28** — The número is typed in at emission (§9)
 ```gherkin
 Given an NE in status "envio_fornecedor"
@@ -423,6 +437,7 @@ Then  the response is 409 with error code "NE_DUPLICADA"
 | Editing an ATA's figures after an NE emitida | 409 | `ATA_NAO_EDITAVEL` | "A {ata} já tem NE emitida. Altere os valores por um aditivo." |
 | Editing an item an NE references | 409 | `ITEM_ATA_COM_NE` | "O item {insumo} já tem NE. Altere a quantidade por um aditivo." |
 | Número already used | 409 | `NE_DUPLICADA` | "A NE {numero} já está registrada. Confira o número." |
+| Pré-empenho número already used | 409 | `PRE_EMPENHO_DUPLICADO` | "O pré-empenho {numero} já está registrado em outra NE. Confira o número." |
 | NE not found | 404 | `NOT_FOUND` | "NE não encontrada." |
 
 ## 6. Permissions
@@ -447,7 +462,7 @@ cannot create is intentional — it mirrors the real division of labour.
 | PUT | `/api/v1/notas-empenho/{id}/itens` | Replace the itens list; only while in `demanda` or `validacao_saldo` | 19, 22 |
 | GET | `/api/v1/notas-empenho` | List with filters `etapa`, `ata_id`, `processo_sei` | 18 |
 | GET | `/api/v1/notas-empenho/{id}` | Detail with full transition history | 07 |
-| POST | `/api/v1/notas-empenho/{id}/avancar` | Advance one stage; the body carries `numero` when the next stage is `ne_emitida` | 04, 05, 08, 12, 13, 24, 28 |
+| POST | `/api/v1/notas-empenho/{id}/avancar` | Advance one stage; the body carries `numero_pre_empenho` when the next stage is `pre_empenho`, and `numero` when it is `ne_emitida` | 04, 05, 08, 12, 13, 24, 28, 29 |
 | POST | `/api/v1/notas-empenho/{id}/reverter` | Reverse one stage; body requires `justificativa` | 06, 07, 10 |
 | POST | `/api/v1/notas-empenho/{id}/cancelar` | Cancel; body requires `justificativa` | 16 |
 | GET | `/api/v1/notas-empenho/indicadores` | Stage counters | 18 |
@@ -479,6 +494,12 @@ emitted; the entity's own sheet `EMPENHOS` keeps it as a plain number (`empenho`
 NE is identified by its `id`; the advance to `ne_emitida` requires the número,
 typed in as issued, up to 20 letters and digits, unique (AC-0004-28). The NFs of
 SPEC-0005 bind to that número.
+
+The **nota de pré-empenho** comes before it: *"Pré-empenho: Reserva orçamentária
+prévia junto ao setor financeiro"*, in the stakeholder's description of the flow,
+and opened as a nota by the product owner's account (OQ-56). It too is issued
+outside SIGI, so the advance to `pre_empenho` requires its número, typed in as
+issued, up to 20 letters and digits, unique (AC-0004-29).
 
 ## 10. Open questions
 
@@ -516,9 +537,11 @@ is its own slice.*
 - `nota_empenho`: `id UUID PK`, `numero VARCHAR(20) NULL UNIQUE`, `processo_sei
   VARCHAR(25) NOT NULL` with the format `CHECK`, `status VARCHAR(20) NOT NULL
   DEFAULT 'demanda'` with a `CHECK` on the six statuses, `ata_id FK NOT NULL`,
-  `responsavel_id FK → usuario NOT NULL`, `data_emissao DATE NULL`, `criado_em`,
-  `atualizado_em`. `CHECK (numero ~ '^[A-Za-z0-9]{1,20}$')` and `CHECK (status <>
-  'ne_emitida' OR (numero IS NOT NULL AND data_emissao IS NOT NULL))`. Index on
+  `responsavel_id FK → usuario NOT NULL`, `numero_pre_empenho VARCHAR(20) NULL
+  UNIQUE`, `data_emissao DATE NULL`, `criado_em`, `atualizado_em`. Both números
+  `CHECK (~ '^[A-Za-z0-9]{1,20}$')`; `CHECK (status NOT IN ('pre_empenho',
+  'envio_fornecedor', 'ne_emitida') OR numero_pre_empenho IS NOT NULL)` and `CHECK
+  (status <> 'ne_emitida' OR (numero IS NOT NULL AND data_emissao IS NOT NULL))`. Index on
   `(ata_id, status)`.
 - `item_nota_empenho`: `id UUID PK`, `nota_empenho_id FK NOT NULL`, `item_ata_id FK
   NOT NULL`, `quantidade NUMERIC(15,3) CHECK > 0`, `valor_unitario NUMERIC(15,5)
@@ -563,13 +586,13 @@ is its own slice.*
 | GET | `/api/v1/notas-empenho` | `?etapa=&ata_id=&processo_sei=&page=&size=` → page of `NotaEmpenhoOut` | all | — |
 | GET | `/api/v1/notas-empenho/indicadores` | → `{emitidas, em_andamento, total}` | all | 18 |
 | GET | `/api/v1/notas-empenho/{id}` | → `NotaEmpenhoDetailOut` with itens and transitions | all | 07, 09 |
-| POST | `/api/v1/notas-empenho/{id}/avancar` | `{numero?}` → `NotaEmpenhoOut` | gestor, servidor | 04, 05, 08, 11–15, 24, 28 |
+| POST | `/api/v1/notas-empenho/{id}/avancar` | `{numero_pre_empenho?, numero?}` → `NotaEmpenhoOut` | gestor, servidor | 04, 05, 08, 11–15, 24, 28, 29 |
 | POST | `/api/v1/notas-empenho/{id}/reverter` | `{justification}` → `NotaEmpenhoOut` | gestor | 06, 07, 10 |
 | POST | `/api/v1/notas-empenho/{id}/cancelar` | `{justification}` → `NotaEmpenhoOut` | gestor | 06, 11, 16 |
 | GET | `/api/v1/atas/{id}/saldo` | → `{valor_contratado, valor_reservado, valor_empenhado, saldo_disponivel, comprometimento_percentual, alto_consumo, calculado_em}` | all | 0006-01–04, 06–09, 16 |
 | GET | `/api/v1/atas/{id}/itens/saldo` | → per item `{quantidade_contratada, quantidade_reservada, quantidade_empenhada, quantidade_disponivel, esgotado}` and `calculado_em` | all | 0006-10–13 |
 
-`NotaEmpenhoOut` is `{id, numero, processo_sei, status, ata_id, valor, itens:
+`NotaEmpenhoOut` is `{id, numero, numero_pre_empenho, processo_sei, status, ata_id, valor, itens:
 [{id, item_ata_id, insumo, quantidade, valor_unitario, valor}], data_emissao,
 created_at}`, with `valor` derived. `/indicadores` is declared before `/{id}`. The
 matrix test (AC-0001-23) gains every new route.
@@ -612,6 +635,7 @@ request's own transaction back; `auth.negada` already works this way.
 | 0004-26 | 〃 | `test_ac_0004_26_ne_emitida_locks_the_ata` |
 | 0004-27 | 〃 | `test_ac_0004_27_item_with_ne_locks` (by hand and by file) |
 | 0004-28 | 〃 | `test_ac_0004_28_numero_at_emission` |
+| 0004-29 | 〃 | `test_ac_0004_29_nota_de_pre_empenho` |
 | 0006-01 to -04 | `tests/test_saldo.py` | `test_ac_0006_01_no_nes`, `_02_tela_5_example`, `_03_alto_consumo_boundary`, `_04_aditivo_lowers_commitment` |
 | 0006-05 | — | carried by AC-0004-16 |
 | 0006-06 | `tests/test_saldo.py` | `test_ac_0006_06_derived_on_every_read` (raw SQL as the owner) |
@@ -627,7 +651,7 @@ request's own transaction back; `auth.negada` already works this way.
 2. `feat:` migration `0006_notas_empenho`, the models and the migration tests.
 3. `feat:` the saldo reads (SPEC-0006) and `tests/test_saldo.py` for what needs no transition.
 4. `feat:` opening and the itens: AC-0004-01 to -03, -17, -19 to -23.
-5. `feat:` the state machine: advance, reverse, cancel, the table, the counters.
+5. `feat:` the state machine: advance, reverse, cancel, the table, the counters, both números.
 6. `feat:` the guard: AC-0004-12 to -16, -24, and the saldo tests that need NEs.
 7. `feat:` the ATA and item locks: AC-0004-25 to -27, in `atas.py` and `itens_ata.py`.
 8. `docs:` traceability, CHANGELOG, CLAUDE.md, and the spec's "as built" line.
@@ -679,3 +703,4 @@ partially advanced NE.
 | 0.5 | 2026-10-20 | Carries the three SPEC-0002 criteria that need NEs: a suspended ATA takes no NE (AC-0004-17, from AC-0002-12), an ATA with NEs in progress is not closed (AC-0004-25, from AC-0002-11), an NE emitida locks the ATA's figures (AC-0004-26, from AC-0002-26). |
 | 0.6 | 2026-10-27 | By the product owner's review. The número is typed in at emission, as the financial system issues it, not generated at opening (§9, AC-0004-28; `EMPENHOS` keeps it as a plain number). An item's price is copied from its ITEM_ATA and rounded once (AC-0004-01, -02). Missing fields and justifications answer `INVALID_DATA`, as the rest of the API; `CONFLITO_DE_VERSAO` is dropped. AC-0004-05, -06, -08, -09, -11, -16, -17 and -18 name their codes and audit rows; AC-0004-27 carries SPEC-0003 AC-0003-25. `ne.itens_alterados` audited. RN10, RN13 and RN17 claimed; SPEC-0006 leaves `depends_on` |
 | 1.0 | 2026-10-27 | Approved by the product owner after the review of v0.6. No criterion changed; OQ-50 to OQ-54 stand as assumed |
+| 1.1 | 2026-10-27 | The nota de pré-empenho, by the product owner's account of the stakeholder's flow (*"Reserva orçamentária prévia junto ao setor financeiro"*; OQ-56 resolved): its número is typed in on entering `pre_empenho`, unique, and cleared by a reversal (AC-0004-29, §9). The plan gains `numero_pre_empenho` |
