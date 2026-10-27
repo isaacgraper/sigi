@@ -14,14 +14,14 @@ test.describe("shell", () => {
   test("AC-0010-27 a gestor's navigation lists Painel, ATAs, Insumos and Membros", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Membros"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Membros"]);
   });
 
   test("AC-0010-27 a servidor's navigation lists Painel, ATAs and Insumos", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho"]);
   });
 
   test("AC-0010-28 the dashboard states who is signed in", async ({ page }) => {

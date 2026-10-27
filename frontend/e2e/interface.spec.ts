@@ -40,19 +40,19 @@ async function animatedProperties(page: Page, selector: string) {
 test.describe("SPEC-0011 the shell", () => {
   test("AC-0011-01 the sidebar lists the perfil's modules in a fixed order", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
-    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Membros"]);
+    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Membros"]);
     await expect(sidebarLinks(page).first()).toHaveAttribute("aria-current", "page");
 
     await openFromSidebar(page, "Membros");
     await expect(page).toHaveURL(/\/members$/);
-    await expect(sidebarLinks(page).nth(3)).toHaveAttribute("aria-current", "page");
+    await expect(sidebarLinks(page).nth(4)).toHaveAttribute("aria-current", "page");
     await expect(sidebarLinks(page).first()).not.toHaveAttribute("aria-current", "page");
   });
 
   test("AC-0011-01 a servidor's sidebar has no Membros", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
-    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos"]);
+    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho"]);
   });
 
   test("AC-0011-02 the sidebar collapses to icons without losing its names", async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe("SPEC-0011 the shell", () => {
     await expect(sidebar).toHaveAttribute("data-collapsed", "true");
     expect((await sidebar.boundingBox())?.width).toBe(64);
     // The name is still each link's accessible name...
-    await expect(sidebarLinks(page)).toHaveCount(4);
+    await expect(sidebarLinks(page)).toHaveCount(5);
     await expect(page.getByTestId("sidebar").getByRole("link", { name: "Membros" })).toBeVisible();
     // ...and shows on hover.
     const link = page.getByTestId("sidebar").getByRole("link", { name: "Membros" });
@@ -124,6 +124,7 @@ test.describe("SPEC-0011 the shell", () => {
         "Painel",
         "ATAs",
         "Insumos",
+        "Notas de empenho",
         "Membros",
       ]);
     });
