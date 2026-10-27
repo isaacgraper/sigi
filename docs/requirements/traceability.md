@@ -25,14 +25,14 @@ on an `Approved` spec is a merge blocker.
 | RNF06, RNF14 (shell) | SPEC-0011 v1.4 | AC-0011-01..24 (AC-0011-13, -14 withdrawn) | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Implemented** |
 | RF20 (painel) | SPEC-0012 v1.3 | AC-0012-01..12 | `backend/tests/test_painel.py`, `frontend/e2e/dashboard.spec.ts`, `frontend/tests/dashboard.test.ts` | **Approved** |
 | RF04, RF08, RF11, RF15, RF16, RF19 (screens) | SPEC-0013 v1.8 | AC-0013-01..19 | `frontend/e2e/atas.spec.ts`, `frontend/tests/atas.test.ts` | **Implemented** |
-| RF03, RF07, RF11, RF15, RN07, RN14, RN15 (screens) | SPEC-0014 v1.3 | AC-0014-01..30 | `frontend/e2e/insumos.spec.ts`, `frontend/tests/insumos.test.ts` | **Approved**, built |
+| RF03, RF07, RF11, RF15, RN07, RN14, RN15 (screens) | SPEC-0014 v1.4 | AC-0014-01..30 | `frontend/e2e/insumos.spec.ts`, `frontend/tests/insumos.test.ts` | **Implemented** |
 | RF04, RF08, RF19 | SPEC-0002 v1.3 | AC-0002-01..05, -08, -09, -22..26 (AC-0002-06, -07 withdrawn; -26 carried by SPEC-0004 AC-0004-26) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Implemented** |
 | RN04, RN13, RN15 | SPEC-0002 v1.3 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 carried by SPEC-0004 AC-0004-25, -17; parts of -13, -14 deferred to SPEC-0003 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Implemented** (RN13's NE half with SPEC-0004) |
 | RF15 | SPEC-0002 v1.3 | AC-0002-13, -14 | `tests/test_atas.py` | **Implemented** |
 | RF16 | SPEC-0002 v1.3 | AC-0002-18..21 | `tests/test_atas.py` | **Implemented** |
-| RF03, RF07, RF11, RN14 | SPEC-0003 v1.4 | AC-0003-01..24, -26, -31, -33..35 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Approved** |
-| RF15, RN15 (quantity) | SPEC-0003 v1.4 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Approved** |
-| RN07 (grupo axis) | SPEC-0003 v1.4 | AC-0003-29, -30, -32 | `tests/test_insumos.py` | **Approved** |
+| RF03, RF07, RF11, RN14 | SPEC-0003 v1.5 | AC-0003-01..24, -26, -31, -33..35 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Implemented** |
+| RF15, RN15 (quantity) | SPEC-0003 v1.5 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Implemented** |
+| RN07 (grupo axis) | SPEC-0003 v1.5 | AC-0003-29, -30, -32 | `tests/test_insumos.py` | **Implemented** (the unidade axis waits for `UNIDADE`) |
 | RF13, RN03, RN08, RN09, RN10, RN11, RN13 | SPEC-0004 v0.6 | AC-0004-01..28 (AC-0004-27 from SPEC-0003 AC-0003-25) | _pending_ | Draft |
 | RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.5 | AC-0005-01..13 | _pending_ | Draft |
 | RN17 | SPEC-0006 v0.5, SPEC-0004 v0.6, SPEC-0005 v0.5 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
@@ -154,10 +154,9 @@ before any of it can be built.
 | Saldo runway projection | — (RF21) | SPEC-0006 §4 |
 
 **On requirement numbering.** Strict CSV import validation has no `RF` in
-`functional.md`, whose contract stops at RF21. It is numbered `RF30` in
-`docs/rfc-sigi-v1.7.md`, but that document is **superseded** and its `RF04`–`RF30`
-range collides with this one (`RF05` and `RN11` mean different things in each).
-Nothing here may cite those numbers. A new RF must be allocated from this file's
+`functional.md`, whose contract stops at RF21. Earlier drafts numbered it `RF30`,
+after `rfc-sigi-v1.7.md`, a superseded document deleted on 2026-10-27 (OQ-28).
+Nothing here may cite its numbers. A new RF must be allocated from this file's
 sequence when the import capability is specified. See OQ-28.
 
 ## Sources → model
