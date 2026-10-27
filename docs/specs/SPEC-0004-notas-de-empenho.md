@@ -2,10 +2,10 @@
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
 status: Draft
-version: 0.5
+version: 0.6
 owner: Isaac Kleimmann Graper
-satisfies: [RF13, RF11, RN03, RN08, RN09, RN11]
-depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0006, SPEC-0007]
+satisfies: [RF13, RF11, RN03, RN08, RN09, RN10, RN11, RN13, RN17]
+depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0007]
 milestone: M2
 ---
 
@@ -26,7 +26,7 @@ here or nowhere.
 - The five-stage sequential machine and its guards.
 - Reversal with justification.
 - Stage counters for the module header (emitidas / em andamento / total).
-- NE numbering.
+- The NE número, typed in at emission (§9).
 
 **Out of scope**
 - Saldo computation and reservation semantics → SPEC-0006 (this spec calls it
@@ -90,8 +90,9 @@ When  a gestor opens an NE with processo_sei "00301.000451/2026-12" and itens
       [10 × notebook, 5 × monitor]
 Then  the NE is created with status "demanda"
 And   it has exactly 2 ITEM_NOTA_EMPENHO rows
+And   each item copies its ITEM_ATA's valor_unitario, and its valor is quantidade × valor_unitario rounded half up to the centavo (ADR-0016)
 And   its derived valor is R$ 84.000,00
-And   the response contains a numero matching the pattern "^\d{4}NE\d{6}$"
+And   its numero is empty until it is issued (AC-0004-28)
 And   a HISTORICO_MOVIMENTACAO row exists with acao "ne.criada" and the gestor's usuario_id
 ```
 A single-item NE is the same criterion with one entry in `itens`; it is not a
@@ -101,8 +102,8 @@ separate path.
 ```gherkin
 Given a gestor
 When  an NE is opened without processo_sei, without ata_id, with an empty itens
-      list, or with any item missing item_ata_id, quantidade or valor_unitario
-Then  the response is 422
+      list, or with any item missing item_ata_id or quantidade
+Then  the response is 422 with error code "INVALID_DATA"
 And   the error body lists each missing field individually by name
 And   a failure inside itens names the index of the offending item
 And   no NE row and no ITEM_NOTA_EMPENHO row is created
@@ -135,7 +136,7 @@ Given an NE in status "demanda"
 When  a transition directly to "ne_emitida" is requested
 Then  the response is 409 with error code "TRANSICAO_INVALIDA"
 And   the NE status is unchanged
-And   the attempt is recorded in the audit trail
+And   a HISTORICO_MOVIMENTACAO row exists with acao "ne.bloqueada" and motivo "TRANSICAO_INVALIDA"
 ```
 The full transition table below is exhaustive; the test suite asserts every cell.
 
@@ -150,11 +151,11 @@ The full transition table below is exhaustive; the test suite asserts every cell
 
 ↩ = reversal, one step only, gestor with justification (RN03).
 
-**AC-0004-06** — Reversal requires justification (RN03)
+**AC-0004-06** — Reversal and cancellation require justification (RN03)
 ```gherkin
 Given an NE in status "pre_empenho"
-When  a gestor reverses it without a justificativa
-Then  the response is 422 with error code "JUSTIFICATIVA_OBRIGATORIA"
+When  a gestor reverses or cancels it without a justificativa
+Then  the response is 422 with error code "INVALID_DATA" naming the field justificativa
 And   the NE status is unchanged
 ```
 
@@ -167,21 +168,23 @@ And   a HISTORICO_MOVIMENTACAO row exists with acao "ne.revertida", the justific
 And   the reserved saldo of the ATA is unchanged
 ```
 
-**AC-0004-08** — Servidor may advance but not reverse
+**AC-0004-08** — Servidor may advance but not open, edit, reverse or cancel
 ```gherkin
 Given an NE in status "demanda"
 When  a servidor advances it
 Then  the response is 200 and the status becomes "validacao_saldo"
-When  the same servidor attempts to reverse it
-Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
-And   the denial is recorded in the audit log
+When  the same servidor opens an NE, edits its itens, reverses it or cancels it
+Then  each response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+And   each denial writes a HISTORICO_MOVIMENTACAO row with acao "auth.negada"
 ```
 
 **AC-0004-09** — Auditor is read-only
 ```gherkin
 Given an NE in any status
-When  an auditor attempts any transition
-Then  the response is 403
+When  an auditor opens an NE, edits its itens, advances, reverses or cancels it
+Then  each response is 403 with error code "PERFIL_NAO_AUTORIZADO"
+When  the auditor reads the NE
+Then  the response is 200
 ```
 
 **AC-0004-10** — Reversal is one step only
@@ -198,7 +201,7 @@ unexplained jump.
 ```gherkin
 Given an NE in status "ne_emitida"
 When  any transition, including cancellation, is requested
-Then  the response is 409
+Then  the response is 409 with error code "TRANSICAO_INVALIDA"
 ```
 Once budget is committed and the supplier notified, correction happens through a
 new administrative instrument, not by mutating the record.
@@ -261,17 +264,19 @@ Given an NE in "pre_empenho" whose itens total R$ 30.000,00
 When  a gestor cancels it with a justificativa
 Then  the ATA's saldo_disponivel returns to its prior value
 And   every ITEM_ATA's reserved quantity returns to its prior value
-And   the release is recorded in the audit trail
+And   a HISTORICO_MOVIMENTACAO row exists with acao "ne.cancelada", the justificativa and valor_liberado R$ 30.000,00
 ```
+An NE cancelled in `demanda` or `validacao_saldo` reserved nothing, so its row
+reads `valor_liberado` R$ 0,00.
 
 ### 4.3 ATA eligibility
 
 **AC-0004-17** — Expired, suspended or closed ATA (RN11)
 ```gherkin
-Given an ATA whose vigencia_fim is in the past, or whose status is "suspensa", "encerrada" or "cancelada"
+Given an ATA whose vigencia_fim is in the past, whose vigencia_inicio is in the future, or whose status is "suspensa", "encerrada" or "cancelada"
 When  an NE is opened against it
 Then  the response is 409 with error code "ATA_NAO_ELEGIVEL"
-And   the message names the reason (vencida / suspensa / encerrada / cancelada)
+And   the message names the reason (vencida / não iniciada / suspensa / encerrada / cancelada)
 And   the ATA's audit rows are still readable
 ```
 *(v0.5)* `suspensa` and the readable audit rows come from SPEC-0002 AC-0002-12,
@@ -303,11 +308,11 @@ because an NE was committed against them. Carried from SPEC-0002 AC-0002-26.
 
 **AC-0004-18** — Stage counters (RF13)
 ```gherkin
-Given 1 NE in "ne_emitida", 4 NEs in intermediate stages and 0 cancelled
-When  the NE module is loaded
-Then  it reports emitidas = 1, em andamento = 4, total = 5
-And   cancelled NEs are excluded from "em andamento" and included in "total"
+Given 1 NE in "ne_emitida", 4 NEs in intermediate stages and 1 cancelled
+When  GET /api/v1/notas-empenho/indicadores is read
+Then  it reports emitidas = 1, em andamento = 4, total = 6
 ```
+A cancelled NE counts in `total` and never in `em andamento`.
 
 ### 4.5 Item composition *(new in v0.3 — ADR-0007)*
 
@@ -378,23 +383,47 @@ The ATA can hold budget while the item it covers is exhausted. RN10 blocks on
 whichever runs out first — value or quantity. This is the resolution recorded in
 OQ-20, and it is why saldo is tracked in both units.
 
+**AC-0004-27** — An item with an NE locks (from SPEC-0003 AC-0003-25)
+```gherkin
+Given an ITEM_ATA that an NE beyond "demanda" references
+When  a gestor edits its insumo, quantidade or valor_unitario, or removes it
+Then  the response is 409 with error code "ITEM_ATA_COM_NE"
+And   nothing is changed
+```
+From then on the item's quantity changes only by an aditivo, as the ATA's figures
+do (AC-0004-26).
+
+**AC-0004-28** — The número is typed in at emission (§9)
+```gherkin
+Given an NE in status "envio_fornecedor"
+When  it is advanced to "ne_emitida" without a numero
+Then  the response is 422 with error code "INVALID_DATA" naming the field numero
+When  it is advanced with numero "2026NE000045"
+Then  its status becomes "ne_emitida" and its numero is "2026NE000045"
+When  another NE is advanced to "ne_emitida" with the same numero
+Then  the response is 409 with error code "NE_DUPLICADA"
+```
+
 ## 5. Errors and edge cases
 
 | Condition | HTTP | Error code | Message (pt-BR) |
 | --- | --- | --- | --- |
-| Missing mandatory field | 422 | `CAMPO_OBRIGATORIO` | "Informe o campo {campo} para abrir a NE." |
+| Missing or invalid field, including the justificativa and the numero | 422 | `INVALID_DATA` | Per field, in `fields`: "Informe {campo}." |
 | Malformed Processo SEI | 422 | `PROCESSO_SEI_INVALIDO` | "Número de processo inválido. Formato esperado: NNNNN.NNNNNN/AAAA-DD." |
-| Skipped or backward transition | 409 | `TRANSICAO_INVALIDA` | "Não é possível ir de {origem} para {destino}. O fluxo é sequencial." |
+| Skipped or backward transition | 409 | `TRANSICAO_INVALIDA` | "Não é possível ir de {origem} para {destino}. Avance ou reverta uma etapa por vez." |
 | Insufficient saldo | 409 | `SALDO_INSUFICIENTE` | "Saldo insuficiente na {ata}. Disponível: {saldo}. Necessário: {valor}. Ajuste o valor ou solicite aditivo." |
-| Ineligible ATA | 409 | `ATA_NAO_ELEGIVEL` | "A {ata} está {motivo} e não pode receber novos empenhos." |
-| Reversal without justification | 422 | `JUSTIFICATIVA_OBRIGATORIA` | "Informe a justificativa da reversão. Ela ficará registrada no histórico." |
-| Wrong role | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
+| Ineligible ATA | 409 | `ATA_NAO_ELEGIVEL` | "A {ata} está {motivo} e não pode receber novos empenhos. Escolha uma ATA vigente." |
+| Wrong role | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação. Peça a um gestor." |
 | NE left with no itens | 422 | `NE_SEM_ITENS` | "A NE precisa de ao menos um insumo. Para encerrá-la, cancele a NE." |
 | Repeated insumo in one NE | 422 | `ITEM_DUPLICADO` | "O insumo {insumo} aparece mais de uma vez. Ajuste a quantidade em vez de repetir o item." |
 | Item from another ATA | 422 | `ITEM_DE_OUTRA_ATA` | "O insumo {insumo} pertence à {ata}. Todos os itens de uma NE devem ser da mesma ATA." |
 | Editing itens after pré-empenho | 409 | `NE_ITENS_CONGELADOS` | "Os itens não podem ser alterados após o pré-empenho, pois o saldo já está reservado. Cancele a NE e abra outra." |
 | Insufficient quantity on the item | 409 | `QUANTIDADE_INSUFICIENTE` | "Quantidade insuficiente de {insumo} na {ata}. Disponível: {qtd}. Necessário: {pedido}." |
-| Concurrent modification | 409 | `CONFLITO_DE_VERSAO` | "Esta NE foi alterada por outro usuário. Recarregue a página." |
+| Closing an ATA with NEs in progress | 409 | `ATA_COM_NE_PENDENTE` | "A {ata} tem NEs em andamento: {numeros}. Conclua ou cancele essas NEs antes de encerrá-la." |
+| Editing an ATA's figures after an NE emitida | 409 | `ATA_NAO_EDITAVEL` | "A {ata} já tem NE emitida. Altere os valores por um aditivo." |
+| Editing an item an NE references | 409 | `ITEM_ATA_COM_NE` | "O item {insumo} já tem NE. Altere a quantidade por um aditivo." |
+| Número already used | 409 | `NE_DUPLICADA` | "A NE {numero} já está registrada. Confira o número." |
+| NE not found | 404 | `NOT_FOUND` | "NE não encontrada." |
 
 ## 6. Permissions
 
@@ -418,7 +447,7 @@ cannot create is intentional — it mirrors the real division of labour.
 | PUT | `/api/v1/notas-empenho/{id}/itens` | Replace the itens list; only while in `demanda` or `validacao_saldo` | 19, 22 |
 | GET | `/api/v1/notas-empenho` | List with filters `etapa`, `ata_id`, `processo_sei` | 18 |
 | GET | `/api/v1/notas-empenho/{id}` | Detail with full transition history | 07 |
-| POST | `/api/v1/notas-empenho/{id}/avancar` | Advance one stage | 04, 05, 08, 12, 13, 24 |
+| POST | `/api/v1/notas-empenho/{id}/avancar` | Advance one stage; the body carries `numero` when the next stage is `ne_emitida` | 04, 05, 08, 12, 13, 24, 28 |
 | POST | `/api/v1/notas-empenho/{id}/reverter` | Reverse one stage; body requires `justificativa` | 06, 07, 10 |
 | POST | `/api/v1/notas-empenho/{id}/cancelar` | Cancel; body requires `justificativa` | 16 |
 | GET | `/api/v1/notas-empenho/indicadores` | Stage counters | 18 |
@@ -432,6 +461,7 @@ depending on the client sending the right next value.
 | Action | `entidade_tipo` | `acao` | `dados_anteriores` |
 | --- | --- | --- | --- |
 | Open | `nota_empenho` | `ne.criada` | `null` |
+| Edit the itens | `nota_empenho` | `ne.itens_alterados` | `{itens}` |
 | Advance | `nota_empenho` | `ne.avancada` | `{status, valor_reservado_ata}` |
 | Reverse | `nota_empenho` | `ne.revertida` | `{status, justificativa}` |
 | Cancel | `nota_empenho` | `ne.cancelada` | `{status, justificativa, valor_liberado}` |
@@ -443,10 +473,12 @@ stakeholders said they wanted to detect.
 
 ## 9. NE numbering
 
-Format `AAAANEnnnnnn` (e.g. `2026NE000045`), matching SIAFI-style numbering
-shown in Tela 6. The sequence is per calendar year, allocated by a PostgreSQL
-sequence at the moment of creation and never reused, even on cancellation.
-Gaps in the sequence are acceptable; reuse is not.
+The número is issued outside SIGI, by the financial system, when the empenho is
+emitted; the entity's own sheet `EMPENHOS` keeps it as a plain number (`empenho`
+`1316`, `data-sources.md` §12). SIGI does not generate it. Until `ne_emitida` the
+NE is identified by its `id`; the advance to `ne_emitida` requires the número,
+typed in as issued, up to 20 letters and digits, unique (AC-0004-28). The NFs of
+SPEC-0005 bind to that número.
 
 ## 10. Open questions
 
@@ -500,3 +532,4 @@ partially advanced NE.
 | 0.3 | 2026-09-02 | ACs rewritten for multi-item NEs (ADR-0007): 01, 02, 12, 13, 14, 16 revised; 19–24 added, covering empty NEs, duplicate and foreign items, frozen itens (OQ-27), price snapshot and quantity exhaustion (OQ-20). OQ-05/OQ-06 resolved; OQ-07/OQ-27 marked Assumed |
 | 0.4 | 2026-10-06 | OQ-03 resolved by the stakeholder's example: reserved from `pre_empenho`, committed at `ne_emitida`, saldo unchanged by emission (ADR-0015). AC-0004-15 points at the display (`700 (300)`, then `700`) and at delivery. OQ-07 and OQ-27 confirmed |
 | 0.5 | 2026-10-20 | Carries the three SPEC-0002 criteria that need NEs: a suspended ATA takes no NE (AC-0004-17, from AC-0002-12), an ATA with NEs in progress is not closed (AC-0004-25, from AC-0002-11), an NE emitida locks the ATA's figures (AC-0004-26, from AC-0002-26). |
+| 0.6 | 2026-10-27 | By the product owner's review. The número is typed in at emission, as the financial system issues it, not generated at opening (§9, AC-0004-28; `EMPENHOS` keeps it as a plain number). An item's price is copied from its ITEM_ATA and rounded once (AC-0004-01, -02). Missing fields and justifications answer `INVALID_DATA`, as the rest of the API; `CONFLITO_DE_VERSAO` is dropped. AC-0004-05, -06, -08, -09, -11, -16, -17 and -18 name their codes and audit rows; AC-0004-27 carries SPEC-0003 AC-0003-25. `ne.itens_alterados` audited. RN10, RN13 and RN17 claimed; SPEC-0006 leaves `depends_on` |
