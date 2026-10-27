@@ -624,3 +624,181 @@ class ImportRejected(DomainError):
             "Nenhuma linha foi importada. Corrija as linhas indicadas e envie de novo.",
             extra={"rows": rows},
         )
+
+
+# ── SPEC-0004: notas de empenho ─────────────────────────────────────────────
+
+
+class NeNotFound(DomainError):
+    """No NE has this id."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("NE não encontrada.")
+
+
+class NeTransicaoInvalida(DomainError):
+    """A skipped, backward or terminal move of an NE (AC-0004-05, -10, -11, RN08)."""
+
+    code = "TRANSICAO_INVALIDA"
+    http = 409
+
+    def __init__(self, origem: str, destino: str) -> None:
+        """Build the error naming both stages."""
+        super().__init__(
+            f"Não é possível ir de {origem} para {destino}. Avance ou reverta uma etapa por vez."
+        )
+
+
+class SaldoInsuficiente(DomainError):
+    """The NE's total passes the ATA's saldo disponível (AC-0004-12, RN10)."""
+
+    code = "SALDO_INSUFICIENTE"
+    http = 409
+
+    def __init__(self, ata: str, disponivel: str, necessario: str) -> None:
+        """Build the error stating what is available and what is needed."""
+        super().__init__(
+            f"Saldo insuficiente na ATA {ata}. Disponível: {disponivel}. Necessário: {necessario}. "
+            "Ajuste o valor ou solicite aditivo."
+        )
+
+
+class QuantidadeInsuficiente(DomainError):
+    """An item asks for more than its ITEM_ATA has left (AC-0004-24, RN10)."""
+
+    code = "QUANTIDADE_INSUFICIENTE"
+    http = 409
+
+    def __init__(self, insumo: str, ata: str, disponivel: str, pedido: str) -> None:
+        """Build the error naming the insumo and both quantities."""
+        super().__init__(
+            f"Quantidade insuficiente de {insumo} na ATA {ata}. "
+            f"Disponível: {disponivel}. Necessário: {pedido}."
+        )
+
+
+class AtaNaoElegivel(DomainError):
+    """An NE opened against an ATA that cannot take one (AC-0004-17, RN11)."""
+
+    code = "ATA_NAO_ELEGIVEL"
+    http = 409
+
+    def __init__(self, ata: str, motivo: str) -> None:
+        """Build the error naming the reason."""
+        super().__init__(
+            f"A ATA {ata} está {motivo} e não pode receber novos empenhos. Escolha uma ATA vigente."
+        )
+
+
+class AtaComNePendente(DomainError):
+    """Closing an ATA with an NE in progress (AC-0004-25, RN13)."""
+
+    code = "ATA_COM_NE_PENDENTE"
+    http = 409
+
+    def __init__(self, ata: str, pendentes: list[str]) -> None:
+        """Build the error naming the blocking NEs."""
+        super().__init__(
+            f"A ATA {ata} tem NEs em andamento: {', '.join(pendentes)}. "
+            "Conclua ou cancele essas NEs antes de encerrá-la."
+        )
+
+
+class AtaComNeEmitida(AtaNaoEditavel):
+    """Editing the figures of an ATA that has an NE emitida (AC-0004-26)."""
+
+    def __init__(self) -> None:
+        """Build the error."""
+        DomainError.__init__(self, "Esta ATA já tem NE emitida. Altere os valores por um aditivo.")
+
+
+class ItemAtaComNe(DomainError):
+    """Editing or removing an item an NE references (AC-0004-27)."""
+
+    code = "ITEM_ATA_COM_NE"
+    http = 409
+
+    def __init__(self, insumo: str) -> None:
+        """Build the error naming the insumo."""
+        super().__init__(f"O item {insumo} já tem NE. Altere a quantidade por um aditivo.")
+
+
+class NeSemItens(DomainError):
+    """An NE left with no item (AC-0004-19, RN09)."""
+
+    code = "NE_SEM_ITENS"
+    http = 422
+
+    def __init__(self) -> None:
+        """Build the error."""
+        super().__init__("A NE precisa de ao menos um insumo. Para encerrá-la, cancele a NE.")
+
+
+class ItemDuplicado(DomainError):
+    """The same ITEM_ATA twice in one NE (AC-0004-20)."""
+
+    code = "ITEM_DUPLICADO"
+    http = 422
+
+    def __init__(self, insumo: str) -> None:
+        """Build the error naming the insumo."""
+        super().__init__(
+            f"O insumo {insumo} aparece mais de uma vez. "
+            "Ajuste a quantidade em vez de repetir o item."
+        )
+
+
+class ItemDeOutraAta(DomainError):
+    """An item that belongs to another ATA (AC-0004-21, I2)."""
+
+    code = "ITEM_DE_OUTRA_ATA"
+    http = 422
+
+    def __init__(self, insumo: str, ata: str) -> None:
+        """Build the error naming the insumo and its ATA."""
+        super().__init__(
+            f"O insumo {insumo} pertence à ATA {ata}. "
+            "Todos os itens de uma NE devem ser da mesma ATA."
+        )
+
+
+class NeItensCongelados(DomainError):
+    """Editing the itens from pré-empenho onward (AC-0004-22)."""
+
+    code = "NE_ITENS_CONGELADOS"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error."""
+        super().__init__(
+            "Os itens não podem ser alterados após o pré-empenho, pois o saldo já está reservado. "
+            "Cancele a NE e abra outra."
+        )
+
+
+class NeDuplicada(DomainError):
+    """The NE número is already registered (AC-0004-28)."""
+
+    code = "NE_DUPLICADA"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(f"A NE {numero} já está registrada. Confira o número.")
+
+
+class PreEmpenhoDuplicado(DomainError):
+    """The pré-empenho número is already on another NE (AC-0004-29)."""
+
+    code = "PRE_EMPENHO_DUPLICADO"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(
+            f"O pré-empenho {numero} já está registrado em outra NE. Confira o número."
+        )

@@ -135,6 +135,7 @@ IMPORT_MESSAGES: Final = MappingProxyType(
         "cnpj": "CNPJ inválido.",
         "razao_social": "Informe a razão social para um fornecedor novo.",
         "aditivo": "A quantidade deixa os aditivos acima de 25% do item.",
+        "com_ne": "O item já tem NE. Altere a quantidade por um aditivo.",
         "control": "Caractere de controle não permitido.",
         "letters": "Use ao menos uma letra.",
         "formula": "O texto não pode começar com =, + ou @.",

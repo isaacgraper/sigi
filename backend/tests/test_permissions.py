@@ -211,6 +211,18 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/atas/{ata_id}/itens/importacao"): frozenset({"gestor"}),
     ("PATCH", "/api/v1/atas/{ata_id}/itens/{item_id}"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/itens/{item_id}/remover"): frozenset({"gestor"}),
+    # SPEC-0004 §6 and SPEC-0006 §3.1: every perfil reads NEs and saldo; the gestor
+    # opens, edits the itens, reverses and cancels; the servidor also advances.
+    ("GET", "/api/v1/atas/{ata_id}/saldo"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/atas/{ata_id}/itens/saldo"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho/indicadores"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho/{ne_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notas-empenho"): frozenset({"gestor"}),
+    ("PUT", "/api/v1/notas-empenho/{ne_id}/itens"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/avancar"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/reverter"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/cancelar"): frozenset({"gestor"}),
     ("GET", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
     ("POST", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
 }

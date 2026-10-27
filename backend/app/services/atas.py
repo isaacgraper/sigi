@@ -25,6 +25,7 @@ from app.constants.atas import (
     NOT_EDITABLE_STATUS,
     PROCESSO_SEI_FORMAT,
 )
+from app.constants.notas_empenho import COMMITTED, LOCKED_ATA_FIELDS, NE_IN_PROGRESS
 from app.core import cnpj as cnpj_lib
 from app.core import processo_sei
 from app.core.clock import local_date
@@ -33,10 +34,13 @@ from app.models.ata import Ata, AtaAditivo, AtaReajuste
 from app.models.fornecedor import Fornecedor
 from app.models.user import User
 from app.repositories import ata as repo
+from app.repositories import nota_empenho as ne_repo
 from app.repositories import user as repo_user
 from app.services.audit import Event, record
 from app.services.errors import (
     AditivoAcimaDoLimite,
+    AtaComNeEmitida,
+    AtaComNePendente,
     AtaDuplicada,
     AtaNaoEditavel,
     AtaNaoVigente,
@@ -171,6 +175,9 @@ def edit(
     ata = lock_ata(session, ata_id)
     if ata.status in NOT_EDITABLE_STATUS:
         raise AtaNaoEditavel()
+    if LOCKED_ATA_FIELDS & changes.keys() and ne_repo.of_ata_in(session, ata.id, COMMITTED):
+        # An NE was committed against these figures; only an aditivo moves them (AC-0004-26).
+        raise AtaComNeEmitida()
     supplier: Fornecedor | None = None
     if "fornecedor" in changes:
         supplier = find_or_create_fornecedor(session, changes.pop("fornecedor"))
@@ -223,6 +230,11 @@ def move(
     ata = lock_ata(session, ata_id)
     if ata.status not in allowed_from:
         raise TransicaoInvalida(ata.status, destination)
+    if destination == "encerrada":
+        pending = ne_repo.of_ata_in(session, ata.id, NE_IN_PROGRESS)
+        if pending:
+            # RN13: closing would orphan the commitments in flight (AC-0004-25).
+            raise AtaComNePendente(ata.number, [ne.processo_sei for ne in pending])
 
     previous = ata.status
     ata.status = destination
