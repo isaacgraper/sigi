@@ -87,8 +87,6 @@ data sources. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may no
   would let anyone reset anyone's password.
 - **OQ-17** — the live prototype JWT in RFC Appendix 9.1 is still unrevoked.
   Blocks nothing mechanically and everything ethically.
-- **OQ-28** — superseded `rfc-sigi-v1.7.md` still defines a second `RF05` and
-  `RN11`, so no test may be named after either.
 - **OQ-31** — AC-0001-32 no longer guarantees a gestor cannot take over an
   account; with no mail transport they receive the reset link. Detectable
   through the audit row and the session revocation, not impossible.

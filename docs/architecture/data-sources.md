@@ -303,9 +303,8 @@ Every one of these appears in the supplied files. An importer that assumes
 otherwise corrupts data silently.
 
 > **Numbering note.** Earlier drafts called strict import validation `RF30`.
-> That number belongs to `docs/rfc-sigi-v1.7.md`, which is **superseded** and
-> whose `RF04`–`RF30` range collides with `requirements/functional.md` (`RF05`
-> and `RN11` mean different things in each). No requirement number is cited here
+> That number belonged to `rfc-sigi-v1.7.md`, a superseded document deleted on
+> 2026-10-27 (OQ-28). No requirement number is cited here
 > until one is allocated from `functional.md`'s own sequence. See OQ-28.
 
 | Hazard | Observed | Consequence |

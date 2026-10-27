@@ -154,10 +154,9 @@ before any of it can be built.
 | Saldo runway projection | — (RF21) | SPEC-0006 §4 |
 
 **On requirement numbering.** Strict CSV import validation has no `RF` in
-`functional.md`, whose contract stops at RF21. It is numbered `RF30` in
-`docs/rfc-sigi-v1.7.md`, but that document is **superseded** and its `RF04`–`RF30`
-range collides with this one (`RF05` and `RN11` mean different things in each).
-Nothing here may cite those numbers. A new RF must be allocated from this file's
+`functional.md`, whose contract stops at RF21. Earlier drafts numbered it `RF30`,
+after `rfc-sigi-v1.7.md`, a superseded document deleted on 2026-10-27 (OQ-28).
+Nothing here may cite its numbers. A new RF must be allocated from this file's
 sequence when the import capability is specified. See OQ-28.
 
 ## Sources → model

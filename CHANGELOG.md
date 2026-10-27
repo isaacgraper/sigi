@@ -106,6 +106,11 @@ entries are moved into a new dated version section — see
 - The dashboard no longer shows module tiles; the sidebar lists the modules (SPEC-0011 v1.2
   withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
 
+### Removed
+
+- `docs/rfc-sigi-v1.7.md`, superseded since PR #4, by the product owner's decision (OQ-28).
+  `RF05` and `RN11` keep one definition each, so tests may be named after them.
+
 ### Fixed
 
 - A write's transaction was committed after its response had left, so a read made at once
