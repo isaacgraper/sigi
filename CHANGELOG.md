@@ -64,6 +64,9 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- SPEC-0003 v1.5 and SPEC-0014 v1.4 are `Implemented`, accepted by the product owner after
+  testing the insumo screens. AC-0003-25 is carried by SPEC-0004; RN07's unidade axis waits for
+  `UNIDADE`.
 - SPEC-0002 v1.3 and SPEC-0013 v1.8 are `Implemented`, accepted by the product owner. The three
   SPEC-0002 criteria that need NEs move to SPEC-0004 v0.5 (AC-0004-17, -25, -26).
 - SPEC-0003 v0.4 specifies the insumo catalogue and the items of an ATA for approval: grupos in
