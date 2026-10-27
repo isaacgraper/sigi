@@ -500,6 +500,10 @@ SPEC-0005 bind to that número.
 Both were confirmed by the stakeholder on 2026-10-02, so AC-0004-16 and
 AC-0004-22 stand as written.
 
+To take to the stakeholders, each with the assumption this spec is built on:
+**OQ-50** (where the número comes from, §9), **OQ-51** (who opens, reverses and
+cancels), **OQ-52** (RN07 on NEs) and **OQ-53** (undoing an issued empenho).
+
 ## 11. Implementation plan
 
 _Filled by `/plan SPEC-0004`._
