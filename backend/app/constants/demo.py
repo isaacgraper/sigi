@@ -211,4 +211,20 @@ DEMO_VALUE_ADITIVOS: Final = (("DEMO-002/2026", "15000.00"),)
 # ATA number, processo SEI, requested days from today.
 DEMO_REAJUSTES: Final = (("DEMO-002/2026", "00412.005120/2026-07", -15),)
 
+# ATA number, processo SEI, the stage it is walked to, and (sku, quantidade) of each line.
+DEMO_NES: Final[tuple[tuple[str, str, str, tuple[tuple[str, str], ...]], ...]] = (
+    (DEMO_MARKER_ATA, "00301.000451/2026-12", "pre_empenho", (("RESA2", "300"),)),
+    (
+        "DEMO-002/2026",
+        "00301.000502/2026-31",
+        "ne_emitida",
+        (("CLORDEG21", "1000"), ("ALC70", "500")),
+    ),
+    ("DEMO-002/2026", "00301.000517/2026-08", "validacao_saldo", (("SER5D", "50000"),)),
+    ("DEMO-004/2026", "00301.000533/2026-44", "demanda", (("PAPA4", "50"),)),
+)
+# The números the financial system would have issued, typed in at their stage.
+DEMO_NUMERO_PRE_EMPENHO: Final = "2026PE{:06d}"
+DEMO_NUMERO_NE: Final = "2026NE{:06d}"
+
 DEMO_JUSTIFICATION: Final = "Dado fictício de demonstração."
