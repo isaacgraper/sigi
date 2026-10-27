@@ -244,6 +244,10 @@ nothing is audited.
 | --- | --- | --- | --- |
 | ATA not found | 404 | `NOT_FOUND` | "ATA não encontrada." |
 
+## 3.2 Implementation plan
+
+Planned with SPEC-0004 (§11), whose saldo guard reads these figures.
+
 ## 4. Runway projection (RF21)
 
 The colleague contribution in the RFC appendix (burn-rate projection: "at this

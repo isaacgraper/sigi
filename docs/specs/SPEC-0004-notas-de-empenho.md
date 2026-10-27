@@ -506,7 +506,148 @@ cancels), **OQ-52** (RN07 on NEs) and **OQ-53** (undoing an issued empenho).
 
 ## 11. Implementation plan
 
-_Filled by `/plan SPEC-0004`._
+*Proposed with v1.0, for review before any code. It covers this spec and the
+reads of SPEC-0006 the saldo guard stands on (AC-0006-01 to -13, -16).
+AC-0006-14 and -15 wait for the NFs of SPEC-0005, and SPEC-0007's history query
+is its own slice.*
+
+**Migration** `0006_notas_empenho`:
+
+- `nota_empenho`: `id UUID PK`, `numero VARCHAR(20) NULL UNIQUE`, `processo_sei
+  VARCHAR(25) NOT NULL` with the format `CHECK`, `status VARCHAR(20) NOT NULL
+  DEFAULT 'demanda'` with a `CHECK` on the six statuses, `ata_id FK NOT NULL`,
+  `responsavel_id FK → usuario NOT NULL`, `data_emissao DATE NULL`, `criado_em`,
+  `atualizado_em`. `CHECK (numero ~ '^[A-Za-z0-9]{1,20}$')` and `CHECK (status <>
+  'ne_emitida' OR (numero IS NOT NULL AND data_emissao IS NOT NULL))`. Index on
+  `(ata_id, status)`.
+- `item_nota_empenho`: `id UUID PK`, `nota_empenho_id FK NOT NULL`, `item_ata_id FK
+  NOT NULL`, `quantidade NUMERIC(15,3) CHECK > 0`, `valor_unitario NUMERIC(15,5)
+  CHECK > 0`, `valor NUMERIC(15,2)` with `CHECK (valor = round(quantidade *
+  valor_unitario, 2))`, so the rounding of ADR-0016 holds in the database too.
+  `UNIQUE (nota_empenho_id, item_ata_id)`; index on `item_ata_id`.
+- Three triggers from `data-model.md`: **DB2** (an item's `item_ata.ata_id` equals
+  its NE's `ata_id`), **DB4** (an ATA is not set `encerrada` while it has an NE
+  outside `ne_emitida` and `cancelada`) and **DB7** (an NE does not leave `demanda`
+  with no item). They are the backstop; the service answers first with the
+  specified codes.
+- The app role gets `SELECT, INSERT, UPDATE` on `nota_empenho` and `SELECT, INSERT,
+  DELETE` on `item_nota_empenho`, whose list is replaced whole before pré-empenho
+  (the audit row keeps the prior list).
+- **Downgrade** drops the triggers and both tables, and with them every NE and its
+  items; their audit rows stay in `historico_movimentacao`.
+- `data-model.md` follows: `numero` nullable until emission, `versao` dropped with
+  `CONFLITO_DE_VERSAO`, `item_nota_empenho.valor_unitario` at five decimals.
+
+**Modules**
+
+| Layer | File | What |
+| --- | --- | --- |
+| models | `models/nota_empenho.py` (new) | `NotaEmpenho`, `ItemNotaEmpenho` |
+| repositories | `repositories/nota_empenho.py` (new) | by id, by id for update, list with filters, counters, the item lines, the NEs blocking an ATA or an item |
+| repositories | `repositories/saldo.py` (new) | one aggregate per ATA and one per item, summing `item_nota_empenho` by the parent NE's status |
+| services | `services/notas_empenho.py` (new) | open, replace itens, advance with the guard, reverse, cancel, counters, the transition table |
+| services | `services/saldo.py` (new) | `saldo_da_ata`, `saldo_dos_itens`, `comprometimento_percentual`, `alto_consumo` |
+| services | `services/atas.py` | AC-0004-25 in `move("encerrar")`, AC-0004-26 in `edit` |
+| services | `services/itens_ata.py` | AC-0004-27 in `edit_item`, `remove_item` and the items file |
+| services | `services/errors.py` | `SaldoInsuficiente`, `QuantidadeInsuficiente`, `AtaNaoElegivel`, `AtaComNePendente`, `ItemAtaComNe`, `NeSemItens`, `ItemDuplicado`, `ItemDeOutraAta`, `NeItensCongelados`, `NeDuplicada`, `NeNotFound` |
+| schemas | `schemas/nota_empenho.py`, `schemas/saldo.py` (new) | requests and responses below |
+| api | `api/notas_empenho.py` (new), `api/atas.py` | the routes; the two saldo reads sit under `/atas` |
+| constants | `constants/notas_empenho.py` (new) | statuses, the transition table, `acao` values, messages |
+
+**Endpoints** (money as decimal strings, per `api-conventions.md`)
+
+| Method | Path | Request → response | Perfis | AC |
+| --- | --- | --- | --- | --- |
+| POST | `/api/v1/notas-empenho` | `{ata_id, processo_sei, itens: [{item_ata_id, quantidade}]}` → `NotaEmpenhoOut` 201 | gestor | 01–03, 08, 09, 17, 20, 21 |
+| PUT | `/api/v1/notas-empenho/{id}/itens` | `{itens: [...]}` → `NotaEmpenhoOut` | gestor | 19, 22 |
+| GET | `/api/v1/notas-empenho` | `?etapa=&ata_id=&processo_sei=&page=&size=` → page of `NotaEmpenhoOut` | all | — |
+| GET | `/api/v1/notas-empenho/indicadores` | → `{emitidas, em_andamento, total}` | all | 18 |
+| GET | `/api/v1/notas-empenho/{id}` | → `NotaEmpenhoDetailOut` with itens and transitions | all | 07, 09 |
+| POST | `/api/v1/notas-empenho/{id}/avancar` | `{numero?}` → `NotaEmpenhoOut` | gestor, servidor | 04, 05, 08, 11–15, 24, 28 |
+| POST | `/api/v1/notas-empenho/{id}/reverter` | `{justification}` → `NotaEmpenhoOut` | gestor | 06, 07, 10 |
+| POST | `/api/v1/notas-empenho/{id}/cancelar` | `{justification}` → `NotaEmpenhoOut` | gestor | 06, 11, 16 |
+| GET | `/api/v1/atas/{id}/saldo` | → `{valor_contratado, valor_reservado, valor_empenhado, saldo_disponivel, comprometimento_percentual, alto_consumo, calculado_em}` | all | 0006-01–04, 06–09, 16 |
+| GET | `/api/v1/atas/{id}/itens/saldo` | → per item `{quantidade_contratada, quantidade_reservada, quantidade_empenhada, quantidade_disponivel, esgotado}` and `calculado_em` | all | 0006-10–13 |
+
+`NotaEmpenhoOut` is `{id, numero, processo_sei, status, ata_id, valor, itens:
+[{id, item_ata_id, insumo, quantidade, valor_unitario, valor}], data_emissao,
+created_at}`, with `valor` derived. `/indicadores` is declared before `/{id}`. The
+matrix test (AC-0001-23) gains every new route.
+
+**The guard.** `avancar` to `pre_empenho` locks the ATA with `SELECT … FOR UPDATE`
+(the existing `lock_ata`), then reads the saldo and each item's quantity in the
+same transaction, and refuses on value first, then quantity. A refused advance
+writes `ne.bloqueada` with `record_standalone`, because the 409 rolls the
+request's own transaction back; `auth.negada` already works this way.
+
+**Tests**
+
+| AC | File | Function |
+| --- | --- | --- |
+| 0004-01 | `tests/test_notas_empenho.py` | `test_ac_0004_01_opens_a_multi_item_ne` |
+| 0004-02 | 〃 | `test_ac_0004_02_rn09_mandatory_fields` |
+| 0004-03 | 〃 | `test_ac_0004_03_processo_sei_format` |
+| 0004-04 | 〃 | `test_ac_0004_04_advances_one_stage` |
+| 0004-05 | 〃 | `test_ac_0004_05_rn08_every_cell_of_the_transition_table` (parametrised) |
+| 0004-06 | 〃 | `test_ac_0004_06_rn03_reversal_and_cancellation_need_a_justification` |
+| 0004-07 | 〃 | `test_ac_0004_07_rn03_reversal_is_recorded` |
+| 0004-08 | 〃 | `test_ac_0004_08_servidor_advances_only` |
+| 0004-09 | 〃 | `test_ac_0004_09_auditor_reads_only` |
+| 0004-10 | 〃 | `test_ac_0004_10_reversal_is_one_step` |
+| 0004-11 | 〃 | `test_ac_0004_11_ne_emitida_is_terminal` |
+| 0004-12 | 〃 | `test_ac_0004_12_rn10_insufficient_saldo_blocks` |
+| 0004-13 | 〃 | `test_ac_0004_13_rn10_concurrent_advances` (two connections, a barrier) |
+| 0004-14 | 〃 | `test_ac_0004_14_rn17_reserves_at_pre_empenho` |
+| 0004-15 | 〃 | `test_ac_0004_15_rn17_commits_at_emission` |
+| 0004-16 | 〃 | `test_ac_0004_16_cancellation_releases` |
+| 0004-17 | 〃 | `test_ac_0004_17_rn11_ineligible_ata` (parametrised on the five reasons) |
+| 0004-18 | 〃 | `test_ac_0004_18_stage_counters` |
+| 0004-19 | 〃 | `test_ac_0004_19_ne_may_not_be_emptied` |
+| 0004-20 | 〃 | `test_ac_0004_20_same_item_twice` |
+| 0004-21 | 〃 | `test_ac_0004_21_item_of_another_ata`, and `tests/test_migration_notas_empenho.py::test_db2_*` |
+| 0004-22 | 〃 | `test_ac_0004_22_itens_frozen_from_pre_empenho` |
+| 0004-23 | 〃 | `test_ac_0004_23_price_snapshot` |
+| 0004-24 | 〃 | `test_ac_0004_24_rn10_quantity_exhaustion` |
+| 0004-25 | 〃 | `test_ac_0004_25_rn13_ata_with_ne_in_progress_is_not_closed`, and `test_db4_*` |
+| 0004-26 | 〃 | `test_ac_0004_26_ne_emitida_locks_the_ata` |
+| 0004-27 | 〃 | `test_ac_0004_27_item_with_ne_locks` (by hand and by file) |
+| 0004-28 | 〃 | `test_ac_0004_28_numero_at_emission` |
+| 0006-01 to -04 | `tests/test_saldo.py` | `test_ac_0006_01_no_nes`, `_02_tela_5_example`, `_03_alto_consumo_boundary`, `_04_aditivo_lowers_commitment` |
+| 0006-05 | — | carried by AC-0004-16 |
+| 0006-06 | `tests/test_saldo.py` | `test_ac_0006_06_derived_on_every_read` (raw SQL as the owner) |
+| 0006-07 | 〃 | `test_ac_0006_07_p95_under_300ms` (seeded by `generate_series`) |
+| 0006-08, -09 | 〃 | `test_ac_0006_08_money_is_exact`, `test_ac_0006_09_calculado_em` |
+| 0006-10 to -13 | 〃 | `test_ac_0006_10_quantity_per_item`, `_11_value_and_quantity_disagree`, `_12_rn15_aditivo_raises_the_ceiling`, `_13_rn17_reserved_then_committed` |
+| 0006-16 | 〃 | `test_ac_0006_16_unknown_ata` |
+| DB7 | `tests/test_migration_notas_empenho.py` | `test_db7_ne_without_items_does_not_leave_demanda` |
+
+**Sequence**
+
+1. `docs:` this plan, and `data-model.md` brought in line.
+2. `feat:` migration `0006_notas_empenho`, the models and the migration tests.
+3. `feat:` the saldo reads (SPEC-0006) and `tests/test_saldo.py` for what needs no transition.
+4. `feat:` opening and the itens: AC-0004-01 to -03, -17, -19 to -23.
+5. `feat:` the state machine: advance, reverse, cancel, the table, the counters.
+6. `feat:` the guard: AC-0004-12 to -16, -24, and the saldo tests that need NEs.
+7. `feat:` the ATA and item locks: AC-0004-25 to -27, in `atas.py` and `itens_ata.py`.
+8. `docs:` traceability, CHANGELOG, CLAUDE.md, and the spec's "as built" line.
+
+**Risks**
+
+- *The concurrency test passes by luck.* AC-0004-13 needs two real connections
+  meeting at a barrier, not two sequential calls. Write it first in step 6 and
+  check it fails with the lock removed.
+- *p95 under 300 ms (AC-0006-07) on CI's machine.* Seed the 30.000 lines in step 3
+  and measure before the guard is built; if it misses, add an index, never a stored
+  saldo.
+- *The items file of SPEC-0003 corrects items too.* AC-0004-27 has to refuse those
+  lines, or the lock has a side door; covered in step 7.
+- *"Beyond demanda" in AC-0004-27* is read as `validacao_saldo` to `ne_emitida`; a
+  cancelled NE does not lock its items.
+- *OQ-50 to OQ-53* may change the número, the perfis or the end of the flow. Each
+  answer is a spec revision; none changes the tables beyond a column.
+
+**No new dependency.**
 
 ## Revision history
 
