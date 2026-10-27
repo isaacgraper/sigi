@@ -348,13 +348,16 @@ contracted; aditivos de quantidade sit in `ATA_ADITIVO` with `item_ata_id`, and
 `numero_item`.
 
 ### NOTA_EMPENHO
-`id UUID PK`, `numero UNIQUE`, `processo_sei VARCHAR`, `data_emissao DATE`,
-`status ENUM(demanda, validacao_saldo, pre_empenho, envio_fornecedor,
-ne_emitida, cancelada)`, `ata_id FK`, `responsavel_id FK`, `criado_em`,
-`atualizado_em`, `versao INT`.
+`id UUID PK`, `numero VARCHAR(20) UNIQUE NULL`, `numero_pre_empenho VARCHAR(20)
+UNIQUE NULL`, `processo_sei VARCHAR(30)`, `data_emissao DATE NULL`, `status
+ENUM(demanda, validacao_saldo, pre_empenho, envio_fornecedor, ne_emitida,
+cancelada)`, `ata_id FK`, `responsavel_id FK`, `criado_em`, `atualizado_em`.
 
-`cancelada` is added (SPEC-0004 §4.1). `versao` supports optimistic locking for
-`CONFLITO_DE_VERSAO`.
+`cancelada` is added (SPEC-0004 §4.1). *(2026-10-27, migration `0006`)* Both
+números are issued outside SIGI and typed in at their stage: the nota de
+pré-empenho on entering `pre_empenho`, the NE at `ne_emitida` (AC-0004-28, -29);
+`CHECK`s require them from those stages on. `versao` is dropped with
+`CONFLITO_DE_VERSAO`: the row lock serialises writers.
 
 ***(2026-09-02)* The NE is a header, not a line.** `quantidade`, `valor`,
 `item_ata_id` and `insumo_id` are removed and live in `ITEM_NOTA_EMPENHO`.
@@ -370,9 +373,10 @@ exists on this table.
 one level down.
 
 ### ITEM_NOTA_EMPENHO *(new, 2026-09-02)*
-`id UUID PK`, `nota_empenho_id FK`, `item_ata_id FK`, `quantidade NUMERIC`,
-`valor_unitario NUMERIC(15,4)`, `valor NUMERIC(15,2)`,
-`UNIQUE(nota_empenho_id, item_ata_id)`.
+`id UUID PK`, `nota_empenho_id FK`, `item_ata_id FK`, `quantidade NUMERIC(15,3)`,
+`valor_unitario NUMERIC(15,5)`, `valor NUMERIC(15,2)` with `CHECK (valor =
+round(quantidade * valor_unitario, 2))` (ADR-0016), `UNIQUE(nota_empenho_id,
+item_ata_id)`.
 
 One row per insumo committed by the NE. **No status column** — the five-stage
 flow describes the administrative document, so there is no partially advanced
