@@ -45,9 +45,16 @@ grupos, substitution and discontinuation, the items of an ATA with the unit pric
 at five decimals (ADR-0016), the aditivo de quantidade, a CSV import for the
 catalogue and one for an ATA's items, and RN07 on the grupo axis, under
 `/api/v1/insumos`, `/api/v1/grupos-materiais` and `/api/v1/atas/{id}/itens`.
-465 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014,
+560 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014,
 `Implemented`) are: the catalogue under `/insumos`, the grupo tree, both imports checked before
 writing, the items section of the ATA page and a servidor's grupos on Membros.
+
+**SPEC-0004 is implemented, with its screens (SPEC-0015)**: NEs under
+`/api/v1/notas-empenho`, the five stages with reversal and cancellation, both
+números typed in at their stage, and the saldo guard with the ATA row locked.
+SPEC-0006's saldo reads are built under `/api/v1/atas/{id}/saldo`; AC-0006-14 and
+-15 wait for the NFs of SPEC-0005. `docs/process/poc.md` puts it in front of the
+stakeholders.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
 callback, invitation, password reset and member management inside the navy
@@ -64,21 +71,24 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Five migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Six migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
 `0002_registro_funcional` adds the member's registration, `0003_atas` adds
 `fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`, and `0004_ata_sem_rascunho`
 drops the draft status and admits the alphanumeric CNPJ, and `0005_insumos` adds
 `grupo_material`, `insumo`, `item_ata`, `usuario_grupo_material` and the aditivo
-de quantidade. `alembic check`
+de quantidade, and `0006_notas_empenho` adds `nota_empenho` and
+`item_nota_empenho` with the DB2, DB4 and DB7 triggers. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
 `SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.5) and `SPEC-0014` (v1.4)
 are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and built, waiting for its
-data sources. `SPEC-0004`, `SPEC-0006` and `SPEC-0007` (v1.0) are `Approved`.
+data sources. `SPEC-0004` (v1.2) and `SPEC-0015` (v1.1) are `Implemented`;
+`SPEC-0006` (v1.1) is `Approved` and built but for its NF half; `SPEC-0007` (v1.0)
+is `Approved`.
 `SPEC-0005`, `SPEC-0008` and `SPEC-0009` are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**

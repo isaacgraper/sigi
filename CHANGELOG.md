@@ -13,6 +13,18 @@ entries are moved into a new dated version section — see
 
 ### Added
 
+- Notas de empenho (SPEC-0004 v1.2, SPEC-0015): open an NE against a vigente ATA with its
+  itens at the ATA's price, walk it through demanda, validação de saldo, pré-empenho, envio
+  ao fornecedor and NE emitida, revert one stage or cancel with a justification. The número of
+  the nota de pré-empenho and of the NE are typed in at their stage. Advancing into
+  pré-empenho checks the ATA's saldo and each item's quantity with the ATA row locked, so two
+  NEs cannot both pass. Migration `0006_notas_empenho`.
+- The saldo of an ATA (SPEC-0006): `GET /api/v1/atas/{id}/saldo` and `/itens/saldo`, summed
+  on every read, shown on the ATA page as `700 (300)` while reserved and `700` once issued.
+- An ATA with an NE in progress is not closed, an NE emitida locks its figures, and an item an
+  NE carries changes only by an aditivo (AC-0004-25 to -27).
+- `seed-demo` loads four NEs, one at each point of the flow, and `docs/process/poc.md` says
+  how to put the PoC in front of the stakeholders.
 - `python -m app.cli seed-demo`: a fictitious sample for a development install, loaded
   through the services with its audit rows, once, and refused outside development.
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema
