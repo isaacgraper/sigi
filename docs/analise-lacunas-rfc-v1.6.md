@@ -4,7 +4,7 @@
 > antes de as planilhas do Eduardo chegarem e antes de a branch `dev` ser
 > conhecida. Seus achados foram, depois, verificados contra os dados reais e
 > incorporados ao repositório da forma que o processo exige — não no
-> `rfc-sigi-v1.7.md`, que está **superado**, mas em:
+> `rfc-sigi-v1.7.md`, que foi **superado** e removido em 2026-10-27 (OQ-28), mas em:
 >
 > - `ADR-0007` — a NE é multi-item (achado que esta análise não tinha)
 > - `ADR-0008` — ingestão de sinais de estoque do DOMS

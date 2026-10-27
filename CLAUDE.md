@@ -24,7 +24,7 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-*(Rewritten 2026-10-08, after SPEC-0001, SPEC-0010 and SPEC-0011 were closed. This
+*(Rewritten 2026-10-27, after SPEC-0003 and SPEC-0014 were closed. This
 section ages faster than any other: check a sentence here before acting on it.)*
 
 **SPEC-0001 is implemented.** `backend/` serves local login with refresh
@@ -40,13 +40,13 @@ written in the caller's transaction and is append-only at the database level.
 draft, corrections, aditivos, reajuste requests and the renewal and reajuste
 alerts under `/api/v1/atas`, with the alphanumeric CNPJ.
 
-**SPEC-0003's backend is implemented**: the insumo catalogue, its three-level
+**SPEC-0003 is implemented**: the insumo catalogue, its three-level
 grupos, substitution and discontinuation, the items of an ATA with the unit price
 at five decimals (ADR-0016), the aditivo de quantidade, a CSV import for the
 catalogue and one for an ATA's items, and RN07 on the grupo axis, under
 `/api/v1/insumos`, `/api/v1/grupos-materiais` and `/api/v1/atas/{id}/itens`.
-451 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014) are
-built: the catalogue under `/insumos`, the grupo tree, both imports checked before
+465 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014,
+`Implemented`) are: the catalogue under `/insumos`, the grupo tree, both imports checked before
 writing, the items section of the ATA page and a servidor's grupos on Membros.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
@@ -76,9 +76,9 @@ is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
-`SPEC-0011` (v1.4) and `SPEC-0013` (v1.8) are `Implemented`. `SPEC-0012` (v1.3)
-is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.4) is
-`Approved` with its backend built, and `SPEC-0014` (v1.3), its screens, is `Approved` and built. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
+`SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.5) and `SPEC-0014` (v1.4)
+are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and built, waiting for its
+data sources. SPEC-0004 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 
@@ -87,8 +87,6 @@ is `Approved` and built, waiting for its data sources. `SPEC-0003` (v1.4) is
   would let anyone reset anyone's password.
 - **OQ-17** — the live prototype JWT in RFC Appendix 9.1 is still unrevoked.
   Blocks nothing mechanically and everything ethically.
-- **OQ-28** — superseded `rfc-sigi-v1.7.md` still defines a second `RF05` and
-  `RN11`, so no test may be named after either.
 - **OQ-31** — AC-0001-32 no longer guarantees a gestor cannot take over an
   account; with no mail transport they receive the reset link. Detectable
   through the audit row and the session revocation, not impossible.

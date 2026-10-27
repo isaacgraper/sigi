@@ -64,6 +64,9 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- SPEC-0003 v1.5 and SPEC-0014 v1.4 are `Implemented`, accepted by the product owner after
+  testing the insumo screens. AC-0003-25 is carried by SPEC-0004; RN07's unidade axis waits for
+  `UNIDADE`.
 - SPEC-0002 v1.3 and SPEC-0013 v1.8 are `Implemented`, accepted by the product owner. The three
   SPEC-0002 criteria that need NEs move to SPEC-0004 v0.5 (AC-0004-17, -25, -26).
 - SPEC-0003 v0.4 specifies the insumo catalogue and the items of an ATA for approval: grupos in
@@ -102,6 +105,11 @@ entries are moved into a new dated version section — see
   the 320 backend tests pass unchanged.
 - The dashboard no longer shows module tiles; the sidebar lists the modules (SPEC-0011 v1.2
   withdraws AC-0011-13 and -14). Who is signed in moves to the page header.
+
+### Removed
+
+- `docs/rfc-sigi-v1.7.md`, superseded since PR #4, by the product owner's decision (OQ-28).
+  `RF05` and `RN11` keep one definition each, so tests may be named after them.
 
 ### Fixed
 
