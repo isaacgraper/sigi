@@ -33,11 +33,11 @@ on an `Approved` spec is a merge blocker.
 | RF03, RF07, RF11, RN14 | SPEC-0003 v1.5 | AC-0003-01..24, -26, -31, -33..35 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Implemented** |
 | RF15, RN15 (quantity) | SPEC-0003 v1.5 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Implemented** |
 | RN07 (grupo axis) | SPEC-0003 v1.5 | AC-0003-29, -30, -32 | `tests/test_insumos.py` | **Implemented** (the unidade axis waits for `UNIDADE`) |
-| RF13, RN03, RN08, RN09 | SPEC-0004 v0.4 | AC-0004-01..24 | _pending_ | Draft |
-| RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.3 | AC-0005-01..11 | _pending_ | Draft |
-| RN17 | SPEC-0006 v0.4, SPEC-0004 v0.4, SPEC-0005 v0.3 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
-| RF14, RN10, RN15 | SPEC-0006 v0.4 | AC-0006-01..15 | _pending_ | Draft |
-| RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
+| RF13, RN03, RN08, RN09, RN10, RN11, RN13 | SPEC-0004 v0.6 | AC-0004-01..28 (AC-0004-27 from SPEC-0003 AC-0003-25) | _pending_ | Draft |
+| RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.5 | AC-0005-01..13 | _pending_ | Draft |
+| RN17 | SPEC-0006 v0.5, SPEC-0004 v0.6, SPEC-0005 v0.5 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
+| RF14, RN10, RN15 | SPEC-0006 v0.5 | AC-0006-01..16 | _pending_ | Draft |
+| RF06, RF10 | SPEC-0007 v0.2 | AC-0007-01..09 (-02 to -04 and -06 proven by SPEC-0001's tests) | _pending_ | Draft |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
 | RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |

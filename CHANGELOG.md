@@ -91,6 +91,10 @@ entries are moved into a new dated version section — see
   tab draws its last data at once while the API answers, and resting on an ATA's link fetches it
   before the click (SPEC-0011 v1.4 AC-0011-18, DESIGN.md §6). The answers live in the tab's
   memory only and are cleared on login, logout and any write.
+- The M2 specs reviewed for approval: SPEC-0004 v0.6 types the NE número in at emission, as
+  the financial system issues it, and copies each item's price from the ATA; SPEC-0006 v0.5
+  and SPEC-0007 v0.2 are in Given/When/Then with their read endpoints, permissions and errors.
+  SPEC-0005 moves to M2, so NFs can be launched in the same milestone.
 
 - Status reads as text, never as a pill badge (DESIGN.md §4): the word in the body colour, a
   small dot only when it needs attention, and finished states in grey. An ATA's status and
