@@ -1,7 +1,7 @@
 ---
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
-status: Implemented
+status: Approved
 version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN10, RN11, RN13, RN17]
@@ -704,4 +704,4 @@ partially advanced NE.
 | 0.6 | 2026-10-27 | By the product owner's review. The número is typed in at emission, as the financial system issues it, not generated at opening (§9, AC-0004-28; `EMPENHOS` keeps it as a plain number). An item's price is copied from its ITEM_ATA and rounded once (AC-0004-01, -02). Missing fields and justifications answer `INVALID_DATA`, as the rest of the API; `CONFLITO_DE_VERSAO` is dropped. AC-0004-05, -06, -08, -09, -11, -16, -17 and -18 name their codes and audit rows; AC-0004-27 carries SPEC-0003 AC-0003-25. `ne.itens_alterados` audited. RN10, RN13 and RN17 claimed; SPEC-0006 leaves `depends_on` |
 | 1.0 | 2026-10-27 | Approved by the product owner after the review of v0.6. No criterion changed; OQ-50 to OQ-54 stand as assumed |
 | 1.1 | 2026-10-27 | The nota de pré-empenho, by the product owner's account of the stakeholder's flow (*"Reserva orçamentária prévia junto ao setor financeiro"*; OQ-56 resolved): its número is typed in on entering `pre_empenho`, unique, and cleared by a reversal (AC-0004-29, §9). The plan gains `numero_pre_empenho` |
-| 1.2 | 2026-10-27 | Implemented with its screens (SPEC-0015). Payload names follow ADR-0013 as the rest of the API: `items`, `quantity`, `justification`, `number`; `processo_sei` and `numero_pre_empenho` keep the glossary. A move may name its target in `to`, so a skip or a two-step reversal is refused rather than unreachable (AC-0004-05, -10). Every criterion has a test in `backend/tests/test_notas_empenho.py` or `test_migration_notas_empenho.py` |
+| 1.2 | 2026-10-27 | Built with its screens (SPEC-0015), for the product owner's validation in the same PR. Payload names follow ADR-0013 as the rest of the API: `items`, `quantity`, `justification`, `number`; `processo_sei` and `numero_pre_empenho` keep the glossary. A move may name its target in `to`, so a skip or a two-step reversal is refused rather than unreachable (AC-0004-05, -10). Every criterion has a test in `backend/tests/test_notas_empenho.py` or `test_migration_notas_empenho.py` |

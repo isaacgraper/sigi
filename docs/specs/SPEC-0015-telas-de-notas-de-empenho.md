@@ -1,7 +1,7 @@
 ---
 id: SPEC-0015
 title: Telas de notas de empenho
-status: Implemented
+status: Approved
 version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF14, RN03, RN08, RN10, RN17]
