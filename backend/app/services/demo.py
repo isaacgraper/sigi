@@ -25,6 +25,9 @@ from app.constants.demo import (
     DEMO_JUSTIFICATION,
     DEMO_MARKER_ATA,
     DEMO_MEMBERS,
+    DEMO_NES,
+    DEMO_NUMERO_NE,
+    DEMO_NUMERO_PRE_EMPENHO,
     DEMO_QUANTITY_ADITIVOS,
     DEMO_REAJUSTES,
     DEMO_SERVIDOR_GRUPOS,
@@ -38,7 +41,7 @@ from app.core.passwords import hash_password
 from app.models.user import User
 from app.repositories import ata as repo_ata
 from app.repositories import user as repo_user
-from app.services import atas, insumos, itens_ata, members
+from app.services import atas, insumos, itens_ata, members, notas_empenho
 from app.services.atas import FornecedorInput
 from app.services.audit import Event, record
 from app.services.errors import DevelopmentOnly
@@ -190,6 +193,33 @@ def seed_demo(session: Session, *, at: datetime.datetime, correlation_id: uuid.U
             correlation_id=correlation_id,
         )
 
+    for index, (number, processo, stage, lines) in enumerate(DEMO_NES, start=1):
+        view = notas_empenho.open_ne(
+            session,
+            actor=gestor,
+            ata_id=numbers[number],
+            processo=processo,
+            lines=[
+                notas_empenho.LineInput(
+                    item_ata_id=item_ids[(number, sku)], quantity=decimal.Decimal(quantity)
+                )
+                for sku, quantity in lines
+            ],
+            at=at,
+            correlation_id=correlation_id,
+        )
+        while view.ne.status != stage:
+            view = notas_empenho.advance(
+                session,
+                actor=gestor,
+                ne_id=view.ne.id,
+                to=None,
+                numero_pre_empenho=DEMO_NUMERO_PRE_EMPENHO.format(index),
+                numero=DEMO_NUMERO_NE.format(index),
+                at=at,
+                correlation_id=correlation_id,
+            )
+
     # After the items, as on the screens: an ATA takes items while it runs.
     for number, *_, move in DEMO_ATAS:
         if move is not None:
@@ -227,6 +257,7 @@ def seed_demo(session: Session, *, at: datetime.datetime, correlation_id: uuid.U
         "insumos": len(catalogue),
         "atas": len(numbers),
         "itens": len(item_ids),
+        "notas_empenho": len(DEMO_NES),
     }
     return report
 

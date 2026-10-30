@@ -38,7 +38,7 @@ Every path through a screen, its fields, validation and screenshots, is in
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | Painel: the CAME report, four tabs | Painel (1st) | ✓ | ✓ | ✓ | SPEC-0012 | Approved, built |
 | `/atas` | ATAs: vencimentos e reajustes, list | ATAs (2nd) | W | ✓ | ✓ | SPEC-0013 | Approved, built |
-| `/atas/{id}` | One ATA: aditivos, reajustes, moves; its items (SPEC-0014 §4.7) | under ATAs | W | ✓, items of its grupos | ✓ | SPEC-0013, SPEC-0014 | Approved, built |
+| `/atas/{id}` | One ATA: aditivos, reajustes, moves; its items (SPEC-0014 §4.7); its saldo (SPEC-0015) | under ATAs | W | ✓, items of its grupos | ✓ | SPEC-0013, SPEC-0014 | Approved, built |
 | `/atas/nova` | Nova ATA: the registration, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
 | `/atas/{id}/editar` | Editar ATA: the edit, in sections | under ATAs | W | — | — | SPEC-0013 | Approved, built |
 | `/atas/{id}/itens/importar` | Importar itens: an ATA's items file, checked first | under ATAs | W | — | — | SPEC-0014 §4.6 | Approved, built |
@@ -48,6 +48,9 @@ Every path through a screen, its fields, validation and screenshots, is in
 | `/insumos/{id}/editar` | Editar insumo | under Insumos | W | W, its grupos | — | SPEC-0014 §4.3 | Approved, built |
 | `/insumos/grupos` | Grupos de materiais: the tree, create, rename | under Insumos | W | ✓, its grupos | ✓ | SPEC-0014 §4.5 | Approved, built |
 | `/insumos/importar` | Importar catálogo: the file, checked first | under Insumos | W | — | — | SPEC-0014 §4.6 | Approved, built |
+| `/notas-empenho` | Notas de empenho: counters, list by etapa | Notas de empenho (4th) | W | ✓, advances | ✓ | SPEC-0015 | Approved, built |
+| `/notas-empenho/nova` | Abrir NE: ATA, Processo SEI, quantities | under Notas de empenho | W | — | — | SPEC-0015 | Approved, built |
+| `/notas-empenho/{id}` | One NE: stages, itens, advance, revert, cancel | under Notas de empenho | W | ✓, advances | ✓ | SPEC-0015 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved, built |
 
 ### Planned, with no screen spec yet
@@ -57,9 +60,7 @@ The sidebar slot is where it goes between ATAs and Membros.
 
 | Area | Backend spec | Likely route | Sidebar slot |
 | --- | --- | --- | --- |
-| Notas de Empenho | SPEC-0004 | `/notas-de-empenho` | after Insumos |
 | Notas Fiscais | SPEC-0005 | `/notas-fiscais` | after Notas de Empenho |
-| Saldo por ATA | SPEC-0006 | inside `/atas/{id}` | none, a block of the ATA page |
 | Histórico | SPEC-0007 | `/historico` | before Membros |
 | Notificações | SPEC-0008 | the header bell | none |
 | Relatórios | SPEC-0009 | `/relatorios` | before Membros |

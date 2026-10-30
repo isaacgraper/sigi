@@ -187,7 +187,16 @@ def test_the_demo_sample_loads_once_through_the_services(
     assert "Demo sample loaded" in capsys.readouterr().out
     counts = {
         table: operator_db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]  # type: ignore[index]
-        for table in ("grupo_material", "insumo", "ata", "item_ata", "ata_aditivo", "ata_reajuste")
+        for table in (
+            "grupo_material",
+            "insumo",
+            "ata",
+            "item_ata",
+            "ata_aditivo",
+            "ata_reajuste",
+            "nota_empenho",
+            "item_nota_empenho",
+        )
     }
     assert counts == {
         "grupo_material": 11,
@@ -196,11 +205,15 @@ def test_the_demo_sample_loads_once_through_the_services(
         "item_ata": 12,
         "ata_aditivo": 2,
         "ata_reajuste": 1,
+        "nota_empenho": 4,
+        "item_nota_empenho": 5,
     }
     statuses: dict[str, str] = dict(
         operator_db.execute("SELECT numero, status FROM ata WHERE status <> 'vigente'").fetchall()
     )
     assert statuses == {"DEMO-005/2025": "encerrada", "DEMO-006/2026": "suspensa"}
+    stages = sorted(r[0] for r in operator_db.execute("SELECT status FROM nota_empenho").fetchall())
+    assert stages == ["demanda", "ne_emitida", "pre_empenho", "validacao_saldo"]
     audited = operator_db.execute(
         "SELECT count(*) FROM historico_movimentacao WHERE acao = 'ata.item_adicionado'"
     ).fetchone()

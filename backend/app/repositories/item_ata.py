@@ -33,6 +33,16 @@ def item_of(session: Session, ata_id: uuid.UUID, item_id: uuid.UUID) -> ItemAta 
     ).one_or_none()
 
 
+def by_ids(session: Session, item_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, ItemAta]:
+    """These items, removed or not, keyed by id."""
+    if not item_ids:
+        return {}
+    return {
+        item.id: item
+        for item in session.scalars(select(ItemAta).where(ItemAta.id.in_(list(item_ids))))
+    }
+
+
 def item_for_insumo(session: Session, ata_id: uuid.UUID, insumo_id: uuid.UUID) -> ItemAta | None:
     """The item of an ATA that holds this insumo, if it was not removed."""
     return session.scalars(
