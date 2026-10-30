@@ -31,6 +31,7 @@ from app.constants.notas_empenho import (
     STAGE_LABEL,
     STAGES,
     TERMINAL,
+    ZERO,
 )
 from app.core import processo_sei
 from app.core.clock import local_date
@@ -62,8 +63,6 @@ from app.services.errors import (
     SaldoInsuficiente,
 )
 from app.services.itens_ata import item_value
-
-ZERO = decimal.Decimal("0")
 
 
 @dataclass(frozen=True)

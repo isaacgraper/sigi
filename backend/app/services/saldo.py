@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.constants.notas_empenho import ALTO_CONSUMO, COMMITTED, RESERVING
+from app.constants.notas_empenho import ALTO_CONSUMO, COMMITTED, RESERVING, ZERO
 from app.models.ata import Ata
 from app.models.insumo import Insumo, ItemAta
 from app.repositories import ata as ata_repo
@@ -22,8 +22,6 @@ from app.repositories import insumo as insumo_repo
 from app.repositories import item_ata as item_repo
 from app.repositories import nota_empenho as ne_repo
 from app.services.errors import AtaNotFound
-
-ZERO = decimal.Decimal("0")
 
 
 @dataclass(frozen=True)

@@ -39,6 +39,9 @@ NUMERO_PATTERN: Final = re.compile(r"^[A-Za-z0-9]{1,20}$")
 # RF14: the commitment that flags an ATA.
 ALTO_CONSUMO: Final = decimal.Decimal("80")
 
+# The empty sum, so a saldo with no NE adds Decimals, never ints.
+ZERO: Final = decimal.Decimal("0")
+
 # Labels for messages, pt-BR, because the servidor reads them.
 STAGE_LABEL: Final = MappingProxyType(
     {
