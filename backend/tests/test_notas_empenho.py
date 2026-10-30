@@ -11,6 +11,7 @@ import threading
 import uuid
 from collections.abc import Callable
 
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -82,7 +83,7 @@ def open_ne(
     ata_id: str,
     lines: list[tuple[str, str]],
     processo: str = PROCESSO,
-) -> object:
+) -> httpx2.Response:
     """POST an NE; the raw response."""
     return application.post(
         NES,
@@ -95,7 +96,9 @@ def open_ne(
     )
 
 
-def advance(application: TestClient, headers: dict[str, str], ne_id: str, **body: object) -> object:
+def advance(
+    application: TestClient, headers: dict[str, str], ne_id: str, **body: object
+) -> httpx2.Response:
     """Advance one stage, sending the número the next stage needs."""
     return application.post(f"{NES}/{ne_id}/avancar", json=body, headers=headers)
 
