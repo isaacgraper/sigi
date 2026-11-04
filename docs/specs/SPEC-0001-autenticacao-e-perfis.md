@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Implemented
-version: 1.11
+version: 1.12
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -739,7 +739,14 @@ Given a request to any route that takes a password or a token
 When  the password is longer than 128 characters or the token longer than 512
 Then  the response is 422 "INVALID_DATA" naming the field
 And   no password is hashed and no token is looked up
+Given any route that stores text
+When  a field holds a control character other than a line break or a tab
+Then  the response is 422 "INVALID_DATA" naming that field
+And   nothing is written
 ```
+*(v1.12)* A NUL reached PostgreSQL and answered 500, and the other control
+characters were stored as bytes nobody can see. Each is now refused on its own
+field, like an oversized one.
 
 **AC-0001-42** — An oversized body is refused
 ```gherkin
@@ -1341,3 +1348,4 @@ guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 | 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
 | 1.10 | 2026-10-20 | AC-0001-42: the two CSV import routes of SPEC-0003 take a body up to `import_max_bytes` (5 MB), because a catalogue file does not fit in 64 KiB. Every other route keeps 64 KiB |
 | 1.11 | 2026-11-03 | §5: `USUARIO_INATIVO` and `USUARIO_NAO_PROVISIONADO` no longer end in "Procure o gestor da sua unidade.", by the product owner's request. No criterion changed. |
+| 1.12 | 2026-11-04 | AC-0001-41: a control character in a stored text field is refused as `INVALID_DATA` on that field. A NUL answered 500 and the others were stored, found by the hostile input tests the product owner asked for. |

@@ -18,6 +18,7 @@ from pydantic_core import PydanticCustomError
 from app.constants.atas import PROCESSO_SEI_INVALIDO_MESSAGE
 from app.core import processo_sei as processo_sei_lib
 from app.schemas.ata import Justification
+from app.schemas.base import RequestBody
 from app.schemas.item_ata import ItemQuantity
 
 Stage = Literal[
@@ -36,14 +37,14 @@ def _processo_sei(value: str) -> str:
     return value
 
 
-class LineIn(BaseModel):
+class LineIn(RequestBody):
     """One insumo of the NE: the item of the ATA and how much of it (AC-0004-01)."""
 
     item_ata_id: uuid.UUID
     quantity: ItemQuantity
 
 
-class NotaEmpenhoIn(BaseModel):
+class NotaEmpenhoIn(RequestBody):
     """The body of an NE opening; an empty list is a missing field (AC-0004-02)."""
 
     ata_id: uuid.UUID
@@ -53,13 +54,13 @@ class NotaEmpenhoIn(BaseModel):
     items: Annotated[list[LineIn], Field(min_length=1)]
 
 
-class ItemsIn(BaseModel):
+class ItemsIn(RequestBody):
     """The whole new list of itens; an empty one is refused as NE_SEM_ITENS (AC-0004-19)."""
 
     items: list[LineIn]
 
 
-class AdvanceIn(BaseModel):
+class AdvanceIn(RequestBody):
     """Advance one stage; `to`, when sent, must be that stage (AC-0004-05)."""
 
     to: Stage | None = None
@@ -67,14 +68,14 @@ class AdvanceIn(BaseModel):
     number: Numero | None = None
 
 
-class ReverseIn(BaseModel):
+class ReverseIn(RequestBody):
     """Reverse one stage, with the justification RN03 asks for."""
 
     to: Stage | None = None
     justification: Justification
 
 
-class CancelNeIn(BaseModel):
+class CancelNeIn(RequestBody):
     """Cancel, with the justification RN03 asks for."""
 
     justification: Justification

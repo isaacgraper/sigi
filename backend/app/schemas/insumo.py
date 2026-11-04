@@ -20,6 +20,7 @@ from pydantic_core import PydanticCustomError
 from app.constants.insumos import INVALID_SKU_MESSAGE
 from app.core.config import get_settings
 from app.schemas.ata import Justification
+from app.schemas.base import RequestBody
 
 Quantity = Annotated[decimal.Decimal, Field(ge=0, max_digits=15, decimal_places=3)]
 
@@ -40,7 +41,7 @@ def _sku(value: str) -> str:
 Sku = Annotated[Text40, AfterValidator(_sku)]
 
 
-class InsumoIn(BaseModel):
+class InsumoIn(RequestBody):
     """The body of an insumo registration (AC-0003-01)."""
 
     sku: Sku
@@ -52,7 +53,7 @@ class InsumoIn(BaseModel):
     reference_quantity: Quantity | None = None
 
 
-class InsumoPatch(BaseModel):
+class InsumoPatch(RequestBody):
     """The body of a correction; the SKU changes only by its own route (AC-0003-11)."""
 
     model_config = ConfigDict(extra="forbid")
@@ -65,40 +66,40 @@ class InsumoPatch(BaseModel):
     reference_quantity: Quantity | None = None
 
 
-class SkuChangeIn(BaseModel):
+class SkuChangeIn(RequestBody):
     """A new SKU and why (AC-0003-04)."""
 
     sku: Sku
     justification: Justification
 
 
-class JustificationIn(BaseModel):
+class JustificationIn(RequestBody):
     """Discontinuing and reactivating ask for a justification (AC-0003-14, -16)."""
 
     justification: Justification
 
 
-class SubstituteIn(BaseModel):
+class SubstituteIn(RequestBody):
     """The insumo that replaces this one, and why (AC-0003-15)."""
 
     substitute_id: uuid.UUID
     justification: Justification
 
 
-class GrupoIn(BaseModel):
+class GrupoIn(RequestBody):
     """A grupo and, below level 1, its parent (AC-0003-09)."""
 
     name: Text120
     parent_id: uuid.UUID | None = None
 
 
-class GrupoPatch(BaseModel):
+class GrupoPatch(RequestBody):
     """A new name for a grupo (AC-0003-13)."""
 
     name: Text120
 
 
-class UserGruposIn(BaseModel):
+class UserGruposIn(RequestBody):
     """The grupos a servidor owns, replacing what it had (AC-0003-30)."""
 
     grupo_ids: list[uuid.UUID]
