@@ -806,3 +806,133 @@ class PreEmpenhoDuplicado(DomainError):
         super().__init__(
             f"O pré-empenho {numero} já está registrado em outra NE. Confira o número."
         )
+
+
+# ── SPEC-0005: notas fiscais ────────────────────────────────────────────────
+
+
+class NfNotFound(DomainError):
+    """No NF has this id."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("NF não encontrada.")
+
+
+class NfTransicaoInvalida(DomainError):
+    """A move the NF conference does not allow (AC-0005-08, -13)."""
+
+    code = "TRANSICAO_INVALIDA"
+    http = 409
+
+    def __init__(self, origem: str, destino: str) -> None:
+        """Build the error naming both statuses."""
+        super().__init__(f"Não é possível ir de {origem} para {destino}.")
+
+
+class NfItemDuplicado(DomainError):
+    """One NE line named twice in the same NF (AC-0005-12)."""
+
+    code = "ITEM_DUPLICADO"
+    http = 422
+
+    def __init__(self, insumo: str, field: str | None = None) -> None:
+        """Build the error naming the insumo, on the line that repeats it."""
+        message = f"O insumo {insumo} aparece mais de uma vez. Some as quantidades em uma linha."
+        super().__init__(message, fields={field: message} if field else None)
+
+
+class NeNaoEmitida(DomainError):
+    """An NF against an NE not yet issued (AC-0005-03, DB1)."""
+
+    code = "NE_NAO_EMITIDA"
+    http = 409
+
+    def __init__(self, etapa: str) -> None:
+        """Build the error naming the NE's stage."""
+        super().__init__(f"A NE está em {etapa}. Só uma NE emitida recebe notas fiscais.")
+
+
+class DataAnteriorAoEmpenho(DomainError):
+    """An NF dated before its NE, not confirmed (AC-0005-05)."""
+
+    code = "DATA_ANTERIOR_AO_EMPENHO"
+    http = 409
+
+    def __init__(self, data_nf: str, data_ne: str) -> None:
+        """Build the error naming both dates."""
+        super().__init__(
+            f"A NF é de {data_nf}, anterior à NE, emitida em {data_ne}. "
+            "Confirme a data para registrar."
+        )
+
+
+class FornecedorDivergente(DomainError):
+    """The NF's CNPJ is not the ATA's fornecedor (AC-0005-06)."""
+
+    code = "FORNECEDOR_DIVERGENTE"
+    http = 409
+
+    def __init__(self, cnpj_nf: str, fornecedor: str, cnpj_ata: str) -> None:
+        """Build the error naming both CNPJs."""
+        super().__init__(
+            f"O CNPJ da NF ({cnpj_nf}) não é o do fornecedor da ATA ({fornecedor}, {cnpj_ata})."
+        )
+
+
+class ValorAcimaDoEmpenho(DomainError):
+    """The NFs of an NE would bill past its value (AC-0005-07, RN12)."""
+
+    code = "VALOR_ACIMA_DO_EMPENHO"
+    http = 409
+
+    def __init__(self, total: str, valor_ne: str) -> None:
+        """Build the error naming both amounts."""
+        super().__init__(f"O valor das NFs ({total}) passaria do valor da NE ({valor_ne}).")
+
+
+class QuantidadeAcimaDoEmpenho(DomainError):
+    """The NFs would deliver more of a line than the NE commits (AC-0005-12)."""
+
+    code = "QUANTIDADE_ACIMA_DO_EMPENHO"
+    http = 409
+
+    def __init__(self, insumo: str, total: str, empenhado: str) -> None:
+        """Build the error naming the insumo and both quantities."""
+        super().__init__(f"{insumo}: as NFs somariam {total}, acima das {empenhado} da NE.")
+
+
+class NfDuplicada(DomainError):
+    """The número is already registered for this fornecedor (AC-0005-15)."""
+
+    code = "NF_DUPLICADA"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(f"A NF {numero} deste fornecedor já está registrada. Confira o número.")
+
+
+class NfEmQuarentena(DomainError):
+    """Approving an NF still held in quarantine (AC-0005-13)."""
+
+    code = "NF_EM_QUARENTENA"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error."""
+        super().__init__("A NF está em quarentena. Libere-a antes de aprovar.")
+
+
+class NfNaoEditavel(DomainError):
+    """Correcting an NF in or past the conference (AC-0005-14)."""
+
+    code = "NF_NAO_EDITAVEL"
+    http = 409
+
+    def __init__(self, status: str) -> None:
+        """Build the error naming the status."""
+        super().__init__(f"A NF está {status} e não pode ser corrigida.")
