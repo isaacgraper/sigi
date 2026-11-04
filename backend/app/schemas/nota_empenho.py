@@ -93,6 +93,10 @@ class LineOut(BaseModel):
     quantity: decimal.Decimal
     unit_price: decimal.Decimal
     value: decimal.Decimal
+    # From the NFs launched against the line, never from saldo (AC-0005-10, AC-0006-15).
+    quantidade_recebida: decimal.Decimal
+    quantidade_em_quarentena: decimal.Decimal
+    quantidade_faltante: decimal.Decimal
 
 
 class NotaEmpenhoOut(BaseModel):
