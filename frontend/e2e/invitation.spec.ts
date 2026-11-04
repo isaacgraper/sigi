@@ -36,7 +36,8 @@ test.describe("invitation", () => {
     });
     await page.goto(pathOf(link));
     await fillPasswords(page, LONG_ENOUGH, `${LONG_ENOUGH}x`);
-    await expect(page.getByTestId("form-error")).toHaveText("As senhas não conferem.");
+    await expect(page.getByTestId("field-error")).toHaveText("As senhas não conferem.");
+    await expect(page.getByLabel("Confirme a senha")).toHaveAttribute("aria-invalid", "true");
     expect(calls).toBe(0);
   });
 
@@ -44,9 +45,10 @@ test.describe("invitation", () => {
     const { link } = await invite("servidor");
     await page.goto(pathOf(link));
     await fillPasswords(page, "curta");
-    await expect(page.getByTestId("form-error")).toHaveText(
+    await expect(page.getByTestId("field-error")).toHaveText(
       "A senha precisa ter ao menos 12 caracteres.",
     );
+    await expect(page.getByLabel("Nova senha")).toHaveAttribute("aria-invalid", "true");
     await fillPasswords(page, LONG_ENOUGH);
     await expect(page).toHaveURL(/\/dashboard$/);
   });

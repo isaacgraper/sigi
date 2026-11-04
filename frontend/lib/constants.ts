@@ -88,6 +88,12 @@ export const GENERIC_FAILURE = "Não foi possível concluir. Tente novamente em 
 
 export const PASSWORD_MISMATCH = "As senhas não conferem.";
 
+/** The password refusals that belong to one field, shown under it (DESIGN.md §4). */
+export const PASSWORD_CODE_FIELD: Record<string, "password" | "confirmation"> = {
+  WEAK_PASSWORD: "password",
+  PASSWORD_MISMATCH: "confirmation",
+};
+
 export const OIDC_CANCELLED = "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente.";
 
 // Failures the servidor cannot fix alone (AC-0010-57). Validation errors and a
