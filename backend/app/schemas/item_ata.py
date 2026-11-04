@@ -13,13 +13,14 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.schemas.ata import FornecedorIn, FornecedorOut
+from app.schemas.base import RequestBody
 
 ItemQuantity = Annotated[decimal.Decimal, Field(gt=0, max_digits=15, decimal_places=3)]
 UnitPrice = Annotated[decimal.Decimal, Field(gt=0, max_digits=15, decimal_places=5)]
 ItemNumber = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
 
 
-class ItemIn(BaseModel):
+class ItemIn(RequestBody):
     """An insumo added to an ATA (AC-0003-20, -23)."""
 
     insumo_id: uuid.UUID
@@ -29,7 +30,7 @@ class ItemIn(BaseModel):
     fornecedor: FornecedorIn | None = None
 
 
-class ItemPatch(BaseModel):
+class ItemPatch(RequestBody):
     """A correction of an item; `fornecedor` and `item_number` sent as null clear them."""
 
     insumo_id: uuid.UUID | None = None

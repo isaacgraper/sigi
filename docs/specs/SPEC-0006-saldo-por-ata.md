@@ -1,8 +1,8 @@
 ---
 id: SPEC-0006
 title: Saldo por ATA (visão derivada)
-status: Draft
-version: 0.5
+status: Approved
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF14, RN10, RN15]
 depends_on: [SPEC-0002, SPEC-0004, SPEC-0005]
@@ -244,6 +244,10 @@ nothing is audited.
 | --- | --- | --- | --- |
 | ATA not found | 404 | `NOT_FOUND` | "ATA não encontrada." |
 
+## 3.2 Implementation plan
+
+Planned with SPEC-0004 (§11), whose saldo guard reads these figures.
+
 ## 4. Runway projection (RF21)
 
 The colleague contribution in the RFC appendix (burn-rate projection: "at this
@@ -291,3 +295,5 @@ that v0.3 closes.
 | 0.3 | 2026-09-02 | Saldo defined in value and quantity (OQ-20); ACs 02, 05, 06, 07 rewritten over ITEM_NOTA_EMPENHO (ADR-0007); ACs 10–12 added; RF21 leaves the deferred list |
 | 0.4 | 2026-10-06 | The stakeholder's example (question 6 and its follow-up): the formula stays `valor_contratado − valor_reservado − valor_empenhado` and emission does not change it, only how it is shown (`700 (300)`, then `700`). Delivery is a separate per-item view, `quantidade_faltante`, counted when an NF is launched and never part of saldo (ADR-0015, OQ-03 resolved, OQ-46 opened). ACs 02 and 03 name `comprometimento_percentual`; ACs 01, 04 and 06 adjusted; ACs 13 to 15 added; depends on SPEC-0005 |
 | 0.5 | 2026-10-27 | By the product owner's review: AC-0006-01 to -09 in Given/When/Then, AC-0006-09 names `calculado_em`; AC-0006-05 and the ceiling of -12 point to SPEC-0004 and SPEC-0003 instead of repeating them; -13 asserts the API, the screen shows it; the NF half of -06 is left to -14 and -15; AC-0006-16 and §3.1 add the two read endpoints, who reads them and the error |
+| 1.0 | 2026-10-27 | Approved by the product owner after the review of v0.5. No criterion changed; OQ-50 to OQ-54 stand as assumed |
+| 1.1 | 2026-10-27 | Built: `GET /api/v1/atas/{id}/saldo` and `/itens/saldo`, every criterion but -14 and -15 tested in `backend/tests/test_saldo.py`; those two wait for the NFs of SPEC-0005 |

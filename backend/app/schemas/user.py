@@ -8,6 +8,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
+from app.schemas.base import RequestBody
+
 # Trimmed and non-blank, bounded like every other field (AC-0001-41). No format
 # for the registration: none is known (OQ-41).
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -17,7 +19,7 @@ Justification = Annotated[
 ]
 
 
-class InviteInput(BaseModel):
+class InviteInput(RequestBody):
     """The body of an invitation (AC-0001-10, -45).
 
     `name` and `registration` are mandatory on a new invitation. The columns stay
@@ -30,7 +32,7 @@ class InviteInput(BaseModel):
     registration: Registration
 
 
-class UnblockInput(BaseModel):
+class UnblockInput(RequestBody):
     """The body of an unblock: the justification is the one thing required (AC-0001-44)."""
 
     justification: Justification
@@ -93,7 +95,7 @@ class ResetTriggerOutput(BaseModel):
     reset_link: str
 
 
-class ResetConfirmInput(BaseModel):
+class ResetConfirmInput(RequestBody):
     """The body of a reset confirmation.
 
     The token is a field rather than a path segment (OQ-30), for the same reason
