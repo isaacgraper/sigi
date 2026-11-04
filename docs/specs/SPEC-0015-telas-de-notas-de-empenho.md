@@ -2,7 +2,7 @@
 id: SPEC-0015
 title: Telas de notas de empenho
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF14, RN03, RN08, RN10, RN17]
 depends_on: [SPEC-0004, SPEC-0006, SPEC-0011, SPEC-0013]
@@ -137,3 +137,4 @@ AC named `AC-0015-NN`. No new dependency.
 | --- | --- | --- |
 | 1.0 | 2026-10-27 | Written and approved at the product owner's request to build the NE screens with the backend, for the stakeholders' PoC |
 | 1.1 | 2026-10-27 | Built. Every criterion has a test in `frontend/e2e/notas-empenho.spec.ts`. No criterion changed |
+| 1.2 | 2026-11-04 | Every wrong field shows its message under it and turns red, all at once; the error notice is only for a refusal no field explains. By the product owner's request after testing the screens. |

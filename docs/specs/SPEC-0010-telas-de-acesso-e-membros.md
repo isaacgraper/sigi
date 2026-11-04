@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Implemented
-version: 1.9
+version: 1.10
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -901,3 +901,4 @@ One commit per step, split into two PRs after step 5.
 | 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |
 | 1.8 | 2026-10-13 | §9: member status is text with an attention dot for `bloqueado`, not a badge, following DESIGN.md §4 as revised by the product owner. No behaviour change. |
 | 1.9 | 2026-11-03 | "Procure o gestor da sua unidade." removed from every screen, by the product owner's request: AC-0010-04 shows the shorter message, AC-0010-07 no longer shows a forgotten-password line, and AC-0010-57 shows no contact when SUPPORT_CONTACT_EMAIL is unset. |
+| 1.10 | 2026-11-04 | A refused password shows under its field, in red, instead of a notice below the form (AC-0010-20, -21). By the product owner's request. |

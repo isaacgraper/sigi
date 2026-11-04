@@ -164,7 +164,7 @@ tokens above. Prefer extending one of these to adding a new one.
 | Component | Rules |
 | --- | --- |
 | **Button** | Variants: `default` (navy), `outline`, `ghost`, `destructive`, `link`. One `default` button per view. Press feedback `scale(0.97)`. Label is a verb in pt-BR: "Convidar", "Salvar", not "OK". |
-| **Input, Select, Label** | Label above the field, always visible, never a placeholder in its place. Error text below the field in `text-danger`, linked with `aria-describedby`, field marked `aria-invalid`. |
+| **Input, Select, Label** | Label above the field, always visible, never a placeholder in its place. Error text below the field in `text-danger`, linked with `aria-describedby`, field marked `aria-invalid`, which turns its border and focus ring red. Every wrong field is marked in the same answer, never one at a time. |
 | **Form** | One column. Primary action at the end, right-aligned on desktop, full-width on mobile. A submitting form disables its button and changes the label ("Entrando...", "Enviando..."). |
 | **Table** | White card, `text-sm`, header row in muted text on a light tint, rows separated by hairlines, row hover tint. Scrolls sideways inside its own frame, never the page. Pagination below, state in the URL. Row actions behind a "⋯" menu labelled "Ações para <name>". |
 | **Status** | Text, never a pill: no tinted background, no border, no rounded chip (the shadcn badge look reads as generated filler). The word in the body colour; a 6 px dot before it only when the state needs attention (`attention` amber, `danger` red); finished or inactive states in muted text with no dot. One thing has one status: a second fact joins it on the same line ("Vigente · a vencer") rather than a second chip beside it. Component: `components/ui/status.tsx`. |
@@ -173,7 +173,7 @@ tokens above. Prefer extending one of these to adding a new one.
 | **Stat tile** | Number in `text-3xl font-semibold tabular-nums`, label above in muted text, optional change below. Only for figures the API provides. |
 | **Menu** | Opens from its trigger and is not modal: the page behind stays readable by assistive technology, and Escape, Tab or a click outside closes it. Row actions and the user menu use it. |
 | **Dialog** | Centred, `max-w-xl` for forms, `max-w-md` for confirmations. Destructive confirmations use `AlertDialog` and name the consequence ("não pode ser desfeita"). |
-| **Error notice** | Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
+| **Error notice** | Only for a refusal no field explains. Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
 | **Notice** | Information a person needs before acting, in a tinted box with `role="status"`. Never success: a write's result is the confirmation (the new status, the new row, the page that opens), so no banner repeats it; assistive technology still hears it through a visually hidden `role="status"`. |
 | **Field help** | An "i" beside a label (`components/ui/info-tip.tsx`) that opens the field's explanation below the label by click, Enter or Space, and closes on Escape or a click elsewhere. Never "!", which reads as a warning, and never on hover alone, which a phone and a keyboard cannot reach. The text states what the API enforces, objectively. |
 | **Toast** | Sonner, top right, for confirmations that need no reading ("Convite criado"). Never for errors a person must act on: those stay on the page. |
@@ -225,7 +225,7 @@ here. None is licensed yet.
 | **Loading a page** | A skeleton of the page's own layout (title bar, cards, table rows) in `bg-muted` blocks with a slow pulse, `role="status"` and "Carregando..." for screen readers, shown only once the wait passes 300 ms (`.reveal-late`, `.skeleton-pulse`): a shorter wait shows nothing new rather than a flash. A page already read in this tab draws its last data at once and refreshes. Never a blank page, never a centred spinner for a whole page. |
 | **Loading an action** | The button disables and relabels; the rest of the page stays usable. |
 | **Empty** | Inside the table or card: the empty illustration, one sentence ("Nenhum membro encontrado."), and the action that fills it when the perfil has one. |
-| **Error** | The error notice, in place, without clearing what the person typed except passwords. |
+| **Error** | Each wrong field's message under it; the error notice, in place, only for what no field explains, without clearing what the person typed except passwords. |
 | **Not found** | The not-found status page (AC-0010-55). |
 | **Crash** | The error status page (AC-0010-56). |
 
