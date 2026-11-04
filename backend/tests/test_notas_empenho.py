@@ -749,6 +749,7 @@ def test_ac_0004_19_ne_may_not_be_emptied(application: TestClient, gestor: dict,
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "NE_SEM_ITENS"
+    assert set(response.json()["error"]["fields"]) == {"items"}
     assert len(application.get(f"{NES}/{ne[2]['id']}", headers=gestor).json()["items"]) == 2
 
 
@@ -782,7 +783,9 @@ def test_ac_0004_20_same_item_twice(
     )
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "ITEM_DUPLICADO"
+    error = response.json()["error"]
+    assert error["code"] == "ITEM_DUPLICADO"
+    assert set(error["fields"]) == {"items.1.item_ata_id"}
     db_session.rollback()
     assert db_session.execute(text("SELECT count(*) FROM nota_empenho")).scalar_one() == before
 
@@ -798,6 +801,7 @@ def test_ac_0004_21_item_of_another_ata(application: TestClient, gestor: dict, n
     error = response.json()["error"]
     assert error["code"] == "ITEM_DE_OUTRA_ATA"
     assert other["number"] in error["message"]
+    assert set(error["fields"]) == {"items.0.item_ata_id"}
 
 
 def test_ac_0004_22_itens_frozen_from_pre_empenho(

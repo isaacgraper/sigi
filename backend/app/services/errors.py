@@ -735,7 +735,8 @@ class NeSemItens(DomainError):
 
     def __init__(self) -> None:
         """Build the error."""
-        super().__init__("A NE precisa de ao menos um insumo. Para encerrá-la, cancele a NE.")
+        message = "A NE precisa de ao menos um insumo. Para encerrá-la, cancele a NE."
+        super().__init__(message, fields={"items": message})
 
 
 class ItemDuplicado(DomainError):
@@ -744,12 +745,13 @@ class ItemDuplicado(DomainError):
     code = "ITEM_DUPLICADO"
     http = 422
 
-    def __init__(self, insumo: str) -> None:
-        """Build the error naming the insumo."""
-        super().__init__(
+    def __init__(self, insumo: str, field: str | None = None) -> None:
+        """Build the error naming the insumo, on the line that repeats it."""
+        message = (
             f"O insumo {insumo} aparece mais de uma vez. "
             "Ajuste a quantidade em vez de repetir o item."
         )
+        super().__init__(message, fields={field: message} if field else None)
 
 
 class ItemDeOutraAta(DomainError):
@@ -758,12 +760,13 @@ class ItemDeOutraAta(DomainError):
     code = "ITEM_DE_OUTRA_ATA"
     http = 422
 
-    def __init__(self, insumo: str, ata: str) -> None:
-        """Build the error naming the insumo and its ATA."""
-        super().__init__(
+    def __init__(self, insumo: str, ata: str, field: str | None = None) -> None:
+        """Build the error naming the insumo and its ATA, on the line that carries it."""
+        message = (
             f"O insumo {insumo} pertence à ATA {ata}. "
             "Todos os itens de uma NE devem ser da mesma ATA."
         )
+        super().__init__(message, fields={field: message} if field else None)
 
 
 class NeItensCongelados(DomainError):

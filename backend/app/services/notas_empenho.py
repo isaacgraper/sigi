@@ -372,9 +372,13 @@ def _build_lines(
         insumo = insumos[item.insumo_id]
         if item.ata_id != ata.id:
             other = ata_repo.by_id(session, item.ata_id)
-            raise ItemDeOutraAta(insumo.description, other.number if other else "outra ATA")
+            raise ItemDeOutraAta(
+                insumo.description,
+                other.number if other else "outra ATA",
+                f"items.{index}.item_ata_id",
+            )
         if item.id in seen:
-            raise ItemDuplicado(insumo.description)
+            raise ItemDuplicado(insumo.description, f"items.{index}.item_ata_id")
         seen.add(item.id)
         built.append(
             ItemNotaEmpenho(
