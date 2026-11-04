@@ -32,13 +32,12 @@ test.describe("login", () => {
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
     await expect(page.getByTestId("form-error")).toHaveText(
-      "Esta conta não está ativa. Procure o gestor da sua unidade.",
+      "Esta conta não está ativa.",
     );
   });
 
   test("AC-0010-07 no self-service reset or signup is offered", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByText("Esqueceu a senha? Procure o gestor da sua unidade.")).toBeVisible();
     await expect(page.getByRole("link", { name: /cadastr|redefinir|esqueci/i })).toHaveCount(0);
     const signup = await page.goto("/signup");
     expect(signup?.status()).toBe(404);

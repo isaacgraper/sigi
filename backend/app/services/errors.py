@@ -63,7 +63,7 @@ class InactiveUser(DomainError):
 
     def __init__(self) -> None:
         """Build the error with its message."""
-        super().__init__("Esta conta não está ativa. Procure o gestor da sua unidade.")
+        super().__init__("Esta conta não está ativa.")
 
 
 class InvalidRefresh(DomainError):
@@ -145,7 +145,7 @@ class UnprovisionedUsuario(DomainError):
 
     def __init__(self) -> None:
         """Build the error, pointing the caller at the gestor who can fix it."""
-        super().__init__("Seu acesso ainda não foi liberado. Procure o gestor da sua unidade.")
+        super().__init__("Seu acesso ainda não foi liberado.")
 
 
 class UnauthorizedPerfil(DomainError):
