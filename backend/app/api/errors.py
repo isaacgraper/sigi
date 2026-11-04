@@ -7,14 +7,19 @@ other half of that rule: without it the first route would have to break it.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Final
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.constants.atas import PROCESSO_SEI_INVALIDO_CODE
 from app.core.correlation import current
 from app.services.errors import DomainError
+
+# Domain checks that run in a schema, and the code each keeps when it fails alone.
+_SCHEMA_CODES: Final = MappingProxyType({**PROCESSO_SEI_INVALIDO_CODE})
 
 
 def register_handlers(app: FastAPI) -> None:
@@ -44,13 +49,19 @@ def register_handlers(app: FastAPI) -> None:
         is the stated mitigation for the transcription errors that motivated the
         project — a client that has to parse two shapes ends up parsing neither.
         """
-        fields = {_field(error.get("loc", ())): _message(error) for error in exc.errors()}
+        errors = exc.errors()
+        fields = {_field(error.get("loc", ())): _message(error) for error in errors}
+        code, message = "INVALID_DATA", "Verifique os campos destacados."
+        # A domain check that runs in the schema, so that it is reported with
+        # the other fields, keeps its own code when it is the only failure.
+        if len(errors) == 1 and errors[0].get("type") in _SCHEMA_CODES:
+            code, message = _SCHEMA_CODES[errors[0]["type"]], _message(errors[0])
         return JSONResponse(
             status_code=422,
             content={
                 "error": {
-                    "code": "INVALID_DATA",
-                    "message": "Verifique os campos destacados.",
+                    "code": code,
+                    "message": message,
                     "fields": fields,
                     "correlation_id": str(current()),
                 }
@@ -84,6 +95,8 @@ def _message(error: Mapping[str, Any]) -> str:
         return f"Use no máximo {context.get('max_digits')} dígitos."
     if kind == "decimal_whole_digits":
         return f"Use no máximo {context.get('whole_digits')} dígitos antes da vírgula."
+    if kind in _SCHEMA_CODES:
+        return str(error.get("msg", ""))
     if kind.startswith("date"):
         return "Data inválida."
     return "Valor inválido."

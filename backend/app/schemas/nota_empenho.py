@@ -12,8 +12,11 @@ import decimal
 import uuid
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
+from pydantic_core import PydanticCustomError
 
+from app.constants.atas import PROCESSO_SEI_INVALIDO_MESSAGE
+from app.core import processo_sei as processo_sei_lib
 from app.schemas.ata import Justification
 from app.schemas.item_ata import ItemQuantity
 
@@ -21,6 +24,16 @@ Stage = Literal[
     "demanda", "validacao_saldo", "pre_empenho", "envio_fornecedor", "ne_emitida", "cancelada"
 ]
 Numero = Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)]
+
+
+def _processo_sei(value: str) -> str:
+    # Checked here rather than in the service, so a malformed number is reported
+    # with the malformed lines of the same request (AC-0004-03).
+    if not processo_sei_lib.is_valid(value):
+        raise PydanticCustomError(
+            "processo_sei_invalido", "{message}", {"message": PROCESSO_SEI_INVALIDO_MESSAGE}
+        )
+    return value
 
 
 class LineIn(BaseModel):
@@ -34,7 +47,9 @@ class NotaEmpenhoIn(BaseModel):
     """The body of an NE opening; an empty list is a missing field (AC-0004-02)."""
 
     ata_id: uuid.UUID
-    processo_sei: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    processo_sei: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(_processo_sei)
+    ]
     items: Annotated[list[LineIn], Field(min_length=1)]
 
 

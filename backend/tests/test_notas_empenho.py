@@ -271,6 +271,21 @@ def test_ac_0004_03_processo_sei_format(application: TestClient, gestor: dict, n
     error = response.json()["error"]
     assert error["code"] == "PROCESSO_SEI_INVALIDO"
     assert "NNNNN.NNNNNN/AAAA-DD" in error["message"]
+    assert error["fields"] == {"processo_sei": error["message"]}
+
+
+def test_ac_0004_03_processo_sei_is_named_with_the_lines(
+    application: TestClient, gestor: dict, ne: tuple
+) -> None:
+    """AC-0004-03 — a malformed number is reported with the malformed lines, not after them."""
+    ata, items, _ = ne
+
+    response = open_ne(application, gestor, ata["id"], [(items[0]["id"], "0")], processo="123")
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "INVALID_DATA"
+    assert error["fields"].keys() == {"processo_sei", "items.0.quantity"}
 
 
 # ── §4.1 The state machine ──────────────────────────────────────────────────
