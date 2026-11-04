@@ -191,7 +191,7 @@ anywhere else closes it.
 | Data de emissão (opcional) | No | A date | — | "Data inválida." |
 | Início da vigência | Yes | A date | Not empty | "Data inválida." |
 | Fim da vigência | Yes | A date after Início da vigência | Not empty | "A vigência precisa terminar depois de começar." |
-| Valor total (R$) | Yes | More than zero, at most two decimals and 15 digits, typed in pt-BR (`1.234.567,89`) | Not empty | "Informe um valor maior que zero." · "Use no máximo duas casas decimais e 15 dígitos." · "Valor inválido." |
+| Valor total (R$) | Yes | More than zero, at most two decimals and 15 digits, typed in pt-BR (`1.234.567,89`) | Not empty | "Informe um valor maior que zero." · "Use no máximo 2 casas decimais." · "Use no máximo 13 dígitos antes da vírgula." · "Valor inválido." |
 | Data do orçamento planilhado | Yes | A date; the reajuste falls due one calendar year later | Not empty | "Data inválida." |
 
 **The fornecedor is found by its CNPJ.** If a fornecedor with that CNPJ

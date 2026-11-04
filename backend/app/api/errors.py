@@ -78,8 +78,12 @@ def _message(error: Mapping[str, Any]) -> str:
         return "Valor não permitido."
     if kind == "greater_than":
         return "Informe um valor maior que zero."
-    if kind in ("decimal_max_places", "decimal_max_digits"):
-        return "Use no máximo duas casas decimais e 15 dígitos."
+    if kind == "decimal_max_places":
+        return f"Use no máximo {context.get('decimal_places')} casas decimais."
+    if kind == "decimal_max_digits":
+        return f"Use no máximo {context.get('max_digits')} dígitos."
+    if kind == "decimal_whole_digits":
+        return f"Use no máximo {context.get('whole_digits')} dígitos antes da vírgula."
     if kind.startswith("date"):
         return "Data inválida."
     return "Valor inválido."

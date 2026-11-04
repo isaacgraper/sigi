@@ -368,7 +368,7 @@ def _build_lines(
     for index, line in enumerate(lines):
         item = items.get(line.item_ata_id)
         if item is None or item.removed_at is not None:
-            raise InvalidData({f"itens.{index}.item_ata_id": "Item da ATA não encontrado."})
+            raise InvalidData({f"items.{index}.item_ata_id": "Item da ATA não encontrado."})
         insumo = insumos[item.insumo_id]
         if item.ata_id != ata.id:
             other = ata_repo.by_id(session, item.ata_id)

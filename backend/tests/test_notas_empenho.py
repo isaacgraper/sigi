@@ -238,6 +238,29 @@ def test_ac_0004_02_rn09_mandatory_fields(
     assert db_session.execute(text("SELECT count(*) FROM nota_empenho")).scalar_one() == before
 
 
+@pytest.mark.parametrize(
+    ("quantity", "message"),
+    [
+        ("0", "Informe um valor maior que zero."),
+        ("-110", "Informe um valor maior que zero."),
+        ("1.2345", "Use no máximo 3 casas decimais."),
+        ("9999999999999", "Use no máximo 12 dígitos antes da vírgula."),
+    ],
+)
+def test_ac_0004_02_a_bad_quantity_is_named_on_its_line(
+    application: TestClient, gestor: dict, ne: tuple, quantity: str, message: str
+) -> None:
+    """AC-0004-02 — a refused quantity names its line and says which limit it broke."""
+    ata, items, _ = ne
+
+    response = open_ne(
+        application, gestor, ata["id"], [(items[0]["id"], "1"), (items[1]["id"], quantity)]
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["fields"] == {"items.1.quantity": message}
+
+
 def test_ac_0004_03_processo_sei_format(application: TestClient, gestor: dict, ne: tuple) -> None:
     """AC-0004-03 — "12345" is refused, naming the format."""
     ata, items, _ = ne
