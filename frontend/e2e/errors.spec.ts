@@ -68,7 +68,7 @@ test.describe("when something goes wrong", () => {
         status: 401,
         contentType: "application/json",
         body: JSON.stringify({
-          error: { code: "USUARIO_INATIVO", message: "Esta conta não está ativa. Procure o gestor da sua unidade." },
+          error: { code: "USUARIO_INATIVO", message: "Esta conta não está ativa." },
         }),
       }),
     );
@@ -93,10 +93,11 @@ test.describe("when something goes wrong", () => {
     await expectContact(page);
   });
 
-  test("AC-0010-57 without a configured contact it points to the gestor", async ({ page }) => {
+  test("AC-0010-57 without a configured contact it names none", async ({ page }) => {
     test.skip(!oidcOnly, "PLAYWRIGHT_OIDC_ONLY_URL not set");
     await page.goto(`${oidcOnly}/nao-existe`);
-    await expect(page.getByTestId("contact-gestor")).toHaveText("Procure o gestor da sua unidade.");
+    await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
+    await expect(page.getByTestId("contact-gestor")).toHaveCount(0);
   });
 
   test("AC-0010-58 copying works without the clipboard API", async ({ page }) => {

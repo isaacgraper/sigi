@@ -162,6 +162,37 @@ def test_ac_0002_03_the_vigencia_is_a_real_interval(
     assert "vigencia_fim" in response.json()["error"]["fields"]
 
 
+def test_ac_0002_02_every_wrong_field_is_named_at_once(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0002-02, -03, -25 — a duplicate numero, an inverted vigência and a bad CNPJ, together."""
+    first = make(application, gestor)
+    data = body(
+        number=first["number"],
+        vigencia_fim="2020-01-01",
+        fornecedor={"cnpj": "11.111.111/1111-11", "legal_name": "Empresa Inventada"},
+    )
+
+    response = application.post(ATAS, json=data, headers=gestor)
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "INVALID_DATA"
+    assert error["fields"].keys() == {"number", "vigencia_fim", "fornecedor.cnpj"}
+
+
+def test_ac_0002_02_a_duplicate_names_the_numero(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """AC-0002-02 — alone, the duplicate keeps 409 `ATA_DUPLICADA` and names `number`."""
+    first = make(application, gestor)
+
+    response = application.post(ATAS, json=body(number=first["number"]), headers=gestor)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["fields"].keys() == {"number"}
+
+
 @pytest.mark.parametrize("value", ["0", "-5.00", "100.001", "1234567890123456"])
 def test_ac_0002_04_the_valor_is_positive_and_exact(
     application: TestClient, gestor: dict[str, str], db_session: Session, value: str

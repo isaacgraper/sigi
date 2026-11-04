@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ItemsSection } from "@/components/atas/items";
+import { SaldoSection } from "@/components/atas/saldo";
 import { AtaStatus } from "@/components/atas/status";
 import { MoveActions } from "@/components/atas/move-actions";
 import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs";
@@ -200,6 +201,8 @@ export function AtaView() {
           </dl>
         </CardContent>
       </Card>
+
+      <SaldoSection ataId={ata.id} opens={writes && vigente} version={version} />
 
       <ItemsSection
         ata={ata}

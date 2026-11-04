@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import atas, auth, health, insumos, invites, oidc, painel, users
+from app.api import atas, auth, health, insumos, invites, notas_empenho, oidc, painel, users
 from app.api.errors import register_handlers
 from app.core.authorization import verify_coverage
 from app.core.config import get_settings
@@ -49,7 +49,9 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(oidc.router)
     app.include_router(users.router)
+    app.include_router(notas_empenho.saldo_router)
     app.include_router(atas.router)
+    app.include_router(notas_empenho.router)
     app.include_router(insumos.router)
     app.include_router(insumos.grupos_router)
     app.include_router(painel.router)

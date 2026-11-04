@@ -69,7 +69,7 @@ test.describe("SPEC-0014 the insumo screens", () => {
     const auditor = await member("auditor");
     await signIn(page, auditor.email, auditor.password);
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Membros"]);
+    await expect(nav.getByRole("link")).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Membros"]);
     await openFromSidebar(page, "Insumos");
     await expect(page).toHaveURL(/\/insumos$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Insumos");
