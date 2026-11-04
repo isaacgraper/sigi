@@ -387,7 +387,7 @@ An NE with zero items cannot leave `demanda` (RN09).
 
 ### NOTA_FISCAL
 `id UUID PK`, `numero`, `data_emissao DATE`, `valor NUMERIC(15,2)`,
-`nota_empenho_id FK`, `fornecedor_id FK`, `servidor_id FK`,
+`nota_empenho_id FK`, `fornecedor_id FK`, `responsavel_id FK`,
 `status ENUM(aguardando, em_conferencia, aprovada, devolvida)`,
 `justificativa_devolucao TEXT NULL`,
 `UNIQUE(numero, fornecedor_id)`.
@@ -581,6 +581,7 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |
 | DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `registro_funcional`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
 | DB13 | At least one `ativo` gestor always exists | Trigger on `USUARIO` update, counting with `ORDER BY id FOR UPDATE` so concurrent transactions take locks in a deterministic order; the service also takes `pg_advisory_xact_lock` so the API returns 409 `ULTIMO_GESTOR` instead of a deadlock *(2026-09-10)* |
+| DB14 | Every `ITEM_NOTA_FISCAL.item_nota_empenho_id` belongs to the parent `NOTA_FISCAL.nota_empenho_id` | Trigger, as DB2 *(2026-11-04, SPEC-0005)* |
 
 **On DB13.** It is a cross-row aggregate, so a `CHECK` cannot express it, and a
 trigger alone is not enough: two transactions each blocking a different one of
