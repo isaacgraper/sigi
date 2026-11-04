@@ -381,7 +381,8 @@ class AtaDuplicada(DomainError):
 
     def __init__(self) -> None:
         """Build the error with its message."""
-        super().__init__("Já existe uma ATA com este número. Confira o número ou abra a existente.")
+        message = "Já existe uma ATA com este número. Confira o número ou abra a existente."
+        super().__init__(message, fields={"number": message})
 
 
 class AtaNotFound(DomainError):

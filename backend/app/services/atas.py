@@ -20,10 +20,12 @@ from sqlalchemy.orm import Session
 
 from app.constants.atas import (
     ADITIVO_CEILING,
+    CNPJ_INVALIDO,
     EDITABLE_COLUMN,
     MOVES,
     NOT_EDITABLE_STATUS,
     PROCESSO_SEI_FORMAT,
+    VIGENCIA_INVERTIDA,
 )
 from app.constants.notas_empenho import COMMITTED, LOCKED_ATA_FIELDS, NE_IN_PROGRESS
 from app.core import cnpj as cnpj_lib
@@ -126,9 +128,19 @@ def register(
     The gestor has already reviewed it on the screen, so nothing waits for an
     activation (SPEC-0002 v1.2).
     """
-    _require_interval(vigencia_inicio, vigencia_fim)
+    # Every field check runs before any is reported, so the form marks each
+    # wrong field on the first submit instead of one per round trip.
+    wrong: dict[str, str] = {}
+    if vigencia_fim <= vigencia_inicio:
+        wrong["vigencia_fim"] = VIGENCIA_INVERTIDA
     if repo.by_number(session, number) is not None:
+        wrong.update(AtaDuplicada().fields)
+    if not cnpj_lib.is_valid(fornecedor.cnpj):
+        wrong["fornecedor.cnpj"] = CNPJ_INVALIDO
+    if wrong.keys() == {"number"}:
         raise AtaDuplicada()
+    if wrong:
+        raise InvalidData(wrong)
     supplier = find_or_create_fornecedor(session, fornecedor)
 
     ata = Ata(
@@ -438,13 +450,13 @@ def _view(session: Session, ata: Ata, at: datetime.datetime) -> AtaView:
 
 def _require_interval(start: datetime.date, end: datetime.date) -> None:
     if end <= start:
-        raise InvalidData({"vigencia_fim": "A vigência precisa terminar depois de começar."})
+        raise InvalidData({"vigencia_fim": VIGENCIA_INVERTIDA})
 
 
 def find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Fornecedor:
     """Find a fornecedor by its CNPJ, or create it, the check digits validated (AC-0002-25)."""
     if not cnpj_lib.is_valid(given.cnpj):
-        raise InvalidData({"fornecedor.cnpj": "CNPJ inválido."})
+        raise InvalidData({"fornecedor.cnpj": CNPJ_INVALIDO})
     cnpj = cnpj_lib.normalise(given.cnpj)
     existing = repo.fornecedor_by_cnpj(session, cnpj)
     if existing is not None:

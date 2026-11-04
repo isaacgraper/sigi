@@ -49,3 +49,6 @@ EDITABLE_COLUMN: Final = MappingProxyType(
 
 # Shown in the refusal of a malformed number (AC-0002-08).
 PROCESSO_SEI_FORMAT: Final = "NNNNN.NNNNNN/AAAA-DD"
+# The pt-BR refusals of a field that only the service can check (AC-0002-03, -25).
+VIGENCIA_INVERTIDA: Final = "A vigência precisa terminar depois de começar."
+CNPJ_INVALIDO: Final = "CNPJ inválido."
