@@ -25,7 +25,9 @@ export function Field({
     "aria-describedby"?: string;
   }) => React.ReactNode;
 }) {
-  const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ");
+  const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
@@ -38,12 +40,19 @@ export function Field({
         "aria-describedby": describedBy || undefined,
       })}
       {hint && (
-        <p id={`${id}-hint`} className="text-xs font-light text-muted-foreground">
+        <p
+          id={`${id}-hint`}
+          className="text-xs font-light text-muted-foreground"
+        >
           {hint}
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} data-testid="field-error" className="text-sm text-destructive">
+        <p
+          id={`${id}-error`}
+          data-testid="field-error"
+          className="text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -51,8 +60,24 @@ export function Field({
   );
 }
 
+/** Whether an error key belongs to a field: itself, or a line under it, as `items.0.quantity` under `items`. */
+export function isUnder(key: string, field: string): boolean {
+  return key === field || key.startsWith(`${field}.`);
+}
+
 /** Focus the first control the API named, in the form's own order (AC-0013-08). */
-export function focusFirst(order: string[], errors: Record<string, string>, prefix: string): void {
-  const first = order.find((key) => errors[key]);
-  if (first) document.getElementById(`${prefix}-${first.replace(".", "-")}`)?.focus();
+export function focusFirst(
+  order: string[],
+  errors: Record<string, string>,
+  prefix: string,
+): void {
+  for (const field of order) {
+    const key = Object.keys(errors).find(
+      (named) => errors[named] && isUnder(named, field),
+    );
+    if (key) {
+      document.getElementById(`${prefix}-${key.split(".").join("-")}`)?.focus();
+      return;
+    }
+  }
 }

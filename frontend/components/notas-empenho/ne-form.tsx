@@ -12,13 +12,30 @@ import { useSession } from "@/components/session-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { remember } from "@/lib/api-cache";
 import type { AtaPage } from "@/lib/atas/types";
 import type { Items } from "@/lib/insumos/types";
 import { formatQuantity, formatUnitPrice, parseQuantity } from "@/lib/format";
-import { OPEN_CODE_FIELD, OPEN_ORDER, PROCESSO_SEI_HINT } from "@/lib/notas-empenho/constants";
+import {
+  OPEN_CODE_FIELD,
+  OPEN_ORDER,
+  PROCESSO_SEI_HINT,
+} from "@/lib/notas-empenho/constants";
 import type { NotaEmpenho, SaldoItens } from "@/lib/notas-empenho/types";
 import { useRead } from "@/lib/use-read";
 import { usePost } from "@/lib/use-post";
@@ -35,21 +52,40 @@ export function NeForm() {
   const [ataId, setAtaId] = useState(params.get("ata") ?? "");
   const [processo, setProcesso] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
-  const { errors, failure, pending, send } = usePost(OPEN_ORDER, OPEN_CODE_FIELD, "ne");
+  // The item of each line as sent: the API names a line by its index in the request.
+  const [sent, setSent] = useState<string[]>([]);
+  const { errors, failure, pending, send } = usePost(
+    OPEN_ORDER,
+    OPEN_CODE_FIELD,
+    "ne",
+  );
 
   const atas = useRead<AtaPage>("/api/v1/atas?status=vigente&size=100");
   const items = useRead<Items>(ataId ? `/api/v1/atas/${ataId}/itens` : null);
-  const saldo = useRead<SaldoItens>(ataId ? `/api/v1/atas/${ataId}/itens/saldo` : null);
-  const available = new Map((saldo.data?.items ?? []).map((s) => [s.item_ata_id, s.quantidade_disponivel]));
+  const saldo = useRead<SaldoItens>(
+    ataId ? `/api/v1/atas/${ataId}/itens/saldo` : null,
+  );
+  const available = new Map(
+    (saldo.data?.items ?? []).map((s) => [
+      s.item_ata_id,
+      s.quantidade_disponivel,
+    ]),
+  );
 
   if (me.perfil !== "gestor") {
     return (
       <div className="space-y-6">
-        <PageHeader title="Abrir NE" description="Só o gestor abre uma nota de empenho." />
+        <PageHeader
+          title="Abrir NE"
+          description="Só o gestor abre uma nota de empenho."
+        />
         <EmptyState
           message="Seu perfil não permite esta ação."
           action={
-            <Link href="/notas-empenho" className={buttonVariants({ variant: "outline" })}>
+            <Link
+              href="/notas-empenho"
+              className={buttonVariants({ variant: "outline" })}
+            >
               <ArrowLeft aria-hidden />
               Voltar
             </Link>
@@ -61,14 +97,19 @@ export function NeForm() {
 
   const lines = Object.entries(quantities)
     .filter(([, typed]) => typed.trim())
-    .map(([item_ata_id, typed]) => ({ item_ata_id, quantity: parseQuantity(typed) }));
+    .map(([item_ata_id, typed]) => ({
+      item_ata_id,
+      quantity: parseQuantity(typed),
+    }));
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const empty: Record<string, string> = {};
     if (!ataId) empty.ata_id = "Escolha a ATA.";
     if (!processo.trim()) empty.processo_sei = "Informe o Processo SEI.";
-    if (lines.length === 0) empty.items = "Informe a quantidade de ao menos um insumo.";
+    if (lines.length === 0)
+      empty.items = "Informe a quantidade de ao menos um insumo.";
+    setSent(lines.map((line) => line.item_ata_id));
     const saved = await send<NotaEmpenho>(
       "/api/v1/notas-empenho",
       { ata_id: ataId, processo_sei: processo.trim(), items: lines },
@@ -80,19 +121,38 @@ export function NeForm() {
     }
   }
 
-  const itemsError = errors.items ?? Object.entries(errors).find(([key]) => key.startsWith("items."))?.[1];
+  function lineError(itemId: string): { id: string; message: string } | null {
+    const index = sent.indexOf(itemId);
+    if (index < 0) return null;
+    const found = Object.entries(errors).find(([key]) =>
+      key.startsWith(`items.${index}.`),
+    );
+    return found
+      ? { id: `ne-items-${index}-quantity`, message: found[1] }
+      : null;
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Abrir NE" description="A NE abre em Demanda. O saldo só é reservado no pré-empenho." />
+      <PageHeader
+        title="Abrir NE"
+        description="A NE abre em Demanda. O saldo só é reservado no pré-empenho."
+      />
       <form noValidate onSubmit={(e) => void submit(e)} className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="ne-ata_id" label="ATA" error={errors.ata_id} help="Só ATAs vigentes recebem novos empenhos.">
+          <Field
+            id="ne-ata_id"
+            label="ATA"
+            error={errors.ata_id}
+            help="Só ATAs vigentes recebem novos empenhos."
+          >
             {(props) => (
               <Select
                 value={ataId}
                 onValueChange={(value) => {
                   setAtaId(value);
                   setQuantities({});
+                  setSent([]);
                 }}
               >
                 <SelectTrigger {...props}>
@@ -108,7 +168,12 @@ export function NeForm() {
               </Select>
             )}
           </Field>
-          <Field id="ne-processo_sei" label="Processo SEI" error={errors.processo_sei} hint={PROCESSO_SEI_HINT}>
+          <Field
+            id="ne-processo_sei"
+            label="Processo SEI"
+            error={errors.processo_sei}
+            hint={PROCESSO_SEI_HINT}
+          >
             {(props) => (
               <Input
                 {...props}
@@ -125,53 +190,92 @@ export function NeForm() {
           <section aria-label="Itens da NE" className="space-y-2">
             <h2 className="text-base font-normal">Itens</h2>
             <p className="text-sm font-light text-muted-foreground">
-              Informe a quantidade dos insumos desta NE. Deixe em branco os que não entram.
+              Informe a quantidade dos insumos desta NE. Deixe em branco os que
+              não entram.
             </p>
             {items.failure && <ErrorNotice error={items.failure} />}
+            {saldo.failure && <ErrorNotice error={saldo.failure} />}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Insumo</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Valor unitário</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Disponível</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">
+                    Valor unitário
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right">
+                    Disponível
+                  </TableHead>
                   <TableHead className="w-40">Quantidade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(items.data?.items ?? []).map((item) => (
-                  <TableRow key={item.id} data-testid="ne-form-item">
-                    <TableCell className="min-w-56">
-                      {item.insumo.description}
-                      <span className="block text-xs font-light text-muted-foreground">
-                        {item.insumo.sku} · {item.insumo.unit}
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right tabular-nums">{formatUnitPrice(item.unit_price)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right tabular-nums">
-                      {available.has(item.id) ? formatQuantity(available.get(item.id) ?? "0") : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        aria-label={`Quantidade de ${item.insumo.description}`}
-                        inputMode="decimal"
-                        value={quantities[item.id] ?? ""}
-                        onChange={(e) => setQuantities((current) => ({ ...current, [item.id]: e.target.value }))}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(items.data?.items ?? []).map((item) => {
+                  const error = lineError(item.id);
+                  return (
+                    <TableRow key={item.id} data-testid="ne-form-item">
+                      <TableCell className="min-w-56">
+                        {item.insumo.description}
+                        <span className="block text-xs font-light text-muted-foreground">
+                          {item.insumo.sku} · {item.insumo.unit}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">
+                        {formatUnitPrice(item.unit_price)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">
+                        {available.has(item.id)
+                          ? formatQuantity(available.get(item.id) ?? "0")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Input
+                          id={error?.id}
+                          aria-label={`Quantidade de ${item.insumo.description}`}
+                          aria-invalid={error ? true : undefined}
+                          aria-describedby={
+                            error ? `${error.id}-error` : undefined
+                          }
+                          inputMode="decimal"
+                          value={quantities[item.id] ?? ""}
+                          onChange={(e) =>
+                            setQuantities((current) => ({
+                              ...current,
+                              [item.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        {error && (
+                          <p
+                            id={`${error.id}-error`}
+                            data-testid="field-error"
+                            className="mt-1 text-xs text-destructive"
+                          >
+                            {error.message}
+                          </p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {items.data && items.data.items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-6 text-center font-light text-muted-foreground">
+                    <TableCell
+                      colSpan={4}
+                      className="py-6 text-center font-light text-muted-foreground"
+                    >
                       Esta ATA não tem itens.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-            {itemsError && (
-              <p data-testid="field-error" id="ne-items" className="text-sm text-destructive">
-                {itemsError}
+            {errors.items && (
+              <p
+                data-testid="field-error"
+                id="ne-items"
+                className="text-sm text-destructive"
+              >
+                {errors.items}
               </p>
             )}
           </section>
@@ -183,7 +287,10 @@ export function NeForm() {
           <Button type="submit" disabled={pending}>
             {pending ? "Enviando..." : "Abrir NE"}
           </Button>
-          <Link href="/notas-empenho" className={buttonVariants({ variant: "outline" })}>
+          <Link
+            href="/notas-empenho"
+            className={buttonVariants({ variant: "outline" })}
+          >
             Voltar
           </Link>
         </div>
@@ -191,4 +298,3 @@ export function NeForm() {
     </div>
   );
 }
-
