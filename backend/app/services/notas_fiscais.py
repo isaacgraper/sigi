@@ -490,8 +490,8 @@ def _snapshot(session: Session, nf: NotaFiscal) -> dict[str, object]:
         "valor": nf.value,
         "itens": [
             {
-                "item_nota_empenho_id": line.line.item_nota_empenho_id,
-                "quantidade": line.line.quantity,
+                "item_nota_empenho_id": str(line.line.item_nota_empenho_id),
+                "quantidade": str(line.line.quantity),
             }
             for line in view(session, nf).lines
         ],
