@@ -211,9 +211,17 @@ DEMO_VALUE_ADITIVOS: Final = (("DEMO-002/2026", "15000.00"),)
 # ATA number, processo SEI, requested days from today.
 DEMO_REAJUSTES: Final = (("DEMO-002/2026", "00412.005120/2026-07", -15),)
 
-# ATA number, processo SEI, the stage it is walked to, and (sku, quantidade) of each line.
+# ATA number, processo SEI, the stage it is walked to, and (sku, quantidade) of
+# each line. `cancelada` is reached from pré-empenho, so it shows the reserve released.
 DEMO_NES: Final[tuple[tuple[str, str, str, tuple[tuple[str, str], ...]], ...]] = (
     (DEMO_MARKER_ATA, "00301.000451/2026-12", "pre_empenho", (("RESA2", "300"),)),
+    (DEMO_MARKER_ATA, "00301.000468/2026-05", "envio_fornecedor", (("IONVID", "60"),)),
+    (
+        DEMO_MARKER_ATA,
+        "00301.000479/2026-60",
+        "ne_emitida",
+        (("RESA2", "150"), ("SUGSAL", "200")),
+    ),
     (
         "DEMO-002/2026",
         "00301.000502/2026-31",
@@ -221,7 +229,17 @@ DEMO_NES: Final[tuple[tuple[str, str, str, tuple[tuple[str, str], ...]], ...]] =
         (("CLORDEG21", "1000"), ("ALC70", "500")),
     ),
     ("DEMO-002/2026", "00301.000517/2026-08", "validacao_saldo", (("SER5D", "50000"),)),
+    (
+        "DEMO-002/2026",
+        "00301.000524/2026-17",
+        "envio_fornecedor",
+        (("AGU2513", "20000"), ("LUVPROCM", "100")),
+    ),
+    ("DEMO-002/2026", "00301.000529/2026-90", "cancelada", (("ALC70", "800"),)),
+    ("DEMO-002/2026", "00301.000541/2026-23", "demanda", (("CLORDEG21", "400"),)),
     ("DEMO-004/2026", "00301.000533/2026-44", "demanda", (("PAPA4", "50"),)),
+    ("DEMO-004/2026", "00301.000547/2026-71", "ne_emitida", (("PAPA4", "80"),)),
+    ("DEMO-006/2026", "00301.000552/2026-36", "pre_empenho", (("SUGSAL", "300"),)),
 )
 # The números the financial system would have issued, typed in at their stage.
 DEMO_NUMERO_PRE_EMPENHO: Final = "2026PE{:06d}"

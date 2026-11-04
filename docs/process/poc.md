@@ -13,9 +13,9 @@ docker compose exec backend python -m app.cli seed-dev-admin
 docker compose exec backend python -m app.cli seed-demo
 ```
 
-O `seed-demo` carrega ATAs, insumos e quatro NEs, uma em cada ponto do fluxo:
-Demanda, Validação de saldo, Pré-empenho (o saldo aparece como `700 (300)`) e
-NE emitida. Logins: `admin@sc.gov.br` / `admin` (gestor),
+O `seed-demo` carrega ATAs, insumos e onze NEs em quatro ATAs, cobrindo todo o
+fluxo: Demanda, Validação de saldo, Pré-empenho (o saldo reservado aparece entre
+parênteses), Envio ao fornecedor, NE emitida e uma cancelada no pré-empenho. Logins: `admin@sc.gov.br` / `admin` (gestor),
 `servidor@sc.gov.br` / `servidor` e `auditor@sc.gov.br` / `auditor`.
 
 Depois de atualizar o código: `docker compose up --build -d` e

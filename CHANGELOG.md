@@ -23,8 +23,8 @@ entries are moved into a new dated version section — see
   on every read, shown on the ATA page as `700 (300)` while reserved and `700` once issued.
 - An ATA with an NE in progress is not closed, an NE emitida locks its figures, and an item an
   NE carries changes only by an aditivo (AC-0004-25 to -27).
-- `seed-demo` loads four NEs, one at each point of the flow, and `docs/process/poc.md` says
-  how to put the PoC in front of the stakeholders.
+- `seed-demo` loads eleven NEs over four ATAs, every stage and a cancelled one, and
+  `docs/process/poc.md` says how to put the PoC in front of the stakeholders.
 - `python -m app.cli seed-demo`: a fictitious sample for a development install, loaded
   through the services with its audit rows, once, and refused outside development.
 - The API documentation on GitHub Pages: the `api-docs` workflow exports the OpenAPI schema

@@ -208,7 +208,8 @@ def seed_demo(session: Session, *, at: datetime.datetime, correlation_id: uuid.U
             at=at,
             correlation_id=correlation_id,
         )
-        while view.ne.status != stage:
+        target = "pre_empenho" if stage == "cancelada" else stage
+        while view.ne.status != target:
             view = notas_empenho.advance(
                 session,
                 actor=gestor,
@@ -216,6 +217,15 @@ def seed_demo(session: Session, *, at: datetime.datetime, correlation_id: uuid.U
                 to=None,
                 numero_pre_empenho=DEMO_NUMERO_PRE_EMPENHO.format(index),
                 numero=DEMO_NUMERO_NE.format(index),
+                at=at,
+                correlation_id=correlation_id,
+            )
+        if stage == "cancelada":
+            notas_empenho.cancel(
+                session,
+                actor=gestor,
+                ne_id=view.ne.id,
+                justification=DEMO_JUSTIFICATION,
                 at=at,
                 correlation_id=correlation_id,
             )
