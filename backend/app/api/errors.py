@@ -15,11 +15,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.constants.atas import PROCESSO_SEI_INVALIDO_CODE
+from app.constants.insumos import INVALID_SKU_CODE
 from app.core.correlation import current
 from app.services.errors import DomainError
 
 # Domain checks that run in a schema, and the code each keeps when it fails alone.
-_SCHEMA_CODES: Final = MappingProxyType({**PROCESSO_SEI_INVALIDO_CODE})
+_SCHEMA_CODES: Final = MappingProxyType({**PROCESSO_SEI_INVALIDO_CODE, **INVALID_SKU_CODE})
 
 
 def register_handlers(app: FastAPI) -> None:

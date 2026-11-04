@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import re
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic_core import PydanticCustomError
 
+from app.constants.insumos import INVALID_SKU_MESSAGE
+from app.core.config import get_settings
 from app.schemas.ata import Justification
 
 Quantity = Annotated[decimal.Decimal, Field(ge=0, max_digits=15, decimal_places=3)]
@@ -25,10 +29,21 @@ Text120 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, 
 Text300 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 
 
+def _sku(value: str) -> str:
+    # Checked here as well as in the service, so a malformed SKU is reported
+    # with the empty fields of the same request (AC-0003-02).
+    if not re.fullmatch(get_settings().sku_pattern, value.upper()):
+        raise PydanticCustomError("invalid_sku", "{message}", {"message": INVALID_SKU_MESSAGE})
+    return value
+
+
+Sku = Annotated[Text40, AfterValidator(_sku)]
+
+
 class InsumoIn(BaseModel):
     """The body of an insumo registration (AC-0003-01)."""
 
-    sku: Text40
+    sku: Sku
     description: Text300
     unit: Text20
     grupo_id: uuid.UUID
@@ -53,7 +68,7 @@ class InsumoPatch(BaseModel):
 class SkuChangeIn(BaseModel):
     """A new SKU and why (AC-0003-04)."""
 
-    sku: Text40
+    sku: Sku
     justification: Justification
 
 

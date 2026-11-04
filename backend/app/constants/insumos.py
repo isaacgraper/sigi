@@ -15,6 +15,12 @@ DOMS_CODE_PATTERN: Final = re.compile(r"^[0-9]+$")
 
 # Shown in the refusal of a malformed SKU, beside the pattern (RF07).
 SKU_EXAMPLE: Final = "CLORDEG21"
+INVALID_SKU_MESSAGE: Final = (
+    "SKU inválido. Use letras e números, com ao menos uma letra, sem espaços nem pontos, "
+    f"como {SKU_EXAMPLE}."
+)
+# The schema's error type for that refusal, and the code it answers with alone.
+INVALID_SKU_CODE: Final = MappingProxyType({"invalid_sku": "INVALID_SKU"})
 
 # ── Grupos de materiais ─────────────────────────────────────────────────────
 
