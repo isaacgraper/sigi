@@ -74,6 +74,13 @@ export const SIDEBAR_COOKIE = "sigi_sidebar";
 /** Codes after which no retry can help: the refresh is spent, or the account stopped being active (AC-0010-13). */
 export const SESSION_OVER_CODES = new Set(["INVALID_REFRESH", "USUARIO_INATIVO"]);
 
+// What the login page offers when the API cannot say (AC-0010-62): the local
+// form, because it is the default every deployment ships with.
+export const DEFAULT_MECHANISMS = { local: true, oidc: false } as const;
+export const MECHANISMS_PATH = "/api/v1/auth/mecanismos";
+/** How long the login page waits for the API before falling back. */
+export const MECHANISMS_TIMEOUT_MS = 3000;
+
 // ── Messages ────────────────────────────────────────────────────────────────
 
 /** The one text the screen owns when the API gives none: a 5xx or no answer (AC-0010-42). */

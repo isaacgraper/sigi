@@ -109,9 +109,12 @@ test.describe("login refusals the API sends rarely", () => {
   });
 });
 
-// A second frontend, started with LOCAL_LOGIN_ENABLED=false and
-// OIDC_ENABLED=true, because the switches are read by the server (OQ-33).
+// A second frontend, in front of an API started with LOCAL_LOGIN_ENABLED=false
+// and OIDC_ENABLED=true: the page asks the API from the server, so a browser
+// route cannot stand in for it (OQ-33).
 const oidcOnly = process.env.PLAYWRIGHT_OIDC_ONLY_URL;
+// A third, whose API_ORIGIN answers nothing.
+const noApi = process.env.PLAYWRIGHT_NO_API_URL;
 
 test.describe("an OIDC-only deployment", () => {
   test.skip(!oidcOnly, "PLAYWRIGHT_OIDC_ONLY_URL not set");
@@ -127,5 +130,16 @@ test.describe("an OIDC-only deployment", () => {
     const started = page.waitForRequest((r) => r.url().endsWith("/api/v1/auth/oidc/authorize"));
     await page.getByRole("button", { name: "Entrar com conta institucional" }).click();
     expect((await started).isNavigationRequest()).toBe(true);
+  });
+});
+
+test.describe("when the API cannot say which mechanisms it accepts", () => {
+  test.skip(!noApi, "PLAYWRIGHT_NO_API_URL not set");
+
+  test("AC-0010-62 the local form is offered with the unavailable notice", async ({ page }) => {
+    await page.goto(`${noApi}/login`);
+    await expect(page.getByLabel("Senha", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Entrar com conta institucional" })).toHaveCount(0);
+    await expect(page.locator("#mechanisms-error")).toHaveText("Não foi possível concluir. Tente novamente em instantes.");
   });
 });

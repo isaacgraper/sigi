@@ -161,6 +161,7 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/auth/refresh"): None,
     ("POST", "/api/v1/auth/logout"): None,
     ("GET", "/api/v1/auth/me"): None,
+    ("GET", "/api/v1/auth/mecanismos"): None,
     ("POST", "/api/v1/auth/redefinicoes/confirmar"): None,
     ("GET", "/api/v1/auth/oidc/authorize"): None,
     ("GET", "/api/v1/auth/oidc/callback"): None,

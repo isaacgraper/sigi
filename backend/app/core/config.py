@@ -108,6 +108,7 @@ class Settings(BaseSettings):
         "/api/v1/auth/refresh": 60,
         "/api/v1/auth/logout": 60,
         "/api/v1/auth/me": 120,
+        "/api/v1/auth/mecanismos": 120,
         "/api/v1/auth/oidc/authorize": 30,
         "/api/v1/auth/oidc/callback": 30,
         "/api/v1/auth/redefinicoes/confirmar": 10,

@@ -117,12 +117,13 @@ jobs:
       # The suite logs in dozens of times from one address; production ceilings
       # would throttle the harness, not the feature under test.
       RATE_LIMIT_CEILINGS: >-
-        {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
+        {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/mecanismos":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
       # The development seed (AC-0001-39): admin@sc.gov.br / admin. No
       # password literal lives in this file, and the gestor is the only one.
       APP_ENV: development
       PLAYWRIGHT_BASE_URL: http://localhost:3000
       PLAYWRIGHT_OIDC_ONLY_URL: http://localhost:3001
+      PLAYWRIGHT_NO_API_URL: http://localhost:3002
 
     steps:
       - uses: actions/checkout@v5
@@ -147,15 +148,20 @@ jobs:
       - name: Provision the application role
         run: sh infra/postgres/init/01-roles.sh
 
-      - name: Migrate, seed the development gestor, start the API
+      # The login page asks the API which mechanisms it accepts (AC-0010-05), so
+      # the OIDC-only frontend needs an API of its own configured that way.
+      - name: Migrate, seed the development gestor, start the APIs
         working-directory: backend
         run: |
           poetry sync --only main
           poetry run alembic upgrade head
           poetry run python -m app.cli seed-dev-admin
           nohup poetry run uvicorn app.main:app --port 8000 > ../api.log 2>&1 &
+          LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup poetry run uvicorn app.main:app --port 8001 > ../api-oidc.log 2>&1 &
 
-      - name: Build and start the frontend, local and OIDC-only
+      # Three frontends: the default one, an OIDC-only one, and one whose API
+      # answers nothing, for the fallback of AC-0010-62.
+      - name: Build and start the frontends, local, OIDC-only and without an API
         working-directory: frontend
         env:
           API_ORIGIN: http://localhost:8000
@@ -163,8 +169,9 @@ jobs:
           npm ci
           npm run build
           SUPPORT_CONTACT_EMAIL=suporte@sc.gov.br nohup npx next start --port 3000 > ../web.log 2>&1 &
-          LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
-          for url in http://localhost:8000/health http://localhost:3000/login http://localhost:3001/login; do
+          API_ORIGIN=http://localhost:8001 nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
+          API_ORIGIN=http://localhost:9 nohup npx next start --port 3002 > ../web-noapi.log 2>&1 &
+          for url in http://localhost:8000/health http://localhost:8001/health http://localhost:3000/login http://localhost:3001/login http://localhost:3002/login; do
             for i in $(seq 1 60); do curl -sf -o /dev/null "$url" && break; sleep 1; done
             curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
           done
@@ -186,7 +193,7 @@ jobs:
 
       - name: Server logs
         if: failure()
-        run: tail -n 100 api.log web.log web-oidc.log
+        run: tail -n 100 api.log api-oidc.log web.log web-oidc.log web-noapi.log
 
       - uses: actions/upload-artifact@v4
         if: failure()
