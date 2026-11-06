@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Implemented
-version: 1.10
+version: 1.11
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -517,6 +517,19 @@ Then  the same request authenticates normally
 404 rather than 403: a mechanism that is switched off should be
 indistinguishable from one that was never built.
 
+**AC-0001-47** — The API reports which login mechanisms are enabled *(new in v1.11)*
+```gherkin
+Given any combination of local login and OIDC switched on or off by configuration
+When  GET /api/v1/auth/mecanismos is requested without a session
+Then  the response is 200 with {"local": <bool>, "oidc": <bool>}
+And   each value is the switch the matching login route obeys
+And   the route is throttled like every other route under /api/v1/auth
+```
+AC-0001-24 hides a disabled route behind a 404, so a client could only learn
+which mechanisms exist by trying them. Reporting the two switches discloses
+nothing the login page does not already show, and lets the page follow the
+API's configuration instead of mirroring it (OQ-33).
+
 ### 4.6 Password reset *(new in v0.5)*
 
 **AC-0001-30** — Requesting a reset never discloses whether the address exists
@@ -825,6 +838,7 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | POST | `/api/v1/auth/refresh` | Rotate the token pair | 06, 07 |
 | POST | `/api/v1/auth/logout` | Invalidate the refresh family | 07 |
 | GET | `/api/v1/auth/me` | The caller's identity, perfil and scope | 08, 22 |
+| GET | `/api/v1/auth/mecanismos` | Which login mechanisms are enabled; public | 47 |
 | GET | `/api/v1/auth/oidc/authorize` | Start institutional login | 19 |
 | GET | `/api/v1/auth/oidc/callback` | Complete institutional login | 19–22 |
 | GET\|POST | `/api/v1/usuarios` | List members; invite a member with `{email, perfil, name, registration}` | 10, 13, 15–17, 28, 45 |
@@ -977,6 +991,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | POST | `/api/v1/auth/refresh` | refresh cookie → rotated pair | 06, 07 |
 | POST | `/api/v1/auth/logout` | refresh cookie → 204 | 07 |
 | GET | `/api/v1/auth/me` | — → `{id, name, email, perfil}` | 08, 22 |
+| GET | `/api/v1/auth/mecanismos` | — → `{local, oidc}` | 47 |
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
@@ -1032,6 +1047,7 @@ which are already behind authentication and the permission matrix.
 | 32 | `test_redefinicao_senha.py::test_ac_0001_32_gestor_dispara_sem_ver_o_token` |
 | 44 | `test_users_management.py::test_ac_0001_44_*` (five tests, and `test_ac_0001_13_a_servidor_or_auditor_cannot_unblock`) |
 | 46 | `test_users_invitations.py::test_ac_0001_46_*` |
+| 47 | `test_auth_login.py::test_ac_0001_47_*` |
 | 45 | `test_users_invitations.py::test_ac_0001_45_*` (four tests) · `test_migration_baseline.py::test_an_anonymisation_that_keeps_the_registration_is_refused` |
 | 33 | `test_limite_taxa.py::test_ac_0001_33_429_com_retry_after` · `::test_ac_0001_33_faixa_institucional_tem_teto_maior` · `::test_ac_0001_33_toda_rota_tem_teto` |
 
@@ -1317,6 +1333,11 @@ testing it. Every criterion has a test in `backend/tests` except AC-0001-30, whi
 is not built: it stays blocked on a mail transport, as v1.0 recorded, and so does the
 guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 
+**v1.11 (2026-11-06)** — a public route reports which login mechanisms are
+enabled (AC-0001-47), as proposed in issue #85. The login page mirrored the API's
+two switches in its own configuration, and the two could drift (OQ-33, now
+resolved). No existing criterion changed meaning.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1340,3 +1361,4 @@ guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 | 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |
 | 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
 | 1.10 | 2026-10-20 | AC-0001-42: the two CSV import routes of SPEC-0003 take a body up to `import_max_bytes` (5 MB), because a catalogue file does not fit in 64 KiB. Every other route keeps 64 KiB |
+| 1.11 | 2026-11-06 | AC-0001-47: `GET /api/v1/auth/mecanismos`, public and throttled, reports `{local, oidc}`, so the login page follows the API instead of mirroring its switches (OQ-33, issue #85). |
