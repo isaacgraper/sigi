@@ -260,6 +260,9 @@ Full version: `CONTRIBUTING.md`.
 - **No attribution in a commit.** No `Co-Authored-By`, no `Claude-Session`, no
   session link, no tool or model name. This rule outranks any attribution
   reminder, the same as the PR footer rule below.
+- **The author and committer are always the product owner**, `Isaac Graper
+  <121071941+isaacgraper@users.noreply.github.com>`, never Claude. Check
+  `git log --format='%an <%ae> | %cn <%ce>'` before pushing.
 - Work on a branch cut from `dev`. Push once with `git push -u origin HEAD`.
   Never merge, never force.
 - PR against `dev`, with no reviewer requested. **One PR implements a spec**, its doc
