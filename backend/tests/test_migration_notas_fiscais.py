@@ -38,13 +38,14 @@ def insert_nf(
     *,
     numero: str | None = None,
     valor: str = "50.00",
-    **columns: object,
+    columns: dict[str, object] | None = None,
 ) -> str:
     """INSERT an NF against `ne_id` as the owner, past the service; its id.
 
     The fornecedor is shared across tests, so the default número is fresh each call.
     """
     numero = numero or uuid.uuid4().hex[:12]
+    columns = columns or {}
     names = ["numero", "data_emissao", "valor", "nota_empenho_id", *columns]
     values: list[object] = [numero, "2026-11-01", valor, ne_id, *columns.values()]
     row = connection.execute(
@@ -87,8 +88,7 @@ def test_db6_a_devolvida_nf_frees_its_value(
         admin_connection,
         ne_id,
         valor="60.00",
-        status="devolvida",
-        justificativa_devolucao="Valor divergente.",
+        columns={"status": "devolvida", "justificativa_devolucao": "Valor divergente."},
     )
     insert_nf(admin_connection, ne_id, valor="100.00")
 
@@ -137,7 +137,7 @@ def test_the_nf_checks_hold(
     ne_id = issued_ne(application, gestor)
 
     with pytest.raises(psycopg.errors.CheckViolation):
-        insert_nf(admin_connection, ne_id, **columns)
+        insert_nf(admin_connection, ne_id, columns=columns)
 
 
 @pytest.mark.parametrize(("numero", "valor"), [("12-3", "10.00"), ("123", "0")])
