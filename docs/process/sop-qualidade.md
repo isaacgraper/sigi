@@ -175,6 +175,27 @@ pointing at a running server, or leave it unset and let `testcontainers` start
 than `.bashrc`, or the push hook will not see it when git is launched from a
 GUI.
 
+## Hostile input
+
+`backend/tests/test_hostile_input.py` sends every write route what a person or a
+script might type instead of the value asked for: code (`Function()`, `lambda`,
+`eval`, template and shell syntax, SQL), spreadsheet formulas, control
+characters, odd Unicode, and number fields given `NaN`, `Infinity`, `1e400`,
+hex or code. Each is either refused with the field named or stored as plain
+text, never run and never a 500.
+
+**The screens get the same payloads once, at the end.** A Playwright pass types
+them into every form of every screen and checks, in one go, that each refusal
+shows under its own field and nothing else breaks. It runs after the remaining
+modules are built, not per PR.
+
+**Known gap, closed in that pass.** A refusal shows under the input that caused
+it, and the input changes colour; that is the pattern for every field. The NE
+and insumo forms post even with empty fields, so the API's refusals show beside
+the empty ones. `ata-form.tsx`, `record-dialogs.tsx` and `invite-dialog.tsx`
+still stop at the empty fields and show the API's refusals only on a second
+submit.
+
 ## When a gate refuses
 
 Read what it says first. Every one of these hooks prints the rule it applied

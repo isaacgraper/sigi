@@ -49,3 +49,14 @@ EDITABLE_COLUMN: Final = MappingProxyType(
 
 # Shown in the refusal of a malformed number (AC-0002-08).
 PROCESSO_SEI_FORMAT: Final = "NNNNN.NNNNNN/AAAA-DD"
+PROCESSO_SEI_INVALIDO_MESSAGE: Final = (
+    f"Número de processo SEI inválido. Use o formato {PROCESSO_SEI_FORMAT}."
+)
+# The schema's error type for that refusal, and the code it answers with alone.
+PROCESSO_SEI_INVALIDO_CODE: Final = MappingProxyType(
+    {"processo_sei_invalido": "PROCESSO_SEI_INVALIDO"}
+)
+
+# The pt-BR refusals of a field that only the service can check (AC-0002-03, -25).
+VIGENCIA_INVERTIDA: Final = "A vigência precisa terminar depois de começar."
+CNPJ_INVALIDO: Final = "CNPJ inválido."

@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { ErrorNotice, localError } from "@/components/error-notice";
-import { PASSWORD_MISMATCH } from "@/lib/constants";
+import { PASSWORD_CODE_FIELD, PASSWORD_MISMATCH } from "@/lib/constants";
 import { ApiError, readError, unavailable } from "@/lib/errors";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -42,6 +42,11 @@ export function TokenPasswordForm({
   const [error, setError] = useState<ApiError | null>(null);
   const [final, setFinal] = useState(false);
   const [pending, setPending] = useState(false);
+  const errorField = error ? PASSWORD_CODE_FIELD[error.code] : undefined;
+
+  useEffect(() => {
+    if (errorField) document.getElementById(errorField)?.focus();
+  }, [error, errorField]);
 
   useEffect(() => {
     if (window.location.search) {
@@ -95,27 +100,37 @@ export function TokenPasswordForm({
 
       {token && !final && (
         <form className="space-y-4" method="post" onSubmit={onSubmit} noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="password">Nova senha</Label>
-            <PasswordInput
-              id="password"
-              autoComplete="new-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmation">Confirme a senha</Label>
-            <PasswordInput
-              id="confirmation"
-              autoComplete="new-password"
-              required
-              value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
-            />
-          </div>
-          {error && <ErrorNotice error={error} />}
+          <Field
+            id="password"
+            label="Nova senha"
+            error={errorField === "password" ? error?.message : undefined}
+          >
+            {(props) => (
+              <PasswordInput
+                {...props}
+                autoComplete="new-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field
+            id="confirmation"
+            label="Confirme a senha"
+            error={errorField === "confirmation" ? error?.message : undefined}
+          >
+            {(props) => (
+              <PasswordInput
+                {...props}
+                autoComplete="new-password"
+                required
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+              />
+            )}
+          </Field>
+          {error && !errorField && <ErrorNotice error={error} />}
           <Button type="submit" className="w-full" disabled={!hydrated || pending}>
             {pending ? "Enviando..." : submitLabel}
           </Button>

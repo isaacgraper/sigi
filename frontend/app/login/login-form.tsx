@@ -149,10 +149,6 @@ export function LoginForm({
           </Button>
         </form>
       )}
-
-      <p className="text-sm text-muted-foreground">
-        Esqueceu a senha? Procure o gestor da sua unidade.
-      </p>
     </div>
   );
 }

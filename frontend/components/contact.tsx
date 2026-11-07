@@ -21,13 +21,7 @@ export function ContactGestor({
   testId?: string;
 }) {
   const email = useContext(Context);
-  if (!email) {
-    return (
-      <p data-testid={testId} className="text-sm text-muted-foreground">
-        Procure o gestor da sua unidade.
-      </p>
-    );
-  }
+  if (!email) return null;
   // The reference travels in the e-mail, so nobody has to copy it by hand.
   const params = new URLSearchParams({ subject: "SIGI: preciso de ajuda" });
   if (reference) params.set("body", `Código de referência: ${reference}`);

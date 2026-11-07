@@ -1,8 +1,8 @@
 ---
 id: SPEC-0007
 title: Histórico auditável imutável
-status: Draft
-version: 0.2
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RF06, RF10, RN06, RNF08]
 depends_on: [SPEC-0001, SPEC-0004, SPEC-0005]
@@ -98,3 +98,4 @@ worst moment.
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF10, §2.5 RN06, §6.1 A09 |
 | 0.2 | 2026-10-27 | By the product owner's review: criteria in Given/When/Then; AC-0007-02 to -04 and -06 point to the SPEC-0001 tests that already prove them; "delete-attempt" becomes a refused write; AC-0007-08 is the history query, AC-0007-09 keeps it from the servidor, and §2.1 adds the API, the permissions and the errors. Depends on SPEC-0004 and SPEC-0005 for the cycle |
+| 1.0 | 2026-10-27 | Approved by the product owner after the review of v0.2. No criterion changed; OQ-50 to OQ-54 stand as assumed |

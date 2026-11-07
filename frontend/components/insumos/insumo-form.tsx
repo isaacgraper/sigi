@@ -55,13 +55,13 @@ export function InsumoForm({ insumo, tree }: { insumo?: InsumoDetail; tree: Grup
     setFailure(null);
 
     // Only that a required field is filled in; the rest is the API's (AC-0014-09).
+    // The form still posts, so the API's refusals show beside the empty fields.
     const empty: Record<string, string> = {};
     for (const field of INSUMO_FIELDS) {
       if (editing && field.key === "sku") continue;
       if (!field.optional && !values[field.key].trim()) empty[field.key] = "Campo obrigatório.";
     }
     setErrors(empty);
-    if (Object.keys(empty).length > 0) return;
 
     const keys = editing
       ? INSUMO_ORDER.filter((key) => key !== "sku" && values[key].trim() !== initial[key].trim())
@@ -87,6 +87,7 @@ export function InsumoForm({ insumo, tree }: { insumo?: InsumoDetail; tree: Grup
       const named: Record<string, string> = {};
       for (const key of INSUMO_ORDER) if (error.fields[key]) named[key] = error.fields[key];
       if (INSUMO_CODE_FIELD[error.code]) named[INSUMO_CODE_FIELD[error.code]] = error.message;
+      Object.assign(named, empty);
       if (Object.keys(named).length > 0) setErrors(named);
       else setFailure(error);
       setPending(false);

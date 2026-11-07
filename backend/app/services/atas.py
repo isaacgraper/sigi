@@ -20,11 +20,14 @@ from sqlalchemy.orm import Session
 
 from app.constants.atas import (
     ADITIVO_CEILING,
+    CNPJ_INVALIDO,
     EDITABLE_COLUMN,
     MOVES,
     NOT_EDITABLE_STATUS,
     PROCESSO_SEI_FORMAT,
+    VIGENCIA_INVERTIDA,
 )
+from app.constants.notas_empenho import COMMITTED, LOCKED_ATA_FIELDS, NE_IN_PROGRESS
 from app.core import cnpj as cnpj_lib
 from app.core import processo_sei
 from app.core.clock import local_date
@@ -33,10 +36,13 @@ from app.models.ata import Ata, AtaAditivo, AtaReajuste
 from app.models.fornecedor import Fornecedor
 from app.models.user import User
 from app.repositories import ata as repo
+from app.repositories import nota_empenho as ne_repo
 from app.repositories import user as repo_user
 from app.services.audit import Event, record
 from app.services.errors import (
     AditivoAcimaDoLimite,
+    AtaComNeEmitida,
+    AtaComNePendente,
     AtaDuplicada,
     AtaNaoEditavel,
     AtaNaoVigente,
@@ -122,9 +128,19 @@ def register(
     The gestor has already reviewed it on the screen, so nothing waits for an
     activation (SPEC-0002 v1.2).
     """
-    _require_interval(vigencia_inicio, vigencia_fim)
+    # Every field check runs before any is reported, so the form marks each
+    # wrong field on the first submit instead of one per round trip.
+    wrong: dict[str, str] = {}
+    if vigencia_fim <= vigencia_inicio:
+        wrong["vigencia_fim"] = VIGENCIA_INVERTIDA
     if repo.by_number(session, number) is not None:
+        wrong.update(AtaDuplicada().fields)
+    if not cnpj_lib.is_valid(fornecedor.cnpj):
+        wrong["fornecedor.cnpj"] = CNPJ_INVALIDO
+    if wrong.keys() == {"number"}:
         raise AtaDuplicada()
+    if wrong:
+        raise InvalidData(wrong)
     supplier = find_or_create_fornecedor(session, fornecedor)
 
     ata = Ata(
@@ -171,6 +187,9 @@ def edit(
     ata = lock_ata(session, ata_id)
     if ata.status in NOT_EDITABLE_STATUS:
         raise AtaNaoEditavel()
+    if LOCKED_ATA_FIELDS & changes.keys() and ne_repo.of_ata_in(session, ata.id, COMMITTED):
+        # An NE was committed against these figures; only an aditivo moves them (AC-0004-26).
+        raise AtaComNeEmitida()
     supplier: Fornecedor | None = None
     if "fornecedor" in changes:
         supplier = find_or_create_fornecedor(session, changes.pop("fornecedor"))
@@ -223,6 +242,11 @@ def move(
     ata = lock_ata(session, ata_id)
     if ata.status not in allowed_from:
         raise TransicaoInvalida(ata.status, destination)
+    if destination == "encerrada":
+        pending = ne_repo.of_ata_in(session, ata.id, NE_IN_PROGRESS)
+        if pending:
+            # RN13: closing would orphan the commitments in flight (AC-0004-25).
+            raise AtaComNePendente(ata.number, [ne.processo_sei for ne in pending])
 
     previous = ata.status
     ata.status = destination
@@ -426,13 +450,13 @@ def _view(session: Session, ata: Ata, at: datetime.datetime) -> AtaView:
 
 def _require_interval(start: datetime.date, end: datetime.date) -> None:
     if end <= start:
-        raise InvalidData({"vigencia_fim": "A vigência precisa terminar depois de começar."})
+        raise InvalidData({"vigencia_fim": VIGENCIA_INVERTIDA})
 
 
 def find_or_create_fornecedor(session: Session, given: FornecedorInput) -> Fornecedor:
     """Find a fornecedor by its CNPJ, or create it, the check digits validated (AC-0002-25)."""
     if not cnpj_lib.is_valid(given.cnpj):
-        raise InvalidData({"fornecedor.cnpj": "CNPJ inválido."})
+        raise InvalidData({"fornecedor.cnpj": CNPJ_INVALIDO})
     cnpj = cnpj_lib.normalise(given.cnpj)
     existing = repo.fornecedor_by_cnpj(session, cnpj)
     if existing is not None:

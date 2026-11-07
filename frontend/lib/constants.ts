@@ -2,7 +2,7 @@
  * Values the whole application shares (docs/process/coding-standards.md §2).
  * A value one feature owns lives in lib/<feature>/constants.ts instead.
  */
-import { FileText, LayoutDashboard, Package, Users } from "lucide-react";
+import { FileText, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
 
 import { canSeeMembers } from "@/lib/me";
 import type { Module, Perfil } from "@/lib/types";
@@ -35,6 +35,13 @@ export const NAV_MODULES: Module[] = [
     name: "Insumos",
     icon: Package,
     // Every perfil reads the catalogue, a servidor its grupos' share (AC-0014-01, AC-0003-29).
+    visibleTo: () => true,
+  },
+  {
+    href: "/notas-empenho",
+    name: "Notas de empenho",
+    icon: Receipt,
+    // Every perfil reads NEs; the gestor opens, the servidor advances (SPEC-0004 §6).
     visibleTo: () => true,
   },
   {
@@ -80,6 +87,12 @@ export const SESSION_OVER_CODES = new Set(["INVALID_REFRESH", "USUARIO_INATIVO"]
 export const GENERIC_FAILURE = "Não foi possível concluir. Tente novamente em instantes.";
 
 export const PASSWORD_MISMATCH = "As senhas não conferem.";
+
+/** The password refusals that belong to one field, shown under it (DESIGN.md §4). */
+export const PASSWORD_CODE_FIELD: Record<string, "password" | "confirmation"> = {
+  WEAK_PASSWORD: "password",
+  PASSWORD_MISMATCH: "confirmation",
+};
 
 export const OIDC_CANCELLED = "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente.";
 
