@@ -19,9 +19,12 @@ import { login, refresh } from "@/lib/session";
 export function LoginForm({
   localEnabled,
   oidcEnabled,
+  mechanismsUnavailable,
 }: {
   localEnabled: boolean;
   oidcEnabled: boolean;
+  /** The API did not say which mechanisms it accepts, so the defaults are shown (AC-0010-62). */
+  mechanismsUnavailable: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -90,6 +93,8 @@ export function LoginForm({
       </div>
 
       {notice && <Notice>{notice}</Notice>}
+
+      {mechanismsUnavailable && <ErrorNotice id="mechanisms-error" error={unavailable()} />}
 
       {oidcEnabled && (
         <Button

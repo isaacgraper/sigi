@@ -88,7 +88,7 @@ adds `nota_fiscal` and `item_nota_fiscal`. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` (v1.10), `SPEC-0002` (v1.3), `SPEC-0010` (v1.7),
+**Specs:** `SPEC-0001` (v1.13), `SPEC-0002` (v1.3), `SPEC-0010` (v1.11),
 `SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.5) and `SPEC-0014` (v1.4)
 are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and built, waiting for its
 data sources. `SPEC-0004` (v1.2) and `SPEC-0015` (v1.1) are `Approved` and built;

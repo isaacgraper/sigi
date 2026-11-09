@@ -13,6 +13,12 @@ export interface Me {
   status: string;
 }
 
+/** Which login mechanisms the API accepts, as GET /api/v1/auth/mecanismos returns them. */
+export interface Mechanisms {
+  local: boolean;
+  oidc: boolean;
+}
+
 /** An entry of the sidebar (AC-0011-01). */
 export interface Module {
   href: string;

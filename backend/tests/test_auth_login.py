@@ -159,3 +159,46 @@ def test_a_malformed_body_uses_the_same_envelope(application: TestClient) -> Non
     assert error["code"] == "INVALID_DATA"
     assert set(error["fields"]) == {"email", "password"}
     assert error["correlation_id"]
+
+
+MECANISMOS = "/api/v1/auth/mecanismos"
+
+
+def test_ac_0001_47_mechanisms_report_the_defaults_without_a_session(
+    application: TestClient,
+) -> None:
+    """AC-0001-47 — no session needed, and the defaults are local on, OIDC off."""
+    get_settings.cache_clear()
+    response = application.get(MECANISMOS)
+
+    assert response.status_code == 200
+    assert response.json() == {"local": True, "oidc": False}
+
+
+@pytest.mark.parametrize(("local", "oidc"), [(False, True), (True, True), (False, False)])
+def test_ac_0001_47_mechanisms_follow_the_switches(
+    application: TestClient, monkeypatch: pytest.MonkeyPatch, local: bool, oidc: bool
+) -> None:
+    """AC-0001-47 — each value is the switch the matching login route obeys."""
+    monkeypatch.setenv("LOCAL_LOGIN_ENABLED", str(local).lower())
+    monkeypatch.setenv("OIDC_ENABLED", str(oidc).lower())
+    get_settings.cache_clear()
+
+    response = application.get(MECANISMOS)
+    assert response.json() == {"local": local, "oidc": oidc}
+
+    login = application.post(LOGIN, json={"email": "ninguem@sc.gov.br", "password": PASSWORD})
+    assert (login.status_code == 404) is not local
+    get_settings.cache_clear()
+
+
+def test_ac_0001_47_mechanisms_are_throttled(
+    application: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC-0001-47 — throttled like every other route under /api/v1/auth."""
+    cfg = get_settings()
+    monkeypatch.setitem(cfg.rate_limit_ceilings, MECANISMOS, 2)
+    monkeypatch.setattr(cfg, "rate_limit_window_seconds", 2**31)
+
+    statuses = [application.get(MECANISMOS).status_code for _ in range(3)]
+    assert statuses == [200, 200, 429]

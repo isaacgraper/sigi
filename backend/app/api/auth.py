@@ -22,7 +22,7 @@ from app.core.db import DbSession
 from app.core.throttling import enforce
 from app.models.user import User
 from app.repositories import user as repo_usuario
-from app.schemas.auth import LoginInput, SessionOutput, UserOutput
+from app.schemas.auth import LoginInput, MechanismsOutput, SessionOutput, UserOutput
 from app.schemas.user import ResetConfirmInput
 from app.services import sessions
 from app.services.authentication import authenticate_local
@@ -54,6 +54,19 @@ def _read_cookie(request: Request) -> str:
     if not value:
         raise InvalidRefresh()
     return value
+
+
+# Public because the login page asks it before anyone has a session. It reads
+# the same switches the login routes obey, so the page cannot offer a mechanism
+# that answers 404 or hide one that works (OQ-33).
+@router.get("/mecanismos", response_model=MechanismsOutput, dependencies=[Depends(Public())])
+def mecanismos() -> MechanismsOutput:
+    """Which login mechanisms are enabled.
+
+    [SPEC-0001 AC-0001-47]
+    """
+    cfg = get_settings()
+    return MechanismsOutput(local=cfg.local_login_enabled, oidc=cfg.oidc_enabled)
 
 
 # Login, refresh, logout and the reset confirmation are open by definition: the
