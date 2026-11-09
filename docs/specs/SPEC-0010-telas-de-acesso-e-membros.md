@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Implemented
-version: 1.9
+version: 1.11
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -106,7 +106,7 @@ And   the submit button is disabled for the seconds in "Retry-After"
 ```gherkin
 Given a usuario whose status is not "ativo"
 When  a login is submitted and the API answers "USUARIO_INATIVO"
-Then  the page shows "Esta conta não está ativa. Procure o gestor da sua unidade."
+Then  the page shows "Esta conta não está ativa."
 ```
 
 **AC-0010-05** — A disabled local login is not offered
@@ -128,8 +128,7 @@ Then  the browser navigates to "/api/v1/auth/oidc/authorize"
 ```gherkin
 Given any configuration
 When  /login is opened
-Then  it shows "Esqueceu a senha? Procure o gestor da sua unidade."
-And   it contains no link to a signup or self-service reset page
+Then  it contains no link to a signup or self-service reset page
 And   opening "/signup" answers the not-found page
 ```
 
@@ -647,7 +646,7 @@ Given a failure that only a gestor can resolve: no answer or a 5xx,
 When  its message is shown
 Then  "Fale com o gestor:" follows, with SUPPORT_CONTACT_EMAIL as a mailto link
 And   when the failure carried a correlation_id, the link's e-mail body holds it
-And   without SUPPORT_CONTACT_EMAIL it says "Procure o gestor da sua unidade."
+And   without SUPPORT_CONTACT_EMAIL nothing follows the message
 ```
 
 Validation errors and a wrong password are not in the list: the person can fix
@@ -677,11 +676,9 @@ displayed verbatim (C3). The strings the screens own:
 | Invitation link without token | `/invite` | "Link de convite incompleto. Peça um novo ao gestor." |
 | Reset link without token | `/reset-password` | "Link de redefinição incompleto. Peça um novo ao gestor." |
 | Reset confirmed | `/login` | "Senha redefinida. Entre com a nova senha." |
-| Forgotten password | `/login` | "Esqueceu a senha? Procure o gestor da sua unidade." |
 | Unknown address | any | "Página não encontrada" |
 | A page failed to render | any | "Algo deu errado" |
 | Contact, configured | after AC-0010-57's errors | "Fale com o gestor: {SUPPORT_CONTACT_EMAIL}" |
-| Contact, not configured | after AC-0010-57's errors | "Procure o gestor da sua unidade." |
 | Provider returned an error instead of a code | `/auth/callback` | "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente." |
 
 Two API refusals these screens handle are missing from SPEC-0001 §5 (OQ-37):
@@ -910,4 +907,6 @@ One commit per step, split into two PRs after step 5.
 | 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |
 | 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |
 | 1.8 | 2026-10-13 | §9: member status is text with an attention dot for `bloqueado`, not a badge, following DESIGN.md §4 as revised by the product owner. No behaviour change. |
-| 1.9 | 2026-11-06 | §4.1: the login page asks the API which mechanisms are enabled (SPEC-0001 AC-0001-47) instead of mirroring them in its own configuration. AC-0010-05 restated against the API's answer; AC-0010-62 adds the fallback. OQ-33 resolved (issue #85). |
+| 1.9 | 2026-11-03 | "Procure o gestor da sua unidade." removed from every screen, by the product owner's request: AC-0010-04 shows the shorter message, AC-0010-07 no longer shows a forgotten-password line, and AC-0010-57 shows no contact when SUPPORT_CONTACT_EMAIL is unset. |
+| 1.10 | 2026-11-04 | A refused password shows under its field, in red, instead of a notice below the form (AC-0010-20, -21). By the product owner's request. |
+| 1.11 | 2026-11-09 | §4.1: the login page asks the API which mechanisms are enabled (SPEC-0001 AC-0001-47) instead of mirroring them in its own configuration. AC-0010-05 restated against the API's answer; AC-0010-62 adds the fallback. OQ-33 resolved (issue #85). |

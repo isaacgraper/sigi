@@ -14,6 +14,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.schemas.base import RequestBody
+
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Money = Annotated[decimal.Decimal, Field(gt=0, max_digits=15, decimal_places=2)]
 Justification = Annotated[
@@ -21,7 +23,7 @@ Justification = Annotated[
 ]
 
 
-class FornecedorIn(BaseModel):
+class FornecedorIn(RequestBody):
     """The fornecedor as typed: found by its CNPJ, or created (AC-0002-25)."""
 
     cnpj: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
@@ -30,7 +32,7 @@ class FornecedorIn(BaseModel):
     ]
 
 
-class AtaIn(BaseModel):
+class AtaIn(RequestBody):
     """The body of an ATA registration (AC-0002-01)."""
 
     number: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
@@ -44,7 +46,7 @@ class AtaIn(BaseModel):
     budget_date: datetime.date
 
 
-class AtaPatch(BaseModel):
+class AtaPatch(RequestBody):
     """The body of an edit: only what is sent is changed (AC-0002-24)."""
 
     number: Annotated[
@@ -63,13 +65,13 @@ class AtaPatch(BaseModel):
     owner_id: uuid.UUID | None = None
 
 
-class CancelIn(BaseModel):
+class CancelIn(RequestBody):
     """Cancelling is the one move that asks for a justification (AC-0002-22)."""
 
     justification: Justification
 
 
-class AditivoIn(BaseModel):
+class AditivoIn(RequestBody):
     """The body of an aditivo (AC-0002-13; of quantity, SPEC-0003 AC-0003-27)."""
 
     kind: Literal["valor", "prazo", "quantidade"]
@@ -80,7 +82,7 @@ class AditivoIn(BaseModel):
     justification: Justification
 
 
-class ReajusteIn(BaseModel):
+class ReajusteIn(RequestBody):
     """The body of a reajuste request (AC-0002-19)."""
 
     processo_sei: Annotated[

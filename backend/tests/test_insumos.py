@@ -169,6 +169,20 @@ def test_ac_0003_02_a_malformed_sku_is_refused(
     assert "CLORDEG21" in error["message"]
 
 
+def test_ac_0003_02_a_malformed_sku_is_named_with_the_empty_fields(
+    application: TestClient, gestor: dict[str, str], raiz: dict
+) -> None:
+    """AC-0003-02 — the SKU refusal comes in the same answer as the missing fields."""
+    body = insumo_body(raiz["id"], sku="???", description="", unit="")
+    response = application.post(INSUMOS, json=body, headers=gestor)
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "INVALID_DATA"
+    assert set(error["fields"]) == {"sku", "description", "unit"}
+    assert "CLORDEG21" in error["fields"]["sku"]
+
+
 @pytest.mark.parametrize("bad", ["2888.0", "26 829", "A26829"])
 def test_ac_0003_02_a_malformed_doms_code_is_refused_not_trimmed(
     application: TestClient, gestor: dict[str, str], raiz: dict, bad: str

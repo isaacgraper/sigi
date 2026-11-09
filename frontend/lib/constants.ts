@@ -2,7 +2,7 @@
  * Values the whole application shares (docs/process/coding-standards.md §2).
  * A value one feature owns lives in lib/<feature>/constants.ts instead.
  */
-import { FileText, LayoutDashboard, Package, Users } from "lucide-react";
+import { FileCheck, FileText, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
 
 import { canSeeMembers } from "@/lib/me";
 import type { Module, Perfil } from "@/lib/types";
@@ -35,6 +35,20 @@ export const NAV_MODULES: Module[] = [
     name: "Insumos",
     icon: Package,
     // Every perfil reads the catalogue, a servidor its grupos' share (AC-0014-01, AC-0003-29).
+    visibleTo: () => true,
+  },
+  {
+    href: "/notas-empenho",
+    name: "Notas de empenho",
+    icon: Receipt,
+    // Every perfil reads NEs; the gestor opens, the servidor advances (SPEC-0004 §6).
+    visibleTo: () => true,
+  },
+  {
+    href: "/notas-fiscais",
+    name: "Notas fiscais",
+    icon: FileCheck,
+    // Every perfil reads NFs; the gestor and the servidor register, the gestor approves (SPEC-0005 §6).
     visibleTo: () => true,
   },
   {
@@ -87,6 +101,12 @@ export const MECHANISMS_TIMEOUT_MS = 3000;
 export const GENERIC_FAILURE = "Não foi possível concluir. Tente novamente em instantes.";
 
 export const PASSWORD_MISMATCH = "As senhas não conferem.";
+
+/** The password refusals that belong to one field, shown under it (DESIGN.md §4). */
+export const PASSWORD_CODE_FIELD: Record<string, "password" | "confirmation"> = {
+  WEAK_PASSWORD: "password",
+  PASSWORD_MISMATCH: "confirmation",
+};
 
 export const OIDC_CANCELLED = "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente.";
 

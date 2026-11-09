@@ -29,6 +29,7 @@ from app.constants.insumos import (
     QUANTITY_PLACES,
     UNIT_PRICE_PLACES,
 )
+from app.constants.notas_empenho import LOCKED_ITEM_FIELDS, LOCKS_ITEM
 from app.core import cnpj as cnpj_lib
 from app.models.ata import Ata, AtaAditivo
 from app.models.fornecedor import Fornecedor
@@ -37,6 +38,7 @@ from app.models.user import User
 from app.repositories import ata as repo_ata
 from app.repositories import insumo as repo_insumo
 from app.repositories import item_ata as repo
+from app.repositories import nota_empenho as ne_repo
 from app.services import importacao
 from app.services.atas import FornecedorInput, audit_ata, find_or_create_fornecedor, lock_ata
 from app.services.errors import (
@@ -46,6 +48,7 @@ from app.services.errors import (
     AtaNotFound,
     InsumoDescontinuado,
     InvalidData,
+    ItemAtaComNe,
     ItemAtaDuplicado,
     ItemAtaNotFound,
 )
@@ -177,6 +180,8 @@ def edit_item(
     effective = {key: value for key, value in changes.items() if getattr(item, key) != value}
     if not effective:
         return item
+    if LOCKED_ITEM_FIELDS & effective.keys():
+        _require_unlocked(session, item)
     if "insumo_id" in effective:
         insumo = _active_insumo(session, effective["insumo_id"])
         if repo.item_for_insumo(session, ata.id, insumo.id) is not None:
@@ -210,6 +215,7 @@ def remove_item(
     """Remove an item by a date, keeping its row for the history (AC-0003-24)."""
     ata = _lock_editable(session, ata_id)
     item = _item(session, ata.id, item_id)
+    _require_unlocked(session, item)
     insumo = repo_insumo.insumo_by_id(session, item.insumo_id)
     previous = {
         "item_ata_id": item.id,
@@ -369,6 +375,10 @@ def import_items(
 
         if insumo is not None and quantity is not None and insumo.id in current:
             held = current[insumo.id]
+            if (quantity != held.quantity or unit_price != held.unit_price) and (
+                ne_repo.item_referenced_in(session, held.id, LOCKS_ITEM)
+            ):
+                report.error(line, "quantidade", IMPORT_MESSAGES["com_ne"])
             if aditivos.get(held.id, decimal.Decimal(0)) > quantity * ADITIVO_CEILING:
                 report.error(line, "quantidade", IMPORT_MESSAGES["aditivo"])
 
@@ -515,6 +525,13 @@ def _lock_editable(session: Session, ata_id: uuid.UUID) -> Ata:
     if ata.status in NOT_EDITABLE_STATUS:
         raise AtaNaoEditavel()
     return ata
+
+
+def _require_unlocked(session: Session, item: ItemAta) -> None:
+    """An item an NE past demanda carries changes only by an aditivo (AC-0004-27)."""
+    if ne_repo.item_referenced_in(session, item.id, LOCKS_ITEM):
+        insumo = repo_insumo.insumo_by_id(session, item.insumo_id)
+        raise ItemAtaComNe(insumo.description if insumo else str(item.id))
 
 
 def _item(session: Session, ata_id: uuid.UUID, item_id: uuid.UUID) -> ItemAta:

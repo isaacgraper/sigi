@@ -2,7 +2,7 @@
 id: SPEC-0003
 title: Catálogo de insumos e itens da ATA
 status: Implemented
-version: 1.5
+version: 1.6
 owner: Isaac Kleimmann Graper
 satisfies: [RF03, RF07, RF11, RF15, RN07, RN14, RN15]
 depends_on: [SPEC-0001, SPEC-0002]
@@ -823,3 +823,4 @@ of AC-0003-25.
 | 1.3 | 2026-10-22 | By the product owner's review of the import screen: the report lists every line as it will be written, with its action (AC-0003-33), and a cell with a control character or a leading formula is refused (AC-0003-34) |
 | 1.4 | 2026-10-22 | By the product owner's test: a SKU, descrição, unidade or grupo name of digits only is refused, by hand and by file (AC-0003-35); the default SKU pattern asks for a letter |
 | 1.5 | 2026-10-27 | Implemented, accepted by the product owner after testing the screens of SPEC-0014. Every live criterion has a test in `backend/tests/test_insumos.py`, `test_itens_ata.py`, `test_importacao.py` or `test_migration_insumos.py`; AC-0003-25 is carried by SPEC-0004. RN07's unidade axis waits for `UNIDADE`. No criterion changed |
+| 1.6 | 2026-11-04 | A malformed SKU is checked with the rest of the request, so it is named in the same answer as the empty fields (AC-0003-02); alone it still answers `INVALID_SKU`. By the product owner's request after testing the screens. |

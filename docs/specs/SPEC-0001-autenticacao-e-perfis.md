@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Implemented
-version: 1.11
+version: 1.13
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -752,7 +752,14 @@ Given a request to any route that takes a password or a token
 When  the password is longer than 128 characters or the token longer than 512
 Then  the response is 422 "INVALID_DATA" naming the field
 And   no password is hashed and no token is looked up
+Given any route that stores text
+When  a field holds a control character other than a line break or a tab
+Then  the response is 422 "INVALID_DATA" naming that field
+And   nothing is written
 ```
+*(v1.12)* A NUL reached PostgreSQL and answered 500, and the other control
+characters were stored as bytes nobody can see. Each is now refused on its own
+field, like an oversized one.
 
 **AC-0001-42** — An oversized body is refused
 ```gherkin
@@ -787,11 +794,11 @@ stops a response ever being rendered as a page.
 | Too many attempts | 429 | `ATTEMPTS_EXCEEDED` | "Muitas tentativas. Tente novamente em {minutos} minutos." |
 | Access token expired | 401 | `TOKEN_EXPIRED` | "Sua sessão expirou. Entre novamente." |
 | Refresh token invalid or replayed | 401 | `INVALID_REFRESH` | "Sua sessão não é mais válida. Entre novamente." |
-| Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa. Procure o gestor da sua unidade." |
+| Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa." |
 | Profile does not permit | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
 | OIDC state absent or expired | 401 | `INVALID_STATE` | "A tentativa de entrada expirou. Comece novamente." |
 | The provider's identity token does not verify | 401 | `INVALID_ASSERTION` | "Não foi possível validar a resposta do provedor." |
-| OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade." |
+| OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado." |
 | Invitation already redeemed | 409 | `INVITE_ALREADY_USED` | "Este convite já foi utilizado. Peça um novo ao gestor." |
 | Invitation older than 72 h | 409 | `INVITE_EXPIRED` | "Este convite expirou. Peça um novo ao gestor." |
 | Password below the minimum | 422 | `WEAK_PASSWORD` | "A senha precisa ter ao menos 12 caracteres." |
@@ -1361,4 +1368,6 @@ resolved). No existing criterion changed meaning.
 | 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |
 | 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
 | 1.10 | 2026-10-20 | AC-0001-42: the two CSV import routes of SPEC-0003 take a body up to `import_max_bytes` (5 MB), because a catalogue file does not fit in 64 KiB. Every other route keeps 64 KiB |
-| 1.11 | 2026-11-06 | AC-0001-47: `GET /api/v1/auth/mecanismos`, public and throttled, reports `{local, oidc}`, so the login page follows the API instead of mirroring its switches (OQ-33, issue #85). |
+| 1.11 | 2026-11-03 | §5: `USUARIO_INATIVO` and `USUARIO_NAO_PROVISIONADO` no longer end in "Procure o gestor da sua unidade.", by the product owner's request. No criterion changed. |
+| 1.12 | 2026-11-04 | AC-0001-41: a control character in a stored text field is refused as `INVALID_DATA` on that field. A NUL answered 500 and the others were stored, found by the hostile input tests the product owner asked for. |
+| 1.13 | 2026-11-09 | AC-0001-47: `GET /api/v1/auth/mecanismos`, public and throttled, reports `{local, oidc}`, so the login page follows the API instead of mirroring its switches (OQ-33, issue #85). |

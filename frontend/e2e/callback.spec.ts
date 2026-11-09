@@ -23,7 +23,7 @@ test.describe("institutional callback", () => {
   });
 
   for (const [code, message] of [
-    ["USUARIO_NAO_PROVISIONADO", "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade."],
+    ["USUARIO_NAO_PROVISIONADO", "Seu acesso ainda não foi liberado."],
     ["INVALID_STATE", "A tentativa de entrada expirou. Comece novamente."],
     ["INVALID_ASSERTION", "Não foi possível validar a resposta do provedor."],
   ] as const) {
