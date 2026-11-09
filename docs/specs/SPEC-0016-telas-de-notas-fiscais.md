@@ -1,8 +1,8 @@
 ---
 id: SPEC-0016
 title: Telas de notas fiscais
-status: Approved
-version: 1.0
+status: Implemented
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0005, SPEC-0011, SPEC-0015]
@@ -140,3 +140,4 @@ a test per AC named `AC-0016-NN`. No new dependency.
 | Version | Date | Change |
 | --- | --- | --- |
 | 1.0 | 2026-11-04 | Written and approved at the product owner's request to build the NF screens with the backend, in the same PR, for the stakeholders' PoC |
+| 1.1 | 2026-11-09 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e/notas-fiscais.spec.ts`; no criterion changed |

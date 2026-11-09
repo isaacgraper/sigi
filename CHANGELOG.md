@@ -76,6 +76,9 @@ entries are moved into a new dated version section — see
 
 ### Changed
 
+- SPEC-0004 v1.4, SPEC-0005 v1.1, SPEC-0006 v1.2, SPEC-0015 v1.3 and SPEC-0016 v1.1 are
+  `Implemented`, accepted by the product owner after testing the NE and NF screens. Every
+  criterion has a test; none changed.
 - SPEC-0003 v1.5 and SPEC-0014 v1.4 are `Implemented`, accepted by the product owner after
   testing the insumo screens. AC-0003-25 is carried by SPEC-0004; RN07's unidade axis waits for
   `UNIDADE`.

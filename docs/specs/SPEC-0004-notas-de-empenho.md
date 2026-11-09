@@ -1,8 +1,8 @@
 ---
 id: SPEC-0004
 title: Fluxo de Notas de Empenho
-status: Approved
-version: 1.3
+status: Implemented
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RF13, RF11, RN03, RN08, RN09, RN10, RN11, RN13, RN17]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0007]
@@ -706,3 +706,4 @@ partially advanced NE.
 | 1.1 | 2026-10-27 | The nota de pré-empenho, by the product owner's account of the stakeholder's flow (*"Reserva orçamentária prévia junto ao setor financeiro"*; OQ-56 resolved): its número is typed in on entering `pre_empenho`, unique, and cleared by a reversal (AC-0004-29, §9). The plan gains `numero_pre_empenho` |
 | 1.2 | 2026-10-27 | Built with its screens (SPEC-0015), for the product owner's validation in the same PR. Payload names follow ADR-0013 as the rest of the API: `items`, `quantity`, `justification`, `number`; `processo_sei` and `numero_pre_empenho` keep the glossary. A move may name its target in `to`, so a skip or a two-step reversal is refused rather than unreachable (AC-0004-05, -10). Every criterion has a test in `backend/tests/test_notas_empenho.py` or `test_migration_notas_empenho.py` |
 | 1.3 | 2026-11-04 | A malformed Processo SEI is named in the same answer as the lines; alone it still answers `PROCESSO_SEI_INVALIDO`. A refusal about a line names its field (`items.{i}.item_ata_id`), and an NE without lines names `items`. By the product owner's request after testing the screens. |
+| 1.4 | 2026-11-09 | Implemented, accepted by the product owner after testing the screens of SPEC-0015. Every criterion has a test in `backend/tests/test_notas_empenho.py` and `test_migration_notas_empenho.py`; no criterion changed |
