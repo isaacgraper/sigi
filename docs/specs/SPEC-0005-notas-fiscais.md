@@ -1,8 +1,8 @@
 ---
 id: SPEC-0005
 title: Notas Fiscais e conferência
-status: Approved
-version: 1.0
+status: Implemented
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF05, RF11, RF17, RN02, RN05, RN12]
 depends_on: [SPEC-0004]
@@ -310,3 +310,4 @@ value; that was a misreading and was removed before review.
 | 0.4 | 2026-10-13 | `ENTRADAS NFS` back in scope by the product owner, patient name included (OQ-24). Before approval this spec names the legal basis under LGPD art. 11, which perfis see `pacienteNome`, the audit of who read it, and its exclusion from logs and error messages. |
 | 0.5 | 2026-10-27 | Moves to M2 by the product owner's request, so NFs can be launched against the NEs of SPEC-0004 in the same milestone. No criterion changed; the LGPD items of v0.4 still come before approval |
 | 1.0 | 2026-11-04 | `Approved`. `ENTRADAS NFS` out of scope again by the product owner's decision, so the patient field and the LGPD items of v0.4 go with it (OQ-24, OQ-55). The fornecedor is checked by the CNPJ typed from the document (AC-0005-01, -06). AC-0005-05 confirms by a flag on a second request. Both caps exclude `devolvida` and count quarantine (AC-0005-07, -12). AC-0005-14 correction, -15 número per fornecedor, -16 listing. Scope, model, errors, permissions, API, audit and plan sections added |
+| 1.1 | 2026-11-09 | Implemented, accepted by the product owner after testing the screens of SPEC-0016. Every criterion has a test in `backend/tests/test_notas_fiscais.py` and `test_migration_notas_fiscais.py`; no criterion changed |

@@ -24,7 +24,7 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-*(Rewritten 2026-10-27, after SPEC-0003 and SPEC-0014 were closed. This
+*(Rewritten 2026-11-09, after SPEC-0004, -0005, -0006, -0015 and -0016 were closed. This
 section ages faster than any other: check a sentence here before acting on it.)*
 
 **SPEC-0001 is implemented.** `backend/` serves local login with refresh
@@ -49,13 +49,13 @@ catalogue and one for an ATA's items, and RN07 on the grupo axis, under
 `Implemented`) are: the catalogue under `/insumos`, the grupo tree, both imports checked before
 writing, the items section of the ATA page and a servidor's grupos on Membros.
 
-**SPEC-0004 is built, with its screens (SPEC-0015), awaiting validation**: NEs under
+**SPEC-0004 is implemented, with its screens (SPEC-0015)**: NEs under
 `/api/v1/notas-empenho`, the five stages with reversal and cancellation, both
 números typed in at their stage, and the saldo guard with the ATA row locked.
-SPEC-0006's saldo reads are built under `/api/v1/atas/{id}/saldo`, AC-0006-14 and
+SPEC-0006's saldo reads are implemented under `/api/v1/atas/{id}/saldo`, AC-0006-14 and
 -15 included. `docs/process/poc.md` puts it in front of the stakeholders.
 
-**SPEC-0005 is built, with its screens (SPEC-0016), awaiting validation**: NFs
+**SPEC-0005 is implemented, with its screens (SPEC-0016)**: NFs
 under `/api/v1/notas-fiscais`, bound to an NE (RN02), with the fornecedor's CNPJ
 and the date before the empenho checked, conferência, devolução, quarentena and
 release by the gestor, and the NE's `quantidade_faltante` counted from them.
@@ -89,11 +89,10 @@ is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
 **Specs:** `SPEC-0001` (v1.13), `SPEC-0002` (v1.3), `SPEC-0010` (v1.11),
-`SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.5) and `SPEC-0014` (v1.4)
-are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and built, waiting for its
-data sources. `SPEC-0004` (v1.2) and `SPEC-0015` (v1.1) are `Approved` and built;
-`SPEC-0006` (v1.1) is `Approved` and built. `SPEC-0005` (v1.0) and `SPEC-0016`
-(v1.0) are `Approved` and built. `SPEC-0007` (v1.0) is `Approved`.
+`SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.6), `SPEC-0014` (v1.4),
+`SPEC-0004` (v1.4), `SPEC-0005` (v1.1), `SPEC-0006` (v1.2), `SPEC-0015` (v1.3)
+and `SPEC-0016` (v1.1) are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and
+built, waiting for its data sources. `SPEC-0007` (v1.0) is `Approved`.
 `SPEC-0008` and `SPEC-0009` are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
