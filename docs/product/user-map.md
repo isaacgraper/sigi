@@ -51,6 +51,10 @@ Every path through a screen, its fields, validation and screenshots, is in
 | `/notas-empenho` | Notas de empenho: counters, list by etapa | Notas de empenho (4th) | W | ✓, advances | ✓ | SPEC-0015 | Approved, built |
 | `/notas-empenho/nova` | Abrir NE: ATA, Processo SEI, quantities | under Notas de empenho | W | — | — | SPEC-0015 | Approved, built |
 | `/notas-empenho/{id}` | One NE: stages, itens, advance, revert, cancel | under Notas de empenho | W | ✓, advances | ✓ | SPEC-0015 | Approved, built |
+| `/notas-fiscais` | Notas fiscais: list by status and quarentena | Notas fiscais (5th) | W | ✓, registers, sends, quarantines | ✓ | SPEC-0016 | Approved, built |
+| `/notas-fiscais/nova?ne={id}` | Registrar NF: número, data, valor, CNPJ, quantities | under Notas fiscais | W | ✓ | — | SPEC-0016 | Approved, built |
+| `/notas-fiscais/{id}` | One NF: itens, send, approve, return, quarantine, release | under Notas fiscais | W | ✓, no decisions | ✓ | SPEC-0016 | Approved, built |
+| `/notas-fiscais/{id}/corrigir` | Corrigir NF: the same form, in Aguardando or Devolvida | under Notas fiscais | W | ✓ | — | SPEC-0016 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved, built |
 
 ### Planned, with no screen spec yet
@@ -60,7 +64,6 @@ The sidebar slot is where it goes between ATAs and Membros.
 
 | Area | Backend spec | Likely route | Sidebar slot |
 | --- | --- | --- | --- |
-| Notas Fiscais | SPEC-0005 | `/notas-fiscais` | after Notas de Empenho |
 | Histórico | SPEC-0007 | `/historico` | before Membros |
 | Notificações | SPEC-0008 | the header bell | none |
 | Relatórios | SPEC-0009 | `/relatorios` | before Membros |

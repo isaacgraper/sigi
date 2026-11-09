@@ -2,7 +2,7 @@
  * Values the whole application shares (docs/process/coding-standards.md §2).
  * A value one feature owns lives in lib/<feature>/constants.ts instead.
  */
-import { FileText, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
+import { FileCheck, FileText, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
 
 import { canSeeMembers } from "@/lib/me";
 import type { Module, Perfil } from "@/lib/types";
@@ -42,6 +42,13 @@ export const NAV_MODULES: Module[] = [
     name: "Notas de empenho",
     icon: Receipt,
     // Every perfil reads NEs; the gestor opens, the servidor advances (SPEC-0004 §6).
+    visibleTo: () => true,
+  },
+  {
+    href: "/notas-fiscais",
+    name: "Notas fiscais",
+    icon: FileCheck,
+    // Every perfil reads NFs; the gestor and the servidor register, the gestor approves (SPEC-0005 §6).
     visibleTo: () => true,
   },
   {

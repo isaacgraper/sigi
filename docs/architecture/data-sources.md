@@ -355,6 +355,10 @@ Consequences, which are not optional:
 name included (OQ-24). Points 1 and 2 hold until SPEC-0005 specifies the
 importer, with the safeguards `docs/security/lgpd.md` lists.
 
+*(2026-11-04)* Out again, by the product owner's decision (OQ-24, OQ-55).
+SPEC-0005 v1.0 registers the NF typed from the document, with no patient
+field, and nothing ingests this report. Points 1 to 4 stand.
+
 ---
 
 ## 14. Cadence

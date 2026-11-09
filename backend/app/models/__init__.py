@@ -18,6 +18,7 @@ from app.models.fornecedor import Fornecedor
 from app.models.insumo import GrupoMaterial, Insumo, ItemAta, UsuarioGrupoMaterial
 from app.models.login_attempt import LoginAttempt
 from app.models.nota_empenho import ItemNotaEmpenho, NotaEmpenho
+from app.models.nota_fiscal import ItemNotaFiscal, NotaFiscal
 from app.models.rate_limit import RateLimit
 from app.models.user import User
 from app.models.user_session import SessionFamily, UserSession
@@ -34,8 +35,10 @@ __all__ = [
     "Insumo",
     "ItemAta",
     "ItemNotaEmpenho",
+    "ItemNotaFiscal",
     "LoginAttempt",
     "NotaEmpenho",
+    "NotaFiscal",
     "RateLimit",
     "SessionFamily",
     "User",

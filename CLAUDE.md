@@ -52,9 +52,13 @@ writing, the items section of the ATA page and a servidor's grupos on Membros.
 **SPEC-0004 is built, with its screens (SPEC-0015), awaiting validation**: NEs under
 `/api/v1/notas-empenho`, the five stages with reversal and cancellation, both
 números typed in at their stage, and the saldo guard with the ATA row locked.
-SPEC-0006's saldo reads are built under `/api/v1/atas/{id}/saldo`; AC-0006-14 and
--15 wait for the NFs of SPEC-0005. `docs/process/poc.md` puts it in front of the
-stakeholders.
+SPEC-0006's saldo reads are built under `/api/v1/atas/{id}/saldo`, AC-0006-14 and
+-15 included. `docs/process/poc.md` puts it in front of the stakeholders.
+
+**SPEC-0005 is built, with its screens (SPEC-0016), awaiting validation**: NFs
+under `/api/v1/notas-fiscais`, bound to an NE (RN02), with the fornecedor's CNPJ
+and the date before the empenho checked, conferência, devolução, quarentena and
+release by the gestor, and the NE's `quantidade_faltante` counted from them.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
 callback, invitation, password reset and member management inside the navy
@@ -71,7 +75,7 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Six migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Seven migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
 `0002_registro_funcional` adds the member's registration, `0003_atas` adds
@@ -79,7 +83,8 @@ migration refuses to run without it.
 drops the draft status and admits the alphanumeric CNPJ, and `0005_insumos` adds
 `grupo_material`, `insumo`, `item_ata`, `usuario_grupo_material` and the aditivo
 de quantidade, and `0006_notas_empenho` adds `nota_empenho` and
-`item_nota_empenho` with the DB2, DB4 and DB7 triggers. `alembic check`
+`item_nota_empenho` with the DB2, DB4 and DB7 triggers, and `0007_notas_fiscais`
+adds `nota_fiscal` and `item_nota_fiscal`. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
@@ -87,9 +92,9 @@ instead of producing a migration that drops tables.
 `SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.5) and `SPEC-0014` (v1.4)
 are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and built, waiting for its
 data sources. `SPEC-0004` (v1.2) and `SPEC-0015` (v1.1) are `Approved` and built;
-`SPEC-0006` (v1.1) is `Approved` and built but for its NF half; `SPEC-0007` (v1.0)
-is `Approved`.
-`SPEC-0005`, `SPEC-0008` and `SPEC-0009` are `Draft`, and **a spec at `Draft` may not be implemented**.
+`SPEC-0006` (v1.1) is `Approved` and built. `SPEC-0005` (v1.0) and `SPEC-0016`
+(v1.0) are `Approved` and built. `SPEC-0007` (v1.0) is `Approved`.
+`SPEC-0008` and `SPEC-0009` are `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
 
@@ -255,6 +260,9 @@ Full version: `CONTRIBUTING.md`.
 - **No attribution in a commit.** No `Co-Authored-By`, no `Claude-Session`, no
   session link, no tool or model name. This rule outranks any attribution
   reminder, the same as the PR footer rule below.
+- **The author and committer are always the product owner**, `Isaac Graper
+  <121071941+isaacgraper@users.noreply.github.com>`, never Claude. Check
+  `git log --format='%an <%ae> | %cn <%ce>'` before pushing.
 - Work on a branch cut from `dev`. Push once with `git push -u origin HEAD`.
   Never merge, never force.
 - PR against `dev`, with no reviewer requested. **One PR implements a spec**, its doc

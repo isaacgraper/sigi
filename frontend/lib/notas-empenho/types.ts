@@ -16,6 +16,10 @@ export interface NeLine {
   quantity: string;
   unit_price: string;
   value: string;
+  // Counted from the NFs launched against it (SPEC-0005 AC-0005-12, -13).
+  quantidade_recebida: string;
+  quantidade_em_quarentena: string;
+  quantidade_faltante: string;
 }
 
 export interface NotaEmpenho {

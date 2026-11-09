@@ -8,6 +8,7 @@ cancellation are the gestor's; advancing is the gestor's and the servidor's
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping, Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -34,8 +35,10 @@ from app.schemas.nota_empenho import (
     Stage,
 )
 from app.services import notas_empenho as service
+from app.services import notas_fiscais as nf_service
 from app.services import saldo as saldo_service
 from app.services.notas_empenho import LineInput, NeView
+from app.services.notas_fiscais import LineQuantities
 
 router = APIRouter(prefix="/api/v1/notas-empenho", tags=["notas-empenho"])
 saldo_router = APIRouter(prefix="/api/v1/atas", tags=["atas"])
@@ -54,7 +57,19 @@ def _lines(items: list[LineIn]) -> list[LineInput]:
     return [LineInput(item_ata_id=i.item_ata_id, quantity=i.quantity) for i in items]
 
 
-def _out(view: NeView) -> NotaEmpenhoOut:
+def _outs(session: DbSession, views: Sequence[NeView]) -> list[NotaEmpenhoOut]:
+    # One query for every line on the page, not one per NE.
+    quantities = nf_service.ne_quantities(
+        session, [line.line for view in views for line in view.lines]
+    )
+    return [_one(view, quantities) for view in views]
+
+
+def _out(session: DbSession, view: NeView) -> NotaEmpenhoOut:
+    return _outs(session, [view])[0]
+
+
+def _one(view: NeView, quantities: Mapping[uuid.UUID, LineQuantities]) -> NotaEmpenhoOut:
     ne = view.ne
     return NotaEmpenhoOut(
         id=ne.id,
@@ -76,6 +91,9 @@ def _out(view: NeView) -> NotaEmpenhoOut:
                 quantity=line.line.quantity,
                 unit_price=line.line.unit_price,
                 value=line.line.value,
+                quantidade_recebida=quantities[line.line.id].recebida,
+                quantidade_em_quarentena=quantities[line.line.id].em_quarentena,
+                quantidade_faltante=quantities[line.line.id].faltante,
             )
             for line in view.lines
         ],
@@ -92,6 +110,7 @@ def open_ne(
 ) -> NotaEmpenhoOut:
     """Open an NE in demanda (SPEC-0004 AC-0004-01 to -03, -17, -20, -21)."""
     return _out(
+        session,
         service.open_ne(
             session,
             actor=actor,
@@ -100,7 +119,7 @@ def open_ne(
             lines=_lines(body.items),
             at=clock.now(),
             correlation_id=_correlation(request),
-        )
+        ),
     )
 
 
@@ -118,7 +137,7 @@ def list_nes(
     views, total = service.list_nes(
         session, status=etapa, ata_id=ata_id, processo=processo_sei, page=page, size=size
     )
-    return NotaEmpenhoPage(items=[_out(v) for v in views], total=total, page=page, size=size)
+    return NotaEmpenhoPage(items=_outs(session, views), total=total, page=page, size=size)
 
 
 # Declared before `/{ne_id}`, which would otherwise swallow "indicadores".
@@ -134,7 +153,7 @@ def indicators(actor: Reader, session: DbSession) -> IndicatorsOut:
 @router.get("/{ne_id}", response_model=NotaEmpenhoOut)
 def get_ne(ne_id: uuid.UUID, actor: Reader, session: DbSession) -> NotaEmpenhoOut:
     """One NE with its itens (SPEC-0004 §7)."""
-    return _out(service.get(session, ne_id))
+    return _out(session, service.get(session, ne_id))
 
 
 @router.put("/{ne_id}/itens", response_model=NotaEmpenhoOut)
@@ -143,6 +162,7 @@ def replace_items(
 ) -> NotaEmpenhoOut:
     """Replace the itens before pré-empenho (SPEC-0004 AC-0004-19, -22)."""
     return _out(
+        session,
         service.replace_items(
             session,
             actor=actor,
@@ -150,7 +170,7 @@ def replace_items(
             lines=_lines(body.items),
             at=clock.now(),
             correlation_id=_correlation(request),
-        )
+        ),
     )
 
 
@@ -160,6 +180,7 @@ def advance(
 ) -> NotaEmpenhoOut:
     """Advance one stage (SPEC-0004 AC-0004-04, -05, -12 to -15, -24, -28, -29)."""
     return _out(
+        session,
         service.advance(
             session,
             actor=actor,
@@ -169,7 +190,7 @@ def advance(
             numero=body.number,
             at=clock.now(),
             correlation_id=_correlation(request),
-        )
+        ),
     )
 
 
@@ -179,6 +200,7 @@ def reverse(
 ) -> NotaEmpenhoOut:
     """Reverse one stage with a justification (SPEC-0004 AC-0004-06, -07, -10, RN03)."""
     return _out(
+        session,
         service.reverse(
             session,
             actor=actor,
@@ -187,7 +209,7 @@ def reverse(
             justification=body.justification,
             at=clock.now(),
             correlation_id=_correlation(request),
-        )
+        ),
     )
 
 
@@ -197,6 +219,7 @@ def cancel(
 ) -> NotaEmpenhoOut:
     """Cancel with a justification, releasing the reservation (SPEC-0004 AC-0004-16)."""
     return _out(
+        session,
         service.cancel(
             session,
             actor=actor,
@@ -204,7 +227,7 @@ def cancel(
             justification=body.justification,
             at=clock.now(),
             correlation_id=_correlation(request),
-        )
+        ),
     )
 
 
