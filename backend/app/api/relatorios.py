@@ -35,8 +35,10 @@ def export(
     formato: str = FORMAT_CSV,
     referencia: AwareDatetime | None = None,
     ata_id: uuid.UUID | None = None,
+    colunas: str | None = None,
+    inicio: AwareDatetime | None = None,
 ) -> Response:
-    """One report as a file, at its data de referência (AC-0009-01 to -06)."""
+    """One report as a file, at its data de referência (AC-0009-01 to -06, -08, -09)."""
     raw = request.scope.get("state", {}).get("correlation_id")
     result = service.export(
         session,
@@ -47,6 +49,12 @@ def export(
         ata_id=ata_id,
         at=clock.now(),
         correlation_id=raw if isinstance(raw, uuid.UUID) else current_correlation_id(),
+        colunas=(
+            tuple(key.strip() for key in colunas.split(",") if key.strip())
+            if colunas is not None
+            else None
+        ),
+        inicio=inicio,
     )
     return Response(
         content=relatorio_files.render(result),

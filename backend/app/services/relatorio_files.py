@@ -31,6 +31,7 @@ from app.constants.relatorios import (
     PDF_ORIENTATION,
     PDF_TEXT_SIZE,
     PDF_TITLE_SIZE,
+    PERIOD_BETWEEN,
     PERIOD_UNTIL,
 )
 from app.services.relatorios import Export
@@ -46,14 +47,22 @@ def render(export: Export) -> bytes:
 
 def provenance(export: Export) -> list[tuple[str, str]]:
     """What every export opens with (AC-0009-02)."""
+    reference = export.referencia.astimezone(LOCAL_TIMEZONE).strftime(INSTANT_FORMAT)
+    period = (
+        PERIOD_BETWEEN.format(
+            start=export.inicio.astimezone(LOCAL_TIMEZONE).strftime(INSTANT_FORMAT), end=reference
+        )
+        if export.inicio is not None
+        else PERIOD_UNTIL
+    )
     filtros = "; ".join(f"{name}: {value}" for name, value in export.filtros) or NO_FILTER
     return [
         (HEADER_REPORT, export.title),
         (HEADER_ID, str(export.id)),
         (HEADER_GENERATED, export.gerado_em.astimezone(LOCAL_TIMEZONE).strftime(INSTANT_FORMAT)),
         (HEADER_USER, export.usuario),
-        (HEADER_REFERENCE, export.referencia.astimezone(LOCAL_TIMEZONE).strftime(INSTANT_FORMAT)),
-        (HEADER_PERIOD, PERIOD_UNTIL),
+        (HEADER_REFERENCE, reference),
+        (HEADER_PERIOD, period),
         (HEADER_FILTERS, filtros),
     ]
 

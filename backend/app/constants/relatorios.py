@@ -20,41 +20,49 @@ TITLES: Final = MappingProxyType(
         INDICADORES_FORNECEDORES: "Indicadores de fornecedores",
     }
 )
+# Each column by the key `colunas` names it with and the title the file prints (§2.1).
 COLUMNS: Final = MappingProxyType(
     {
         EXECUCAO_ORCAMENTARIA: (
-            "ATA",
-            "Fornecedor",
-            "Processo SEI",
-            "Pré-empenho",
-            "NE",
-            "Etapa",
-            "Valor",
-            "Data de emissão",
+            ("ata", "ATA"),
+            ("fornecedor", "Fornecedor"),
+            ("processo_sei", "Processo SEI"),
+            ("numero_pre_empenho", "Pré-empenho"),
+            ("ne", "NE"),
+            ("stage", "Etapa"),
+            ("value", "Valor"),
+            ("issued_on", "Data de emissão"),
         ),
         POSICAO_SALDO: (
-            "ATA",
-            "Fornecedor",
-            "Situação",
-            "Fim da vigência",
-            "Valor contratado",
-            "Valor reservado",
-            "Valor empenhado",
-            "Saldo disponível",
-            "Comprometimento (%)",
-            "Alto consumo",
+            ("ata", "ATA"),
+            ("fornecedor", "Fornecedor"),
+            ("status", "Situação"),
+            ("vigencia_fim", "Fim da vigência"),
+            ("valor_contratado", "Valor contratado"),
+            ("valor_reservado", "Valor reservado"),
+            ("valor_empenhado", "Valor empenhado"),
+            ("saldo_disponivel", "Saldo disponível"),
+            ("comprometimento_percentual", "Comprometimento (%)"),
+            ("alto_consumo", "Alto consumo"),
         ),
-        NFS_EM_CONFERENCIA: ("NF", "Fornecedor", "NE", "ATA", "Data de emissão", "Valor"),
+        NFS_EM_CONFERENCIA: (
+            ("nf", "NF"),
+            ("fornecedor", "Fornecedor"),
+            ("ne", "NE"),
+            ("ata", "ATA"),
+            ("issued_on", "Data de emissão"),
+            ("value", "Valor"),
+        ),
         INDICADORES_FORNECEDORES: (
-            "Fornecedor",
-            "CNPJ",
-            "ATAs",
-            "Valor contratado",
-            "Valor empenhado",
-            "NFs lançadas",
-            "NFs aprovadas",
-            "NFs devolvidas",
-            "Valor aprovado",
+            ("fornecedor", "Fornecedor"),
+            ("cnpj", "CNPJ"),
+            ("atas", "ATAs"),
+            ("valor_contratado", "Valor contratado"),
+            ("valor_empenhado", "Valor empenhado"),
+            ("nfs_lancadas", "NFs lançadas"),
+            ("nfs_aprovadas", "NFs aprovadas"),
+            ("nfs_devolvidas", "NFs devolvidas"),
+            ("valor_aprovado", "Valor aprovado"),
         ),
     }
 )
@@ -82,6 +90,7 @@ HEADER_REFERENCE: Final = "Data de referência"
 HEADER_PERIOD: Final = "Período"
 HEADER_FILTERS: Final = "Filtros"
 PERIOD_UNTIL: Final = "Até a data de referência"
+PERIOD_BETWEEN: Final = "De {start} até {end}"
 NO_FILTER: Final = "Nenhum"
 FILTER_ATA: Final = "ATA"
 UNNAMED_USER: Final = "Usuário sem nome"
@@ -128,3 +137,6 @@ PDF_ENCODING: Final = "latin-1"
 # Messages, pt-BR, because the auditor reads them.
 FORMAT_UNKNOWN: Final = "Informe csv ou pdf."
 REFERENCE_IN_FUTURE: Final = "A data de referência não pode estar no futuro."
+COLUMNS_UNKNOWN: Final = "Informe colunas deste relatório: {columns}."
+START_AFTER_REFERENCE: Final = "O início não pode ser posterior à data de referência."
+START_NOT_APPLICABLE: Final = "A posição de saldo não tem período: é lida na data de referência."
