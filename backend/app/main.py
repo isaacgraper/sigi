@@ -7,6 +7,7 @@ from app.api import (
     atas,
     auth,
     health,
+    historico,
     insumos,
     invites,
     notas_empenho,
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(insumos.router)
     app.include_router(insumos.grupos_router)
     app.include_router(painel.router)
+    app.include_router(historico.router)
     app.include_router(invites.router)
 
     # AC-0001-23, at assembly: a write route with no access decision breaks
