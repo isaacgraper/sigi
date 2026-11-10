@@ -221,7 +221,9 @@ rule is checked where, and names the two that nothing checks.
 
 **CI runs only what a change touches.** A `changes` job skips the backend, the
 frontend and the end-to-end jobs when their files did not change, so a
-docs-only PR runs only the secret scan. Playwright runs Chromium on a PR and all
+docs-only PR runs only the secret scan. A PR runs only the backend test files
+it changed, and the end to end only when `frontend/` changed; the whole suite and
+the coverage floor run on `dev` and `main`. Playwright runs Chromium on a PR and all
 three browsers on `dev` and `main`. No video is committed unless the product
 owner asks for one. Details in `docs/process/sop-qualidade.md`.
 

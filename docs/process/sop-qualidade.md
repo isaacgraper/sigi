@@ -22,7 +22,7 @@ the wiring diagram.
 | `mypy` clean over `app migrations tests` | definition-of-done | `pre-commit` hook · `backend-ci` | commit · PR |
 | No CPF, SIAPE, token or real e-mail | CLAUDE.md · `security/lgpd.md` | `scripts/check_personal_data.py` · `gitleaks` | commit · PR |
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
-| Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` | push · PR |
+| Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` on `dev` and `main` | push · merge |
 | Frontend lint, tests and build | — | `frontend-ci`, when `frontend/` changes | PR |
 | End to end in Chromium, Firefox and WebKit (RNF06) | `requirements/non-functional.md` | `frontend-ci`: Chromium on a PR, all three on `dev` and `main` | PR · merge |
 | Constants live in a `constants.ts`, by feature | `process/coding-standards.md` | ESLint `no-restricted-syntax` · `frontend-ci` | PR |
@@ -89,15 +89,22 @@ the heavy jobs run only when their files changed:
 
 | Job | Runs when the change touches |
 | --- | --- |
-| `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`, its workflow |
+| `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`, its workflow. On a PR, only the test files the PR changed |
 | `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow |
-| `frontend-ci` · End to end | `frontend/`, `backend/`, `infra/`, its workflow (the API is half of what it tests) |
+| `frontend-ci` · End to end | on a PR, `frontend/` or its workflow; on `dev` and `main`, also `backend/` and `infra/` (the API is half of what it tests) |
 | `backend-ci` · Secret scan | always: it scans the history, not a tree |
 | `api-docs` · Export the OpenAPI schema and publish it to `gh-pages` | a push to `dev` touching `backend/app/`, `backend/pyproject.toml`, `backend/poetry.lock`, `.github/pages/` or its workflow; or by hand |
 
 A skipped job counts as passed, so a PR that only changes `docs/` runs the
 secret scan and nothing else, and no required check waits for a run that never
 comes. With no usable base (a new branch, a rewritten one) everything runs.
+
+**A PR runs the tests it changed, `dev` and `main` run them all** *(2026-11-10,
+by the product owner)*. On a PR the backend job runs lint, mypy and the
+`backend/tests/test_*.py` files in the diff, without the coverage floor; a
+change to `conftest.py` or `catalogue.py` runs every file. The whole suite, the
+70% floor and the end to end run for a backend change happen at the merge into
+`dev` or `main`, so a regression in a file the PR did not touch shows there.
 
 **End to end: Chromium on a PR, three browsers on `dev` and `main`.** A PR runs
 Playwright on Chromium only; the merge into `dev` or `main` runs Chromium,
