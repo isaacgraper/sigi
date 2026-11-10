@@ -52,7 +52,7 @@ jobs:
           else
             files="$(git diff --name-only "$base" HEAD)"
           fi
-          if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$|\.github/workflows/backend-ci\.yml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
           # What a change runs: the test files it touched and that still exist. A
           # change to the shared fixtures, or no usable base, runs them all.
           if echo "$files" | grep -qE '^backend/(tests/(conftest|catalogue|__init__)\.py)?$'; then

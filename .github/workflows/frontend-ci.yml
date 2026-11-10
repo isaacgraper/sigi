@@ -51,8 +51,8 @@ jobs:
           else
             files="$(git diff --name-only "$base" HEAD)"
           fi
-          if echo "$files" | grep -qE '^(frontend/|\.github/workflows/frontend-ci\.yml$)'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
-          if echo "$files" | grep -qE '^(frontend/|backend/|infra/|\.github/workflows/frontend-ci\.yml$)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^frontend/'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(frontend/|backend/|infra/)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
           # What a change runs: the test files it touched and that still exist. A
           # change to the shared setup, or no usable base, runs them all.
           if echo "$files" | grep -qE '^frontend/(vitest\.config\.ts)?$'; then
