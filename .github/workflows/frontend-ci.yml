@@ -26,6 +26,7 @@ jobs:
     outputs:
       frontend: ${{ steps.diff.outputs.frontend }}
       app: ${{ steps.diff.outputs.app }}
+      full: ${{ steps.diff.outputs.full }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,7 +36,11 @@ jobs:
           EVENT: ${{ github.event_name }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
+          # The one place everything runs: the pull request that takes dev to
+          # main. Any other PR, and every push to dev or main, runs what changed.
+          if [ "$EVENT" = "pull_request" ] && [ "$BASE_REF" = "main" ]; then echo "full=true"; else echo "full=false"; fi >> "$GITHUB_OUTPUT"
           base="$PUSH_BEFORE"
           [ "$EVENT" = "pull_request" ] && base="$PR_BASE"
           # No usable base (a new branch, a force push): test everything.
@@ -81,12 +86,12 @@ jobs:
 
   e2e:
     name: End to end (SPEC-0010)
-    # The API is half of what it tests, so on dev and main a backend change runs
-    # it too. A PR runs it only when the frontend changed.
+    # The API is half of what it tests, so on the PR from dev to main a backend
+    # change runs it too. Anything else runs it only when the frontend changed.
     needs: changes
     if: >-
-      (github.event_name == 'pull_request' && needs.changes.outputs.frontend == 'true') ||
-      (github.event_name != 'pull_request' && needs.changes.outputs.app == 'true')
+      (needs.changes.outputs.full != 'true' && needs.changes.outputs.frontend == 'true') ||
+      (needs.changes.outputs.full == 'true' && needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -179,19 +184,19 @@ jobs:
             curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
           done
 
-      # A PR runs Chromium only; the merge into dev or main runs all three
-      # browsers once, which is where RNF06 is proven. Three browsers on every
-      # push of every PR cost about 20 minutes a run for little extra signal.
+      # Chromium only, except on the PR from dev to main, which runs all three
+      # browsers once and is where RNF06 is proven. Three browsers on every
+      # push cost about 20 minutes a run for little extra signal.
       - name: Install browsers
         working-directory: frontend
         env:
-          BROWSERS: ${{ github.event_name == 'pull_request' && 'chromium' || 'chromium firefox webkit' }}
+          BROWSERS: ${{ needs.changes.outputs.full == 'true' && 'chromium firefox webkit' || 'chromium' }}
         run: npx playwright install --with-deps $BROWSERS
 
-      - name: Playwright (Chromium on a PR; Chromium, Firefox and WebKit on dev and main, RNF06)
+      - name: Playwright (Chromium; with Firefox and WebKit on the PR from dev to main, RNF06)
         working-directory: frontend
         env:
-          PROJECTS: ${{ github.event_name == 'pull_request' && '--project=chromium' || '' }}
+          PROJECTS: ${{ needs.changes.outputs.full == 'true' && '' || '--project=chromium' }}
         run: npm run test:e2e -- $PROJECTS
 
       - name: Server logs
