@@ -72,6 +72,17 @@ def compute(session: Session, ata: Ata, *, at: datetime.datetime) -> SaldoAta:
     by_status = ne_repo.value_by_status(session, ata.id)
     reservado = sum((by_status.get(s, ZERO) for s in RESERVING), ZERO)
     empenhado = sum((by_status.get(s, ZERO) for s in COMMITTED), ZERO)
+    return position(contratado, reservado, empenhado, at=at)
+
+
+def position(
+    contratado: decimal.Decimal,
+    reservado: decimal.Decimal,
+    empenhado: decimal.Decimal,
+    *,
+    at: datetime.datetime,
+) -> SaldoAta:
+    """The saldo these three sums make, so a report reads it as the screen does (SPEC-0009)."""
     percentual = (reservado + empenhado) * 100 / contratado if contratado else ZERO
     return SaldoAta(
         valor_contratado=contratado,

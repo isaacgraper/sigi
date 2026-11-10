@@ -16,6 +16,7 @@ ENTIDADE_TIPOS: Final = frozenset(
         "grupo_material",
         "nota_empenho",
         "nota_fiscal",
+        "relatorio",
     }
 )
 

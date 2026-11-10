@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime
 import decimal
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -161,3 +161,39 @@ def reajuste_alert(session: Session, *, until: datetime.date) -> Sequence[Ata]:
         .where(Ata.status == "vigente", reajuste_date <= until, ~has_request)
         .order_by(reajuste_date, Ata.id)
     ).all()
+
+
+def created_until(
+    session: Session, *, until: datetime.datetime, ata_id: uuid.UUID | None
+) -> Sequence[Ata]:
+    """The ATAs created by an instant, one of them or all, by número (SPEC-0009 §2.2)."""
+    query = select(Ata).where(Ata.criado_em <= until)
+    if ata_id is not None:
+        query = query.where(Ata.id == ata_id)
+    return session.scalars(query.order_by(Ata.number, Ata.id)).all()
+
+
+def aditivos_de_valor_until(
+    session: Session, *, until: datetime.datetime
+) -> dict[uuid.UUID, decimal.Decimal]:
+    """The aditivos of value recorded by an instant, summed per ATA (SPEC-0009 §2.2)."""
+    rows = session.execute(
+        select(AtaAditivo.ata_id, func.sum(AtaAditivo.valor_acrescimo))
+        .where(AtaAditivo.kind == "valor", AtaAditivo.criado_em <= until)
+        .group_by(AtaAditivo.ata_id)
+    ).all()
+    return {ata_id: decimal.Decimal(total) for ata_id, total in rows}
+
+
+def fornecedores_by_id(
+    session: Session, fornecedor_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, Fornecedor]:
+    """These fornecedores, keyed by id."""
+    if not fornecedor_ids:
+        return {}
+    return {
+        fornecedor.id: fornecedor
+        for fornecedor in session.scalars(
+            select(Fornecedor).where(Fornecedor.id.in_(list(fornecedor_ids)))
+        )
+    }

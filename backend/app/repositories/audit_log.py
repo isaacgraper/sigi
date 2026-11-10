@@ -102,3 +102,14 @@ def cycle_rows(
     return session.scalars(
         select(AuditLog).where(or_(*clauses)).order_by(AuditLog.ocorrido_em, AuditLog.id)
     ).all()
+
+
+def after(
+    session: Session, *, since: datetime.datetime, entidade_tipos: Collection[str]
+) -> Sequence[AuditLog]:
+    """The rows of these entity types written after an instant, oldest first (SPEC-0009 §2.2)."""
+    return session.scalars(
+        select(AuditLog)
+        .where(AuditLog.ocorrido_em > since, AuditLog.entidade_tipo.in_(list(entidade_tipos)))
+        .order_by(AuditLog.ocorrido_em, AuditLog.id)
+    ).all()

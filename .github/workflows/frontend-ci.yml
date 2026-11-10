@@ -26,6 +26,9 @@ jobs:
     outputs:
       frontend: ${{ steps.diff.outputs.frontend }}
       app: ${{ steps.diff.outputs.app }}
+      full: ${{ steps.diff.outputs.full }}
+      unit: ${{ steps.diff.outputs.unit }}
+      specs: ${{ steps.diff.outputs.specs }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,7 +38,11 @@ jobs:
           EVENT: ${{ github.event_name }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
+          # The one place everything runs: the pull request that takes dev to
+          # main. Any other PR, and every push to dev or main, runs what changed.
+          if [ "$EVENT" = "pull_request" ] && [ "$BASE_REF" = "main" ]; then echo "full=true"; else echo "full=false"; fi >> "$GITHUB_OUTPUT"
           base="$PUSH_BEFORE"
           [ "$EVENT" = "pull_request" ] && base="$PR_BASE"
           # No usable base (a new branch, a force push): test everything.
@@ -44,8 +51,22 @@ jobs:
           else
             files="$(git diff --name-only "$base" HEAD)"
           fi
-          if echo "$files" | grep -qE '^(frontend/|\.github/workflows/frontend-ci\.yml$)'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
-          if echo "$files" | grep -qE '^(frontend/|backend/|infra/|\.github/workflows/frontend-ci\.yml$)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^frontend/'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(frontend/|backend/|infra/)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+          # What a change runs: the test files it touched and that still exist. A
+          # change to the shared setup, or no usable base, runs them all.
+          if echo "$files" | grep -qE '^frontend/(vitest\.config\.ts)?$'; then
+            unit="tests"
+          else
+            unit="$(echo "$files" | grep -E '^frontend/tests/[A-Za-z0-9_.-]+\.test\.tsx?$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "unit=$unit" >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^frontend/((e2e/helpers|playwright\.config)\.ts)?$'; then
+            specs="e2e"
+          else
+            specs="$(echo "$files" | grep -E '^frontend/e2e/[A-Za-z0-9_.-]+\.spec\.ts$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend lint, tests and build
@@ -73,7 +94,14 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Unit tests of the files that changed (Vitest)
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.unit != ''
+        env:
+          UNIT: ${{ needs.changes.outputs.unit }}
+        run: npm run test -- $UNIT
+
       - name: Unit tests (Vitest)
+        if: needs.changes.outputs.full == 'true'
         run: npm run test
 
       - name: Production build
@@ -81,9 +109,12 @@ jobs:
 
   e2e:
     name: End to end (SPEC-0010)
-    # The API is half of what it tests, so a backend change runs it too.
+    # The API is half of what it tests, so on the PR from dev to main a backend
+    # change runs it too. Anything else runs only the spec files it changed.
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: >-
+      (needs.changes.outputs.full != 'true' && needs.changes.outputs.specs != '') ||
+      (needs.changes.outputs.full == 'true' && needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -176,20 +207,21 @@ jobs:
             curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
           done
 
-      # A PR runs Chromium only; the merge into dev or main runs all three
-      # browsers once, which is where RNF06 is proven. Three browsers on every
-      # push of every PR cost about 20 minutes a run for little extra signal.
+      # Chromium only, except on the PR from dev to main, which runs all three
+      # browsers once and is where RNF06 is proven. Three browsers on every
+      # push cost about 20 minutes a run for little extra signal.
       - name: Install browsers
         working-directory: frontend
         env:
-          BROWSERS: ${{ github.event_name == 'pull_request' && 'chromium' || 'chromium firefox webkit' }}
+          BROWSERS: ${{ needs.changes.outputs.full == 'true' && 'chromium firefox webkit' || 'chromium' }}
         run: npx playwright install --with-deps $BROWSERS
 
-      - name: Playwright (Chromium on a PR; Chromium, Firefox and WebKit on dev and main, RNF06)
+      - name: Playwright (changed specs on Chromium; everything on three browsers on the PR from dev to main, RNF06)
         working-directory: frontend
         env:
-          PROJECTS: ${{ github.event_name == 'pull_request' && '--project=chromium' || '' }}
-        run: npm run test:e2e -- $PROJECTS
+          PROJECTS: ${{ needs.changes.outputs.full == 'true' && '' || '--project=chromium' }}
+          SPECS: ${{ needs.changes.outputs.full == 'true' && '' || needs.changes.outputs.specs }}
+        run: npm run test:e2e -- $PROJECTS $SPECS
 
       - name: Server logs
         if: failure()

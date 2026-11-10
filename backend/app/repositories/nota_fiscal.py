@@ -6,6 +6,7 @@ empenho is the service's, passed in as plain sets.
 
 from __future__ import annotations
 
+import datetime
 import decimal
 import uuid
 from collections.abc import Collection, Sequence
@@ -144,4 +145,17 @@ def ids_of_nes(session: Session, ne_ids: Collection[uuid.UUID]) -> Sequence[uuid
         return []
     return session.scalars(
         select(NotaFiscal.id).where(NotaFiscal.nota_empenho_id.in_(list(ne_ids)))
+    ).all()
+
+
+def created_until(
+    session: Session, *, until: datetime.datetime, ne_ids: Collection[uuid.UUID]
+) -> Sequence[NotaFiscal]:
+    """The NFs of these NEs created by an instant, oldest first (SPEC-0009 §2.2)."""
+    if not ne_ids:
+        return []
+    return session.scalars(
+        select(NotaFiscal)
+        .where(NotaFiscal.criado_em <= until, NotaFiscal.nota_empenho_id.in_(list(ne_ids)))
+        .order_by(NotaFiscal.criado_em, NotaFiscal.id)
     ).all()

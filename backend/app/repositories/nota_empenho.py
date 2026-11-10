@@ -6,6 +6,7 @@ lock is the service's, passed in as plain sets.
 
 from __future__ import annotations
 
+import datetime
 import decimal
 import uuid
 from collections.abc import Collection, Sequence
@@ -164,4 +165,17 @@ def ids_with_items(session: Session, item_ids: Collection[uuid.UUID]) -> Sequenc
         select(ItemNotaEmpenho.nota_empenho_id)
         .where(ItemNotaEmpenho.item_ata_id.in_(list(item_ids)))
         .distinct()
+    ).all()
+
+
+def created_until(
+    session: Session, *, until: datetime.datetime, ata_ids: Collection[uuid.UUID]
+) -> Sequence[NotaEmpenho]:
+    """The NEs of these ATAs created by an instant, oldest first (SPEC-0009 §2.2)."""
+    if not ata_ids:
+        return []
+    return session.scalars(
+        select(NotaEmpenho)
+        .where(NotaEmpenho.criado_em <= until, NotaEmpenho.ata_id.in_(list(ata_ids)))
+        .order_by(NotaEmpenho.criado_em, NotaEmpenho.id)
     ).all()
