@@ -235,6 +235,10 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/notas-fiscais/{nf_id}/liberar"): frozenset({"gestor"}),
     ("GET", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
     ("POST", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
+    # SPEC-0007 AC-0007-07 and AC-0007-09: the gestor and the auditor read the
+    # history; every perfil reads the cycle of an insumo.
+    ("GET", "/api/v1/historico"): frozenset({"gestor", "auditor"}),
+    ("GET", "/api/v1/insumos/{insumo_id}/ciclo"): frozenset({"gestor", "servidor", "auditor"}),
 }
 
 
