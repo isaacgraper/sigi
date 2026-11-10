@@ -936,3 +936,14 @@ class NfNaoEditavel(DomainError):
     def __init__(self, status: str) -> None:
         """Build the error naming the status."""
         super().__init__(f"A NF está {status} e não pode ser corrigida.")
+
+
+class RelatorioNotFound(DomainError):
+    """No report has this name (SPEC-0009 §2.3)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Relatório não encontrado.")
