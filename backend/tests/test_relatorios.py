@@ -492,7 +492,8 @@ def test_AC_0009_09_what_was_registered_before_the_window_stays_out(
     relatorio: str,
 ) -> None:
     """An NE and an NF registered before `inicio` have no row; without it they do."""
-    ata = cycle[0]
+    ata, _, _, nf = cycle
+    moved(application, gestor, nf["id"], "enviar")
     start = instant()
 
     header, rows = read(application, gestor, relatorio, ata_id=ata["id"], inicio=start)
