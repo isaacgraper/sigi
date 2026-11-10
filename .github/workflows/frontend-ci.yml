@@ -81,9 +81,12 @@ jobs:
 
   e2e:
     name: End to end (SPEC-0010)
-    # The API is half of what it tests, so a backend change runs it too.
+    # The API is half of what it tests, so on dev and main a backend change runs
+    # it too. A PR runs it only when the frontend changed.
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: >-
+      (github.event_name == 'pull_request' && needs.changes.outputs.frontend == 'true') ||
+      (github.event_name != 'pull_request' && needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

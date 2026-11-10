@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.diff.outputs.backend }}
+      tests: ${{ steps.diff.outputs.tests }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,6 +48,14 @@ jobs:
             files="$(git diff --name-only "$base" HEAD)"
           fi
           if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$|\.github/workflows/backend-ci\.yml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
+          # What a PR runs: the test files it changed and that still exist. A
+          # change to the shared fixtures, or no usable base, runs them all.
+          if echo "$files" | grep -qE '^backend/(tests/(conftest|catalogue|__init__)\.py)?$'; then
+            tests="tests"
+          else
+            tests="$(echo "$files" | grep -E '^backend/tests/test_[A-Za-z0-9_]+\.py$' | sed 's#^backend/##' | while read -r f; do [ -f "backend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "tests=$tests" >> "$GITHUB_OUTPUT"
 
   backend:
     name: Backend lint and tests
@@ -112,9 +121,19 @@ jobs:
         # destroy data.
         run: poetry run mypy app migrations tests
 
-      # Minimum 70% coverage (RNF10). Tests use a real PostgreSQL via
-      # testcontainers — the ubuntu-latest runner already provides Docker.
+      # A PR runs only the test files it changed: the whole suite takes about
+      # thirteen minutes, and GitHub minutes are paid for. Coverage is not
+      # measured there, because a part of the suite cannot reach the floor.
+      - name: Tests of the files the PR changed
+        if: github.event_name == 'pull_request' && needs.changes.outputs.tests != ''
+        env:
+          TESTS: ${{ needs.changes.outputs.tests }}
+        run: poetry run pytest $TESTS
+
+      # The whole suite and the 70% floor (RNF10) run on dev and main. Tests use
+      # a real PostgreSQL via testcontainers; the runner already provides Docker.
       - name: Tests with coverage
+        if: github.event_name != 'pull_request'
         run: poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=70
 
   segredos:
