@@ -67,14 +67,13 @@ And a text cell that would start a formula is neutralised
 Getting this wrong means every user "fixes" the file by hand, and the fixed
 copies become the records people actually circulate.
 
-**AC-0009-07** *(deferred)*
-Given a report of more than 5.000 rows
-When it is requested
-Then it is generated asynchronously and served through a download link
+**AC-0009-07** *(withdrawn)*
+Every report is generated on request and served in the response, whatever its
+size. There is no asynchronous generation, no task queue and no download link.
 
-Not built: there is no task queue, and the PoC's data stays far below that
-size. Every report is served in the response. Whether it stays deferred is the
-product owner's decision, still to be taken.
+Product owner, 2026-11-10: a report downloads at once, with no task queue. The
+criterion asked for a report of more than 5.000 rows to be generated
+asynchronously; it is withdrawn and its number is not reused.
 
 **AC-0009-08**
 Given a report requested with `colunas`
@@ -188,4 +187,4 @@ New dependency: `fpdf2`, to write the PDF. Pure Python, no system library.
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF12, Tela 8 |
 | 1.0 | 2026-11-10 | Approved by the product owner. Criteria in Given/When/Then; §2.1 names the columns of each report, §2.2 says how the state at the data de referência is read from the history, §2.3 adds the API, the permissions and the errors. AC-0009-07 deferred by the product owner. `fpdf2` added |
-| 1.1 | 2026-11-10 | Product owner, 2026-11-10: the export is customisable. AC-0009-08 adds `colunas`, AC-0009-09 adds `inicio`, a window that ends at the data de referência; AC-0009-02 and -04 carry both. AC-0009-07 corrected: its deferral was not decided by the product owner and stays open |
+| 1.1 | 2026-11-10 | Product owner, 2026-11-10: the export is customisable. AC-0009-08 adds `colunas`, AC-0009-09 adds `inicio`, a window that ends at the data de referência; AC-0009-02 and -04 carry both. AC-0009-07 withdrawn by the product owner on the same day: a report downloads at once, with no task queue |
