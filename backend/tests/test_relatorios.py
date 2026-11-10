@@ -1,4 +1,4 @@
-"""Reports and their exports — SPEC-0009 v1.0.
+"""Reports and their exports — SPEC-0009 v1.1.
 
 The gestor and the auditor export four reports as CSV and as PDF, every figure
 read as it stood at the data de referência (AC-0009-03). The database is shared
@@ -22,7 +22,8 @@ from app.core import clock
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.services import relatorio_files
-from app.services.relatorios import rewound
+from app.services.errors import InvalidData
+from app.services.relatorios import chosen, rewound
 from tests.catalogue import login
 from tests.test_notas_empenho import open_ne, setup_ata, to_stage
 from tests.test_notas_fiscais import error, launched, moved
@@ -334,6 +335,37 @@ def test_AC_0009_04_an_export_writes_who_took_which_report(
     assert row["dados_anteriores"]["relatorio"] == "posicao-saldo"
     assert row["dados_anteriores"]["formato"] == "csv"
     assert row["dados_anteriores"]["ata_id"] == ata["id"]
+    assert row["dados_anteriores"]["colunas"] is None
+    assert row["dados_anteriores"]["inicio"] is None
+
+
+def test_AC_0009_04_an_export_writes_its_columns_and_its_window(
+    application: TestClient,
+    gestor_user: tuple[dict, User],
+    cycle: tuple[dict, list[dict], dict, dict],
+) -> None:
+    """The history row says which columns left and from which instant."""
+    headers, user = gestor_user
+    start = instant()
+
+    read(
+        application,
+        headers,
+        "execucao-orcamentaria",
+        ata_id=cycle[0]["id"],
+        colunas="value,ne",
+        inicio=start,
+    )
+
+    page = application.get(
+        HIST, params={"entidade_tipo": "relatorio", "usuario_id": str(user.id)}, headers=headers
+    )
+    assert page.status_code == 200, page.text
+    (row,) = page.json()["items"]
+    assert row["dados_anteriores"]["colunas"] == ["ne", "value"]
+    assert datetime.datetime.fromisoformat(
+        row["dados_anteriores"]["inicio"]
+    ) == datetime.datetime.fromisoformat(start)
 
 
 # ── AC-0009-05 ─ who may export ──────────────────────────────────────────────
@@ -402,3 +434,110 @@ def test_AC_0009_06_the_csv_opens_in_excel_pt_br(
 def test_AC_0009_06_a_text_cell_cannot_start_a_formula(cell: str, written: str) -> None:
     """A cell a spreadsheet would run is neutralised; a negative figure is left alone."""
     assert relatorio_files.safe(cell) == written
+
+
+# ── AC-0009-08 ─ the caller chooses the columns ──────────────────────────────
+
+
+def test_AC_0009_08_the_chosen_columns_keep_the_order_of_the_report() -> None:
+    """The choice says which columns, never in which order, and a repeat counts once."""
+    assert chosen("posicao-saldo", None) == tuple(range(10))
+    assert chosen("posicao-saldo", ("saldo_disponivel", "ata", "ata")) == (0, 7)
+
+
+@pytest.mark.parametrize("colunas", [(), ("xyz",), ("ata", "xyz")])
+def test_AC_0009_08_an_unknown_or_empty_choice_is_refused(colunas: tuple[str, ...]) -> None:
+    """No column, or one the report does not have, is an error on `colunas`."""
+    with pytest.raises(InvalidData) as raised:
+        chosen("posicao-saldo", colunas)
+
+    assert "colunas" in raised.value.fields
+
+
+def test_AC_0009_08_an_export_carries_only_the_chosen_columns(
+    application: TestClient, gestor: dict[str, str], cycle: tuple[dict, list[dict], dict, dict]
+) -> None:
+    """A file asked for two columns has those two and no other."""
+    _, rows = read(
+        application, gestor, "posicao-saldo", ata_id=cycle[0]["id"], colunas="saldo_disponivel, ata"
+    )
+
+    (row,) = rows
+    assert list(row) == ["ATA", "Saldo disponível"]
+    assert row["ATA"] == cycle[0]["number"]
+
+
+@pytest.mark.parametrize("colunas", ["xyz", ","])
+def test_AC_0009_08_a_wrong_choice_answers_422(
+    application: TestClient, gestor: dict[str, str], colunas: str
+) -> None:
+    """An unknown column and an empty list answer 422 on `colunas`."""
+    response = application.get(
+        f"{REPORTS}/posicao-saldo", params={"colunas": colunas}, headers=gestor
+    )
+
+    assert response.status_code == 422, response.text
+    assert error(response)["code"] == "INVALID_DATA"
+    assert "colunas" in error(response)["fields"]
+
+
+# ── AC-0009-09 ─ the caller chooses the time window ──────────────────────────
+
+
+@pytest.mark.parametrize("relatorio", ["execucao-orcamentaria", "notas-fiscais-em-conferencia"])
+def test_AC_0009_09_what_was_registered_before_the_window_stays_out(
+    application: TestClient,
+    gestor: dict[str, str],
+    cycle: tuple[dict, list[dict], dict, dict],
+    relatorio: str,
+) -> None:
+    """An NE and an NF registered before `inicio` have no row; without it they do."""
+    ata = cycle[0]
+    start = instant()
+
+    header, rows = read(application, gestor, relatorio, ata_id=ata["id"], inicio=start)
+
+    assert rows == []
+    assert header["Período"].startswith("De ") and " até " in header["Período"]
+    assert len(read(application, gestor, relatorio, ata_id=ata["id"])[1]) == 1
+
+
+def test_AC_0009_09_what_was_registered_inside_the_window_is_listed(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """An NE registered after `inicio` is in the window."""
+    start = instant()
+    ata, items = setup_ata(application, gestor, [("1000", "10")])
+    created = open_ne(application, gestor, ata["id"], [(items[0]["id"], "300")])
+    assert created.status_code == 201, created.text
+
+    _, rows = read(application, gestor, "execucao-orcamentaria", ata_id=ata["id"], inicio=start)
+
+    assert len(rows) == 1
+
+
+def test_AC_0009_09_the_posicao_de_saldo_has_no_window(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """Saldo is a position at an instant, so `inicio` is refused there."""
+    response = application.get(
+        f"{REPORTS}/posicao-saldo", params={"inicio": instant()}, headers=gestor
+    )
+
+    assert response.status_code == 422, response.text
+    assert "inicio" in error(response)["fields"]
+
+
+def test_AC_0009_09_a_window_cannot_start_after_its_reference(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """`inicio` later than `referencia` answers 422 on `inicio`."""
+    reference = instant()
+    response = application.get(
+        f"{REPORTS}/execucao-orcamentaria",
+        params={"referencia": reference, "inicio": instant()},
+        headers=gestor,
+    )
+
+    assert response.status_code == 422, response.text
+    assert "inicio" in error(response)["fields"]
