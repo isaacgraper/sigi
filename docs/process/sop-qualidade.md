@@ -23,8 +23,8 @@ the wiring diagram.
 | No CPF, SIAPE, token or real e-mail | CLAUDE.md · `security/lgpd.md` | `scripts/check_personal_data.py` · `gitleaks` | commit · PR |
 | Commit message convention | CONTRIBUTING.md | `scripts/check_commit_msg.py` | commit |
 | Coverage ≥ 70% (RNF10) | `requirements/non-functional.md` | `pre-push` hook · `backend-ci` on the PR from `dev` to `main` | push · release PR |
-| Frontend lint, tests and build | — | `frontend-ci`, when `frontend/` changes | PR |
-| End to end in Chromium, Firefox and WebKit (RNF06) | `requirements/non-functional.md` | `frontend-ci`: Chromium, all three on the PR from `dev` to `main` | PR · release PR |
+| Frontend lint, tests and build | — | `frontend-ci`, when `frontend/` changes: only the Vitest files the change touched, all of them on the PR from `dev` to `main` | PR · release PR |
+| End to end in Chromium, Firefox and WebKit (RNF06) | `requirements/non-functional.md` | `frontend-ci`: the specs the change touched on Chromium, every spec on all three on the PR from `dev` to `main` | PR · release PR |
 | Constants live in a `constants.ts`, by feature | `process/coding-standards.md` | ESLint `no-restricted-syntax` · `frontend-ci` | PR |
 | Backend constants live in `app/constants/` | `process/coding-standards.md` §7 | `scripts/check_constants.py` · pre-commit and `backend-ci` | commit · PR |
 | Tests run on real PostgreSQL | CLAUDE.md | `pre-push` hook · `backend-ci` | push · PR |
@@ -90,8 +90,8 @@ the heavy jobs run only when their files changed:
 | Job | Runs when the change touches |
 | --- | --- |
 | `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`, its workflow. Only the test files the change touched, except on the PR from `dev` to `main` |
-| `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow |
-| `frontend-ci` · End to end | `frontend/` or its workflow; on the PR from `dev` to `main`, also `backend/` and `infra/` (the API is half of what it tests) |
+| `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow. Only the Vitest files the change touched, except on the PR from `dev` to `main` |
+| `frontend-ci` · End to end | Only the `frontend/e2e/*.spec.ts` files the change touched; on the PR from `dev` to `main`, every spec when `frontend/`, `backend/` or `infra/` changed (the API is half of what it tests) |
 | `backend-ci` · Secret scan | always: it scans the history, not a tree |
 | `api-docs` · Export the OpenAPI schema and publish it to `gh-pages` | a push to `dev` touching `backend/app/`, `backend/pyproject.toml`, `backend/poetry.lock`, `.github/pages/` or its workflow; or by hand |
 
@@ -102,14 +102,18 @@ comes. With no usable base (a new branch, a rewritten one) everything runs.
 **Only the PR from `dev` to `main` runs everything** *(2026-11-10, by the
 product owner)*. A PR into `dev` and every push to `dev` or `main` run lint,
 mypy and the `backend/tests/test_*.py` files in the diff, without the coverage
-floor; a change to `conftest.py` or `catalogue.py` runs every file. The whole
+floor; a change to `conftest.py` or `catalogue.py` runs every file. The
+frontend follows the same rule: ESLint, the build, the `frontend/tests/*.test.ts`
+files and the `frontend/e2e/*.spec.ts` files in the diff, where a change to
+`vitest.config.ts` runs every Vitest file and a change to `e2e/helpers.ts` or
+`playwright.config.ts` runs every spec. The whole
 suite, the 70% floor and the end to end for a backend change run on the PR
 that takes `dev` to `main`, so a regression in a file a change did not touch
 shows there, before the release and not before the merge into `dev`.
 
 **End to end: Chromium, three browsers on the PR from `dev` to `main`.**
-Playwright runs on Chromium only; the PR from `dev` to `main` runs Chromium,
-Firefox and WebKit once, which is where RNF06 is proven. A browser-specific
+Playwright runs the changed specs on Chromium only; the PR from `dev` to `main`
+runs every spec on Chromium, Firefox and WebKit once, which is where RNF06 is proven. A browser-specific
 failure therefore surfaces there and is fixed on `dev` by a PR of its own.
 Running all three on every push cost about twenty minutes a run.
 
