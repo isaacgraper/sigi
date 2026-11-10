@@ -18,6 +18,7 @@ from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
 from app.core.db import DbSession
 from app.models.user import User
+from app.schemas.historico import CicloOut, EventoOut
 from app.schemas.insumo import (
     CatalogueLineOut,
     CatalogueReportOut,
@@ -36,7 +37,7 @@ from app.schemas.insumo import (
     SubstituteIn,
     SubstituteOut,
 )
-from app.services import insumos
+from app.services import historico, insumos
 from app.services.insumos import GrupoNode, InsumoDetail, InsumoView
 
 router = APIRouter(prefix="/api/v1/insumos", tags=["insumos"])
@@ -194,6 +195,29 @@ def import_catalogue(
 def get_insumo(insumo_id: uuid.UUID, actor: Reader, session: DbSession) -> InsumoDetailOut:
     """One insumo with the ATAs it is an item of (SPEC-0003 AC-0003-12, -29)."""
     return _detail_out(insumos.get(session, insumo_id, actor=actor))
+
+
+@router.get("/{insumo_id}/ciclo", response_model=CicloOut)
+def get_cycle(insumo_id: uuid.UUID, actor: Reader, session: DbSession) -> CicloOut:
+    """The cycle of an insumo, ATA to NF, oldest first (SPEC-0007 AC-0007-07)."""
+    cycle = historico.cycle(session, insumo_id, actor=actor)
+    return CicloOut(
+        insumo_id=cycle.insumo.id,
+        sku=cycle.insumo.sku,
+        eventos=[
+            EventoOut(
+                etapa=event.etapa,
+                entidade_tipo=event.row.entidade_tipo,
+                entidade_id=event.row.entidade_id,
+                acao=event.row.acao,
+                usuario_id=event.row.user_id,
+                ocorrido_em=event.row.ocorrido_em,
+                dados_anteriores=event.row.dados_anteriores,
+                justificativa=event.row.justificativa,
+            )
+            for event in cycle.events
+        ],
+    )
 
 
 @router.patch("/{insumo_id}", response_model=InsumoDetailOut)

@@ -92,7 +92,27 @@ Five years minimum (RNF08). Partitioning by year from day one; retrofitting
 partitions onto a large append-only table is painful and always happens at the
 worst moment.
 
-## 4. Changelog
+## 4. Implementation plan
+
+No migration: `historico_movimentacao` and its indexes exist since `0001_baseline`.
+
+1. `app/constants/historico.py`: the `entidade_tipo` values a filter admits.
+2. `app/repositories/audit_log.py`: a page of the history, newest first, and the
+   rows of an insumo's cycle.
+3. `app/services/historico.py`: the filters checked (422 per field), the period
+   in `America/Sao_Paulo` days, and the cycle resolved through the insumo's
+   ITEM_ATA rows, their ATAs, the NEs on those items and the NFs of those NEs.
+   The ATA rows keep only its own events and those of the insumo's items. The
+   insumo is resolved with the RN07 scope of SPEC-0003, so a servidor outside its
+   grupo gets 404.
+4. `app/schemas/historico.py`, `app/api/historico.py` for `GET /api/v1/historico`
+   (gestor, auditor) and `GET /api/v1/insumos/{id}/ciclo` in `app/api/insumos.py`
+   (every perfil).
+5. Tests per AC in `tests/test_historico.py`, against PostgreSQL.
+
+No new dependency.
+
+## 5. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |

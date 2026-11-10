@@ -136,3 +136,12 @@ def quantity_by_line(
         query = query.where(NotaFiscal.id != excluding)
     rows = session.execute(query).all()
     return {(line, held): decimal.Decimal(total) for line, held, total in rows}
+
+
+def ids_of_nes(session: Session, ne_ids: Collection[uuid.UUID]) -> Sequence[uuid.UUID]:
+    """The NFs launched against these NEs (AC-0007-07)."""
+    if not ne_ids:
+        return []
+    return session.scalars(
+        select(NotaFiscal.id).where(NotaFiscal.nota_empenho_id.in_(list(ne_ids)))
+    ).all()

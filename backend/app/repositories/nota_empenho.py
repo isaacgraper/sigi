@@ -154,3 +154,14 @@ def quantity_by_item_and_status(
         .group_by(ItemNotaEmpenho.item_ata_id, NotaEmpenho.status)
     ).all()
     return {(item, status): decimal.Decimal(total) for item, status, total in rows}
+
+
+def ids_with_items(session: Session, item_ids: Collection[uuid.UUID]) -> Sequence[uuid.UUID]:
+    """The NEs with a line on any of these items (AC-0007-07)."""
+    if not item_ids:
+        return []
+    return session.scalars(
+        select(ItemNotaEmpenho.nota_empenho_id)
+        .where(ItemNotaEmpenho.item_ata_id.in_(list(item_ids)))
+        .distinct()
+    ).all()

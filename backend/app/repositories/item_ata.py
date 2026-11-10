@@ -83,3 +83,8 @@ def atas_of_insumo(session: Session, insumo_id: uuid.UUID) -> Sequence[tuple[Ite
         .where(ItemAta.insumo_id == insumo_id, ItemAta.removed_at.is_(None))
         .order_by(Ata.criado_em.desc(), Ata.id)
     ).all()  # type: ignore[return-value]
+
+
+def all_of_insumo(session: Session, insumo_id: uuid.UUID) -> Sequence[ItemAta]:
+    """Every item of the insumo on any ATA, removed ones included (AC-0007-07)."""
+    return session.scalars(select(ItemAta).where(ItemAta.insumo_id == insumo_id)).all()
