@@ -221,10 +221,10 @@ rule is checked where, and names the two that nothing checks.
 
 **CI runs only what a change touches.** A `changes` job skips the backend, the
 frontend and the end-to-end jobs when their files did not change, so a
-docs-only PR runs only the secret scan. A PR runs only the backend test files
-it changed, and the end to end only when `frontend/` changed; the whole suite and
-the coverage floor run on `dev` and `main`. Playwright runs Chromium on a PR and all
-three browsers on `dev` and `main`. No video is committed unless the product
+docs-only PR runs only the secret scan. A PR into `dev` and a push to `dev` run
+only the backend test files they changed, and the end to end only when
+`frontend/` changed, on Chromium. The whole suite, the coverage floor and all
+three browsers run only on the PR from `dev` to `main`. No video is committed unless the product
 owner asks for one. Details in `docs/process/sop-qualidade.md`.
 
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
