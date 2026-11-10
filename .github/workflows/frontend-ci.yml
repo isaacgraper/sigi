@@ -27,6 +27,8 @@ jobs:
       frontend: ${{ steps.diff.outputs.frontend }}
       app: ${{ steps.diff.outputs.app }}
       full: ${{ steps.diff.outputs.full }}
+      unit: ${{ steps.diff.outputs.unit }}
+      specs: ${{ steps.diff.outputs.specs }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -51,6 +53,20 @@ jobs:
           fi
           if echo "$files" | grep -qE '^(frontend/|\.github/workflows/frontend-ci\.yml$)'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
           if echo "$files" | grep -qE '^(frontend/|backend/|infra/|\.github/workflows/frontend-ci\.yml$)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+          # What a change runs: the test files it touched and that still exist. A
+          # change to the shared setup, or no usable base, runs them all.
+          if echo "$files" | grep -qE '^frontend/(vitest\.config\.ts)?$'; then
+            unit="tests"
+          else
+            unit="$(echo "$files" | grep -E '^frontend/tests/[A-Za-z0-9_.-]+\.test\.tsx?$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "unit=$unit" >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^frontend/((e2e/helpers|playwright\.config)\.ts)?$'; then
+            specs="e2e"
+          else
+            specs="$(echo "$files" | grep -E '^frontend/e2e/[A-Za-z0-9_.-]+\.spec\.ts$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend lint, tests and build
@@ -78,7 +94,14 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Unit tests of the files that changed (Vitest)
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.unit != ''
+        env:
+          UNIT: ${{ needs.changes.outputs.unit }}
+        run: npm run test -- $UNIT
+
       - name: Unit tests (Vitest)
+        if: needs.changes.outputs.full == 'true'
         run: npm run test
 
       - name: Production build
@@ -87,10 +110,10 @@ jobs:
   e2e:
     name: End to end (SPEC-0010)
     # The API is half of what it tests, so on the PR from dev to main a backend
-    # change runs it too. Anything else runs it only when the frontend changed.
+    # change runs it too. Anything else runs only the spec files it changed.
     needs: changes
     if: >-
-      (needs.changes.outputs.full != 'true' && needs.changes.outputs.frontend == 'true') ||
+      (needs.changes.outputs.full != 'true' && needs.changes.outputs.specs != '') ||
       (needs.changes.outputs.full == 'true' && needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -193,11 +216,12 @@ jobs:
           BROWSERS: ${{ needs.changes.outputs.full == 'true' && 'chromium firefox webkit' || 'chromium' }}
         run: npx playwright install --with-deps $BROWSERS
 
-      - name: Playwright (Chromium; with Firefox and WebKit on the PR from dev to main, RNF06)
+      - name: Playwright (changed specs on Chromium; everything on three browsers on the PR from dev to main, RNF06)
         working-directory: frontend
         env:
           PROJECTS: ${{ needs.changes.outputs.full == 'true' && '' || '--project=chromium' }}
-        run: npm run test:e2e -- $PROJECTS
+          SPECS: ${{ needs.changes.outputs.full == 'true' && '' || needs.changes.outputs.specs }}
+        run: npm run test:e2e -- $PROJECTS $SPECS
 
       - name: Server logs
         if: failure()
