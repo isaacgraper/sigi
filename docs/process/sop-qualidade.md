@@ -89,8 +89,8 @@ the heavy jobs run only when their files changed:
 
 | Job | Runs when the change touches |
 | --- | --- |
-| `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`, its workflow. Only the test files the change touched, except on the PR from `dev` to `main` |
-| `frontend-ci` · Frontend lint, tests and build | `frontend/`, its workflow. Only the Vitest files the change touched, except on the PR from `dev` to `main` |
+| `backend-ci` · Backend lint and tests | `backend/`, `scripts/`, `infra/`, `.pre-commit-config.yaml`. Only the test files the change touched, except on the PR from `dev` to `main` |
+| `frontend-ci` · Frontend lint, tests and build | `frontend/`. Only the Vitest files the change touched, except on the PR from `dev` to `main` |
 | `frontend-ci` · End to end | Only the `frontend/e2e/*.spec.ts` files the change touched; on the PR from `dev` to `main`, every spec when `frontend/`, `backend/` or `infra/` changed (the API is half of what it tests) |
 | `backend-ci` · Secret scan | always: it scans the history, not a tree |
 | `api-docs` · Export the OpenAPI schema and publish it to `gh-pages` | a push to `dev` touching `backend/app/`, `backend/pyproject.toml`, `backend/poetry.lock`, `.github/pages/` or its workflow; or by hand |
