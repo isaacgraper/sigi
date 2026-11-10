@@ -2,7 +2,7 @@
 id: SPEC-0009
 title: Relatórios e exportações
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF12]
 depends_on: [SPEC-0001, SPEC-0002, SPEC-0004, SPEC-0005, SPEC-0006, SPEC-0007]
@@ -30,7 +30,8 @@ Given any export
 When it is generated
 Then it opens with its title, its identifier, the instant it was generated, the
     name of who requested it, the data de referência and the filters applied
-And the period it covers runs up to the data de referência
+And the period it covers: up to the data de referência, or from `inicio` to it
+    when a window was asked for (AC-0009-09)
 
 An export without provenance is an anonymous spreadsheet.
 
@@ -47,6 +48,7 @@ When the history is read
 Then a `relatorio.exportado` row holds who exported, which report, the format,
     the data de referência and the filters
 And its `entidade_id` is the identifier printed in the file
+And it holds the `inicio` and the `colunas` asked for, when there were any
 
 **AC-0009-05**
 Given an auditor
@@ -70,8 +72,27 @@ Given a report of more than 5.000 rows
 When it is requested
 Then it is generated asynchronously and served through a download link
 
-Deferred by the product owner on 2026-11-10: there is no task queue, and the
-PoC's data stays far below that size. Every report is served in the response.
+Not built: there is no task queue, and the PoC's data stays far below that
+size. Every report is served in the response. Whether it stays deferred is the
+product owner's decision, still to be taken.
+
+**AC-0009-08**
+Given a report requested with `colunas`
+When it is generated
+Then the file holds only the columns named, in the report's own order
+And a report without `colunas` holds every column
+And a column the report does not have is refused with 422 `INVALID_DATA`, the
+    message listing the columns it has
+
+**AC-0009-09**
+Given a report requested with `inicio`
+When it is generated
+Then it holds only the NEs and the NFs created from `inicio` to the data de
+    referência, each as it stood at the data de referência
+And the file says the period it covers, from `inicio` to the data de referência
+And `posicao-saldo` refuses `inicio` with 422 `INVALID_DATA`, because a saldo
+    summed over part of the NEs would read as the saldo of the ATA
+And an `inicio` after the data de referência is refused with 422 `INVALID_DATA`
 
 ## 2.1 The reports
 
@@ -83,6 +104,20 @@ Every figure is read as it stood at the data de referência.
 | `posicao-saldo` | ATA | ATA, Fornecedor, Situação, Fim da vigência, Valor contratado, Valor reservado, Valor empenhado, Saldo disponível, Comprometimento (%), Alto consumo |
 | `notas-fiscais-em-conferencia` | NF in `em_conferencia` | NF, Fornecedor, NE, ATA, Data de emissão, Valor |
 | `indicadores-fornecedores` | fornecedor with an ATA | Fornecedor, CNPJ, ATAs, Valor contratado, Valor empenhado, NFs lançadas, NFs aprovadas, NFs devolvidas, Valor aprovado |
+
+`colunas` names a column by its key, in the same order as above (AC-0009-08):
+
+| Report | Keys |
+| --- | --- |
+| `execucao-orcamentaria` | `ata`, `fornecedor`, `processo_sei`, `numero_pre_empenho`, `ne`, `stage`, `value`, `issued_on` |
+| `posicao-saldo` | `ata`, `fornecedor`, `status`, `vigencia_fim`, `valor_contratado`, `valor_reservado`, `valor_empenhado`, `saldo_disponivel`, `comprometimento_percentual`, `alto_consumo` |
+| `notas-fiscais-em-conferencia` | `nf`, `fornecedor`, `ne`, `ata`, `issued_on`, `value` |
+| `indicadores-fornecedores` | `fornecedor`, `cnpj`, `atas`, `valor_contratado`, `valor_empenhado`, `nfs_lancadas`, `nfs_aprovadas`, `nfs_devolvidas`, `valor_aprovado` |
+
+With `inicio` (AC-0009-09), `execucao-orcamentaria` lists the NEs created in the
+window, `notas-fiscais-em-conferencia` the NFs created in it, and
+`indicadores-fornecedores` counts the NEs and the NFs created in it, while its
+ATAs and valor contratado stay as at the data de referência.
 
 Saldo follows SPEC-0006: reserved from `pre_empenho`, committed at `ne_emitida`,
 and `Alto consumo` at 80% of commitment. RF12's "insumo lifecycle" is the cycle
@@ -118,12 +153,16 @@ partial one that reads as whole.
 | `formato` | `csv` (default) or `pdf` |
 | `referencia` | The data de referência, an instant with its offset. Defaults to now |
 | `ata_id` | Restricts the report to one ATA |
+| `colunas` | The columns to export, their keys separated by commas. Defaults to all |
+| `inicio` | The start of the window, an instant with its offset. Defaults to none: everything up to `referencia` |
 
 | Case | Answer |
 | --- | --- |
 | Unknown report | 404 `NOT_FOUND` |
 | Unknown `ata_id` | 404 `NOT_FOUND` |
 | Unknown `formato`, or `referencia` in the future | 422 `INVALID_DATA` |
+| A key in `colunas` the report does not have, or none at all | 422 `INVALID_DATA` |
+| `inicio` after `referencia`, or `inicio` on `posicao-saldo` | 422 `INVALID_DATA` |
 | Servidor | 403 `PERFIL_NAO_AUTORIZADO` |
 
 ## 3. Implementation plan
@@ -149,3 +188,4 @@ New dependency: `fpdf2`, to write the PDF. Pure Python, no system library.
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF12, Tela 8 |
 | 1.0 | 2026-11-10 | Approved by the product owner. Criteria in Given/When/Then; §2.1 names the columns of each report, §2.2 says how the state at the data de referência is read from the history, §2.3 adds the API, the permissions and the errors. AC-0009-07 deferred by the product owner. `fpdf2` added |
+| 1.1 | 2026-11-10 | Product owner, 2026-11-10: the export is customisable. AC-0009-08 adds `colunas`, AC-0009-09 adds `inicio`, a window that ends at the data de referência; AC-0009-02 and -04 carry both. AC-0009-07 corrected: its deferral was not decided by the product owner and stays open |
