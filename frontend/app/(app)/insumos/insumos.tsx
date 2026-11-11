@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { GrupoSelect } from "@/components/insumos/grupo-select";
 import { InsumoSituacao } from "@/components/insumos/situacao";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -87,6 +88,11 @@ export function Insumos() {
         description={description}
         action={
           <div className="flex flex-wrap gap-2">
+            <ExportDialog
+              relatorio="insumos"
+              title="insumos"
+              filtros={{ q: filters.q, grupo_id: filters.grupo, status: filters.situacao }}
+            />
             <Link href="/insumos/grupos" className={buttonVariants({ variant: "outline" })}>
               <FolderTree aria-hidden />
               Grupos de materiais

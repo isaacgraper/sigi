@@ -239,8 +239,10 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     # history; every perfil reads the cycle of an insumo.
     ("GET", "/api/v1/historico"): frozenset({"gestor", "auditor"}),
     ("GET", "/api/v1/insumos/{insumo_id}/ciclo"): frozenset({"gestor", "servidor", "auditor"}),
-    # SPEC-0009 AC-0009-05: the gestor and the auditor export the reports.
-    ("GET", "/api/v1/relatorios/{relatorio}"): frozenset({"gestor", "auditor"}),
+    # SPEC-0009 AC-0009-05 and AC-0009-11: the gestor and the auditor export the
+    # reports and the Histórico; every perfil exports the lists it reads,
+    # so the route admits all three and the service refuses the rest.
+    ("GET", "/api/v1/relatorios/{relatorio}"): frozenset({"gestor", "servidor", "auditor"}),
 }
 
 

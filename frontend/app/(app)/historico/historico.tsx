@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { EventBody } from "@/components/historico/event-list";
 import { PageHeader } from "@/components/page-header";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,23 @@ export function Historico() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Histórico" description="O que aconteceu em cada ATA, NE, NF e insumo, com o que mudou." />
+      <PageHeader
+        title="Histórico"
+        description="O que aconteceu em cada ATA, NE, NF e insumo, com o que mudou."
+        action={
+          <ExportDialog
+            relatorio="historico"
+            title="o histórico"
+            filtros={{
+              entidade_tipo: filters.entidade,
+              entidade_id: filters.id,
+              usuario_id: filters.usuario,
+              de: filters.de,
+              ate: filters.ate,
+            }}
+          />
+        }
+      />
 
       <section aria-label="Lista de eventos" className="space-y-4">
         <div className="flex flex-wrap items-start gap-4">

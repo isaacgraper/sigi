@@ -42,7 +42,7 @@ on an `Approved` spec is a merge blocker.
 | RF06, RF10 | SPEC-0007 v1.1 | AC-0007-01..10 (-02 to -04 and -06 proven by SPEC-0001's tests) | `backend/tests/test_historico.py`, `backend/tests/test_history_changes.py` | **Approved**, built |
 | RF06, RF10 (screens) | SPEC-0017 v1.0 | AC-0017-01..12 | `frontend/e2e/historico.spec.ts`, `frontend/tests/historico.test.ts` | Approved, built |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
-| RF12 | SPEC-0009 v1.1 | AC-0009-01..06, -08, -09 (AC-0009-07 withdrawn) | `backend/tests/test_relatorios.py` | Approved, built |
+| RF12, RN07 | SPEC-0009 v1.2 | AC-0009-01..06, -08..13 (AC-0009-07 withdrawn) | `backend/tests/test_relatorios.py`, `frontend/e2e/exportar.spec.ts` | Approved, built |
 | RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
 | RNF06, RNF14 | SPEC-0010 v1.8 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
 

@@ -9,6 +9,7 @@ import { AtaStatus } from "@/components/atas/status";
 import { Upcoming } from "@/components/atas/upcoming";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -111,7 +112,12 @@ export function Atas() {
       <PageHeader
         title="ATAs"
         description="As Atas de Registro de Preços, o que vence e o reajuste a pedir."
-        action={writes ? <RegisterLink /> : undefined}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ExportDialog relatorio="atas" title="ATAs" filtros={{ status, situacao_vigencia: situacao }} />
+            {writes && <RegisterLink />}
+          </div>
+        }
       />
 
       <Upcoming />

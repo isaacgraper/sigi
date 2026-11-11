@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Figure, NeStage } from "@/components/notas-empenho/stage";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -61,7 +62,12 @@ export function NotasEmpenho() {
       <PageHeader
         title="Notas de empenho"
         description="Da demanda à NE emitida, uma etapa por vez, com o saldo da ATA reservado no pré-empenho."
-        action={opens ? <OpenLink /> : undefined}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ExportDialog relatorio="notas-empenho" title="notas de empenho" filtros={{ etapa }} />
+            {opens && <OpenLink />}
+          </div>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3 sm:flex">

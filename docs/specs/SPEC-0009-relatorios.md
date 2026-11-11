@@ -2,10 +2,10 @@
 id: SPEC-0009
 title: Relatórios e exportações
 status: Approved
-version: 1.1
+version: 1.2
 owner: Isaac Kleimmann Graper
-satisfies: [RF12]
-depends_on: [SPEC-0001, SPEC-0002, SPEC-0004, SPEC-0005, SPEC-0006, SPEC-0007]
+satisfies: [RF12, RN07]
+depends_on: [SPEC-0001, SPEC-0002, SPEC-0003, SPEC-0004, SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0017]
 milestone: M4
 ---
 
@@ -93,6 +93,47 @@ And `posicao-saldo` refuses `inicio` with 422 `INVALID_DATA`, because a saldo
     summed over part of the NEs would read as the saldo of the ATA
 And an `inicio` after the data de referência is refused with 422 `INVALID_DATA`
 
+**AC-0009-10** — Exporting a list
+```gherkin
+Given a member who sees the list of ATAs, the itens of an ATA, the insumos, the NEs or the NFs
+When  they press "Exportar" on it, with its filters set
+Then  the file holds the rows the list holds with those filters, every one, not a page
+And   each row as it stood at the data de referência, created from `inicio` when there is one
+And   the file opens with the provenance of AC-0009-02, its filters named
+And   the `relatorio.exportado` row of AC-0009-04 holds the filters
+```
+Product owner, 2026-11-10: "vou ir la em ATAs, la dentro eu posso exportar aquela
+tabela de ATAs e consequentemente para cada tela de itens que temos, como nf, ne e
+tudo mais".
+
+**AC-0009-11** — A list export keeps RN07
+```gherkin
+Given a servidor
+When  they export the insumos or the itens of an ATA
+Then  the file holds only the insumos of their grupos
+And   they may export every list they see, and none of the reports of AC-0009-01 nor the Histórico
+```
+The four reports stay the gestor's and the auditor's (AC-0009-05).
+
+**AC-0009-12** — Exporting the Histórico
+```gherkin
+Given a gestor or an auditor on the Histórico, with its filters set
+When  they export it
+Then  each event is a row with when, its label, the entity, who, and what it changed
+      written as "Campo: antes → depois"
+```
+SPEC-0017 moved this export here, so it carries its provenance and its row.
+
+**AC-0009-13** — The export dialog
+```gherkin
+Given a list with "Exportar"
+When  it is pressed
+Then  a dialog offers CSV or PDF, the columns, all of them chosen, the data de
+      referência, today by default, and the start of the period, empty by default
+And   "Exportar" in it downloads the file with the list's filters
+And   a refusal of the API shows under the field it names
+```
+
 ## 2.1 The reports
 
 Every figure is read as it stood at the data de referência.
@@ -122,6 +163,24 @@ Saldo follows SPEC-0006: reserved from `pre_empenho`, committed at `ne_emitida`,
 and `Alto consumo` at 80% of commitment. RF12's "insumo lifecycle" is the cycle
 of SPEC-0007 (AC-0007-07), not a fifth report.
 
+### The list exports (AC-0009-10 to -12)
+
+| Export | One row per | Columns, by key | Filters, as the list names them |
+| --- | --- | --- | --- |
+| `atas` | ATA | `ata` Número, `objeto` Objeto, `fornecedor` Fornecedor, `vigencia_inicio` Início da vigência, `vigencia_fim` Fim da vigência, `valor_contratado` Valor contratado, `status` Status, `situacao` Situação da vigência | `status`, `situacao_vigencia` |
+| `itens-ata` | item of one ATA | `numero_item` Item, `sku` SKU, `descricao` Descrição, `unidade` Unidade, `quantidade` Quantidade, `valor_unitario` Valor unitário, `valor_total` Valor total | `ata_id`, required |
+| `insumos` | insumo | `sku` SKU, `descricao` Descrição, `unidade` Unidade, `grupo` Grupo, `codigo_doms` Código DOMS, `codigo_externo` Código externo, `situacao` Situação | `q`, `grupo_id`, `status` |
+| `notas-empenho` | NE | `processo_sei` Processo SEI, `ata` ATA, `etapa` Etapa, `valor` Valor, `numero_pre_empenho` Pré-empenho, `ne` NE, `aberta_em` Aberta em | `etapa`, `ata_id`, `processo_sei` |
+| `notas-fiscais` | NF | `nf` NF, `ne` NE, `ata` ATA, `data_emissao` Data de emissão, `valor` Valor, `status` Status, `quarentena` Em quarentena | `status`, `nota_empenho_id`, `quarentena` |
+| `historico` | event | `quando` Quando, `acao` Ação, `entidade` Entidade, `entidade_id` Identificador da entidade, `quem` Quem, `alteracoes` Alterações, `detalhes` Detalhes | `entidade_tipo`, `entidade_id`, `usuario_id`, `de`, `ate` |
+
+A filter reads the row as it stood at the data de referência, so the same filters
+and the same reference give the same file (AC-0009-03). An insumo and an item of
+an ATA are rewound from their history as §2.2 rewinds the others; an item removed
+by the reference is not listed. The Histórico lists the events up to the reference,
+and from `inicio` when there is one; each event's changes are SPEC-0007's
+(AC-0007-10).
+
 ## 2.2 The state at the data de referência
 
 The tables keep only the current state. The past is read from the history
@@ -143,9 +202,11 @@ reaches only an NE that had not reserved saldo yet.
 
 ## 2.3 API, permissions and errors
 
-`GET /api/v1/relatorios/{relatorio}`, for the gestor and the auditor. RF12 names
-the auditor; a servidor's RN07 scope would turn a consolidated report into a
-partial one that reads as whole.
+`GET /api/v1/relatorios/{relatorio}`. The four reports and the Histórico are
+for the gestor and the auditor: RF12 names the auditor, and a servidor's RN07
+scope would turn a consolidated report into a partial one that reads as whole.
+A list export is for every perfil that reads the list, inside its RN07 scope
+(AC-0009-11). The filters of each list export are parameters of the same names.
 
 | Parameter | Meaning |
 | --- | --- |
@@ -162,7 +223,8 @@ partial one that reads as whole.
 | Unknown `formato`, or `referencia` in the future | 422 `INVALID_DATA` |
 | A key in `colunas` the report does not have, or none at all | 422 `INVALID_DATA` |
 | `inicio` after `referencia`, or `inicio` on `posicao-saldo` | 422 `INVALID_DATA` |
-| Servidor | 403 `PERFIL_NAO_AUTORIZADO` |
+| Servidor, on a report or the Histórico | 403 `PERFIL_NAO_AUTORIZADO` |
+| `itens-ata` without `ata_id`, or a filter the list refuses | 422 `INVALID_DATA` |
 
 ## 3. Implementation plan
 
@@ -178,6 +240,13 @@ No migration: every report is read from existing tables and the history.
    table as CSV and as PDF.
 4. `app/api/relatorios.py` for `GET /api/v1/relatorios/{relatorio}`.
 5. Tests per AC in `tests/test_relatorios.py`, against PostgreSQL.
+6. *(v1.2)* `app/services/list_exports.py`: the six list exports, each read at
+   the reference with its filters and RN07, through the provenance and the audit
+   row of `relatorios.export`. The route opens to every perfil and the service
+   refuses a servidor the reports and the Histórico.
+7. *(v1.2)* Frontend: `components/relatorios/export-dialog.tsx`, the shared
+   dialog, and "Exportar" on the lists of ATAs, insumos, NEs and NFs, on the
+   itens of an ATA and on the Histórico. E2e in `frontend/e2e/exportar.spec.ts`.
 
 New dependency: `fpdf2`, to write the PDF. Pure Python, no system library.
 
@@ -188,3 +257,4 @@ New dependency: `fpdf2`, to write the PDF. Pure Python, no system library.
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF12, Tela 8 |
 | 1.0 | 2026-11-10 | Approved by the product owner. Criteria in Given/When/Then; §2.1 names the columns of each report, §2.2 says how the state at the data de referência is read from the history, §2.3 adds the API, the permissions and the errors. AC-0009-07 deferred by the product owner. `fpdf2` added |
 | 1.1 | 2026-11-10 | Product owner, 2026-11-10: the export is customisable. AC-0009-08 adds `colunas`, AC-0009-09 adds `inicio`, a window that ends at the data de referência; AC-0009-02 and -04 carry both. AC-0009-07 withdrawn by the product owner on the same day: a report downloads at once, with no task queue |
+| 1.2 | 2026-11-11 | Product owner, 2026-11-10: "Exportar" on every list. AC-0009-10 to -13: the lists of ATAs, itens of an ATA, insumos, NEs and NFs, and the Histórico moved from SPEC-0017, each with its filters, at the data de referência, through one shared dialog; a list export is for whoever reads the list, inside RN07. The four reports are unchanged |

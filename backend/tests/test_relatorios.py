@@ -1,8 +1,9 @@
-"""Reports and their exports — SPEC-0009 v1.1.
+"""Reports and their exports — SPEC-0009 v1.2.
 
 The gestor and the auditor export four reports as CSV and as PDF, every figure
 read as it stood at the data de referência (AC-0009-03). The database is shared
-by the suite, so each test reads its own ATA through `ata_id`.
+by the suite, so each test reads its own ATA through `ata_id`. Every list exports
+too, with its filters and RN07 (AC-0009-10 to -12).
 """
 
 from __future__ import annotations
@@ -24,7 +25,8 @@ from app.models.user import User
 from app.services import relatorio_files
 from app.services.errors import InvalidData
 from app.services.relatorios import chosen, rewound
-from tests.catalogue import login
+from tests.catalogue import add_item, grupo, login, make_ata, make_insumo
+from tests.test_insumos import scoped_servidor
 from tests.test_notas_empenho import open_ne, setup_ata, to_stage
 from tests.test_notas_fiscais import error, launched, moved
 
@@ -542,3 +544,222 @@ def test_AC_0009_09_a_window_cannot_start_after_its_reference(
 
     assert response.status_code == 422, response.text
     assert "inicio" in error(response)["fields"]
+
+
+# ── AC-0009-10 to -12 — the list exports ─────────────────────────────────────
+
+
+def test_AC_0009_10_the_atas_list_with_its_filter(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """Every ATA the filter keeps, not a page, with the filter named."""
+    ata = make_ata(application, gestor)
+    suspended = make_ata(application, gestor)
+    moved_ata = application.post(f"{ATAS}/{suspended['id']}/suspender", headers=gestor)
+    assert moved_ata.status_code == 200, moved_ata.text
+
+    header, rows = read(application, gestor, "atas", status="vigente")
+
+    numbers = {row["Número"] for row in rows}
+    assert ata["number"] in numbers
+    assert suspended["number"] not in numbers
+    assert header["Relatório"] == "ATAs"
+    assert header["Filtros"] == "Status: Vigente"
+    mine = next(row for row in rows if row["Número"] == ata["number"])
+    assert mine["Status"] == "Vigente" and mine["Situação da vigência"] == "Vigente"
+
+
+def test_AC_0009_10_RF12_a_list_reads_as_at_its_data_de_referencia(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """An ATA corrected after the reference is listed as it was then."""
+    ata = make_ata(application, gestor, subject="Objeto antigo")
+    before = instant()
+    edited = application.patch(
+        f"{ATAS}/{ata['id']}", json={"subject": "Objeto novo"}, headers=gestor
+    )
+    assert edited.status_code == 200, edited.text
+
+    _, then = read(application, gestor, "atas", referencia=before)
+    _, now = read(application, gestor, "atas")
+
+    assert next(r for r in then if r["Número"] == ata["number"])["Objeto"] == "Objeto antigo"
+    assert next(r for r in now if r["Número"] == ata["number"])["Objeto"] == "Objeto novo"
+
+
+def test_AC_0009_10_the_nes_of_an_ata_by_etapa(
+    application: TestClient,
+    gestor: dict[str, str],
+    cycle: tuple[dict, list[dict], dict, dict],
+) -> None:
+    """The NE list keeps its ATA and its etapa."""
+    ata, items, ne, _ = cycle
+    other = open_ne(application, gestor, ata["id"], [(items[1]["id"], "10")])
+    assert other.status_code == 201, other.text
+
+    header, rows = read(application, gestor, "notas-empenho", ata_id=ata["id"], etapa="ne_emitida")
+
+    assert [row["NE"] for row in rows] == [ne["number"]]
+    assert rows[0]["Etapa"] == "NE emitida" and rows[0]["ATA"] == ata["number"]
+    assert header["Filtros"] == f"Etapa: NE emitida; ATA: {ata['number']}"
+
+
+def test_AC_0009_10_the_nfs_held_in_quarentena_then_and_now(
+    application: TestClient,
+    gestor: dict[str, str],
+    cycle: tuple[dict, list[dict], dict, dict],
+) -> None:
+    """A quarentena after the reference reads as not held at it."""
+    _, _, ne, nf = cycle
+    before = instant()
+    moved(application, gestor, nf["id"], "quarentena", motivo="Caixa avariada.")
+
+    _, now = read(application, gestor, "notas-fiscais", nota_empenho_id=ne["id"], quarentena="true")
+    _, then = read(
+        application, gestor, "notas-fiscais", nota_empenho_id=ne["id"], referencia=before
+    )
+
+    assert [row["NF"] for row in now] == [nf["numero"]]
+    assert now[0]["Em quarentena"] == "Sim"
+    assert then[0]["Em quarentena"] == "Não"
+
+
+def test_AC_0009_10_the_itens_of_an_ata(application: TestClient, gestor: dict[str, str]) -> None:
+    """The items of one ATA; one removed after the reference is still listed at it."""
+    ata, items = setup_ata(application, gestor, [("1000", "10"), ("500", "2.5")])
+    before = instant()
+    removed = application.post(f"{ATAS}/{ata['id']}/itens/{items[1]['id']}/remover", headers=gestor)
+    assert removed.status_code == 200, removed.text
+
+    header, now = read(application, gestor, "itens-ata", ata_id=ata["id"])
+    _, then = read(application, gestor, "itens-ata", ata_id=ata["id"], referencia=before)
+
+    assert [row["SKU"] for row in now] == [items[0]["insumo"]["sku"]]
+    assert {row["SKU"] for row in then} == {item["insumo"]["sku"] for item in items}
+    second = next(row for row in then if row["SKU"] == items[1]["insumo"]["sku"])
+    assert (second["Quantidade"], second["Valor unitário"], second["Valor total"]) == (
+        "500",
+        "2,5",
+        "1250,00",
+    )
+    assert header["Filtros"] == f"ATA: {ata['number']}"
+
+
+def test_AC_0009_10_the_itens_need_their_ata(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """Without its ATA the item list has nothing to list."""
+    response = application.get(f"{REPORTS}/itens-ata", headers=gestor)
+
+    assert response.status_code == 422
+    assert "ata_id" in error(response)["fields"]
+
+
+def test_AC_0009_10_the_export_row_holds_the_filters(
+    application: TestClient, gestor: dict[str, str], db_session
+) -> None:
+    """The `relatorio.exportado` row names the list's filters."""
+    response = application.get(f"{REPORTS}/atas", params={"status": "suspensa"}, headers=gestor)
+    assert response.status_code == 200, response.text
+    identifier = next(
+        line.split(";")[1]
+        for line in response.content.decode("utf-8-sig").splitlines()
+        if line.startswith("Identificador")
+    )
+
+    row = db_session.query(AuditLog).filter(AuditLog.entidade_id == uuid.UUID(identifier)).one()
+
+    assert row.acao == "relatorio.exportado"
+    assert row.dados_anteriores["relatorio"] == "atas"
+    assert row.dados_anteriores["filtros"] == {"status": "suspensa"}
+
+
+def test_AC_0009_11_RN07_a_servidor_exports_only_its_grupos(
+    application: TestClient, create_user: Callable[..., User], gestor: dict[str, str]
+) -> None:
+    """The insumos of the servidor's grupos, and none of another's."""
+    own, other = grupo(application, gestor), grupo(application, gestor)
+    mine = make_insumo(application, gestor, own["id"])
+    theirs = make_insumo(application, gestor, other["id"])
+    servidor = scoped_servidor(application, create_user, gestor, own["id"])
+
+    _, rows = read(application, servidor, "insumos", q=mine["sku"])
+    _, none = read(application, servidor, "insumos", q=theirs["sku"])
+
+    assert [row["SKU"] for row in rows] == [mine["sku"]]
+    assert none == []
+
+
+def test_AC_0009_11_RN07_a_servidor_sees_only_its_items(
+    application: TestClient, create_user: Callable[..., User], gestor: dict[str, str]
+) -> None:
+    """An ATA's items outside the servidor's grupos stay out of its file."""
+    ata = make_ata(application, gestor)
+    own, other = grupo(application, gestor), grupo(application, gestor)
+    mine = make_insumo(application, gestor, own["id"])
+    theirs = make_insumo(application, gestor, other["id"])
+    add_item(application, gestor, ata["id"], mine["id"], quantity="10", unit_price="1")
+    add_item(application, gestor, ata["id"], theirs["id"], quantity="10", unit_price="1")
+    servidor = scoped_servidor(application, create_user, gestor, own["id"])
+
+    _, rows = read(application, servidor, "itens-ata", ata_id=ata["id"])
+
+    assert [row["SKU"] for row in rows] == [mine["sku"]]
+
+
+@pytest.mark.parametrize("relatorio", [*NAMES, "historico"])
+def test_AC_0009_11_a_servidor_exports_no_report_nor_the_historico(
+    application: TestClient, servidor: dict[str, str], relatorio: str
+) -> None:
+    """The reports and the Histórico stay the gestor's and the auditor's."""
+    response = application.get(f"{REPORTS}/{relatorio}", headers=servidor)
+
+    assert response.status_code == 403
+    assert error(response)["code"] == "PERFIL_NAO_AUTORIZADO"
+
+
+@pytest.mark.parametrize("relatorio", ["atas", "notas-empenho", "notas-fiscais", "insumos"])
+def test_AC_0009_11_a_servidor_exports_the_lists_it_reads(
+    application: TestClient, servidor: dict[str, str], relatorio: str
+) -> None:
+    """Every list a servidor sees, it may export."""
+    response = application.get(
+        f"{REPORTS}/{relatorio}", params={"formato": "pdf"}, headers=servidor
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.content.startswith(b"%PDF")
+
+
+def test_AC_0009_12_the_historico_writes_what_changed(
+    application: TestClient, gestor: dict[str, str], auditor: dict[str, str]
+) -> None:
+    """Each event a row: its label, the entity, who, and "Campo: antes → depois"."""
+    ata = make_ata(application, gestor, vigencia_fim="2027-06-30")
+    aditivo = application.post(
+        f"{ATAS}/{ata['id']}/aditivos",
+        json={"kind": "prazo", "nova_vigencia_fim": "2028-06-30", "justification": "Prorrogada."},
+        headers=gestor,
+    )
+    assert aditivo.status_code == 201, aditivo.text
+
+    header, rows = read(
+        application, auditor, "historico", entidade_tipo="ata", entidade_id=ata["id"]
+    )
+
+    assert [row["Ação"] for row in rows] == ["Aditivo registrado", "ATA registrada"]
+    assert rows[0]["Alterações"] == "Fim da vigência: 30/06/2027 → 30/06/2028"
+    assert rows[0]["Entidade"] == "ATA" and rows[0]["Identificador da entidade"] == ata["id"]
+    assert header["Filtros"].startswith("Entidade: ATA")
+
+
+def test_AC_0009_12_the_historico_refuses_its_filters_as_the_screen_does(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """A period that ends before it starts is refused on `de`."""
+    response = application.get(
+        f"{REPORTS}/historico", params={"de": "2026-05-02", "ate": "2026-05-01"}, headers=gestor
+    )
+
+    assert response.status_code == 422
+    assert "de" in error(response)["fields"]

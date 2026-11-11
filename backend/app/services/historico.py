@@ -101,6 +101,31 @@ def list_history(
 
     A period is whole days in America/Sao_Paulo, `ate` included.
     """
+    since, until = period(entidade_tipo=entidade_tipo, entidade_id=entidade_id, de=de, ate=ate)
+    rows, total = repo.page(
+        session,
+        entidade_tipo=entidade_tipo,
+        entidade_id=entidade_id,
+        usuario_id=usuario_id,
+        since=since,
+        until=until,
+        offset=(page - 1) * size,
+        limit=size,
+    )
+    return HistoryPage(rows=rows, total=total, changes=changes_of(session, rows))
+
+
+def period(
+    *,
+    entidade_tipo: str | None,
+    entidade_id: uuid.UUID | None,
+    de: datetime.date | None,
+    ate: datetime.date | None,
+) -> tuple[datetime.datetime | None, datetime.datetime | None]:
+    """The filters checked, 422 per field, and the period as instants, `ate` included.
+
+    The Histórico's export reads the same filters the same way (SPEC-0009 AC-0009-12).
+    """
     fields: dict[str, str] = {}
     if de is not None and ate is not None and de > ate:
         fields["de"] = PERIODO_INVERTIDO
@@ -110,17 +135,10 @@ def list_history(
         fields["entidade_tipo"] = TIPO_DESCONHECIDO
     if fields:
         raise InvalidData(fields)
-    rows, total = repo.page(
-        session,
-        entidade_tipo=entidade_tipo,
-        entidade_id=entidade_id,
-        usuario_id=usuario_id,
-        since=_start_of(de) if de is not None else None,
-        until=_start_of(ate + datetime.timedelta(days=1)) if ate is not None else None,
-        offset=(page - 1) * size,
-        limit=size,
+    return (
+        _start_of(de) if de is not None else None,
+        _start_of(ate + datetime.timedelta(days=1)) if ate is not None else None,
     )
-    return HistoryPage(rows=rows, total=total, changes=changes_of(session, rows))
 
 
 def _etapa(row: AuditLog) -> str:

@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ErrorNotice } from "@/components/error-notice";
 import { InsumoSearch } from "@/components/insumos/insumo-search";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { TableSkeleton } from "@/components/skeleton";
 import {
   AlertDialog,
@@ -90,18 +91,21 @@ export function ItemsSection({
           <h2 className="text-base font-normal">Itens</h2>
           {scoped && <p className="text-sm font-light text-muted-foreground">Itens dos seus grupos de materiais.</p>}
         </div>
-        {editable && (
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/atas/${ata.id}/itens/importar`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              <Upload aria-hidden />
-              Importar itens
-            </Link>
-            <Button variant="outline" size="sm" onClick={() => setOpen({ kind: "add" })}>
-              <Plus aria-hidden />
-              Adicionar item
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <ExportDialog relatorio="itens-ata" title="itens da ATA" filtros={{ ata_id: ata.id }} size="sm" />
+          {editable && (
+            <>
+              <Link href={`/atas/${ata.id}/itens/importar`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <Upload aria-hidden />
+                Importar itens
+              </Link>
+              <Button variant="outline" size="sm" onClick={() => setOpen({ kind: "add" })}>
+                <Plus aria-hidden />
+                Adicionar item
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {failure && !items && <ErrorNotice error={failure} />}
