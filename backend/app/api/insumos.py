@@ -18,7 +18,7 @@ from app.core.authorization import Requires
 from app.core.correlation import current as current_correlation_id
 from app.core.db import DbSession
 from app.models.user import User
-from app.schemas.historico import CicloOut, EventoOut
+from app.schemas.historico import CicloOut, EventoOut, change_fields
 from app.schemas.insumo import (
     CatalogueLineOut,
     CatalogueReportOut,
@@ -199,7 +199,7 @@ def get_insumo(insumo_id: uuid.UUID, actor: Reader, session: DbSession) -> Insum
 
 @router.get("/{insumo_id}/ciclo", response_model=CicloOut)
 def get_cycle(insumo_id: uuid.UUID, actor: Reader, session: DbSession) -> CicloOut:
-    """The cycle of an insumo, ATA to NF, oldest first (SPEC-0007 AC-0007-07)."""
+    """The cycle of an insumo, ATA to NF, oldest first (SPEC-0007 AC-0007-07, -10)."""
     cycle = historico.cycle(session, insumo_id, actor=actor)
     return CicloOut(
         insumo_id=cycle.insumo.id,
@@ -214,6 +214,7 @@ def get_cycle(insumo_id: uuid.UUID, actor: Reader, session: DbSession) -> CicloO
                 ocorrido_em=event.row.ocorrido_em,
                 dados_anteriores=event.row.dados_anteriores,
                 justificativa=event.row.justificativa,
+                **change_fields(event.changes),
             )
             for event in cycle.events
         ],

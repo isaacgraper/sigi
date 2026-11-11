@@ -1,7 +1,8 @@
-"""Reading the audit trail — SPEC-0007 v1.0.
+"""Reading the audit trail — SPEC-0007 v1.1.
 
 The history is read by the gestor and the auditor only (AC-0007-08, -09); the
 cycle of an insumo is read by every perfil, inside the RN07 scope (AC-0007-07).
+Each event of both says what it changed, before and after (AC-0007-10).
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from app.models.user import User
 from tests.catalogue import grupo, login
 from tests.test_insumos import scoped_servidor
 from tests.test_notas_empenho import open_ne, setup_ata, to_stage
-from tests.test_notas_fiscais import error, launched
+from tests.test_notas_fiscais import error, launched, moved
 
 HIST = "/api/v1/historico"
 INSUMOS = "/api/v1/insumos"
@@ -280,3 +281,123 @@ def test_AC_0007_09_gestor_and_auditor_read_it(
     """The gestor and the auditor read the history."""
     assert history(application, gestor)["page"] == 1
     assert history(application, auditor)["size"] == 25
+
+
+# ── AC-0007-10 ─ what each event changed ─────────────────────────────────────
+
+ATAS = "/api/v1/atas"
+
+
+def changes(event: dict) -> dict[str, tuple[object, object]]:
+    """An event's changes as campo → (antes, depois)."""
+    return {c["campo"]: (c["antes"], c["depois"]) for c in event["alteracoes"]}
+
+
+def of_ata(application: TestClient, headers: dict[str, str], ata_id: str) -> list[dict]:
+    """Every history row of an ATA, newest first."""
+    return history(application, headers, entidade_tipo="ata", entidade_id=ata_id, size=100)["items"]
+
+
+def test_AC_0007_10_an_aditivo_de_prazo_then_an_edit_read_before_and_after(
+    application: TestClient, gestor: dict[str, str], auditor: dict[str, str]
+) -> None:
+    """The Given of AC-0007-10: the aditivo moved vigência_fim and the edit moved it again."""
+    ata, _ = setup_ata(application, gestor, [("10", "5")], vigencia_fim="2027-06-30")
+    aditivo = application.post(
+        f"{ATAS}/{ata['id']}/aditivos",
+        json={"kind": "prazo", "nova_vigencia_fim": "2028-06-30", "justification": "Prorrogada."},
+        headers=gestor,
+    )
+    assert aditivo.status_code == 201, aditivo.text
+    edited = application.patch(
+        f"{ATAS}/{ata['id']}", json={"vigencia_fim": "2028-12-31"}, headers=gestor
+    )
+    assert edited.status_code == 200, edited.text
+
+    rows = {row["acao"]: row for row in of_ata(application, auditor, ata["id"])}
+
+    assert rows["ata.editada"]["acao_rotulo"] == "ATA corrigida"
+    assert rows["ata.editada"]["alteracoes"] == [
+        {
+            "campo": "vigencia_fim",
+            "rotulo": "Fim da vigência",
+            "tipo": "data",
+            "antes": "2028-06-30",
+            "depois": "2028-12-31",
+        }
+    ]
+    assert rows["ata.aditivo_registrado"]["acao_rotulo"] == "Aditivo registrado"
+    assert changes(rows["ata.aditivo_registrado"]) == {"vigencia_fim": ("2027-06-30", "2028-06-30")}
+    assert changes(rows["ata.criada"])["vigencia_fim"] == (None, "2027-06-30")
+
+
+def test_AC_0007_10_an_aditivo_de_valor_reads_its_acrescimo(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """The "after" of an aditivo de valor adds the acréscimo kept in `ata_aditivo`."""
+    ata, _ = setup_ata(application, gestor, [("10", "5")], total="10000.00")
+    response = application.post(
+        f"{ATAS}/{ata['id']}/aditivos",
+        json={"kind": "valor", "valor_acrescimo": "2500.00", "justification": "Mais demanda."},
+        headers=gestor,
+    )
+    assert response.status_code == 201, response.text
+
+    rows = {row["acao"]: row for row in of_ata(application, gestor, ata["id"])}
+
+    assert changes(rows["ata.aditivo_registrado"]) == {"valor_contratado": ("10000", "12500")}
+
+
+def test_AC_0007_10_an_item_reads_as_its_own_entity(
+    application: TestClient, gestor: dict[str, str]
+) -> None:
+    """An ATA row about an item is walked against the item, not the ATA."""
+    ata, items = setup_ata(application, gestor, [("10", "5")])
+
+    rows = of_ata(application, gestor, ata["id"])
+
+    added = next(row for row in rows if row["acao"] == "ata.item_adicionado")
+    assert added["acao_rotulo"] == "Item adicionado"
+    assert changes(added)["quantidade"] == (None, "10")
+    assert changes(added)["insumo_id"] == (None, items[0]["insumo"]["id"])
+    assert {d["campo"] for d in added["detalhes"]} == {"item_ata_id", "sku"}
+
+
+def test_AC_0007_10_the_cycle_carries_the_changes_too(
+    application: TestClient,
+    gestor: dict[str, str],
+    servidor: dict[str, str],
+    cycle: tuple[dict, list[dict], dict, dict],
+) -> None:
+    """The NE's stages and the NF's quarentena, read in the cycle of the insumo."""
+    _, items, ne, nf = cycle
+    moved(application, gestor, nf["id"], "quarentena", motivo="Caixa avariada.")
+
+    body = read_cycle(application, gestor, items[0]["insumo"]["id"])
+
+    advances = [e for e in body["eventos"] if e["acao"] == "ne.avancada"]
+    assert [changes(e)["status"] for e in advances] == [
+        ("demanda", "validacao_saldo"),
+        ("validacao_saldo", "pre_empenho"),
+        ("pre_empenho", "envio_fornecedor"),
+        ("envio_fornecedor", "ne_emitida"),
+    ]
+    assert changes(advances[-1])["numero"] == (None, ne["number"])
+    held = next(e for e in body["eventos"] if e["acao"] == "nf.quarentena_iniciada")
+    assert held["acao_rotulo"] == "NF em quarentena"
+    assert changes(held) == {
+        "quarentena": (False, True),
+        "motivo_quarentena": (None, "Caixa avariada."),
+    }
+    assert all({"acao_rotulo", "alteracoes", "detalhes"} <= e.keys() for e in body["eventos"])
+
+
+def test_AC_0007_10_an_event_without_state_carries_only_details(
+    application: TestClient, gestor: dict[str, str], auditor: dict[str, str]
+) -> None:
+    """A usuario's rows: a label and details, never a change."""
+    body = history(application, auditor, entidade_tipo="usuario", size=100)
+
+    assert body["items"]
+    assert all(row["alteracoes"] == [] for row in body["items"])
+    assert all(row["acao_rotulo"] for row in body["items"])

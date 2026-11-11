@@ -39,7 +39,7 @@ on an `Approved` spec is a merge blocker.
 | RF14, RN10, RN15 | SPEC-0006 v1.2 | AC-0006-01..16 (-05 by AC-0004-16; -14, -15 with the NFs) | `tests/test_saldo.py`, `tests/test_notas_fiscais.py` | **Implemented** |
 | RF13, RF14 (screens) | SPEC-0015 v1.3 | AC-0015-01..10 | `frontend/e2e/notas-empenho.spec.ts` | **Implemented** |
 | RF05, RF17 (screens) | SPEC-0016 v1.1 | AC-0016-01..11 | `frontend/e2e/notas-fiscais.spec.ts` | **Implemented** |
-| RF06, RF10 | SPEC-0007 v1.0 | AC-0007-01..09 (-02 to -04 and -06 proven by SPEC-0001's tests) | _pending_ | **Approved** |
+| RF06, RF10 | SPEC-0007 v1.1 | AC-0007-01..10 (-02 to -04 and -06 proven by SPEC-0001's tests) | `backend/tests/test_historico.py`, `backend/tests/test_history_changes.py` | **Approved**, built |
 | RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
 | RF12 | SPEC-0009 v1.1 | AC-0009-01..06, -08, -09 (AC-0009-07 withdrawn) | `backend/tests/test_relatorios.py` | Approved, built |
 | RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |

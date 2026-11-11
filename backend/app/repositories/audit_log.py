@@ -6,7 +6,7 @@ import datetime
 import uuid
 from collections.abc import Collection, Sequence
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.constants.historico import (
@@ -60,6 +60,17 @@ def page(
         query.order_by(AuditLog.ocorrido_em.desc(), AuditLog.id.desc()).offset(offset).limit(limit)
     ).all()
     return rows, total
+
+
+def rows_of(session: Session, keys: Collection[tuple[str, uuid.UUID]]) -> Sequence[AuditLog]:
+    """Every row of these entities, oldest first (AC-0007-10)."""
+    if not keys:
+        return []
+    return session.scalars(
+        select(AuditLog)
+        .where(tuple_(AuditLog.entidade_tipo, AuditLog.entidade_id).in_(list(keys)))
+        .order_by(AuditLog.ocorrido_em, AuditLog.id)
+    ).all()
 
 
 def cycle_rows(

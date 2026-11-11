@@ -31,6 +31,16 @@ def by_id(session: Session, nf_id: uuid.UUID) -> NotaFiscal | None:
     return session.get(NotaFiscal, nf_id)
 
 
+def by_ids(session: Session, nf_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, NotaFiscal]:
+    """These NFs, keyed by id."""
+    if not nf_ids:
+        return {}
+    return {
+        nf.id: nf
+        for nf in session.scalars(select(NotaFiscal).where(NotaFiscal.id.in_(list(nf_ids))))
+    }
+
+
 def by_id_for_update(session: Session, nf_id: uuid.UUID) -> NotaFiscal | None:
     """Find an NF and lock its row until the transaction ends."""
     return session.scalars(
