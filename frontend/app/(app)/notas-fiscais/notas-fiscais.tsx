@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { NfStatusBadge } from "@/components/notas-fiscais/status";
+import { ExportDialog } from "@/components/relatorios/export-dialog";
 import { PageHeader } from "@/components/page-header";
 import { TableSkeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,13 @@ export function NotasFiscais() {
       <PageHeader
         title="Notas fiscais"
         description="O que cada NE recebeu, da conferência à aprovação. Registre uma NF a partir da página da NE emitida."
+        action={
+          <ExportDialog
+            relatorio="notas-fiscais"
+            title="notas fiscais"
+            filtros={filter === FILTER_QUARENTENA ? { quarentena: "true" } : { status: filter }}
+          />
+        }
       />
 
       <section aria-label="Lista de NFs" className="space-y-4">
