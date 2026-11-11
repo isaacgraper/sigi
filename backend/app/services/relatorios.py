@@ -23,8 +23,9 @@ from app.constants.notas_empenho import COMMITTED, RESERVING, STAGE_LABEL, ZERO
 from app.constants.notas_fiscais import APROVADA, DEVOLVIDA, EM_CONFERENCIA
 from app.constants.relatorios import (
     ACAO_EXPORTADO,
+    ALL_COLUMNS,
+    ALL_TITLES,
     ATA_STATUS_LABEL,
-    COLUMNS,
     COLUMNS_UNKNOWN,
     DATE_FORMAT,
     ENTIDADE,
@@ -38,19 +39,22 @@ from app.constants.relatorios import (
     KEY_ITENS,
     KEY_NUMERO,
     KEY_NUMERO_PRE_EMPENHO,
+    KEY_OBJETO,
     KEY_STATUS,
     KEY_VALOR,
     KEY_VALOR_TOTAL,
     KEY_VIGENCIA_FIM,
+    KEY_VIGENCIA_INICIO,
     MEDIA_TYPES,
     NFS_EM_CONFERENCIA,
     NO,
     POSICAO_SALDO,
+    READERS,
     REFERENCE_IN_FUTURE,
+    RESTRICTED,
     REWOUND_ENTIDADES,
     START_AFTER_REFERENCE,
     START_NOT_APPLICABLE,
-    TITLES,
     UNNAMED_USER,
     YES,
 )
@@ -63,7 +67,7 @@ from app.repositories import nota_empenho as ne_repo
 from app.repositories import nota_fiscal as nf_repo
 from app.services import saldo as saldo_service
 from app.services.audit import Event, record
-from app.services.errors import AtaNotFound, InvalidData, RelatorioNotFound
+from app.services.errors import AtaNotFound, InvalidData, RelatorioNotFound, UnauthorizedPerfil
 from app.services.itens_ata import item_value
 
 
@@ -102,6 +106,9 @@ class AtaAt:
     status: str
     vigencia_fim: datetime.date
     valor_contratado: decimal.Decimal
+    objeto: str = ""
+    vigencia_inicio: datetime.date | None = None
+    criado_em: datetime.datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -173,40 +180,86 @@ def export(
     build = _BUILDERS.get(relatorio)
     if build is None:
         raise RelatorioNotFound()
-    if formato not in MEDIA_TYPES:
-        raise InvalidData({"formato": FORMAT_UNKNOWN})
-    reference = referencia or at
-    if reference > at:
-        raise InvalidData({"referencia": REFERENCE_IN_FUTURE})
-    kept = chosen(relatorio, colunas)
     if inicio is not None and relatorio == POSICAO_SALDO:
         raise InvalidData({"inicio": START_NOT_APPLICABLE})
-    if inicio is not None and inicio > reference:
-        raise InvalidData({"inicio": START_AFTER_REFERENCE})
     filtros: tuple[tuple[str, str], ...] = ()
+    reference = checked_reference(relatorio, formato, referencia, inicio, at, actor=actor)
+    kept = chosen(relatorio, colunas)
     if ata_id is not None:
         ata = ata_repo.by_id(session, ata_id)
         if ata is None:
             raise AtaNotFound()
         filtros = ((FILTER_ATA, ata.number),)
+    rows = build(state_at(session, referencia=reference, ata_id=ata_id, inicio=inicio), at)
+    return recorded(
+        session,
+        actor=actor,
+        relatorio=relatorio,
+        formato=formato,
+        reference=reference,
+        inicio=inicio,
+        at=at,
+        correlation_id=correlation_id,
+        kept=kept,
+        colunas=colunas,
+        filtros=filtros,
+        rows=rows,
+        asked={"ata_id": str(ata_id) if ata_id is not None else None},
+    )
 
+
+def checked_reference(
+    relatorio: str,
+    formato: str,
+    referencia: datetime.datetime | None,
+    inicio: datetime.datetime | None,
+    at: datetime.datetime,
+    *,
+    actor: User,
+) -> datetime.datetime:
+    """The reference an export reads at, once the perfil, format and window are checked."""
+    if relatorio in RESTRICTED and actor.role not in READERS:
+        raise UnauthorizedPerfil()
+    if formato not in MEDIA_TYPES:
+        raise InvalidData({"formato": FORMAT_UNKNOWN})
+    reference = referencia or at
+    if reference > at:
+        raise InvalidData({"referencia": REFERENCE_IN_FUTURE})
+    if inicio is not None and inicio > reference:
+        raise InvalidData({"inicio": START_AFTER_REFERENCE})
+    return reference
+
+
+def recorded(
+    session: Session,
+    *,
+    actor: User,
+    relatorio: str,
+    formato: str,
+    reference: datetime.datetime,
+    inicio: datetime.datetime | None,
+    at: datetime.datetime,
+    correlation_id: uuid.UUID,
+    kept: tuple[int, ...],
+    colunas: tuple[str, ...] | None,
+    filtros: tuple[tuple[str, str], ...],
+    rows: Iterable[tuple[str, ...]],
+    asked: Mapping[str, Any],
+) -> Export:
+    """The export with its provenance, and the audit row that says who took it (AC-0009-02, -04)."""
+    columns = ALL_COLUMNS[relatorio]
     result = Export(
         id=uuid.uuid4(),
         relatorio=relatorio,
         formato=formato,
-        title=TITLES[relatorio],
+        title=ALL_TITLES[relatorio],
         gerado_em=at,
         referencia=reference,
         inicio=inicio,
         usuario=actor.nome or UNNAMED_USER,
         filtros=filtros,
-        columns=tuple(COLUMNS[relatorio][index][1] for index in kept),
-        rows=tuple(
-            tuple(row[index] for index in kept)
-            for row in build(
-                state_at(session, referencia=reference, ata_id=ata_id, inicio=inicio), at
-            )
-        ),
+        columns=tuple(columns[index][1] for index in kept),
+        rows=tuple(tuple(row[index] for index in kept) for row in rows),
     )
     record(
         session,
@@ -220,13 +273,9 @@ def export(
                 "relatorio": relatorio,
                 "formato": formato,
                 "referencia": reference.isoformat(),
-                "ata_id": str(ata_id) if ata_id is not None else None,
+                **asked,
                 "inicio": inicio.isoformat() if inicio is not None else None,
-                "colunas": (
-                    [COLUMNS[relatorio][index][0] for index in kept]
-                    if colunas is not None
-                    else None
-                ),
+                "colunas": ([columns[index][0] for index in kept] if colunas is not None else None),
             },
         ),
         correlation_id=correlation_id,
@@ -237,7 +286,7 @@ def export(
 
 def chosen(relatorio: str, colunas: tuple[str, ...] | None) -> tuple[int, ...]:
     """Which columns of a report an export keeps, in the report's own order (AC-0009-08)."""
-    keys = [key for key, _ in COLUMNS[relatorio]]
+    keys = [key for key, _ in ALL_COLUMNS[relatorio]]
     if colunas is None:
         return tuple(range(len(keys)))
     if not colunas or not set(colunas) <= set(keys):
@@ -312,6 +361,11 @@ def _atas_at(
             vigencia_fim=_date(past.get(ata.id, {}).get(KEY_VIGENCIA_FIM), ata.vigencia_fim),
             valor_contratado=_decimal(past.get(ata.id, {}).get(KEY_VALOR_TOTAL), ata.total_value)
             + aditivos.get(ata.id, ZERO),
+            objeto=past.get(ata.id, {}).get(KEY_OBJETO, ata.subject),
+            criado_em=ata.criado_em,
+            vigencia_inicio=_date(
+                past.get(ata.id, {}).get(KEY_VIGENCIA_INICIO), ata.vigencia_inicio
+            ),
         )
         for ata in rows
     )
