@@ -2,7 +2,7 @@
 id: SPEC-0007
 title: Histórico auditável imutável
 status: Approved
-version: 1.0
+version: 1.1
 owner: Isaac Kleimmann Graper
 satisfies: [RF06, RF10, RN06, RNF08]
 depends_on: [SPEC-0001, SPEC-0004, SPEC-0005]
@@ -21,7 +21,8 @@ that does not produce a history row is a defect, regardless of what it does corr
 
 Most of this was built with SPEC-0001, which every later spec reuses. Those
 criteria are marked with the test that proves them; what is new here is reading
-the history (AC-0007-08, -09) and the cycle of an insumo (AC-0007-07).
+the history (AC-0007-08, -09), the cycle of an insumo (AC-0007-07) and what each
+event changed (AC-0007-10).
 
 **AC-0007-01** — Every write leaves one row
 ```gherkin
@@ -68,12 +69,42 @@ Then  the response is 403 with error code "PERFIL_NAO_AUTORIZADO"
 ```
 The servidor sees what happened to an insumo through its cycle (AC-0007-07).
 
+**AC-0007-10** — What each event changed
+```gherkin
+Given an ATA whose vigência_fim was moved by an aditivo de prazo, and later edited
+When  a gestor or an auditor reads its history, or anyone reads the cycle of one of its insumos
+Then  each event carries a pt-BR label of its acao, the list of fields it changed,
+      each with its pt-BR label, its type, the value before and the value after,
+      and the context it recorded that is not a field, as labelled details
+```
+`dados_anteriores` holds only the value before (AC-0007-05). The value after is
+not stored either: it is derived by walking the entity's rows from the newest to
+the oldest, starting from the entity as it is now, so the newest event's "after"
+is the live value and each older event's "after" is the "before" of the next
+one. A creation event lists the fields the entity was created with, with no
+value before. A removal lists the fields with no value after. An acao that sets a
+field without recording its prior value (the NE's números at their stage, the
+NF's quarentena and devolução reasons) has `null` before. An aditivo de valor or de
+quantidade has as its "after" the "before" plus the acréscimo recorded with it.
+A field that did not change, and every key that is not a field (the saldo
+available when an NE was refused, the motivo of a cancellation), is a detail, not
+a change. An event on an entity SIGI holds no state for (a usuario, a refused
+route, an exported report) carries only details.
+
 ## 2.1 API, permissions and errors
 
 | Method | Path | Purpose | AC |
 | --- | --- | --- | --- |
-| GET | `/api/v1/historico` | Filters `entidade_tipo`, `entidade_id`, `usuario_id`, `de`, `ate`; paginated | 08, 09 |
-| GET | `/api/v1/insumos/{id}/ciclo` | The cycle of an insumo | 07 |
+| GET | `/api/v1/historico` | Filters `entidade_tipo`, `entidade_id`, `usuario_id`, `de`, `ate`; paginated | 08, 09, 10 |
+| GET | `/api/v1/insumos/{id}/ciclo` | The cycle of an insumo | 07, 10 |
+
+Each event in both responses carries, besides the row's own fields:
+
+| Field | Content |
+| --- | --- |
+| `acao_rotulo` | The acao in pt-BR, or the acao itself when it has no label |
+| `alteracoes` | `[{campo, rotulo, tipo, antes, depois}]`; `tipo` is `data`, `dinheiro`, `quantidade`, `texto`, `status`, `referencia` or `itens` |
+| `detalhes` | `[{campo, rotulo, valor}]`, the recorded keys that are not a change |
 
 | Action | gestor | servidor | auditor |
 | --- | --- | --- | --- |
@@ -109,6 +140,15 @@ No migration: `historico_movimentacao` and its indexes exist since `0001_baselin
    (gestor, auditor) and `GET /api/v1/insumos/{id}/ciclo` in `app/api/insumos.py`
    (every perfil).
 5. Tests per AC in `tests/test_historico.py`, against PostgreSQL.
+6. *(v1.1)* `app/constants/historico.py`: the label and type of each field per
+   entidade, the label of each acao and of each detail key, the creation and
+   removal acoes and the fields an acao sets with no prior value recorded.
+7. *(v1.1)* `app/services/history_changes.py`: the walk, pure, over the rows of
+   one entity and its state now; unit-tested without a database.
+8. *(v1.1)* `app/repositories/audit_log.py`: every row of a set of entities, and
+   batch reads of the ATAs, NEs, NFs, items, insumos, grupos and aditivos they
+   name; `app/services/historico.py` joins them so a page costs a fixed number of
+   queries, not one per row.
 
 No new dependency.
 
@@ -119,3 +159,4 @@ No new dependency.
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF10, §2.5 RN06, §6.1 A09 |
 | 0.2 | 2026-10-27 | By the product owner's review: criteria in Given/When/Then; AC-0007-02 to -04 and -06 point to the SPEC-0001 tests that already prove them; "delete-attempt" becomes a refused write; AC-0007-08 is the history query, AC-0007-09 keeps it from the servidor, and §2.1 adds the API, the permissions and the errors. Depends on SPEC-0004 and SPEC-0005 for the cycle |
 | 1.0 | 2026-10-27 | Approved by the product owner after the review of v0.2. No criterion changed; OQ-50 to OQ-54 stand as assumed |
+| 1.1 | 2026-11-10 | By the product owner's request ("o historico ainda nao entendi, tipo o aditivo, o que mudou?") and approval of the plan on 2026-11-10: AC-0007-10, each event says what it changed, before and after, with pt-BR labels; §2.1 lists the fields; §4 steps 6 to 8. No migration |
