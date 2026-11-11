@@ -227,9 +227,10 @@ test.describe("SPEC-0017 acompanhamento, rastreio and histórico", () => {
     await page.goto(`/historico?entidade=ata&id=${ata.id}`);
     await expect(page.getByTestId("historico-row")).toHaveCount(1);
 
-    await page.getByLabel("De", { exact: true }).fill(isoDay(1));
-    await expect(page).toHaveURL(/de=/);
     await page.getByLabel("Até", { exact: true }).fill(isoDay(0));
+    await expect(page).toHaveURL(/ate=/);
+    await expect(page.getByTestId("historico-row")).toHaveCount(1);
+    await page.getByLabel("De", { exact: true }).fill(isoDay(1));
 
     await expect(page.getByTestId("field-error")).toHaveText("A data inicial deve ser anterior ou igual à final.");
     await expect(page.getByTestId("historico-row")).toHaveCount(1);
