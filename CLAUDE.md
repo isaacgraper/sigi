@@ -100,7 +100,8 @@ the history and the cycle of an insumo under `/api/v1/historico` and
 (SPEC-0017, `Approved`, built) are the Acompanhamento tab of an ATA, an NE and an NF,
 the rastreio on an insumo's page and the Histórico for the gestor and the auditor. Every list exports
 through one dialog (SPEC-0009 v1.2): the ATAs, an ATA's items, the insumos, the NEs,
-the NFs and the Histórico, each with its filters, at a data de referência, inside RN07.
+the NFs and the Histórico, each with its filters, at a data de referência, inside RN07. The four
+reports have their screen under `/relatorios` (SPEC-0018, `Approved`, built).
 `SPEC-0008` is `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**

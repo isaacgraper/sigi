@@ -56,6 +56,7 @@ Every path through a screen, its fields, validation and screenshots, is in
 | `/notas-fiscais/{id}` | One NF: itens, send, approve, return, quarantine, release; its Acompanhamento, gestor and auditor (SPEC-0017) | under Notas fiscais | W | ✓, no decisions, no Acompanhamento | ✓ | SPEC-0016, SPEC-0017 | Approved, built |
 | `/notas-fiscais/{id}/corrigir` | Corrigir NF: the same form, in Aguardando or Devolvida | under Notas fiscais | W | ✓ | — | SPEC-0016 | Approved, built |
 | `/historico` | Histórico: every event, filtered by entity, member and period, rows that open, only values or only statuses; Exportar (SPEC-0009 AC-0009-12) | Histórico (6th) | ✓ | — | ✓ | SPEC-0017 | Approved, built |
+| `/relatorios` | Relatórios: the four reports of RF12, each exported as CSV or PDF, one ATA or all | Relatórios (7th) | ✓ | — | ✓ | SPEC-0018 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved, built |
 
 ### Planned, with no screen spec yet
@@ -66,7 +67,6 @@ The sidebar slot is where it goes between ATAs and Membros.
 | Area | Backend spec | Likely route | Sidebar slot |
 | --- | --- | --- | --- |
 | Notificações | SPEC-0008 | the header bell | none |
-| Relatórios, the four reports of AC-0009-01 | SPEC-0009 | `/relatorios` | before Membros |
 
 ## Adding or changing a screen
 
