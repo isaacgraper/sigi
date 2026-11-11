@@ -13,6 +13,7 @@ import { AditivoDialog, ReajusteDialog } from "@/components/atas/record-dialogs"
 import { AtaSkeleton } from "@/components/atas/skeletons";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
+import { RecordTabs } from "@/components/historico/record-tabs";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { buttonVariants } from "@/components/ui/button";
@@ -166,129 +167,131 @@ export function AtaView() {
         {announcement}
       </p>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Dados da ATA</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl data-testid="ata-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Item label="Objeto">{ata.subject}</Item>
-            <Item label="Órgão">{ata.organ}</Item>
-            <Item label="Fornecedor">
-              {ata.fornecedor.legal_name}
-              <span className="block text-xs font-light tabular-nums text-muted-foreground">
-                CNPJ {formatCnpj(ata.fornecedor.cnpj)}
-              </span>
-            </Item>
-            <Item label="Data de emissão">{ata.issued_on ? formatDay(ata.issued_on) : "—"}</Item>
-            <Item label="Vigência">
-              <span className="tabular-nums">
-                {formatDay(ata.vigencia_inicio)} a {formatDay(ata.vigencia_fim)}
-              </span>
-            </Item>
-            <Item label="Valor total">
-              <span className="tabular-nums">{formatBRL(ata.total_value)}</span>
-            </Item>
-            <Item label="Valor contratado">
-              <span className="tabular-nums">{formatBRL(ata.valor_contratado)}</span>
-            </Item>
-            <Item label="Data do orçamento planilhado">
-              <span className="tabular-nums">{formatDay(ata.budget_date)}</span>
-            </Item>
-            <Item label="Data de reajuste">
-              <span className="tabular-nums">{formatDay(ata.data_reajuste)}</span>
-            </Item>
-          </dl>
-        </CardContent>
-      </Card>
+      <RecordTabs registro="ata" id={ata.id} perfil={me.perfil}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Dados da ATA</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl data-testid="ata-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Item label="Objeto">{ata.subject}</Item>
+              <Item label="Órgão">{ata.organ}</Item>
+              <Item label="Fornecedor">
+                {ata.fornecedor.legal_name}
+                <span className="block text-xs font-light tabular-nums text-muted-foreground">
+                  CNPJ {formatCnpj(ata.fornecedor.cnpj)}
+                </span>
+              </Item>
+              <Item label="Data de emissão">{ata.issued_on ? formatDay(ata.issued_on) : "—"}</Item>
+              <Item label="Vigência">
+                <span className="tabular-nums">
+                  {formatDay(ata.vigencia_inicio)} a {formatDay(ata.vigencia_fim)}
+                </span>
+              </Item>
+              <Item label="Valor total">
+                <span className="tabular-nums">{formatBRL(ata.total_value)}</span>
+              </Item>
+              <Item label="Valor contratado">
+                <span className="tabular-nums">{formatBRL(ata.valor_contratado)}</span>
+              </Item>
+              <Item label="Data do orçamento planilhado">
+                <span className="tabular-nums">{formatDay(ata.budget_date)}</span>
+              </Item>
+              <Item label="Data de reajuste">
+                <span className="tabular-nums">{formatDay(ata.data_reajuste)}</span>
+              </Item>
+            </dl>
+          </CardContent>
+        </Card>
 
-      <SaldoSection ataId={ata.id} opens={writes && vigente} version={version} />
+        <SaldoSection ataId={ata.id} opens={writes && vigente} version={version} />
 
-      <ItemsSection
-        ata={ata}
-        items={items.data}
-        failure={items.failure}
-        writes={writes}
-        scoped={me.perfil === "servidor"}
-        onItems={(next, message) => {
-          items.replace(next);
-          setAnnouncement(message);
-        }}
-        onAta={(next, message) => {
-          changed(next, message);
-          // An aditivo de quantidade raises its item's contracted quantity (AC-0014-25).
-          items.reload();
-        }}
-        onStale={reload}
-      />
+        <ItemsSection
+          ata={ata}
+          items={items.data}
+          failure={items.failure}
+          writes={writes}
+          scoped={me.perfil === "servidor"}
+          onItems={(next, message) => {
+            items.replace(next);
+            setAnnouncement(message);
+          }}
+          onAta={(next, message) => {
+            changed(next, message);
+            // An aditivo de quantidade raises its item's contracted quantity (AC-0014-25).
+            items.reload();
+          }}
+          onStale={reload}
+        />
 
-      <Section
-        title="Aditivos"
-        action={writes && vigente ? <AditivoDialog ata={ata} onSaved={(next) => changed(next, "Aditivo registrado.")} /> : undefined}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="whitespace-nowrap">Acréscimo ou novo fim</TableHead>
-              <TableHead>Justificativa</TableHead>
-              <TableHead className="whitespace-nowrap">Registrado em</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ata.aditivos.length === 0 && (
+        <Section
+          title="Aditivos"
+          action={writes && vigente ? <AditivoDialog ata={ata} onSaved={(next) => changed(next, "Aditivo registrado.")} /> : undefined}
+        >
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center font-light text-muted-foreground">
-                  Nenhum aditivo registrado.
-                </TableCell>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="whitespace-nowrap">Acréscimo ou novo fim</TableHead>
+                <TableHead>Justificativa</TableHead>
+                <TableHead className="whitespace-nowrap">Registrado em</TableHead>
               </TableRow>
-            )}
-            {ata.aditivos.map((aditivo) => (
-              <TableRow key={aditivo.id} data-testid="aditivo-row">
-                <TableCell>{ADITIVO_KIND_LABEL[aditivo.kind]}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">{aditivoText(aditivo, items.data)}</TableCell>
-                <TableCell className="min-w-56">{aditivo.justification}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">{formatDate(aditivo.created_at)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Section>
+            </TableHeader>
+            <TableBody>
+              {ata.aditivos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-6 text-center font-light text-muted-foreground">
+                    Nenhum aditivo registrado.
+                  </TableCell>
+                </TableRow>
+              )}
+              {ata.aditivos.map((aditivo) => (
+                <TableRow key={aditivo.id} data-testid="aditivo-row">
+                  <TableCell>{ADITIVO_KIND_LABEL[aditivo.kind]}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{aditivoText(aditivo, items.data)}</TableCell>
+                  <TableCell className="min-w-56">{aditivo.justification}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatDate(aditivo.created_at)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Section>
 
-      <Section
-        title="Pedidos de reajuste"
-        action={
-          writes && vigente ? (
-            <ReajusteDialog ata={ata} onSaved={(next) => changed(next, "Pedido de reajuste registrado.")} />
-          ) : undefined
-        }
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="whitespace-nowrap">Processo SEI</TableHead>
-              <TableHead className="whitespace-nowrap">Data do pedido</TableHead>
-              <TableHead className="whitespace-nowrap">Registrado em</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ata.reajustes.length === 0 && (
+        <Section
+          title="Pedidos de reajuste"
+          action={
+            writes && vigente ? (
+              <ReajusteDialog ata={ata} onSaved={(next) => changed(next, "Pedido de reajuste registrado.")} />
+            ) : undefined
+          }
+        >
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={3} className="py-6 text-center font-light text-muted-foreground">
-                  Nenhum pedido de reajuste registrado.
-                </TableCell>
+                <TableHead className="whitespace-nowrap">Processo SEI</TableHead>
+                <TableHead className="whitespace-nowrap">Data do pedido</TableHead>
+                <TableHead className="whitespace-nowrap">Registrado em</TableHead>
               </TableRow>
-            )}
-            {ata.reajustes.map((reajuste) => (
-              <TableRow key={reajuste.id} data-testid="reajuste-row">
-                <TableCell className="whitespace-nowrap tabular-nums">{reajuste.processo_sei}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">{formatDay(reajuste.requested_on)}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">{formatDate(reajuste.created_at)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Section>
+            </TableHeader>
+            <TableBody>
+              {ata.reajustes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="py-6 text-center font-light text-muted-foreground">
+                    Nenhum pedido de reajuste registrado.
+                  </TableCell>
+                </TableRow>
+              )}
+              {ata.reajustes.map((reajuste) => (
+                <TableRow key={reajuste.id} data-testid="reajuste-row">
+                  <TableCell className="whitespace-nowrap tabular-nums">{reajuste.processo_sei}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatDay(reajuste.requested_on)}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatDate(reajuste.created_at)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Section>
+      </RecordTabs>
     </div>
   );
 }
