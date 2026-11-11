@@ -288,3 +288,12 @@ DETAILS_ONLY: Final = frozenset({"ne.bloqueada"})
 
 # Columns that are bookkeeping, never a change a person made.
 UNTRACKED_COLUMNS: Final = frozenset({"id", "criado_em", "atualizado_em"})
+
+# A column read under another field name: the grupo's parent is `parent_id`
+# in FIELDS, as SPEC-0003's API names it, and `grupo_pai_id` in the table.
+STATE_KEY: Final = MappingProxyType({"grupo_pai_id": "parent_id"})
+
+# The attribute of an aditivo holding the acréscimo of each kind; a prazo has none.
+ACRESCIMO_ATTRIBUTE: Final = MappingProxyType(
+    {ADITIVO_VALOR: "valor_acrescimo", ADITIVO_QUANTIDADE: "quantidade_acrescimo"}
+)
