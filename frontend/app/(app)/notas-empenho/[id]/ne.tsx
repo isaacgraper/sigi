@@ -10,6 +10,7 @@ import { NeStage } from "@/components/notas-empenho/stage";
 import { NfStatusBadge } from "@/components/notas-fiscais/status";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
+import { RecordTabs } from "@/components/historico/record-tabs";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -191,99 +192,101 @@ export function NeView() {
         {announcement}
       </p>
 
-      {ne.status === "cancelada" ? (
-        <p data-testid="ne-cancelada" className="text-sm text-muted-foreground">
-          Esta NE foi cancelada. O saldo que ela reservava foi liberado.
-        </p>
-      ) : (
-        <Steps ne={ne} />
-      )}
+      <RecordTabs registro="nota_empenho" id={ne.id} perfil={me.perfil}>
+        {ne.status === "cancelada" ? (
+          <p data-testid="ne-cancelada" className="text-sm text-muted-foreground">
+            Esta NE foi cancelada. O saldo que ela reservava foi liberado.
+          </p>
+        ) : (
+          <Steps ne={ne} />
+        )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Dados da NE</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl data-testid="ne-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Item label="ATA">
-              <Link href={`/atas/${ne.ata_id}`} className="text-primary underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
-                {ne.ata_number}
-              </Link>
-            </Item>
-            <Item label="Processo SEI">
-              <span className="tabular-nums">{ne.processo_sei}</span>
-            </Item>
-            <Item label="Valor">
-              <span data-testid="ne-valor" className="tabular-nums">
-                {formatBRL(ne.value)}
-              </span>
-            </Item>
-            <Item label="Nota de pré-empenho">
-              <span data-testid="ne-pre-empenho" className="tabular-nums">
-                {ne.numero_pre_empenho ?? "—"}
-              </span>
-            </Item>
-            <Item label="Número da NE">
-              <span data-testid="ne-numero" className="tabular-nums">
-                {ne.number ?? "—"}
-              </span>
-            </Item>
-            <Item label="Emitida em">{ne.issued_on ? formatDay(ne.issued_on) : "—"}</Item>
-            <Item label="Aberta em">{formatDate(ne.created_at)}</Item>
-          </dl>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Dados da NE</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl data-testid="ne-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Item label="ATA">
+                <Link href={`/atas/${ne.ata_id}`} className="text-primary underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
+                  {ne.ata_number}
+                </Link>
+              </Item>
+              <Item label="Processo SEI">
+                <span className="tabular-nums">{ne.processo_sei}</span>
+              </Item>
+              <Item label="Valor">
+                <span data-testid="ne-valor" className="tabular-nums">
+                  {formatBRL(ne.value)}
+                </span>
+              </Item>
+              <Item label="Nota de pré-empenho">
+                <span data-testid="ne-pre-empenho" className="tabular-nums">
+                  {ne.numero_pre_empenho ?? "—"}
+                </span>
+              </Item>
+              <Item label="Número da NE">
+                <span data-testid="ne-numero" className="tabular-nums">
+                  {ne.number ?? "—"}
+                </span>
+              </Item>
+              <Item label="Emitida em">{ne.issued_on ? formatDay(ne.issued_on) : "—"}</Item>
+              <Item label="Aberta em">{formatDate(ne.created_at)}</Item>
+            </dl>
+          </CardContent>
+        </Card>
 
-      <section aria-label="Itens" className="space-y-3">
-        <h2 className="text-base font-normal">Itens</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Insumo</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Quantidade</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Valor unitário</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Valor</TableHead>
-              {issued && (
-                <>
-                  <TableHead className="whitespace-nowrap text-right">Recebida</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Em quarentena</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Faltante</TableHead>
-                </>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ne.items.map((line) => (
-              <TableRow key={line.id} data-testid="ne-item">
-                <TableCell className="min-w-56">
-                  {line.description}
-                  <span className="block text-xs font-light text-muted-foreground">
-                    {line.sku} · {line.unit}
-                  </span>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatQuantity(line.quantity)}</TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatUnitPrice(line.unit_price)}</TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatBRL(line.value)}</TableCell>
+        <section aria-label="Itens" className="space-y-3">
+          <h2 className="text-base font-normal">Itens</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Insumo</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Quantidade</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Valor unitário</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Valor</TableHead>
                 {issued && (
                   <>
-                    <TableCell data-testid="ne-item-recebida" className="whitespace-nowrap text-right tabular-nums">
-                      {formatQuantity(line.quantidade_recebida)}
-                    </TableCell>
-                    <TableCell data-testid="ne-item-quarentena" className="whitespace-nowrap text-right tabular-nums">
-                      {formatQuantity(line.quantidade_em_quarentena)}
-                    </TableCell>
-                    <TableCell data-testid="ne-item-faltante" className="whitespace-nowrap text-right tabular-nums">
-                      {formatQuantity(line.quantidade_faltante)}
-                    </TableCell>
+                    <TableHead className="whitespace-nowrap text-right">Recebida</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">Em quarentena</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">Faltante</TableHead>
                   </>
                 )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </section>
+            </TableHeader>
+            <TableBody>
+              {ne.items.map((line) => (
+                <TableRow key={line.id} data-testid="ne-item">
+                  <TableCell className="min-w-56">
+                    {line.description}
+                    <span className="block text-xs font-light text-muted-foreground">
+                      {line.sku} · {line.unit}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">{formatQuantity(line.quantity)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">{formatUnitPrice(line.unit_price)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">{formatBRL(line.value)}</TableCell>
+                  {issued && (
+                    <>
+                      <TableCell data-testid="ne-item-recebida" className="whitespace-nowrap text-right tabular-nums">
+                        {formatQuantity(line.quantidade_recebida)}
+                      </TableCell>
+                      <TableCell data-testid="ne-item-quarentena" className="whitespace-nowrap text-right tabular-nums">
+                        {formatQuantity(line.quantidade_em_quarentena)}
+                      </TableCell>
+                      <TableCell data-testid="ne-item-faltante" className="whitespace-nowrap text-right tabular-nums">
+                        {formatQuantity(line.quantidade_faltante)}
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
 
-      {issued && <NeNotasFiscais ne={ne} register={moves} />}
+        {issued && <NeNotasFiscais ne={ne} register={moves} />}
+      </RecordTabs>
     </div>
   );
 }

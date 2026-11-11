@@ -2,9 +2,9 @@
  * Values the whole application shares (docs/process/coding-standards.md §2).
  * A value one feature owns lives in lib/<feature>/constants.ts instead.
  */
-import { FileCheck, FileText, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
+import { FileCheck, FileText, History, LayoutDashboard, Package, Receipt, Users } from "lucide-react";
 
-import { canSeeMembers } from "@/lib/me";
+import { canReadHistory, canSeeMembers } from "@/lib/me";
 import type { Module, Perfil } from "@/lib/types";
 
 // ── Navigation ──────────────────────────────────────────────────────────────
@@ -50,6 +50,13 @@ export const NAV_MODULES: Module[] = [
     icon: FileCheck,
     // Every perfil reads NFs; the gestor and the servidor register, the gestor approves (SPEC-0005 §6).
     visibleTo: () => true,
+  },
+  {
+    href: "/historico",
+    name: "Histórico",
+    icon: History,
+    // The whole history is the gestor's and the auditor's; a servidor follows an insumo's rastreio (AC-0017-12).
+    visibleTo: (me) => canReadHistory(me.perfil),
   },
   {
     href: "/members",

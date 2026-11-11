@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { NfActions } from "@/components/notas-fiscais/nf-actions";
 import { NfStatusBadge } from "@/components/notas-fiscais/status";
+import { RecordTabs } from "@/components/historico/record-tabs";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
@@ -88,73 +89,75 @@ export function NfView() {
         {announcement}
       </p>
 
-      {nf.status === "devolvida" && nf.justificativa_devolucao && (
-        <p data-testid="nf-justificativa" className="rounded-md border border-border/70 bg-card px-4 py-3 text-sm">
-          <span className="block text-xs font-light text-muted-foreground">Devolvida para correção</span>
-          {nf.justificativa_devolucao}
-        </p>
-      )}
-      {nf.quarentena && nf.motivo_quarentena && (
-        <p data-testid="nf-motivo" className="rounded-md border border-border/70 bg-card px-4 py-3 text-sm">
-          <span className="block text-xs font-light text-muted-foreground">Motivo da quarentena</span>
-          {nf.motivo_quarentena}
-        </p>
-      )}
+      <RecordTabs registro="nota_fiscal" id={nf.id} perfil={me.perfil}>
+        {nf.status === "devolvida" && nf.justificativa_devolucao && (
+          <p data-testid="nf-justificativa" className="rounded-md border border-border/70 bg-card px-4 py-3 text-sm">
+            <span className="block text-xs font-light text-muted-foreground">Devolvida para correção</span>
+            {nf.justificativa_devolucao}
+          </p>
+        )}
+        {nf.quarentena && nf.motivo_quarentena && (
+          <p data-testid="nf-motivo" className="rounded-md border border-border/70 bg-card px-4 py-3 text-sm">
+            <span className="block text-xs font-light text-muted-foreground">Motivo da quarentena</span>
+            {nf.motivo_quarentena}
+          </p>
+        )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Dados da NF</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl data-testid="nf-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Item label="Número da NF">
-              <span data-testid="nf-numero" className="tabular-nums">
-                {nf.numero}
-              </span>
-            </Item>
-            <Item label="Nota de empenho">
-              <Link
-                href={`/notas-empenho/${nf.nota_empenho_id}`}
-                className="text-primary underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
-              >
-                {nf.nota_empenho_number ?? "sem número"}
-              </Link>
-            </Item>
-            <Item label="Data de emissão">{formatDay(nf.data_emissao)}</Item>
-            <Item label="Valor">
-              <span data-testid="nf-valor" className="tabular-nums">
-                {formatBRL(nf.valor)}
-              </span>
-            </Item>
-            <Item label="Registrada em">{formatDate(nf.created_at)}</Item>
-          </dl>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Dados da NF</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl data-testid="nf-dados" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Item label="Número da NF">
+                <span data-testid="nf-numero" className="tabular-nums">
+                  {nf.numero}
+                </span>
+              </Item>
+              <Item label="Nota de empenho">
+                <Link
+                  href={`/notas-empenho/${nf.nota_empenho_id}`}
+                  className="text-primary underline-offset-4 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
+                >
+                  {nf.nota_empenho_number ?? "sem número"}
+                </Link>
+              </Item>
+              <Item label="Data de emissão">{formatDay(nf.data_emissao)}</Item>
+              <Item label="Valor">
+                <span data-testid="nf-valor" className="tabular-nums">
+                  {formatBRL(nf.valor)}
+                </span>
+              </Item>
+              <Item label="Registrada em">{formatDate(nf.created_at)}</Item>
+            </dl>
+          </CardContent>
+        </Card>
 
-      <section aria-label="Itens" className="space-y-3">
-        <h2 className="text-base font-normal">Itens</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Insumo</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Quantidade</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {nf.itens.map((line) => (
-              <TableRow key={line.id} data-testid="nf-item">
-                <TableCell className="min-w-56">
-                  {line.description}
-                  <span className="block text-xs font-light text-muted-foreground">
-                    {line.sku} · {line.unit}
-                  </span>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatQuantity(line.quantidade)}</TableCell>
+        <section aria-label="Itens" className="space-y-3">
+          <h2 className="text-base font-normal">Itens</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Insumo</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Quantidade</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </section>
+            </TableHeader>
+            <TableBody>
+              {nf.itens.map((line) => (
+                <TableRow key={line.id} data-testid="nf-item">
+                  <TableCell className="min-w-56">
+                    {line.description}
+                    <span className="block text-xs font-light text-muted-foreground">
+                      {line.sku} · {line.unit}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">{formatQuantity(line.quantidade)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
+      </RecordTabs>
     </div>
   );
 }

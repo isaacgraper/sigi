@@ -8,3 +8,8 @@ export function displayName(person: { name: string | null; email: string | null 
 export function canSeeMembers(perfil: Perfil): boolean {
   return perfil === "gestor" || perfil === "auditor";
 }
+
+/** The whole history is the gestor's and the auditor's (SPEC-0007 AC-0007-09). */
+export function canReadHistory(perfil: Perfil): boolean {
+  return perfil === "gestor" || perfil === "auditor";
+}

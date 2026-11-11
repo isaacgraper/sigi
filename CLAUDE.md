@@ -96,7 +96,9 @@ built, waiting for its data sources. `SPEC-0007` (v1.1) and `SPEC-0009` (v1.1) a
 `Approved` and built in the backend, waiting for the product owner's end-to-end test:
 the history and the cycle of an insumo under `/api/v1/historico` and
 `/api/v1/insumos/{id}/ciclo`, and four reports as CSV and PDF under
-`/api/v1/relatorios`, read as they stood at a data de referência.
+`/api/v1/relatorios`, read as they stood at a data de referência. Their screens
+(SPEC-0017, `Approved`, built) are the Acompanhamento tab of an ATA, an NE and an NF,
+the rastreio on an insumo's page and the Histórico for the gestor and the auditor.
 `SPEC-0008` is `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
