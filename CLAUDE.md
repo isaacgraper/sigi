@@ -92,13 +92,15 @@ instead of producing a migration that drops tables.
 `SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.6), `SPEC-0014` (v1.4),
 `SPEC-0004` (v1.4), `SPEC-0005` (v1.1), `SPEC-0006` (v1.2), `SPEC-0015` (v1.3)
 and `SPEC-0016` (v1.1) are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and
-built, waiting for its data sources. `SPEC-0007` (v1.1) and `SPEC-0009` (v1.1) are
+built, waiting for its data sources. `SPEC-0007` (v1.1) and `SPEC-0009` (v1.2) are
 `Approved` and built in the backend, waiting for the product owner's end-to-end test:
 the history and the cycle of an insumo under `/api/v1/historico` and
 `/api/v1/insumos/{id}/ciclo`, and four reports as CSV and PDF under
 `/api/v1/relatorios`, read as they stood at a data de referência. Their screens
 (SPEC-0017, `Approved`, built) are the Acompanhamento tab of an ATA, an NE and an NF,
-the rastreio on an insumo's page and the Histórico for the gestor and the auditor.
+the rastreio on an insumo's page and the Histórico for the gestor and the auditor. Every list exports
+through one dialog (SPEC-0009 v1.2): the ATAs, an ATA's items, the insumos, the NEs,
+the NFs and the Histórico, each with its filters, at a data de referência, inside RN07.
 `SPEC-0008` is `Draft`, and **a spec at `Draft` may not be implemented**.
 
 **What is left:**
