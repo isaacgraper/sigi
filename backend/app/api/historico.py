@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.authorization import Requires
 from app.core.db import DbSession
 from app.models.user import User
-from app.schemas.historico import HistoricoOut, HistoricoPage
+from app.schemas.historico import HistoricoOut, HistoricoPage, change_fields
 from app.services import historico as service
 
 router = APIRouter(prefix="/api/v1/historico", tags=["historico"])
@@ -35,7 +35,7 @@ def list_history(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> HistoricoPage:
-    """The history, filtered and newest first (AC-0007-08, -09)."""
+    """The history, filtered and newest first, with what each event changed (AC-0007-08 to -10)."""
     result = service.list_history(
         session,
         entidade_tipo=entidade_tipo,
@@ -58,6 +58,7 @@ def list_history(
                 dados_anteriores=row.dados_anteriores,
                 justificativa=row.justificativa,
                 correlation_id=row.correlation_id,
+                **change_fields(result.changes[row.id]),
             )
             for row in result.rows
         ],
