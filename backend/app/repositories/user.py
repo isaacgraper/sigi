@@ -91,3 +91,10 @@ def count_active_gestores(session: Session, *, excluding: uuid.UUID | None = Non
     if excluding is not None:
         query = query.where(User.id != excluding)
     return int(session.scalar(query) or 0)
+
+
+def by_ids(session: Session, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, User]:
+    """These members, keyed by id."""
+    if not user_ids:
+        return {}
+    return {user.id: user for user in session.scalars(select(User).where(User.id.in_(user_ids)))}

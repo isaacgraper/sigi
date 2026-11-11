@@ -140,3 +140,192 @@ REFERENCE_IN_FUTURE: Final = "A data de referência não pode estar no futuro."
 COLUMNS_UNKNOWN: Final = "Informe colunas deste relatório: {columns}."
 START_AFTER_REFERENCE: Final = "O início não pode ser posterior à data de referência."
 START_NOT_APPLICABLE: Final = "A posição de saldo não tem período: é lida na data de referência."
+
+# ── The list exports (SPEC-0009 v1.2, AC-0009-10 to -12) ────────────────────
+
+ATAS: Final = "atas"
+ITENS_ATA: Final = "itens-ata"
+INSUMOS: Final = "insumos"
+NOTAS_EMPENHO: Final = "notas-empenho"
+NOTAS_FISCAIS: Final = "notas-fiscais"
+HISTORICO: Final = "historico"
+
+# The four reports and the Histórico are the gestor's and the auditor's (AC-0009-05, -11).
+RESTRICTED: Final = frozenset(
+    {EXECUCAO_ORCAMENTARIA, POSICAO_SALDO, NFS_EM_CONFERENCIA, INDICADORES_FORNECEDORES, HISTORICO}
+)
+READERS: Final = frozenset({"gestor", "auditor"})
+
+LIST_TITLES: Final = MappingProxyType(
+    {
+        ATAS: "ATAs",
+        ITENS_ATA: "Itens da ATA",
+        INSUMOS: "Insumos",
+        NOTAS_EMPENHO: "Notas de empenho",
+        NOTAS_FISCAIS: "Notas fiscais",
+        HISTORICO: "Histórico",
+    }
+)
+LIST_COLUMNS: Final = MappingProxyType(
+    {
+        ATAS: (
+            ("ata", "Número"),
+            ("objeto", "Objeto"),
+            ("fornecedor", "Fornecedor"),
+            ("vigencia_inicio", "Início da vigência"),
+            ("vigencia_fim", "Fim da vigência"),
+            ("valor_contratado", "Valor contratado"),
+            ("status", "Status"),
+            ("situacao", "Situação da vigência"),
+        ),
+        ITENS_ATA: (
+            ("numero_item", "Item"),
+            ("sku", "SKU"),
+            ("descricao", "Descrição"),
+            ("unidade", "Unidade"),
+            ("quantidade", "Quantidade"),
+            ("valor_unitario", "Valor unitário"),
+            ("valor_total", "Valor total"),
+        ),
+        INSUMOS: (
+            ("sku", "SKU"),
+            ("descricao", "Descrição"),
+            ("unidade", "Unidade"),
+            ("grupo", "Grupo"),
+            ("codigo_doms", "Código DOMS"),
+            ("codigo_externo", "Código externo"),
+            ("situacao", "Situação"),
+        ),
+        NOTAS_EMPENHO: (
+            ("processo_sei", "Processo SEI"),
+            ("ata", "ATA"),
+            ("etapa", "Etapa"),
+            ("valor", "Valor"),
+            ("numero_pre_empenho", "Pré-empenho"),
+            ("ne", "NE"),
+            ("aberta_em", "Aberta em"),
+        ),
+        NOTAS_FISCAIS: (
+            ("nf", "NF"),
+            ("ne", "NE"),
+            ("ata", "ATA"),
+            ("data_emissao", "Data de emissão"),
+            ("valor", "Valor"),
+            ("status", "Status"),
+            ("quarentena", "Em quarentena"),
+        ),
+        HISTORICO: (
+            ("quando", "Quando"),
+            ("acao", "Ação"),
+            ("entidade", "Entidade"),
+            ("entidade_id", "Identificador da entidade"),
+            ("quem", "Quem"),
+            ("alteracoes", "Alterações"),
+            ("detalhes", "Detalhes"),
+        ),
+    }
+)
+
+# Every export's columns, the four reports' and the lists', by its route name.
+ALL_COLUMNS: Final = MappingProxyType({**COLUMNS, **LIST_COLUMNS})
+ALL_TITLES: Final = MappingProxyType({**TITLES, **LIST_TITLES})
+
+# How each filter is named in the file's provenance (AC-0009-02).
+FILTER_LABEL: Final = MappingProxyType(
+    {
+        "status": "Status",
+        "situacao_vigencia": "Situação da vigência",
+        "ata_id": "ATA",
+        "q": "Busca",
+        "grupo_id": "Grupo",
+        "etapa": "Etapa",
+        "processo_sei": "Processo SEI",
+        "nota_empenho_id": "NE",
+        "quarentena": "Em quarentena",
+        "entidade_tipo": "Entidade",
+        "entidade_id": "Identificador da entidade",
+        "usuario_id": "Membro",
+        "de": "De",
+        "ate": "Até",
+    }
+)
+
+INSUMO_SITUACAO_LABEL: Final = MappingProxyType(
+    {"ativo": "Ativo", "descontinuado": "Descontinuado", "substituido": "Substituído"}
+)
+SITUACAO_VIGENCIA_LABEL: Final = MappingProxyType(
+    {"vigente": "Vigente", "a_vencer": "A vencer", "vencida": "Vencida"}
+)
+
+# The `dados_anteriores` keys an insumo, an item and an NF are rewound by (§2.2).
+INSUMO_REWOUND: Final = MappingProxyType(
+    {
+        "sku": "sku",
+        "descricao": "description",
+        "unidade": "unit",
+        "grupo_id": "grupo_id",
+        "codigo_doms": "codigo_doms",
+        "codigo_externo": "external_code",
+        "descontinuado_em": "discontinued_on",
+        "substituido_por_id": "substitute_id",
+    }
+)
+ITEM_REWOUND: Final = MappingProxyType(
+    {
+        "numero_item": "item_number",
+        "insumo_id": "insumo_id",
+        "quantidade": "quantity",
+        "valor_unitario": "unit_price",
+    }
+)
+KEY_OBJETO: Final = "objeto"
+KEY_VIGENCIA_INICIO: Final = "vigencia_inicio"
+# A quarentena row records the motivo, never the flag: the flag before it is implied.
+QUARENTENA_BEFORE: Final = MappingProxyType(
+    {"nf.quarentena_iniciada": False, "nf.quarentena_liberada": True}
+)
+INSUMO_ENTIDADE: Final = "insumo"
+ATA_ENTIDADE: Final = "ata"
+ACAO_ITEM_REMOVIDO: Final = "ata.item_removido"
+CHANGE_ARROW: Final = " → "
+CHANGE_SEPARATOR: Final = "; "
+NOTHING: Final = "—"
+SYSTEM_USER: Final = "Sistema"
+
+ITENS_WITHOUT_ATA: Final = "Informe a ATA dos itens."
+LIST_FILTER_INVALID: Final = "Valor de filtro inválido."
+
+# The filters each list export takes, by the name its list gives them (SPEC-0009 §2.1).
+LIST_FILTERS: Final = MappingProxyType(
+    {
+        ATAS: ("status", "situacao_vigencia"),
+        ITENS_ATA: ("ata_id",),
+        INSUMOS: ("q", "grupo_id", "status"),
+        NOTAS_EMPENHO: ("etapa", "ata_id", "processo_sei"),
+        NOTAS_FISCAIS: ("status", "nota_empenho_id", "quarentena"),
+        HISTORICO: ("entidade_tipo", "entidade_id", "usuario_id", "de", "ate"),
+    }
+)
+UUID_FILTERS: Final = frozenset(
+    {"ata_id", "grupo_id", "nota_empenho_id", "entidade_id", "usuario_id"}
+)
+DATE_FILTERS: Final = frozenset({"de", "ate"})
+TRUE_TEXT: Final = "true"
+FALSE_TEXT: Final = "false"
+
+HISTORICO_ENTIDADE_LABEL: Final = MappingProxyType(
+    {
+        "ata": "ATA",
+        "insumo": "Insumo",
+        "grupo_material": "Grupo de materiais",
+        "nota_empenho": "NE",
+        "nota_fiscal": "NF",
+        "fornecedor": "Fornecedor",
+        "usuario": "Membro",
+        "relatorio": "Relatório",
+        "rota": "Acesso",
+    }
+)
+GRUPO_SEPARATOR: Final = " / "
+ITEM_LINE_SEPARATOR: Final = " · "
+NOTA_FISCAL_ENTIDADE: Final = "nota_fiscal"

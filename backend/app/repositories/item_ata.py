@@ -6,6 +6,7 @@ ceiling is are the service's.
 
 from __future__ import annotations
 
+import datetime
 import decimal
 import uuid
 from collections.abc import Collection, Sequence
@@ -88,3 +89,14 @@ def atas_of_insumo(session: Session, insumo_id: uuid.UUID) -> Sequence[tuple[Ite
 def all_of_insumo(session: Session, insumo_id: uuid.UUID) -> Sequence[ItemAta]:
     """Every item of the insumo on any ATA, removed ones included (AC-0007-07)."""
     return session.scalars(select(ItemAta).where(ItemAta.insumo_id == insumo_id)).all()
+
+
+def of_ata_created_until(
+    session: Session, *, ata_id: uuid.UUID, until: datetime.datetime
+) -> Sequence[ItemAta]:
+    """An ATA's items created by an instant, removed or not, by número (SPEC-0009 AC-0009-10)."""
+    return session.scalars(
+        select(ItemAta)
+        .where(ItemAta.ata_id == ata_id, ItemAta.criado_em <= until)
+        .order_by(ItemAta.item_number, ItemAta.id)
+    ).all()

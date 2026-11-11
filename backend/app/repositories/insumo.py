@@ -6,6 +6,7 @@ situação means and passes plain ids and flags in.
 
 from __future__ import annotations
 
+import datetime
 import uuid
 from collections.abc import Collection, Sequence
 
@@ -191,3 +192,10 @@ def replace_grupos_of_user(
     session.execute(delete(UsuarioGrupoMaterial).where(UsuarioGrupoMaterial.usuario_id == user_id))
     session.add_all(UsuarioGrupoMaterial(usuario_id=user_id, grupo_id=g) for g in grupo_ids)
     session.flush()
+
+
+def insumos_created_until(session: Session, *, until: datetime.datetime) -> Sequence[Insumo]:
+    """The insumos created by an instant, by SKU (SPEC-0009 AC-0009-10)."""
+    return session.scalars(
+        select(Insumo).where(Insumo.criado_em <= until).order_by(Insumo.sku, Insumo.id)
+    ).all()
