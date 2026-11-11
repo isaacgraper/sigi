@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { AtaStatus } from "@/components/atas/status";
 import { EmptyState } from "@/components/empty-state";
+import { Rastreio } from "@/components/historico/rastreio";
 import { ErrorNotice } from "@/components/error-notice";
 import { InsumoActions } from "@/components/insumos/insumo-actions";
 import { InsumoSituacao } from "@/components/insumos/situacao";
@@ -180,6 +181,8 @@ export function InsumoView() {
           </TableBody>
         </Table>
       </section>
+
+      <Rastreio insumo={insumo} perfil={me.perfil} />
     </div>
   );
 }
