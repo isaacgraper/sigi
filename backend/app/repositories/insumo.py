@@ -29,6 +29,20 @@ def grupo_by_id(session: Session, grupo_id: uuid.UUID) -> GrupoMaterial | None:
     return session.get(GrupoMaterial, grupo_id)
 
 
+def grupos_by_ids(
+    session: Session, grupo_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, GrupoMaterial]:
+    """These grupos, keyed by id."""
+    if not grupo_ids:
+        return {}
+    return {
+        grupo.id: grupo
+        for grupo in session.scalars(
+            select(GrupoMaterial).where(GrupoMaterial.id.in_(list(grupo_ids)))
+        )
+    }
+
+
 def grupo_by_name(session: Session, name: str, parent_id: uuid.UUID | None) -> GrupoMaterial | None:
     """Find a grupo by name under a parent, ignoring case, or None."""
     parent = (

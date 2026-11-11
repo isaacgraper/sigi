@@ -30,6 +30,16 @@ def by_id(session: Session, ne_id: uuid.UUID) -> NotaEmpenho | None:
     return session.get(NotaEmpenho, ne_id)
 
 
+def by_ids(session: Session, ne_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, NotaEmpenho]:
+    """These NEs, keyed by id."""
+    if not ne_ids:
+        return {}
+    return {
+        ne.id: ne
+        for ne in session.scalars(select(NotaEmpenho).where(NotaEmpenho.id.in_(list(ne_ids))))
+    }
+
+
 def by_id_for_update(session: Session, ne_id: uuid.UUID) -> NotaEmpenho | None:
     """Find an NE and lock its row until the transaction ends."""
     return session.scalars(

@@ -91,6 +91,24 @@ def list_page(
     return rows, int(total)
 
 
+def by_ids(session: Session, ata_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Ata]:
+    """These ATAs, keyed by id."""
+    if not ata_ids:
+        return {}
+    return {ata.id: ata for ata in session.scalars(select(Ata).where(Ata.id.in_(list(ata_ids))))}
+
+
+def aditivos_of_atas(session: Session, ata_ids: Collection[uuid.UUID]) -> Sequence[AtaAditivo]:
+    """The aditivos of these ATAs, oldest first."""
+    if not ata_ids:
+        return []
+    return session.scalars(
+        select(AtaAditivo)
+        .where(AtaAditivo.ata_id.in_(list(ata_ids)))
+        .order_by(AtaAditivo.criado_em, AtaAditivo.id)
+    ).all()
+
+
 def aditivos_of(session: Session, ata_id: uuid.UUID) -> Sequence[AtaAditivo]:
     """The aditivos of an ATA, oldest first."""
     return session.scalars(
