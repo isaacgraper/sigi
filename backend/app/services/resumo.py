@@ -35,7 +35,6 @@ from app.constants.notificacoes import (
     FREQUENCIAS,
     GREETING,
     GREETING_UNNAMED,
-    INTRO,
     MOTIVO_ROTULO,
     MOTIVOS,
     NE_ADVANCE_ACAO,
@@ -188,8 +187,6 @@ def message(member: User, dia: Dia, *, advanced: int, at: datetime.datetime) -> 
     today = local_date(at).strftime(DATE_FORMAT)
     lines = [
         GREETING.format(name=member.nome) if member.nome else GREETING_UNNAMED,
-        "",
-        INTRO.format(dia=today),
         "",
         SECTION_ATAS,
     ]

@@ -57,7 +57,6 @@ DIA_INVALIDO: Final = "Escolha um dia da semana."
 SUBJECT: Final = "SIGI: resumo de {dia}"
 GREETING: Final = "Olá, {name}."
 GREETING_UNNAMED: Final = "Olá."
-INTRO: Final = "Este é o resumo do SIGI de {dia}."
 SECTION_ATAS: Final = "ATAs"
 SECTION_NES: Final = "Notas de empenho"
 SECTION_NFS: Final = "Notas fiscais"
@@ -81,7 +80,7 @@ NF_COUNTS: Final = (
     ("quarentena", "Em quarentena"),
 )
 NE_ADVANCE_ACAO: Final = "ne.avancada"
-FOOTER: Final = "Para mudar a frequência deste e-mail, abra Configurações no SIGI: {link}"
+FOOTER: Final = "Mudar a frequência: {link}"
 DATE_FORMAT: Final = "%d/%m/%Y"
 MAIL_FILE_STAMP: Final = "%Y%m%d-%H%M%S"
 PRODUCTION: Final = "production"
