@@ -29,3 +29,6 @@ test-results/
 # Never commit. See docs/architecture/data-sources.md.
 *.xlsx
 *.xls
+
+# The e-mails SPEC-0008 writes outside production (mail_folder): they carry addresses.
+backend/var/
