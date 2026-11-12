@@ -9,8 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { AtaPage } from "@/lib/atas/types";
 import { ApiError, readError, unavailable } from "@/lib/errors";
 import {
+  ALL_ATAS,
+  ATAS_TO_CHOOSE,
   COLUMNS_NONE,
   DAY_END,
   DAY_START,
@@ -22,12 +26,13 @@ import {
   FALLBACK_FILENAME,
   FORMATOS,
   type Formato,
-  type ListExport,
+  type ExportKey,
   REFERENCE_HELP,
   SAO_PAULO_OFFSET,
   START_HELP,
 } from "@/lib/relatorios/constants";
 import { apiFetch } from "@/lib/session";
+import { useRead } from "@/lib/use-read";
 
 /** Today in São Paulo, as a date input holds it. */
 function today(): string {
@@ -50,11 +55,17 @@ export function ExportDialog({
   title,
   filtros,
   size = "default",
+  withAta = false,
+  withPeriod = true,
 }: {
-  relatorio: ListExport;
+  relatorio: ExportKey;
   title: string;
   filtros: Record<string, string | null | undefined>;
   size?: "default" | "sm";
+  /** A report restricted to one ATA (SPEC-0018 AC-0018-03). */
+  withAta?: boolean;
+  /** The posição de saldo has no period (AC-0009-09, AC-0018-04). */
+  withPeriod?: boolean;
 }) {
   const { handleSessionError } = useSession();
   const columns = EXPORT_COLUMNS[relatorio];
@@ -63,6 +74,8 @@ export function ExportDialog({
   const [chosen, setChosen] = useState<string[]>(columns.map((column) => column.key));
   const [referencia, setReferencia] = useState(today());
   const [inicio, setInicio] = useState("");
+  const [ataId, setAtaId] = useState(ALL_ATAS);
+  const atas = useRead<AtaPage>(withAta && open ? `/api/v1/atas?page=1&size=${ATAS_TO_CHOOSE}` : null);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -88,7 +101,8 @@ export function ExportDialog({
     if (chosen.length < columns.length) params.set("colunas", chosen.join(","));
     // Today is "now"; a past day is read as it stood at its end in São Paulo.
     if (referencia && referencia !== today()) params.set("referencia", `${referencia}${DAY_END}${SAO_PAULO_OFFSET}`);
-    if (inicio) params.set("inicio", `${inicio}${DAY_START}${SAO_PAULO_OFFSET}`);
+    if (withPeriod && inicio) params.set("inicio", `${inicio}${DAY_START}${SAO_PAULO_OFFSET}`);
+    if (withAta && ataId !== ALL_ATAS) params.set("ata_id", ataId);
     try {
       const response = await apiFetch(`/api/v1/relatorios/${relatorio}?${params}`);
       if (!response.ok) throw await readError(response);
@@ -186,10 +200,32 @@ export function ExportDialog({
                   <Input {...props} type="date" max={today()} value={referencia} onChange={(e) => setReferencia(e.target.value)} />
                 )}
               </Field>
-              <Field id="exportar-inicio" label="Início do período" hint={START_HELP} error={fields.inicio}>
-                {(props) => <Input {...props} type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />}
-              </Field>
+              {withPeriod && (
+                <Field id="exportar-inicio" label="Início do período" hint={START_HELP} error={fields.inicio}>
+                  {(props) => <Input {...props} type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />}
+                </Field>
+              )}
             </div>
+
+            {withAta && (
+              <Field id="exportar-ata" label="ATA" error={fields.ata_id}>
+                {(props) => (
+                  <Select value={ataId} onValueChange={setAtaId}>
+                    <SelectTrigger {...props}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_ATAS}>Todas as ATAs</SelectItem>
+                      {(atas.data?.items ?? []).map((ata) => (
+                        <SelectItem key={ata.id} value={ata.id}>
+                          ATA {ata.number}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+            )}
 
             {unexplained && failure && <ErrorNotice error={failure} />}
 

@@ -40,12 +40,12 @@ async function animatedProperties(page: Page, selector: string) {
 test.describe("SPEC-0011 the shell", () => {
   test("AC-0011-01 the sidebar lists the perfil's modules in a fixed order", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
-    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Notas fiscais", "Histórico", "Membros"]);
+    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Notas fiscais", "Histórico", "Relatórios", "Membros"]);
     await expect(sidebarLinks(page).first()).toHaveAttribute("aria-current", "page");
 
     await openFromSidebar(page, "Membros");
     await expect(page).toHaveURL(/\/members$/);
-    await expect(sidebarLinks(page).nth(6)).toHaveAttribute("aria-current", "page");
+    await expect(sidebarLinks(page).nth(7)).toHaveAttribute("aria-current", "page");
     await expect(sidebarLinks(page).first()).not.toHaveAttribute("aria-current", "page");
   });
 
@@ -63,7 +63,7 @@ test.describe("SPEC-0011 the shell", () => {
     await expect(sidebar).toHaveAttribute("data-collapsed", "true");
     expect((await sidebar.boundingBox())?.width).toBe(64);
     // The name is still each link's accessible name...
-    await expect(sidebarLinks(page)).toHaveCount(7);
+    await expect(sidebarLinks(page)).toHaveCount(8);
     await expect(page.getByTestId("sidebar").getByRole("link", { name: "Membros" })).toBeVisible();
     // ...and shows on hover.
     const link = page.getByTestId("sidebar").getByRole("link", { name: "Membros" });
@@ -127,6 +127,7 @@ test.describe("SPEC-0011 the shell", () => {
         "Notas de empenho",
         "Notas fiscais",
         "Histórico",
+        "Relatórios",
         "Membros",
       ]);
     });
