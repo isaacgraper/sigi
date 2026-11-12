@@ -243,6 +243,12 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     # reports and the Histórico; every perfil exports the lists it reads,
     # so the route admits all three and the service refuses the rest.
     ("GET", "/api/v1/relatorios/{relatorio}"): frozenset({"gestor", "servidor", "auditor"}),
+    # SPEC-0008 AC-0008-03, -05: every perfil reads the same notices and marks them read.
+    ("GET", "/api/v1/notificacoes"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notificacoes/lidas"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notificacoes/{notificacao_id}/lida"): frozenset(
+        {"gestor", "servidor", "auditor"}
+    ),
 }
 
 
