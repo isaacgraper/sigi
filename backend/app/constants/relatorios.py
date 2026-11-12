@@ -324,6 +324,7 @@ HISTORICO_ENTIDADE_LABEL: Final = MappingProxyType(
         "usuario": "Membro",
         "relatorio": "Relatório",
         "rota": "Acesso",
+        "notificacao": "Aviso",
     }
 )
 GRUPO_SEPARATOR: Final = " / "

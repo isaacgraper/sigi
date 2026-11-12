@@ -17,6 +17,7 @@ ENTIDADE_TIPOS: Final = frozenset(
         "nota_empenho",
         "nota_fiscal",
         "relatorio",
+        "notificacao",
     }
 )
 
@@ -185,6 +186,12 @@ DETALHE_ROTULO: Final = MappingProxyType(
         "ata_id": "ATA",
         "inicio": "Início do período",
         "colunas": "Colunas",
+        "chave": "Chave",
+        "lidas": "Lidos",
+        "avisos": "Avisos",
+        "destinatarios": "Destinatários",
+        "erro": "Erro",
+        "filtros": "Filtros",
     }
 )
 
@@ -224,6 +231,11 @@ ACAO_ROTULO: Final = MappingProxyType(
         "nf.quarentena_iniciada": "NF em quarentena",
         "nf.quarentena_liberada": "NF liberada da quarentena",
         "relatorio.exportado": "Relatório exportado",
+        "notificacao.criada": "Aviso de ATA criado",
+        "notificacao.lida": "Aviso lido",
+        "notificacao.todas_lidas": "Avisos marcados como lidos",
+        "notificacao.enviada": "Resumo de avisos enviado",
+        "notificacao.envio_falhou": "Envio do resumo de avisos falhou",
         "usuario.convidado": "Membro convidado",
         "usuario.convite_reemitido": "Convite reemitido",
         "usuario.ativado": "Conta ativada",

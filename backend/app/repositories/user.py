@@ -98,3 +98,12 @@ def by_ids(session: Session, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, User]:
     if not user_ids:
         return {}
     return {user.id: user for user in session.scalars(select(User).where(User.id.in_(user_ids)))}
+
+
+def active_with_email(session: Session) -> Sequence[User]:
+    """The active members who sign in with an e-mail, by name (SPEC-0008 AC-0008-06)."""
+    return session.scalars(
+        select(User)
+        .where(User.status == "ativo", User.email.is_not(None))
+        .order_by(User.nome, User.id)
+    ).all()
