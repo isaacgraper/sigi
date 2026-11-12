@@ -1,5 +1,6 @@
 "use client";
 
+import { Bell } from "@/components/shell/bell";
 import { Breadcrumb } from "@/components/shell/breadcrumb";
 import { Footer } from "@/components/shell/footer";
 import { MobileNav } from "@/components/shell/mobile-nav";
@@ -28,6 +29,7 @@ export function AppShell({
           <div className="min-w-0 flex-1">
             <Breadcrumb />
           </div>
+          <Bell />
           <UserMenu me={me} onLogout={onLogout} />
         </header>
         <Content>{children}</Content>
