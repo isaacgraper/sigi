@@ -137,6 +137,19 @@ class Settings(BaseSettings):
     # parameter on the frontend route, which then posts it in a request body:
     # a link has to be openable, but our API never takes it in a path.
     frontend_base_url: str = "http://localhost:3000"
+
+    # ── E-mail (SPEC-0008 AC-0008-07) ───────────────────────────────────────
+    # No host means no send: the digest is written to `mail_folder`, as it is
+    # in every environment but production. The entity's institutional SMTP is
+    # expected here (OQ-13); nothing reaches anyone until it is set.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_starttls: bool = True
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "sigi@localhost"
+    smtp_timeout_seconds: int = 30
+    mail_folder: str = "var/mail"
     invite_ttl_hours: int = 72
     # One hour against the invitation's 72: an invitation waits for somebody to
     # find the time, a reset is asked for by someone sitting at the screen.
