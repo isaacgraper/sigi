@@ -34,9 +34,10 @@ services:
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?run scripts/gen-keys.sh}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?run scripts/gen-keys.sh}
       HMAC_PEPPER: ${HMAC_PEPPER:?set HMAC_PEPPER}
-      FRONTEND_BASE_URL: https://${SIGI_DOMAIN:?set SIGI_DOMAIN}
-      CORS_ORIGINS: '["https://${SIGI_DOMAIN}"]'
-      COOKIE_SECURE: "true"
+      FRONTEND_BASE_URL: ${SIGI_ORIGIN:?set SIGI_ORIGIN}
+      CORS_ORIGINS: '["${SIGI_ORIGIN}"]'
+      # False only because the demo is served over plain http on an IP.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       TRUSTED_PROXIES: "[]"
     volumes:
       - mail_data:/app/var
@@ -60,8 +61,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      SIGI_DOMAIN: ${SIGI_DOMAIN}
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

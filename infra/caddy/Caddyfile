@@ -1,4 +1,5 @@
-{$SIGI_DOMAIN} {
+# Plain HTTP on the IP. With a domain, replace :80 by the domain for automatic HTTPS.
+:80 {
 	encode zstd gzip
 	reverse_proxy frontend:3000
 }
