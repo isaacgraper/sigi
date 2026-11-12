@@ -75,7 +75,7 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Seven migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Eight migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
 `0002_registro_funcional` adds the member's registration, `0003_atas` adds
@@ -84,7 +84,8 @@ drops the draft status and admits the alphanumeric CNPJ, and `0005_insumos` adds
 `grupo_material`, `insumo`, `item_ata`, `usuario_grupo_material` and the aditivo
 de quantidade, and `0006_notas_empenho` adds `nota_empenho` and
 `item_nota_empenho` with the DB2, DB4 and DB7 triggers, and `0007_notas_fiscais`
-adds `nota_fiscal` and `item_nota_fiscal`. `alembic check`
+adds `nota_fiscal` and `item_nota_fiscal`, and `0008_notificacoes` adds
+`notificacao` and `notificacao_leitura`. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
@@ -102,7 +103,10 @@ the rastreio on an insumo's page and the Histórico for the gestor and the audit
 through one dialog (SPEC-0009 v1.2): the ATAs, an ATA's items, the insumos, the NEs,
 the NFs and the Histórico, each with its filters, at a data de referência, inside RN07. The four
 reports have their screen under `/relatorios` (SPEC-0018, `Approved`, built).
-`SPEC-0008` is `Draft`, and **a spec at `Draft` may not be implemented**.
+`SPEC-0008` (v1.0) is `Approved` and built: the ATA notices under the header bell,
+the same for every perfil, and a daily digest to each member's e-mail from
+`python -m app.cli notificar`, written to `mail_folder` until an SMTP host is set
+(OQ-13). **A spec at `Draft` may not be implemented**.
 
 **What is left:**
 

@@ -41,7 +41,7 @@ on an `Approved` spec is a merge blocker.
 | RF05, RF17 (screens) | SPEC-0016 v1.1 | AC-0016-01..11 | `frontend/e2e/notas-fiscais.spec.ts` | **Implemented** |
 | RF06, RF10 | SPEC-0007 v1.1 | AC-0007-01..10 (-02 to -04 and -06 proven by SPEC-0001's tests) | `backend/tests/test_historico.py`, `backend/tests/test_history_changes.py` | **Approved**, built |
 | RF06, RF10 (screens) | SPEC-0017 v1.0 | AC-0017-01..12 | `frontend/e2e/historico.spec.ts`, `frontend/tests/historico.test.ts` | Approved, built |
-| RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
+| RF09, RF19 | SPEC-0008 v1.0 | AC-0008-01..09 | `backend/tests/test_notificacoes.py`, `backend/tests/test_migration_notificacoes.py`, `frontend/e2e/notificacoes.spec.ts` | Approved, built |
 | RF12, RN07 | SPEC-0009 v1.2 | AC-0009-01..06, -08..13 (AC-0009-07 withdrawn) | `backend/tests/test_relatorios.py`, `frontend/e2e/exportar.spec.ts` | Approved, built |
 | RF12 (screen) | SPEC-0018 v1.0 | AC-0018-01..05 | `frontend/e2e/relatorios.spec.ts` | Approved, built |
 | RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
