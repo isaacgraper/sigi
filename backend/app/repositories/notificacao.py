@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Collection, Sequence
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -117,25 +117,3 @@ def unread_ids(session: Session, *, usuario_id: uuid.UUID) -> Sequence[uuid.UUID
             .exists()
         )
     ).all()
-
-
-def not_sent(session: Session) -> Sequence[tuple[Notificacao, Ata]]:
-    """The notices no digest has carried yet, oldest first (AC-0008-06, -08)."""
-    return session.execute(  # type: ignore[return-value]
-        select(Notificacao, Ata)
-        .join(Ata, Ata.id == Notificacao.ata_id)
-        .where(Notificacao.enviada_em.is_(None))
-        .order_by(Notificacao.criada_em, Notificacao.id)
-    ).all()
-
-
-def mark_sent(
-    session: Session, notificacao_ids: Collection[uuid.UUID], at: datetime.datetime
-) -> None:
-    """Record that a digest carried these notices."""
-    if notificacao_ids:
-        session.execute(
-            update(Notificacao)
-            .where(Notificacao.id.in_(list(notificacao_ids)))
-            .values(enviada_em=at)
-        )

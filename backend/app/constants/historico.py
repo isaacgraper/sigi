@@ -18,6 +18,7 @@ ENTIDADE_TIPOS: Final = frozenset(
         "nota_fiscal",
         "relatorio",
         "notificacao",
+        "resumo",
     }
 )
 
@@ -188,8 +189,8 @@ DETALHE_ROTULO: Final = MappingProxyType(
         "colunas": "Colunas",
         "chave": "Chave",
         "lidas": "Lidos",
-        "avisos": "Avisos",
-        "destinatarios": "Destinatários",
+        "frequencia": "Frequência",
+        "dia_semana": "Dia da semana",
         "erro": "Erro",
         "filtros": "Filtros",
     }
@@ -234,8 +235,9 @@ ACAO_ROTULO: Final = MappingProxyType(
         "notificacao.criada": "Aviso de ATA criado",
         "notificacao.lida": "Aviso lido",
         "notificacao.todas_lidas": "Avisos marcados como lidos",
-        "notificacao.enviada": "Resumo de avisos enviado",
-        "notificacao.envio_falhou": "Envio do resumo de avisos falhou",
+        "preferencia_email.alterada": "Preferência de e-mail alterada",
+        "resumo.enviado": "Resumo por e-mail enviado",
+        "resumo.envio_falhou": "Envio do resumo por e-mail falhou",
         "usuario.convidado": "Membro convidado",
         "usuario.convite_reemitido": "Convite reemitido",
         "usuario.ativado": "Conta ativada",
