@@ -947,3 +947,14 @@ class RelatorioNotFound(DomainError):
     def __init__(self) -> None:
         """Build the error with its message."""
         super().__init__("Relatório não encontrado.")
+
+
+class NotificacaoNotFound(DomainError):
+    """No notice has this id (SPEC-0008 AC-0008-05)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Aviso não encontrado.")

@@ -215,3 +215,10 @@ def fornecedores_by_id(
             select(Fornecedor).where(Fornecedor.id.in_(list(fornecedor_ids)))
         )
     }
+
+
+def vigentes(session: Session) -> Sequence[Ata]:
+    """Every ATA whose status is vigente, by número (SPEC-0008 AC-0008-01)."""
+    return session.scalars(
+        select(Ata).where(Ata.status == "vigente").order_by(Ata.number, Ata.id)
+    ).all()

@@ -12,8 +12,10 @@ from app.api import (
     invites,
     notas_empenho,
     notas_fiscais,
+    notificacoes,
     oidc,
     painel,
+    preferencias,
     relatorios,
     users,
 )
@@ -71,6 +73,8 @@ def create_app() -> FastAPI:
     app.include_router(painel.router)
     app.include_router(historico.router)
     app.include_router(relatorios.router)
+    app.include_router(notificacoes.router)
+    app.include_router(preferencias.router)
     app.include_router(invites.router)
 
     # AC-0001-23, at assembly: a write route with no access decision breaks

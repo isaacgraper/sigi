@@ -57,6 +57,8 @@ Every path through a screen, its fields, validation and screenshots, is in
 | `/notas-fiscais/{id}/corrigir` | Corrigir NF: the same form, in Aguardando or Devolvida | under Notas fiscais | W | ✓ | — | SPEC-0016 | Approved, built |
 | `/historico` | Histórico: every event, filtered by entity, member and period, rows that open, only values or only statuses; Exportar (SPEC-0009 AC-0009-12) | Histórico (6th) | ✓ | — | ✓ | SPEC-0017 | Approved, built |
 | `/relatorios` | Relatórios: the four reports of RF12, each exported as CSV or PDF, one ATA or all | Relatórios (7th) | ✓ | — | ✓ | SPEC-0018 | Approved, built |
+| the header bell | Avisos de ATA: vai vencer, venceu, saldo em 80%, saldo esgotado, reajuste a pedir; each opens its ATA | none | ✓ | ✓ | ✓ | SPEC-0008 | Approved, built |
+| `/configuracoes` | Configurações: the member's own e-mail summary, daily, weekly on a weekday, or none | the user menu | W, own | W, own | W, own | SPEC-0008 | Approved, built |
 | `/members` | Membros: invite, block, unblock, reset, deactivate | Membros (last) | W | — | ✓ | SPEC-0010 §4.7–4.8, SPEC-0014 §4.8 | Implemented; a servidor's grupos Approved, built |
 
 ### Planned, with no screen spec yet
@@ -64,9 +66,7 @@ Every path through a screen, its fields, validation and screenshots, is in
 Each needs its own screen spec, as SPEC-0013 is for SPEC-0002, before it is built.
 The sidebar slot is where it goes between ATAs and Membros.
 
-| Area | Backend spec | Likely route | Sidebar slot |
-| --- | --- | --- | --- |
-| Notificações | SPEC-0008 | the header bell | none |
+None at the moment: every area with a backend spec has its screen.
 
 ## Adding or changing a screen
 

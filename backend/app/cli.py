@@ -18,7 +18,7 @@ from collections.abc import Callable, Sequence
 
 from app.constants.members import DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD
 from app.core.db import session_factory
-from app.services import demo, members
+from app.services import demo, mail, members, resumo
 from app.services.errors import DomainError
 
 
@@ -100,6 +100,21 @@ def seed_demo() -> int:
     return 0
 
 
+def notificar() -> int:
+    """Raise today's ATA notices and send the summaries due (SPEC-0008); run daily."""
+    with session_factory()() as session:
+        result = resumo.run(
+            session,
+            sender=mail.sender_for(),
+            at=datetime.datetime.now(datetime.UTC),
+            correlation_id=uuid.uuid4(),
+        )
+        session.commit()
+    print(f"{result.criadas} aviso(s) novo(s), {result.enviados} resumo(s) enviado(s).")
+    # A failed send is recorded and retried by the next run (AC-0008-10).
+    return 1 if result.falhas else 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Parse the command line and run the chosen command."""
     parser = argparse.ArgumentParser(prog="python -m app.cli")
@@ -113,9 +128,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     commands.add_parser("seed-dev-admin", help="development only: admin@sc.gov.br / admin")
     commands.add_parser("seed-demo", help="development only: a fictitious sample of data")
+    commands.add_parser("notificar", help="raise today's ATA notices and send the summaries due")
     args = parser.parse_args(argv)
     if args.command == "seed-dev-admin":
         return seed_dev_admin()
+    if args.command == "notificar":
+        return notificar()
     if args.command == "seed-demo":
         return seed_demo()
     return bootstrap_gestor(args.email, no_password=args.no_password)

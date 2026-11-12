@@ -124,3 +124,15 @@ def after(
         .where(AuditLog.ocorrido_em > since, AuditLog.entidade_tipo.in_(list(entidade_tipos)))
         .order_by(AuditLog.ocorrido_em, AuditLog.id)
     ).all()
+
+
+def count_acao_since(session: Session, *, acao: str, since: datetime.datetime) -> int:
+    """How many rows of this acao were written from an instant on (SPEC-0008 AC-0008-06)."""
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.acao == acao, AuditLog.ocorrido_em >= since)
+        )
+        or 0
+    )
