@@ -1,4 +1,4 @@
-"""`NOTIFICACAO` and `NOTIFICACAO_LEITURA` — the ATA notices (SPEC-0008)."""
+"""`NOTIFICACAO`, `NOTIFICACAO_LEITURA` and `PREFERENCIA_EMAIL` (SPEC-0008)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import DateTime, ForeignKey, Index, SmallInteger, String, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,8 +35,6 @@ class Notificacao(Base):
     chave: Mapped[str] = mapped_column(String(40))
     dados: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default="{}")
     criada_em: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
-    # Set once the daily digest carried it; a failed send leaves it empty (AC-0008-08).
-    enviada_em: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class NotificacaoLeitura(Base):
@@ -49,3 +47,17 @@ class NotificacaoLeitura(Base):
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("usuario.id"), primary_key=True)
     lida_em: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PreferenciaEmail(Base):
+    """One member's choice of e-mail summary, and when their last one went out (AC-0008-07)."""
+
+    __tablename__ = "preferencia_email"
+
+    usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("usuario.id"), primary_key=True)
+    frequencia: Mapped[str] = mapped_column(String(10))
+    # ISO weekday: 1 is Monday, 7 is Sunday.
+    dia_semana: Mapped[int] = mapped_column(SmallInteger)
+    # A failed send leaves it where it was, so the next run retries (AC-0008-10).
+    ultimo_envio_em: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
+    atualizada_em: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))

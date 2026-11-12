@@ -1,9 +1,10 @@
-"""Notificações: notificacao and notificacao_leitura.
+"""Notificações: notificacao, notificacao_leitura and preferencia_email.
 
-SPEC-0008 v1.0. A notice is raised once per ATA, reason and key, which the
+SPEC-0008 v1.1. A notice is raised once per ATA, reason and key, which the
 unique constraint guarantees even if two runs of the daily check overlap. Who
 read it is a row per member, so one member's reading never hides it from
-another; every perfil is told the same.
+another; every perfil is told the same. Each member's e-mail summary follows
+their own choice, kept with the instant of their last summary.
 
 Revision ID: 0008_notificacoes
 Revises: 0007_notas_fiscais
@@ -32,7 +33,6 @@ def upgrade() -> None:
           chave       VARCHAR(40) NOT NULL,
           dados       JSONB       NOT NULL DEFAULT '{}',
           criada_em   TIMESTAMPTZ NOT NULL,
-          enviada_em  TIMESTAMPTZ,
           CONSTRAINT uq_notificacao_ata_motivo_chave UNIQUE (ata_id, motivo, chave),
           CONSTRAINT ck_notificacao_motivo CHECK (
             motivo IN ('vai_vencer', 'venceu', 'saldo_80', 'saldo_esgotado', 'reajuste')
@@ -48,12 +48,26 @@ def upgrade() -> None:
           PRIMARY KEY (notificacao_id, usuario_id)
         )
     """)
+    op.execute("""
+        CREATE TABLE preferencia_email (
+          usuario_id       UUID PRIMARY KEY REFERENCES usuario (id),
+          frequencia       VARCHAR(10) NOT NULL,
+          dia_semana       SMALLINT    NOT NULL,
+          ultimo_envio_em  TIMESTAMPTZ,
+          atualizada_em    TIMESTAMPTZ NOT NULL,
+          CONSTRAINT ck_preferencia_email_frequencia
+            CHECK (frequencia IN ('diario', 'semanal', 'nenhum')),
+          CONSTRAINT ck_preferencia_email_dia CHECK (dia_semana BETWEEN 1 AND 7)
+        )
+    """)
     papel = get_settings().db_app_role
-    op.execute(f"GRANT SELECT, INSERT, UPDATE ON notificacao TO {papel}")
+    op.execute(f"GRANT SELECT, INSERT ON notificacao TO {papel}")
     op.execute(f"GRANT SELECT, INSERT ON notificacao_leitura TO {papel}")
+    op.execute(f"GRANT SELECT, INSERT, UPDATE ON preferencia_email TO {papel}")
 
 
 def downgrade() -> None:
-    """Drop both tables, and with them every notice and who read it."""
+    """Drop the three tables, and with them every notice, who read it and every choice."""
+    op.execute("DROP TABLE preferencia_email")
     op.execute("DROP TABLE notificacao_leitura")
     op.execute("DROP TABLE notificacao")

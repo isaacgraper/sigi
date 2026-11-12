@@ -19,7 +19,7 @@ from app.models.insumo import GrupoMaterial, Insumo, ItemAta, UsuarioGrupoMateri
 from app.models.login_attempt import LoginAttempt
 from app.models.nota_empenho import ItemNotaEmpenho, NotaEmpenho
 from app.models.nota_fiscal import ItemNotaFiscal, NotaFiscal
-from app.models.notificacao import Notificacao, NotificacaoLeitura
+from app.models.notificacao import Notificacao, NotificacaoLeitura, PreferenciaEmail
 from app.models.rate_limit import RateLimit
 from app.models.user import User
 from app.models.user_session import SessionFamily, UserSession
@@ -42,6 +42,7 @@ __all__ = [
     "NotaFiscal",
     "Notificacao",
     "NotificacaoLeitura",
+    "PreferenciaEmail",
     "RateLimit",
     "SessionFamily",
     "User",
