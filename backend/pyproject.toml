@@ -1,6 +1,6 @@
 [project]
 name = "sigi-backend"
-version = "0.1.0"
+version = "1.0.0"
 description = "SIGI — Sistema Integrado de Governança de Insumos (backend)"
 requires-python = ">=3.12,<3.13"
 dependencies = [

@@ -11,6 +11,8 @@ entries are moved into a new dated version section — see
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-12
+
 ### Added
 
 - Notas de empenho (SPEC-0004 v1.2, SPEC-0015): open an NE against a vigente ATA with its
@@ -262,5 +264,6 @@ entries are moved into a new dated version section — see
   address. Unset, the error pages name no contact, as AC-0010-57 specifies;
   deploy sets the gestores' mailbox.
 
-[Unreleased]: https://github.com/isaacgraper/sigi/compare/v0.1.0...dev
+[Unreleased]: https://github.com/isaacgraper/sigi/compare/v1.0.0...dev
+[1.0.0]: https://github.com/isaacgraper/sigi/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/isaacgraper/sigi/releases/tag/v0.1.0
