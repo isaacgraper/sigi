@@ -30,3 +30,17 @@ class AvisoPageOut(BaseModel):
     page: int
     size: int
     nao_lidas: int
+
+
+class PreferenciaEmailIn(BaseModel):
+    """A member's e-mail choice (AC-0008-07): `diario`, `semanal` or `nenhum`, an ISO weekday."""
+
+    frequencia: str
+    dia_semana: int = 1
+
+
+class PreferenciaEmailOut(BaseModel):
+    """A member's e-mail choice as stored, or the default."""
+
+    frequencia: str
+    dia_semana: int

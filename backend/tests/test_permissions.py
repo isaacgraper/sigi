@@ -249,6 +249,9 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/notificacoes/{notificacao_id}/lida"): frozenset(
         {"gestor", "servidor", "auditor"}
     ),
+    # AC-0008-07: every perfil sets its own e-mail summary.
+    ("GET", "/api/v1/preferencias/email"): frozenset({"gestor", "servidor", "auditor"}),
+    ("PUT", "/api/v1/preferencias/email"): frozenset({"gestor", "servidor", "auditor"}),
 }
 
 
