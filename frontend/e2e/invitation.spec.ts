@@ -3,6 +3,9 @@ import { expect, test } from "@playwright/test";
 import { invite, LONG_ENOUGH, pathOf } from "./helpers";
 
 async function fillPasswords(page: import("@playwright/test").Page, first: string, second = first) {
+  // The button is enabled once React has hydrated; a value typed before that is
+  // reset when it does, and the two fields then disagree (seen on WebKit).
+  await expect(page.getByRole("button", { name: "Ativar conta" })).toBeEnabled();
   await page.getByLabel("Nova senha").fill(first);
   await page.getByLabel("Confirme a senha").fill(second);
   await page.getByRole("button", { name: "Ativar conta" }).click();
@@ -33,7 +36,8 @@ test.describe("invitation", () => {
     });
     await page.goto(pathOf(link));
     await fillPasswords(page, LONG_ENOUGH, `${LONG_ENOUGH}x`);
-    await expect(page.getByTestId("form-error")).toHaveText("As senhas não conferem.");
+    await expect(page.getByTestId("field-error")).toHaveText("As senhas não conferem.");
+    await expect(page.getByLabel("Confirme a senha")).toHaveAttribute("aria-invalid", "true");
     expect(calls).toBe(0);
   });
 
@@ -41,9 +45,10 @@ test.describe("invitation", () => {
     const { link } = await invite("servidor");
     await page.goto(pathOf(link));
     await fillPasswords(page, "curta");
-    await expect(page.getByTestId("form-error")).toHaveText(
+    await expect(page.getByTestId("field-error")).toHaveText(
       "A senha precisa ter ao menos 12 caracteres.",
     );
+    await expect(page.getByLabel("Nova senha")).toHaveAttribute("aria-invalid", "true");
     await fillPasswords(page, LONG_ENOUGH);
     await expect(page).toHaveURL(/\/dashboard$/);
   });

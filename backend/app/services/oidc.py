@@ -25,11 +25,9 @@ from typing import Any
 import httpx2
 import jwt
 
+from app.constants.auth import OIDC_ACCEPTED_ALGORITHMS, OIDC_STATE_TYPE
 from app.core.config import get_settings
 from app.services.errors import InvalidAssertion, InvalidState
-
-ACCEPTED_ALGORITHMS = ["RS256"]
-STATE_TYPE = "oidc_estado"
 
 
 @dataclass(frozen=True)
@@ -114,7 +112,7 @@ def _sign_state(state: str, nonce: str, verifier: str, now: datetime.datetime) -
     expires = now + datetime.timedelta(minutes=cfg.oidc_state_ttl_minutes)
     return jwt.encode(
         {
-            "typ": STATE_TYPE,
+            "typ": OIDC_STATE_TYPE,
             "iss": cfg.jwt_issuer,
             "estado": state,
             "nonce": nonce,
@@ -142,13 +140,13 @@ def _read_state(signed: str | None) -> tuple[str, str, str]:
         content = jwt.decode(
             signed,
             _key_pair()[1],
-            algorithms=ACCEPTED_ALGORITHMS,
+            algorithms=list(OIDC_ACCEPTED_ALGORITHMS),
             issuer=cfg.jwt_issuer,
             options={"require": ["exp", "iat", "iss"]},
         )
     except jwt.InvalidTokenError as exc:
         raise InvalidState() from exc
-    if content.get("typ") != STATE_TYPE:
+    if content.get("typ") != OIDC_STATE_TYPE:
         raise InvalidState()
     return content["estado"], content["nonce"], content["verificador"]
 
@@ -217,7 +215,7 @@ def _verify(id_token: str, *, nonce: str, now: datetime.datetime) -> Assertion:
         content = jwt.decode(
             id_token,
             _key_for(id_token),
-            algorithms=ACCEPTED_ALGORITHMS,
+            algorithms=list(OIDC_ACCEPTED_ALGORITHMS),
             audience=cfg.oidc_client_id,
             issuer=cfg.oidc_issuer,
             options={"require": ["exp", "iss", "aud", "sub"]},

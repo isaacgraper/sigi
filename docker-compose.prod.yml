@@ -1,0 +1,73 @@
+# The VPS stack: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# Only Caddy is open to the internet. The database, the API and the frontend
+# stay on the internal network; the browser reaches the API through the
+# frontend's same-origin proxy.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sigi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sigi}
+      TZ: America/Sao_Paulo
+      APP_DB_ROLE: sigi_app
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sigi} -d ${POSTGRES_DB:-sigi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://sigi_app:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-sigi}
+      DATABASE_URL_ADMIN: postgresql+psycopg://${POSTGRES_USER:-sigi}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-sigi}
+      # Not "development": that one generates throwaway keys and allows the seeds.
+      APP_ENV: staging
+      TZ: America/Sao_Paulo
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?run scripts/gen-keys.sh}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?run scripts/gen-keys.sh}
+      HMAC_PEPPER: ${HMAC_PEPPER:?set HMAC_PEPPER}
+      FRONTEND_BASE_URL: ${SIGI_ORIGIN:?set SIGI_ORIGIN}
+      CORS_ORIGINS: '["${SIGI_ORIGIN}"]'
+      # False only because the demo is served over plain http on an IP.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUSTED_PROXIES: "[]"
+    volumes:
+      - mail_data:/app/var
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      API_ORIGIN: http://backend:8000
+      SUPPORT_CONTACT_EMAIL: ${SUPPORT_CONTACT_EMAIL:-}
+      TZ: America/Sao_Paulo
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+
+volumes:
+  postgres_data:
+  caddy_data:
+  mail_data:

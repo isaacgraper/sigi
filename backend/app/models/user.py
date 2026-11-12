@@ -10,9 +10,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-PERFIS = ("gestor", "servidor", "auditor")
-STATUS = ("pendente", "ativo", "bloqueado", "desativado")
-
 
 class User(Base):
     """A member of the entity. `ativo` and `pseudonimo` are generated columns.

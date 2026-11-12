@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { GESTOR, invite, member, openFromSidebar, pathOf, signIn } from "./helpers";
+import { createAta, GESTOR, invite, member, openFromSidebar, pathOf, signIn } from "./helpers";
 
 // SPEC-0011: the frame every page sits in. The test frontend runs with
 // SUPPORT_CONTACT_EMAIL=suporte@sc.gov.br.
@@ -40,19 +40,19 @@ async function animatedProperties(page: Page, selector: string) {
 test.describe("SPEC-0011 the shell", () => {
   test("AC-0011-01 the sidebar lists the perfil's modules in a fixed order", async ({ page }) => {
     await signIn(page, GESTOR.email, GESTOR.password);
-    await expect(sidebarLinks(page)).toHaveText(["Painel", "Membros"]);
+    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Notas fiscais", "Histórico", "Relatórios", "Membros"]);
     await expect(sidebarLinks(page).first()).toHaveAttribute("aria-current", "page");
 
     await openFromSidebar(page, "Membros");
     await expect(page).toHaveURL(/\/members$/);
-    await expect(sidebarLinks(page).nth(1)).toHaveAttribute("aria-current", "page");
+    await expect(sidebarLinks(page).nth(7)).toHaveAttribute("aria-current", "page");
     await expect(sidebarLinks(page).first()).not.toHaveAttribute("aria-current", "page");
   });
 
-  test("AC-0011-01 a servidor's sidebar lists only Painel", async ({ page }) => {
+  test("AC-0011-01 a servidor's sidebar has no Membros", async ({ page }) => {
     const servidor = await member("servidor");
     await signIn(page, servidor.email, servidor.password);
-    await expect(sidebarLinks(page)).toHaveText(["Painel"]);
+    await expect(sidebarLinks(page)).toHaveText(["Painel", "ATAs", "Insumos", "Notas de empenho", "Notas fiscais"]);
   });
 
   test("AC-0011-02 the sidebar collapses to icons without losing its names", async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe("SPEC-0011 the shell", () => {
     await expect(sidebar).toHaveAttribute("data-collapsed", "true");
     expect((await sidebar.boundingBox())?.width).toBe(64);
     // The name is still each link's accessible name...
-    await expect(sidebarLinks(page)).toHaveCount(2);
+    await expect(sidebarLinks(page)).toHaveCount(8);
     await expect(page.getByTestId("sidebar").getByRole("link", { name: "Membros" })).toBeVisible();
     // ...and shows on hover.
     const link = page.getByTestId("sidebar").getByRole("link", { name: "Membros" });
@@ -122,6 +122,12 @@ test.describe("SPEC-0011 the shell", () => {
       await expect(drawer).toBeVisible();
       await expect(drawer.getByRole("navigation", { name: "Principal" }).getByRole("link")).toHaveText([
         "Painel",
+        "ATAs",
+        "Insumos",
+        "Notas de empenho",
+        "Notas fiscais",
+        "Histórico",
+        "Relatórios",
         "Membros",
       ]);
     });
@@ -248,29 +254,6 @@ test.describe("SPEC-0011 the page template", () => {
   });
 });
 
-test.describe("SPEC-0011 the dashboard", () => {
-  test("AC-0011-13 the dashboard offers one tile per module", async ({ page }) => {
-    await signIn(page, GESTOR.email, GESTOR.password);
-    const names = (await sidebarLinks(page).allTextContents()).slice(1);
-    const tiles = page.getByTestId("module-tile");
-    await expect(tiles).toHaveCount(names.length);
-    await expect(tiles.first()).toContainText("Membros");
-    await expect(tiles.first()).toContainText("Quem tem acesso ao SIGI.");
-    await expect(tiles.first()).toHaveAttribute("href", "/members");
-    await tiles.first().click();
-    await expect(page).toHaveURL(/\/members$/);
-  });
-
-  test("AC-0011-14 a perfil with no module is told so", async ({ page }) => {
-    const servidor = await member("servidor");
-    await signIn(page, servidor.email, servidor.password);
-    await expect(page.getByTestId("module-tile")).toHaveCount(0);
-    await expect(page.getByTestId("no-modules")).toHaveText(
-      "Os módulos do SIGI aparecerão aqui conforme forem liberados.",
-    );
-  });
-});
-
 test.describe("SPEC-0011 signed-out and status pages", () => {
   test("AC-0011-15 the signed-out frame shows the brand beside the form", async ({ page }) => {
     const { link } = await invite("servidor");
@@ -345,6 +328,44 @@ test.describe("SPEC-0011 loading and empty states", () => {
     release();
     await expect(page.getByTestId("member-row").first()).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "Carregando..." })).toHaveCount(0);
+  });
+
+  test("AC-0011-18 the placeholder waits 300 ms before it shows", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await page.route("**/api/v1/usuarios?*", () => new Promise(() => undefined));
+    await openFromSidebar(page, "Membros");
+    const placeholder = page.getByRole("status").filter({ hasText: "Carregando..." }).locator(".reveal-late");
+    // Hidden for its first 300 ms, so an answer faster than that never flashes it.
+    await expect(placeholder).toHaveCSS("animation-delay", "0.3s");
+    await expect(placeholder).toHaveCSS("opacity", "1");
+  });
+
+  test("AC-0011-18 a page already read draws at once while the API answers", async ({ page }) => {
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await openFromSidebar(page, "Membros");
+    await expect(page.getByTestId("member-row").first()).toBeVisible();
+    await openFromSidebar(page, "Painel");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Painel");
+
+    // The API now never answers: what shows is what this tab already read.
+    await page.route("**/api/v1/usuarios?*", () => new Promise(() => undefined));
+    await openFromSidebar(page, "Membros");
+    await expect(page.getByTestId("member-row").first()).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Carregando..." })).toHaveCount(0);
+  });
+
+  test("AC-0011-18 resting on an ATA's link fetches it before the click", async ({ page }) => {
+    const ata = await createAta();
+    await signIn(page, GESTOR.email, GESTOR.password);
+    await openFromSidebar(page, "ATAs");
+    const link = page.getByTestId("ata-row").getByRole("link", { name: ata.number });
+    const warmed = page.waitForResponse((r) => r.url().endsWith(`/api/v1/atas/${ata.id}`));
+    await link.hover();
+    await warmed;
+
+    await page.route(`**/api/v1/atas/${ata.id}`, () => new Promise(() => undefined));
+    await link.click();
+    await expect(page.getByTestId("ata-dados")).toContainText("Seringas descartáveis");
   });
 
   test("AC-0011-18 restoring the session shows the shell's frame", async ({ page }) => {

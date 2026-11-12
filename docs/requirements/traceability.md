@@ -8,35 +8,44 @@ on an `Approved` spec is a merge blocker.
 
 | RF/RN | Spec | Acceptance criteria | Tests | Status |
 | --- | --- | --- | --- | --- |
-| RF01, RN01 | SPEC-0001 v1.9 | AC-0001-01..09 | `tests/test_auth_login.py`, `tests/test_auth_lockout.py`, `tests/test_auth_tokens.py`, `tests/test_auth_active_check.py` | **Implemented** |
-| RF01 (OIDC) | SPEC-0001 v1.9 | AC-0001-19..22, AC-0001-24 | `tests/test_auth_oidc.py`, `tests/test_auth_login.py` | **Implemented** |
-| RF02, RF18, RN16 | SPEC-0001 v1.9 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | `tests/test_users_invitations.py`, `tests/test_users_management.py`, `tests/test_migration_baseline.py` | **Implemented** |
-| RF18 (unblock, name, registration, new invitation) | SPEC-0001 v1.9 | AC-0001-44, -45, -46 | `tests/test_users_management.py`, `tests/test_users_invitations.py` | **Implemented** |
-| RN04 | SPEC-0001 v1.9 | AC-0001-15..18, AC-0001-23 | `tests/test_permissions.py` | **Implemented** |
-| RN06 (enforcement) | SPEC-0001 v1.9 | AC-0001-27 | `tests/test_audit_immutability.py`, `tests/test_migration_baseline.py` | **Implemented** |
-| RF01 (redefinição) | SPEC-0001 v1.9 | AC-0001-30..32 | `tests/test_password_reset.py` for AC-0001-31, -32; AC-0001-30 is blocked, not built, until a mail transport exists (OQ-31) | **Implemented** |
-| RNF16 | SPEC-0001 v1.9 | AC-0001-33 | `tests/test_rate_limiting.py` | **Implemented** |
-| RF02 (first gestor) | SPEC-0001 v1.9 | AC-0001-34..36 | `tests/test_bootstrap.py` | **Implemented** |
-| RNF16 (trusted proxy) | SPEC-0001 v1.9 | AC-0001-37, -38 | `tests/test_rate_limiting.py` | **Implemented** |
-| RF02 (development seed) | SPEC-0001 v1.9 | AC-0001-39, -40 | `tests/test_bootstrap.py` | **Implemented** |
-| RNF04, A05 (hardening) | SPEC-0001 v1.9 | AC-0001-41..43 | `tests/test_hardening.py` | **Implemented** |
-| A03, A05 (page headers) | SPEC-0010 v1.7 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Implemented** |
-| RNF14 (errors) | SPEC-0010 v1.7 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Implemented** |
-| RNF06, RNF14 (shell) | SPEC-0011 v1.1 | AC-0011-01..24 | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Implemented** |
-| RF04, RF08, RF19 | SPEC-0002 v1.1 | AC-0002-01..05, -08, -09, -22..25 (AC-0002-06, -07 withdrawn) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Approved** |
-| RN04, RN13, RN15 | SPEC-0002 v1.1 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 and parts of -13, -14 deferred to SPEC-0003, -0004 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | Draft |
-| RF15 | SPEC-0002 v1.1 | AC-0002-13, -14 | `tests/test_atas.py` | **Approved** |
-| RF16 | SPEC-0002 v1.1 | AC-0002-18..21 | `tests/test_atas.py` | **Approved** |
-| RF03, RF07, RN14 | SPEC-0003 v0.3 | AC-0003-01..10 | _pending_ | Draft |
-| RF13, RN03, RN08, RN09 | SPEC-0004 v0.4 | AC-0004-01..24 | _pending_ | Draft |
-| RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v0.3 | AC-0005-01..11 | _pending_ | Draft |
-| RN17 | SPEC-0006 v0.4, SPEC-0004 v0.4, SPEC-0005 v0.3 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | _pending_ | Draft |
-| RF14, RN10, RN15 | SPEC-0006 v0.4 | AC-0006-01..15 | _pending_ | Draft |
-| RF06, RF10 | SPEC-0007 | AC-0007-01..08 | _pending_ | Draft |
-| RF09 | SPEC-0008 v0.2 | AC-0008-01..06 | _pending_ | Draft |
-| RF12 | SPEC-0009 | AC-0009-01..07 | _pending_ | Draft |
-| RF01, RF02, RF18 (screens) | SPEC-0010 v1.7 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
-| RNF06, RNF14 | SPEC-0010 v1.7 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
+| RF01, RN01 | SPEC-0001 v1.10 | AC-0001-01..09 | `tests/test_auth_login.py`, `tests/test_auth_lockout.py`, `tests/test_auth_tokens.py`, `tests/test_auth_active_check.py` | **Implemented** |
+| RF01 (OIDC) | SPEC-0001 v1.10 | AC-0001-19..22, AC-0001-24 | `tests/test_auth_oidc.py`, `tests/test_auth_login.py` | **Implemented** |
+| RF02, RF18, RN16 | SPEC-0001 v1.10 | AC-0001-10..14, AC-0001-25, -26, -28, -29 | `tests/test_users_invitations.py`, `tests/test_users_management.py`, `tests/test_migration_baseline.py` | **Implemented** |
+| RF18 (unblock, name, registration, new invitation) | SPEC-0001 v1.10 | AC-0001-44, -45, -46 | `tests/test_users_management.py`, `tests/test_users_invitations.py` | **Implemented** |
+| RN04 | SPEC-0001 v1.10 | AC-0001-15..18, AC-0001-23 | `tests/test_permissions.py` | **Implemented** |
+| RN06 (enforcement) | SPEC-0001 v1.10 | AC-0001-27 | `tests/test_audit_immutability.py`, `tests/test_migration_baseline.py` | **Implemented** |
+| RF01 (redefinição) | SPEC-0001 v1.10 | AC-0001-30..32 | `tests/test_password_reset.py` for AC-0001-31, -32; AC-0001-30 is blocked, not built, until a mail transport exists (OQ-31) | **Implemented** |
+| RNF16 | SPEC-0001 v1.10 | AC-0001-33 | `tests/test_rate_limiting.py` | **Implemented** |
+| RF02 (first gestor) | SPEC-0001 v1.10 | AC-0001-34..36 | `tests/test_bootstrap.py` | **Implemented** |
+| RNF16 (trusted proxy) | SPEC-0001 v1.10 | AC-0001-37, -38 | `tests/test_rate_limiting.py` | **Implemented** |
+| RF02 (development seed) | SPEC-0001 v1.10 | AC-0001-39, -40 | `tests/test_bootstrap.py` | **Implemented** |
+| RNF04, A05 (hardening) | SPEC-0001 v1.10 | AC-0001-41..43 | `tests/test_hardening.py` | **Implemented** |
+| A03, A05 (page headers) | SPEC-0010 v1.8 | AC-0010-53, -54 | `frontend/e2e/headers.spec.ts` | **Implemented** |
+| RNF14 (errors) | SPEC-0010 v1.8 | AC-0010-55..58 | `frontend/e2e/errors.spec.ts` | **Implemented** |
+| RNF06, RNF14 (shell) | SPEC-0011 v1.4 | AC-0011-01..24 (AC-0011-13, -14 withdrawn) | `frontend/e2e/interface.spec.ts`, `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts`; AC-0011-23 is the whole SPEC-0010 suite | **Implemented** |
+| RF20 (painel) | SPEC-0012 v1.3 | AC-0012-01..12 | `backend/tests/test_painel.py`, `frontend/e2e/dashboard.spec.ts`, `frontend/tests/dashboard.test.ts` | **Approved** |
+| RF04, RF08, RF11, RF15, RF16, RF19 (screens) | SPEC-0013 v1.8 | AC-0013-01..19 | `frontend/e2e/atas.spec.ts`, `frontend/tests/atas.test.ts` | **Implemented** |
+| RF03, RF07, RF11, RF15, RN07, RN14, RN15 (screens) | SPEC-0014 v1.4 | AC-0014-01..30 | `frontend/e2e/insumos.spec.ts`, `frontend/tests/insumos.test.ts` | **Implemented** |
+| RF04, RF08, RF19 | SPEC-0002 v1.3 | AC-0002-01..05, -08, -09, -22..26 (AC-0002-06, -07 withdrawn; -26 carried by SPEC-0004 AC-0004-26) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Implemented** |
+| RN04, RN13, RN15 | SPEC-0002 v1.3 | AC-0002-05, -10..14, -15..17 (AC-0002-11, -12 carried by SPEC-0004 AC-0004-25, -17; parts of -13, -14 deferred to SPEC-0003 and -0006) | `tests/test_atas.py`, `tests/test_migration_atas.py` | **Implemented** (RN13's NE half with SPEC-0004) |
+| RF15 | SPEC-0002 v1.3 | AC-0002-13, -14 | `tests/test_atas.py` | **Implemented** |
+| RF16 | SPEC-0002 v1.3 | AC-0002-18..21 | `tests/test_atas.py` | **Implemented** |
+| RF03, RF07, RF11, RN14 | SPEC-0003 v1.6 | AC-0003-01..24, -26, -31, -33..35 (AC-0003-25 deferred to SPEC-0004) | `tests/test_insumos.py`, `tests/test_itens_ata.py`, `tests/test_importacao.py`, `tests/test_migration_insumos.py` | **Implemented** |
+| RF15, RN15 (quantity) | SPEC-0003 v1.6 | AC-0003-27, -28 | `tests/test_itens_ata.py`, `tests/test_migration_insumos.py` | **Implemented** |
+| RN07 (grupo axis) | SPEC-0003 v1.6 | AC-0003-29, -30, -32 | `tests/test_insumos.py` | **Implemented** (the unidade axis waits for `UNIDADE`) |
+| RF13, RN03, RN08, RN09, RN10, RN11, RN13 | SPEC-0004 v1.4 | AC-0004-01..29 (AC-0004-27 from SPEC-0003 AC-0003-25) | `tests/test_notas_empenho.py`, `tests/test_migration_notas_empenho.py` | **Implemented** |
+| RF05, RN02, RN05, RN12, RF17 | SPEC-0005 v1.1 | AC-0005-01..10, -12..16 | `tests/test_notas_fiscais.py`, `tests/test_migration_notas_fiscais.py` | **Implemented** |
+| RN17 | SPEC-0006 v1.2, SPEC-0004 v1.4, SPEC-0005 v1.1 | AC-0006-13..15, AC-0004-15, AC-0005-10, -12, -13 | `tests/test_saldo.py`, `tests/test_notas_empenho.py`, `tests/test_notas_fiscais.py` | **Implemented** |
+| RF14, RN10, RN15 | SPEC-0006 v1.2 | AC-0006-01..16 (-05 by AC-0004-16; -14, -15 with the NFs) | `tests/test_saldo.py`, `tests/test_notas_fiscais.py` | **Implemented** |
+| RF13, RF14 (screens) | SPEC-0015 v1.3 | AC-0015-01..10 | `frontend/e2e/notas-empenho.spec.ts` | **Implemented** |
+| RF05, RF17 (screens) | SPEC-0016 v1.1 | AC-0016-01..11 | `frontend/e2e/notas-fiscais.spec.ts` | **Implemented** |
+| RF06, RF10 | SPEC-0007 v1.1 | AC-0007-01..10 (-02 to -04 and -06 proven by SPEC-0001's tests) | `backend/tests/test_historico.py`, `backend/tests/test_history_changes.py` | **Approved**, built |
+| RF06, RF10 (screens) | SPEC-0017 v1.0 | AC-0017-01..12 | `frontend/e2e/historico.spec.ts`, `frontend/tests/historico.test.ts` | Approved, built |
+| RF09, RF19 | SPEC-0008 v1.1 | AC-0008-01..11 | `backend/tests/test_notificacoes.py`, `backend/tests/test_resumo.py`, `backend/tests/test_migration_notificacoes.py`, `frontend/e2e/notificacoes.spec.ts`, `frontend/e2e/configuracoes.spec.ts` | Approved, built |
+| RF12, RN07 | SPEC-0009 v1.2 | AC-0009-01..06, -08..13 (AC-0009-07 withdrawn) | `backend/tests/test_relatorios.py`, `frontend/e2e/exportar.spec.ts` | Approved, built |
+| RF12 (screen) | SPEC-0018 v1.0 | AC-0018-01..05 | `frontend/e2e/relatorios.spec.ts` | Approved, built |
+| RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
+| RNF06, RNF14 | SPEC-0010 v1.8 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
 
 ## Unmapped
 
@@ -46,7 +55,7 @@ Requirements with no spec. This list must be empty before M5.
 | --- | --- |
 | ~~RF16 (reajuste)~~ | ~~Not yet specified.~~ **2026-10-02: no longer unmapped.** The stakeholder gave the policy (due one year after the orçamento, requested by a SEI process, with an alert), so SPEC-0002 v0.3 specifies the date, the request and the alert (AC-0002-18 to -21). The price index and the approver are still unknown (OQ-08), so no price changes. |
 | ~~RF20, RF21~~ | ~~Deliberately deferred post-MVP.~~ **2026-09-02: no longer unmapped.** The stated reason (no consumption history at launch) was false — the entity exports it. Both are **in scope** under ADR-0008/ADR-0009 and need specs of their own. |
-| RN07 | OQ-04 is resolved and the axes are `unidade` and `grupo de materiais`. **2026-09-10:** moved out of SPEC-0001 to **SPEC-0003**. RN07 restricts which *insumos* a servidor may see, and neither reference table exists yet, so a criterion in SPEC-0001 would have asserted nothing observable. Unmapped until SPEC-0003 is revised. |
+| RN07 | OQ-04 is resolved and the axes are `unidade` and `grupo de materiais`. **2026-09-10:** moved out of SPEC-0001 to **SPEC-0003**. RN07 restricts which *insumos* a servidor may see, and neither reference table exists yet, so a criterion in SPEC-0001 would have asserted nothing observable. **2026-10-20:** the grupo axis is mapped to SPEC-0003 v1.1 (AC-0003-29, -30); the unidade axis stays unmapped until `UNIDADE` exists. |
 
 ## Spec → NFR
 
@@ -149,10 +158,9 @@ before any of it can be built.
 | Saldo runway projection | — (RF21) | SPEC-0006 §4 |
 
 **On requirement numbering.** Strict CSV import validation has no `RF` in
-`functional.md`, whose contract stops at RF21. It is numbered `RF30` in
-`docs/rfc-sigi-v1.7.md`, but that document is **superseded** and its `RF04`–`RF30`
-range collides with this one (`RF05` and `RN11` mean different things in each).
-Nothing here may cite those numbers. A new RF must be allocated from this file's
+`functional.md`, whose contract stops at RF21. Earlier drafts numbered it `RF30`,
+after `rfc-sigi-v1.7.md`, a superseded document deleted on 2026-10-27 (OQ-28).
+Nothing here may cite its numbers. A new RF must be allocated from this file's
 sequence when the import capability is specified. See OQ-28.
 
 ## Sources → model

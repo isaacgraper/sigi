@@ -2,7 +2,7 @@
 id: SPEC-0001
 title: Autenticação, perfis e gestão de membros
 status: Implemented
-version: 1.9
+version: 1.13
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RN01, RN04, RN06, RN16]
 depends_on: []
@@ -517,6 +517,19 @@ Then  the same request authenticates normally
 404 rather than 403: a mechanism that is switched off should be
 indistinguishable from one that was never built.
 
+**AC-0001-47** — The API reports which login mechanisms are enabled *(new in v1.11)*
+```gherkin
+Given any combination of local login and OIDC switched on or off by configuration
+When  GET /api/v1/auth/mecanismos is requested without a session
+Then  the response is 200 with {"local": <bool>, "oidc": <bool>}
+And   each value is the switch the matching login route obeys
+And   the route is throttled like every other route under /api/v1/auth
+```
+AC-0001-24 hides a disabled route behind a 404, so a client could only learn
+which mechanisms exist by trying them. Reporting the two switches discloses
+nothing the login page does not already show, and lets the page follow the
+API's configuration instead of mirroring it (OQ-33).
+
 ### 4.6 Password reset *(new in v0.5)*
 
 **AC-0001-30** — Requesting a reset never discloses whether the address exists
@@ -739,7 +752,14 @@ Given a request to any route that takes a password or a token
 When  the password is longer than 128 characters or the token longer than 512
 Then  the response is 422 "INVALID_DATA" naming the field
 And   no password is hashed and no token is looked up
+Given any route that stores text
+When  a field holds a control character other than a line break or a tab
+Then  the response is 422 "INVALID_DATA" naming that field
+And   nothing is written
 ```
+*(v1.12)* A NUL reached PostgreSQL and answered 500, and the other control
+characters were stored as bytes nobody can see. Each is now refused on its own
+field, like an oversized one.
 
 **AC-0001-42** — An oversized body is refused
 ```gherkin
@@ -747,7 +767,13 @@ Given any route
 When  a request body larger than 64 KiB arrives
 Then  the response is 413 "PAYLOAD_TOO_LARGE"
 And   the body is not parsed
+Given one of the two CSV import routes of SPEC-0003
+When  a request body larger than import_max_bytes arrives
+Then  the response is the same 413, and the body is not parsed either
 ```
+*(v1.10)* The import routes take a file of up to 5 MB (SPEC-0003 AC-0003-18), which
+64 KiB cannot hold: the SKU sheet alone is 1.425 rows. They get their own ceiling,
+named in configuration, and every other route keeps 64 KiB.
 
 **AC-0001-43** — Every API response forbids sniffing and framing
 ```gherkin
@@ -768,11 +794,11 @@ stops a response ever being rendered as a page.
 | Too many attempts | 429 | `ATTEMPTS_EXCEEDED` | "Muitas tentativas. Tente novamente em {minutos} minutos." |
 | Access token expired | 401 | `TOKEN_EXPIRED` | "Sua sessão expirou. Entre novamente." |
 | Refresh token invalid or replayed | 401 | `INVALID_REFRESH` | "Sua sessão não é mais válida. Entre novamente." |
-| Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa. Procure o gestor da sua unidade." |
+| Usuario not `ativo` | 401 | `USUARIO_INATIVO` | "Esta conta não está ativa." |
 | Profile does not permit | 403 | `PERFIL_NAO_AUTORIZADO` | "Seu perfil não permite esta ação." |
 | OIDC state absent or expired | 401 | `INVALID_STATE` | "A tentativa de entrada expirou. Comece novamente." |
 | The provider's identity token does not verify | 401 | `INVALID_ASSERTION` | "Não foi possível validar a resposta do provedor." |
-| OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado. Procure o gestor da sua unidade." |
+| OIDC subject has no account | 403 | `USUARIO_NAO_PROVISIONADO` | "Seu acesso ainda não foi liberado." |
 | Invitation already redeemed | 409 | `INVITE_ALREADY_USED` | "Este convite já foi utilizado. Peça um novo ao gestor." |
 | Invitation older than 72 h | 409 | `INVITE_EXPIRED` | "Este convite expirou. Peça um novo ao gestor." |
 | Password below the minimum | 422 | `WEAK_PASSWORD` | "A senha precisa ter ao menos 12 caracteres." |
@@ -819,6 +845,7 @@ gets a fresh invitation from a gestor, which is auditable and already specified
 | POST | `/api/v1/auth/refresh` | Rotate the token pair | 06, 07 |
 | POST | `/api/v1/auth/logout` | Invalidate the refresh family | 07 |
 | GET | `/api/v1/auth/me` | The caller's identity, perfil and scope | 08, 22 |
+| GET | `/api/v1/auth/mecanismos` | Which login mechanisms are enabled; public | 47 |
 | GET | `/api/v1/auth/oidc/authorize` | Start institutional login | 19 |
 | GET | `/api/v1/auth/oidc/callback` | Complete institutional login | 19–22 |
 | GET\|POST | `/api/v1/usuarios` | List members; invite a member with `{email, perfil, name, registration}` | 10, 13, 15–17, 28, 45 |
@@ -971,6 +998,7 @@ a repository, and the audit row written in the same transaction as its mutation.
 | POST | `/api/v1/auth/refresh` | refresh cookie → rotated pair | 06, 07 |
 | POST | `/api/v1/auth/logout` | refresh cookie → 204 | 07 |
 | GET | `/api/v1/auth/me` | — → `{id, name, email, perfil}` | 08, 22 |
+| GET | `/api/v1/auth/mecanismos` | — → `{local, oidc}` | 47 |
 | GET | `/api/v1/auth/oidc/authorize` | — → 302 to the provider | 19 |
 | GET | `/api/v1/auth/oidc/callback` | `?code&state` → session or 401/403 | 19–22 |
 | GET | `/api/v1/usuarios` | `?page&size` → paged members | 15–17 |
@@ -1026,6 +1054,7 @@ which are already behind authentication and the permission matrix.
 | 32 | `test_redefinicao_senha.py::test_ac_0001_32_gestor_dispara_sem_ver_o_token` |
 | 44 | `test_users_management.py::test_ac_0001_44_*` (five tests, and `test_ac_0001_13_a_servidor_or_auditor_cannot_unblock`) |
 | 46 | `test_users_invitations.py::test_ac_0001_46_*` |
+| 47 | `test_auth_login.py::test_ac_0001_47_*` |
 | 45 | `test_users_invitations.py::test_ac_0001_45_*` (four tests) · `test_migration_baseline.py::test_an_anonymisation_that_keeps_the_registration_is_refused` |
 | 33 | `test_limite_taxa.py::test_ac_0001_33_429_com_retry_after` · `::test_ac_0001_33_faixa_institucional_tem_teto_maior` · `::test_ac_0001_33_toda_rota_tem_teto` |
 
@@ -1311,6 +1340,11 @@ testing it. Every criterion has a test in `backend/tests` except AC-0001-30, whi
 is not built: it stays blocked on a mail transport, as v1.0 recorded, and so does the
 guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 
+**v1.11 (2026-11-06)** — a public route reports which login mechanisms are
+enabled (AC-0001-47), as proposed in issue #85. The login page mirrored the API's
+two switches in its own configuration, and the two could drift (OQ-33, now
+resolved). No existing criterion changed meaning.
+
 ## 11. Changelog
 
 | Version | Date | Change |
@@ -1333,3 +1367,7 @@ guarantee AC-0001-32 lost (OQ-31). Neither needs a spec change when SMTP exists.
 | 1.7 | 2026-10-02 | AC-0001-44: a gestor unblocks an account, with a justification (OQ-34, stakeholder question 10). AC-0001-45: the invitation carries the full name and the registration, both mandatory (OQ-35, question 11; purpose and basis OQ-41). AC-0001-14 anonymises the registration. `NOT_BLOCKED` added to §5. |
 | 1.8 | 2026-10-07 | AC-0001-46: a gestor issues a new invitation link for a pending member, superseding the previous one, by the product owner's request. `NOT_PENDING` added to §5. |
 | 1.9 | 2026-10-08 | Implemented, accepted by the product owner. AC-0001-30 remains blocked on a mail transport (OQ-31). No criterion changed. |
+| 1.10 | 2026-10-20 | AC-0001-42: the two CSV import routes of SPEC-0003 take a body up to `import_max_bytes` (5 MB), because a catalogue file does not fit in 64 KiB. Every other route keeps 64 KiB |
+| 1.11 | 2026-11-03 | §5: `USUARIO_INATIVO` and `USUARIO_NAO_PROVISIONADO` no longer end in "Procure o gestor da sua unidade.", by the product owner's request. No criterion changed. |
+| 1.12 | 2026-11-04 | AC-0001-41: a control character in a stored text field is refused as `INVALID_DATA` on that field. A NUL answered 500 and the others were stored, found by the hostile input tests the product owner asked for. |
+| 1.13 | 2026-11-09 | AC-0001-47: `GET /api/v1/auth/mecanismos`, public and throttled, reports `{local, oidc}`, so the login page follows the API instead of mirroring its switches (OQ-33, issue #85). |

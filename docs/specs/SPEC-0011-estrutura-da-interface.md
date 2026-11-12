@@ -2,7 +2,7 @@
 id: SPEC-0011
 title: Estrutura da interface
 status: Implemented
-version: 1.1
+version: 1.4
 owner: Isaac Kleimmann Graper
 satisfies: [RNF06, RNF14]
 depends_on: [SPEC-0010]
@@ -162,23 +162,10 @@ Then  that action is inside the page header that holds the level-one heading
 
 ### 4.3 The dashboard
 
-**AC-0011-13** — The dashboard offers one tile per module
-```gherkin
-Given a signed-in usuario on /dashboard
-When  the page is shown
-Then  it shows one tile for each sidebar entry except "Painel", with the module's name and one line of description
-And   each whole tile is a single link to that module
-```
-
-AC-0010-28 still holds: the dashboard also states who is signed in. Today a
-gestor or an auditor sees one tile, "Membros", and a servidor sees none.
-
-**AC-0011-14** — A perfil with no module is told so
-```gherkin
-Given a signed-in servidor on /dashboard, while no business module is approved
-When  the page is shown
-Then  in place of tiles it says "Os módulos do SIGI aparecerão aqui conforme forem liberados."
-```
+*(v1.2, 2026-10-09)* **AC-0011-13 and AC-0011-14 are withdrawn.** The dashboard
+is now the stakeholders' `RELATÓRIO GERAL CAME` report, specified in SPEC-0012,
+and the sidebar already lists every module, so a tile per module only repeated
+it. The numbers are not reused.
 
 ### 4.4 Signed-out pages and status pages
 
@@ -207,13 +194,30 @@ And   everything it stands beside is also stated in text on the page
 
 ### 4.5 Loading and empty states
 
-**AC-0011-18** — A loading page shows its shape, not a blank
+**AC-0011-18** — A loading page shows its shape, not a blank, and never flashes
 ```gherkin
 Given a signed-in usuario opening an authenticated page whose data has not arrived
-When  the page is waiting
+When  the wait passes 300 ms
 Then  the shell is shown with a placeholder of the page's layout in place of its content
 And   a status message "Carregando..." is announced to assistive technology
+When  the data arrives within 300 ms
+Then  no placeholder is seen: the page appears once, with its data
+Given a page whose data this tab has already read in this session
+When  it is opened again
+Then  that data is shown at once and replaced by the API's answer when it arrives
+Given a link to an ATA
+When  a pointer rests on it, or the keyboard reaches it
+Then  the ATA's data is requested, so the page it opens has it
 ```
+*(v1.4)* By the product owner's test: every click drew a skeleton that the data
+replaced a moment later, twice when the route's own `loading.tsx` came first,
+and the platform felt slow although the API answered in milliseconds. The
+routes under the shell lose `loading.tsx`, so a navigation keeps the page on
+screen until the next one can draw; a placeholder shown for less than 300 ms is
+a flash, not information. What a page read is kept in the tab's memory only,
+never in storage, cleared on login, logout, a failed refresh and any successful
+write, because a write can change what any list shows. Every page still asks
+the API on arrival, so what is shown from memory is replaced, never trusted.
 
 **AC-0011-19** — An empty table says so
 ```gherkin
@@ -352,7 +356,7 @@ and licence are recorded in `DESIGN.md` §5.
 | Module | Change | AC |
 | --- | --- | --- |
 | `app/globals.css` | Navy tokens from `DESIGN.md` §2, sidebar and status tokens, easing variables, the dialog, menu and drawer keyframes, and their reduced-motion variants | 21 |
-| `lib/modules.ts` | One list of modules (path, name, description, icon, who sees it), read by the sidebar, the breadcrumb and the dashboard, so the three cannot disagree | 01, 07, 13 |
+| `lib/constants.ts` (`NAV_DASHBOARD`, `NAV_MODULES`), `lib/modules.ts` | One list of modules (path, name, description, icon, who sees it), read by the sidebar, the breadcrumb and the dashboard, so the three cannot disagree | 01, 07, 13 |
 | `components/shell/sidebar.tsx` | Navy sidebar, collapse control, CSS tooltip when collapsed | 01–03 |
 | `components/shell/mobile-nav.tsx` | Menu button and the drawer, built on the dialog primitive, which traps focus, closes on Escape and the backdrop, and returns focus to its trigger | 04–06 |
 | `components/shell/breadcrumb.tsx`, `user-menu.tsx`, `footer.tsx` | Header and footer parts | 07, 08, 10 |
@@ -427,3 +431,6 @@ One Playwright file, `e2e/interface.spec.ts`, named after the criteria.
 | 1.0 | 2026-09-28 | §11 implementation plan added. |
 | 1.0 | 2026-09-28 | §11: Inter bundled as the interface font. No criterion changed. |
 | 1.1 | 2026-10-08 | Implemented, accepted by the product owner with SPEC-0010. Every criterion has a test in `frontend/e2e`; AC-0011-23 is proven by the whole SPEC-0010 suite passing on this shell. No criterion changed. |
+| 1.2 | 2026-10-09 | AC-0011-13 and AC-0011-14 withdrawn: the dashboard is SPEC-0012's report, and the sidebar already lists the modules. |
+| 1.3 | 2026-10-13 | §11: the module list lives in `NAV_MODULES` in `lib/constants.ts` after the refactor to `docs/process/coding-standards.md`; `lib/modules.ts` keeps the lookups. No criterion or behaviour changed. |
+| 1.4 | 2026-10-19 | AC-0011-18: a placeholder only after 300 ms, no route `loading.tsx`, a page already read draws from the tab's memory while the API answers, and an ATA link warms its data on hover or focus, by the product owner's test of the screens. |

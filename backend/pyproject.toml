@@ -1,6 +1,6 @@
 [project]
 name = "sigi-backend"
-version = "0.1.0"
+version = "1.0.0"
 description = "SIGI — Sistema Integrado de Governança de Insumos (backend)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -21,6 +21,7 @@ dependencies = [
     "bcrypt>=4.2",          # AC-0001-05 pins the algorithm and cost
     "pyjwt[crypto]>=2.10",  # AC-0001-09 RS256; AC-0001-20 verifies the provider's token
     "httpx2>=2.12",         # OIDC token exchange and JWKS retrieval (ADR-0010)
+    "fpdf2 (>=2.9.0,<3.0.0)",  # AC-0009-01 writes the PDF export
 ]
 
 [dependency-groups]

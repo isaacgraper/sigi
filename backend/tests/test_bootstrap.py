@@ -174,3 +174,73 @@ def test_ac_0001_40_the_seed_refuses_outside_development(
     assert cli.main(["seed-dev-admin"]) == 1
     assert "DEVELOPMENT_ONLY" in capsys.readouterr().err
     assert _gestores(operator_db) == []
+
+
+# ── Demo sample (development tooling) ───────────────────────────────────────
+
+
+def test_the_demo_sample_loads_once_through_the_services(
+    operator_db: psycopg.Connection, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Every table the screens read gets rows, each with its audit row; a second run adds none."""
+    assert cli.main(["seed-demo"]) == 0
+    assert "Demo sample loaded" in capsys.readouterr().out
+    counts = {
+        table: operator_db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]  # type: ignore[index]
+        for table in (
+            "grupo_material",
+            "insumo",
+            "ata",
+            "item_ata",
+            "ata_aditivo",
+            "ata_reajuste",
+            "nota_empenho",
+            "item_nota_empenho",
+        )
+    }
+    assert counts == {
+        "grupo_material": 11,
+        "insumo": 12,
+        "ata": 6,
+        "item_ata": 12,
+        "ata_aditivo": 2,
+        "ata_reajuste": 1,
+        "nota_empenho": 11,
+        "item_nota_empenho": 14,
+    }
+    statuses: dict[str, str] = dict(
+        operator_db.execute("SELECT numero, status FROM ata WHERE status <> 'vigente'").fetchall()
+    )
+    assert statuses == {"DEMO-005/2025": "encerrada", "DEMO-006/2026": "suspensa"}
+    stages = sorted(r[0] for r in operator_db.execute("SELECT status FROM nota_empenho").fetchall())
+    assert stages == sorted(
+        ["demanda"] * 2
+        + ["validacao_saldo", "cancelada"]
+        + ["pre_empenho"] * 2
+        + ["envio_fornecedor"] * 2
+        + ["ne_emitida"] * 3
+    )
+    audited = operator_db.execute(
+        "SELECT count(*) FROM historico_movimentacao WHERE acao = 'ata.item_adicionado'"
+    ).fetchone()
+    assert audited == (12,)
+
+    assert cli.main(["seed-demo"]) == 0
+    assert "already loaded" in capsys.readouterr().out
+    assert operator_db.execute("SELECT count(*) FROM ata").fetchone() == (6,)
+
+
+def test_the_demo_sample_refuses_outside_development(
+    operator_db: psycopg.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Like the admin's seed (AC-0001-40), any other APP_ENV loads nothing."""
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+
+    assert cli.main(["seed-demo"]) == 1
+    assert "DEVELOPMENT_ONLY" in capsys.readouterr().err
+    assert operator_db.execute("SELECT count(*) FROM ata").fetchone() == (0,)

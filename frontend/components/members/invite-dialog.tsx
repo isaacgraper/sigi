@@ -19,11 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { ApiError, unavailable } from "@/lib/errors";
-import { PERFIL_LABEL, type Perfil } from "@/lib/me";
+import { INVITE_FIELDS } from "@/lib/members/constants";
 import { apiJson } from "@/lib/session";
-
-const INVITE_FIELDS = ["email", "name", "registration"] as const;
+import type { Perfil } from "@/lib/types";
 
 /** The refusals this dialog can show beside a field; anything else is shown as a notice. */
 function pickFields(fields: Record<string, string>): Record<string, string> {

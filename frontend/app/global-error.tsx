@@ -5,7 +5,7 @@ import { Illustration } from "@/components/illustration";
 import "./globals.css";
 
 // Replaces the root layout when the layout itself fails, so nothing from it is
-// available: no contact provider, hence the generic pointer to the gestor.
+// available, the contact provider included.
 export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
   return (
     <html lang="pt-BR">
@@ -15,8 +15,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
             <Illustration name="error" className="mx-auto max-h-60" eager />
             <h1 className="text-2xl font-normal tracking-tight">Algo deu errado</h1>
             <p className="text-sm font-light text-muted-foreground">
-              O SIGI não pôde ser carregado. Tente novamente em instantes ou procure o gestor da
-              sua unidade.
+              O SIGI não pôde ser carregado. Tente novamente em instantes.
             </p>
             <button
               type="button"

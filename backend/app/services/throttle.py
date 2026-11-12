@@ -21,8 +21,6 @@ from app.repositories import rate_limit as repo
 from app.services.audit import Event, record_standalone, standalone_transaction
 from app.services.errors import RateLimited
 
-PREFIXES = ("/api/v1/auth", "/api/v1/convites")
-
 
 def ceiling_for(route_path: str, *, institutional: bool) -> int:
     """The ceiling this route allows this source in one window.

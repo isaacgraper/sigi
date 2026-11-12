@@ -9,11 +9,8 @@ rows with no write in between, and that is not testable any other way.
 from __future__ import annotations
 
 import datetime
-from zoneinfo import ZoneInfo
 
-# Timestamps are stored UTC and presented in America/Sao_Paulo (CLAUDE.md), and a
-# vigência ends on a calendar day of the entity, not of Greenwich.
-LOCAL = ZoneInfo("America/Sao_Paulo")
+from app.constants import LOCAL_TIMEZONE
 
 
 def now() -> datetime.datetime:
@@ -23,4 +20,4 @@ def now() -> datetime.datetime:
 
 def local_date(at: datetime.datetime) -> datetime.date:
     """The calendar day an instant falls on in the entity's time zone."""
-    return at.astimezone(LOCAL).date()
+    return at.astimezone(LOCAL_TIMEZONE).date()

@@ -218,7 +218,8 @@ test.describe("members", () => {
     });
 
     await openRowMenu(page, invited.email);
-    await expect(page.getByRole("menuitem")).toHaveText(["Gerar novo convite", "Desativar"]);
+    // A servidor also has its grupos de materiais (SPEC-0014 AC-0014-28).
+    await expect(page.getByRole("menuitem")).toHaveText(["Gerar novo convite", "Grupos de materiais", "Desativar"]);
     await page.getByRole("menuitem", { name: "Gerar novo convite" }).click();
     await page.getByRole("button", { name: "Cancelar" }).click();
     expect(reissues).toBe(0);

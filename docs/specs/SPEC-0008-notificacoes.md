@@ -1,76 +1,200 @@
 ---
 id: SPEC-0008
-title: Notificações por e-mail
-status: Draft
-version: 0.2
+title: Notificações e resumo por e-mail
+status: Approved
+version: 1.1
 owner: Isaac Kleimmann Graper
-satisfies: [RF09]
-depends_on: [SPEC-0004, SPEC-0005]
+satisfies: [RF09, RF19]
+depends_on: [SPEC-0002, SPEC-0004, SPEC-0005, SPEC-0006, SPEC-0011]
 milestone: M4
 ---
 
-# SPEC-0008 — Notificações por e-mail
+# SPEC-0008 — Notificações e resumo por e-mail
 
-## 1. Behaviour
+## 1. Purpose
 
-**AC-0008-01** — Every NE transition sends an e-mail to the NE's responsável
-naming the ATA, the insumo, the previous and new stage, and the actor.
+Say, without anyone having to look, which ATAs need attention: the ones about
+to end, the ones that ended, the ones whose saldo is running out and the ones
+whose reajuste is due. The product owner, on 2026-11-11: *"isso é rastreio de
+ata, isso é para ver as atas, seu saldo e afins, perto do vencimento, venceram,
+vão vencer"*.
 
-**AC-0008-02** — Dispatch is asynchronous and never blocks the transaction. An
-SMTP failure does not roll back a state change; the transition is the record of
-truth, the e-mail is a courtesy.
+The entity's TI blocks per-event e-mail as spam (17/08 meeting, §7), so nothing
+here is sent per event. The bell is the platform's ordinary notification bell.
+The e-mail is a summary on a fixed template, built on the application server
+with the system's data of that day, daily or weekly as each member chooses
+(product owner, 2026-11-12).
 
-**AC-0008-03** — Failed sends are retried with exponential backoff up to 5
-attempts, then recorded as failed and surfaced in an admin view. Silently
-dropped notifications train users to distrust the system.
+## 2. Scope
 
-**AC-0008-04** — A user may opt out of advisory notifications but not of those
-addressed to them as responsável for an action.
+**In scope:** the notices of §3 and the bell in the header; marking read; the
+e-mail summary of ATAs, NEs and NFs on a fixed template; each member's choice of
+daily, weekly on a weekday, or none; the summary written to a local folder
+outside production and sent only once an SMTP server is configured.
 
-**AC-0008-05** — E-mails contain no personal data beyond the recipient's own
-name, and no CPF or SIAPE (RNF07).
+**Out of scope:** what entered and left the critical list, which waits for the
+coverage import (SPEC-0012); a template the entity edits.
 
-**AC-0008-06** — In non-production environments, e-mail is written to a local
-maildir rather than sent. A test asserts no external SMTP connection is opened
-when `APP_ENV != production`.
+## 3. Behaviour
 
-## 2. Note
+**AC-0008-01** — The reasons for a notice
+```gherkin
+Given an ATA
+When  the daily check runs
+Then  a notice is raised for it when its vigência ends within 90 days with no
+      aditivo de prazo ("vai vencer"), when its vigência has ended ("venceu"),
+      when its saldo reaches the alto consumo of SPEC-0006 ("saldo em 80%"),
+      when its saldo disponível reaches zero ("saldo esgotado"), or when its
+      reajuste is due with no request (AC-0002-20, "reajuste a pedir")
+```
+The 90 days and the 80% are the ones SPEC-0002 and SPEC-0006 already use.
 
-The RFC lists Resend as an option. For an on-premise state-government
-deployment, an external e-mail SaaS may be prohibited by the entity's data
-policy and may not reach internal `.gov.br` recipients. The interface is
-abstracted behind a `NotificationSender` port so the transport is a
-configuration choice; institutional SMTP is the default. See OQ-13.
+**AC-0008-02** — Once per ATA and reason
+```gherkin
+Given an ATA with a notice for a reason
+When  the daily check runs again and the reason still holds
+Then  no second notice is raised for it
+And   a new vigência, a new aditivo or a reajuste requested lets the reason be raised again
+```
 
-## Revision 2026-09-02 — stakeholder constraint from the 17/08 meeting
+**AC-0008-03** — The same notices for everyone
+```gherkin
+Given a notice
+Then  every active member sees it, whatever the perfil
+```
+The product owner, on 2026-11-12: gestor, servidor and auditor are told the same
+thing, and *"todo mundo que entrar na plataforma pelo email vai receber a
+notificação naquele email cadastrado, e é só isso"*. A deactivated or blocked
+member cannot sign in, so is told nothing.
 
-RF09 asks for an e-mail on every supply status change. The entity's own IT
-department has told the stakeholders this will not survive contact: *"e-mail
-demais, eles vão bloquear por spam. A gente tem que ser mais cauteloso —
-escolher as coisas que realmente são extremamente [importantes]"*.
+**AC-0008-04** — The bell
+```gherkin
+Given a signed-in member with unread notices
+Then  the bell in the header shows how many
+When  it is opened
+Then  the notices show newest first, each with the ATA, the reason and the day,
+      and each opens the ATA's page
+```
 
-A per-status-change notification is therefore not merely noisy, it is a design
-that gets the sender blocked, after which the system delivers nothing at all.
+**AC-0008-05** — Read
+```gherkin
+Given the bell open
+When  a notice is opened, or "Marcar todas como lidas" is pressed
+Then  it is read for that member only, and the count falls
+```
 
-What the stakeholders asked for instead:
+**AC-0008-06** — The summary
+```gherkin
+Given a member whose e-mail is due
+When  the daily run reaches them
+Then  they receive one e-mail at the address they sign in with, on the fixed
+      template, with the system's data of that day:
+      the ATAs that will vencer, that venceram, with saldo at 80%, with saldo
+      esgotado and with reajuste a pedir, each by its número;
+      how many NEs are in each etapa, and how many advanced since their last summary;
+      how many NFs are in conferência, devolvidas and em quarentena
+And   each ATA links to its page
+```
 
-- **Aggregated digests**, grouped by comprador and by grupo de materiais, rather
-  than one message per event. Each comprador is responsible for a subset of the
-  catalogue and wants that subset's changes together.
-- **A configurable criticality threshold**, so the entity — not the code —
-  decides what is worth an e-mail.
-- The meeting also described the digest's most wanted content: what entered and
-  what left the critical list this week, with the net figure. *"10 entraram e 10
-  saíram, estamos no zero a zero."*
+**AC-0008-07** — Each member's choice
+```gherkin
+Given a signed-in member on "Configurações"
+When  they choose the e-mail daily, weekly on a weekday, or none, and save
+Then  the summary follows that choice from the next run
+And   a member who never chose receives it weekly, on Mondays
+And   "none" stops the e-mail and leaves the bell as it is
+```
+The product owner, on 2026-11-12: *"vamos ter que criar a configuração de
+usuário, para incluir esse tipo de informação"*.
 
-This does not change RF09's intent (notify the responsible party) but it does
-change its mechanism, so it needs an explicit note in `functional.md`'s notes
-column rather than a silent reinterpretation here. The ACs are not rewritten in
-this revision; the constraint is recorded first so the design is not built twice.
+**AC-0008-08** — When an e-mail is due
+```gherkin
+Given the daily run
+Then  a daily member's summary is due every day
+And   a weekly member's is due on their weekday, or on any later day when the
+      last one is more than seven days old
+And   a member's summary sent today is not sent twice
+```
+The second rule is what retries a weekly summary whose day failed.
 
-## 3. Changelog
+**AC-0008-09** — No SMTP, no send
+```gherkin
+Given no SMTP server configured, or APP_ENV other than production
+When  the summary is built
+Then  it is written to a local folder and no external connection is opened
+```
+
+**AC-0008-10** — A failed send is recorded
+```gherkin
+Given an SMTP server that refuses or does not answer
+When  a member's summary is sent
+Then  the failure is recorded in the history and their last summary is not moved
+And   the next run sends it again
+```
+There is no queue and no retry loop (AC-0009-07 withdrawn on 2026-11-10): the
+next run is the retry.
+
+**AC-0008-11** — Nothing personal
+```gherkin
+Given a summary
+Then  it names only its recipient, by name, and holds no CPF, SIAPE or other
+      member's e-mail (RNF07)
+```
+
+## 4. Permissions
+
+Every signed-in member reads the notices, marks them read and sets their own
+e-mail choice; the same for every perfil. What one member reads or chooses does
+not change another's. The daily run is a command, not an endpoint.
+
+## 5. API surface
+
+| Method | Path | Purpose | AC |
+| --- | --- | --- | --- |
+| GET | `/api/v1/notificacoes` | The notices, newest first, paginated, with the member's unread count | 04 |
+| POST | `/api/v1/notificacoes/{id}/lida` | Mark one read | 05 |
+| POST | `/api/v1/notificacoes/lidas` | Mark all read | 05 |
+| GET | `/api/v1/preferencias/email` | The member's e-mail choice | 07 |
+| PUT | `/api/v1/preferencias/email` | Set it: `frequencia` (`diario`, `semanal`, `nenhum`) and `dia_semana` (1 Monday to 7 Sunday) | 07 |
+
+`python -m app.cli notificar` raises the notices and sends the summaries that
+are due; the server's scheduler runs it once a day.
+
+## 6. Implementation plan
+
+1. Migration `0008_notificacoes`: `notificacao` (the ATA, the reason, the key
+   that makes it once per ATA and reason, when raised), `notificacao_leitura`
+   (which member read which notice, and when) and `preferencia_email` (each
+   member's frequency, weekday and last summary).
+2. `app/services/notificacoes.py`: the check over the ATAs with SPEC-0002's and
+   SPEC-0006's reads, the reads and marks of the bell.
+3. `app/services/resumo.py`: the day's data, the fixed template, which members
+   are due, and the send.
+4. `app/services/mail.py`: the `NotificationSender` port, a folder adapter and an
+   SMTP adapter on the standard library; settings `smtp_host`, `smtp_port`,
+   `smtp_starttls`, `smtp_username`, `smtp_password`, `smtp_from`, `mail_folder`.
+5. The routes, the CLI command, and a history row for each write:
+   `notificacao.criada`, `.lida`, `.todas_lidas`, `preferencia_email.alterada`,
+   `resumo.enviado`, `resumo.envio_falhou`.
+6. Frontend: the bell in the header (`components/shell`), "Configurações" in the
+   user menu at `/configuracoes`, with the e-mail choice.
+7. Tests per AC in `tests/test_notificacoes.py`, `tests/test_resumo.py`,
+   `frontend/e2e/notificacoes.spec.ts` and `frontend/e2e/configuracoes.spec.ts`.
+
+No new dependency: `smtplib` and `email` are the standard library's.
+
+## 7. The 17/08 meeting
+
+The entity's TI: *"e-mail demais, eles vão bloquear por spam. A gente tem que
+ser mais cauteloso — escolher as coisas que realmente são extremamente
+[importantes]"*. Hence one notice per ATA and reason, and one digest a day.
+
+## 8. Changelog
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-08-17 | Initial draft from RFC §2.3 RF09, §5.1 |
 | 0.2 | 2026-09-02 | Recorded the IT spam-block constraint from the 17/08 meeting: RF09 needs aggregated, threshold-driven digests per comprador, not per-event e-mail |
+| 0.3 | 2026-11-11 | Rewritten by the product owner's answers on 2026-11-11: notices are about ATAs (vai vencer, venceu, saldo em 80%, saldo esgotado, reajuste a pedir), once per ATA and reason; the bell now and a daily digest by e-mail behind a port, sent once SMTP exists (OQ-13); a scheduled command, no queue; the same notices for every perfil. Per-event e-mail on NE transitions, the retry loop and the opt-out are withdrawn |
+| 1.0 | 2026-11-12 | Approved by the product owner: every member is told the same, and the digest goes to the e-mail each signs in with, "e é só isso". No perfil sees a different set |
+| 1.1 | 2026-11-12 | Product owner, 2026-11-12: the bell is the platform's ordinary bell; the e-mail is a summary on a fixed template with the system's data of that day (ATAs, NEs and NFs), daily or weekly as each member chooses on "Configurações", or none. AC-0008-06 to -11 replace the digest of new notices |

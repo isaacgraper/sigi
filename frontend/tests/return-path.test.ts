@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { HOME, safeReturnPath } from "@/lib/return-path";
+import { HOME_PATH } from "@/lib/constants";
+import { safeReturnPath } from "@/lib/return-path";
 
 describe("AC-0010-16 the return address cannot leave SIGI", () => {
   it.each([
@@ -20,6 +21,6 @@ describe("AC-0010-16 the return address cannot leave SIGI", () => {
     "membros",
     "/login",
   ])("sends %s to the dashboard", (raw) => {
-    expect(safeReturnPath(raw)).toBe(HOME);
+    expect(safeReturnPath(raw)).toBe(HOME_PATH);
   });
 });

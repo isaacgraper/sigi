@@ -26,11 +26,15 @@ class DomainError(Exception):
         *,
         fields: dict[str, str] | None = None,
         retry_after: int | None = None,
+        extra: dict[str, object] | None = None,
     ) -> None:
         """Build the error with its pt-BR message, field detail and retry hint."""
         super().__init__(message)
         self.message_text = message
         self.fields = fields or {}
+        # Keys the envelope carries beside `fields`, such as the `rows` of a
+        # refused import (SPEC-0003 AC-0003-07).
+        self.extra = extra or {}
         # Seconds for a `Retry-After` header. A 429 whose only statement of
         # "when" is inside a pt-BR sentence is a 429 no client can obey.
         self.retry_after = retry_after
@@ -59,7 +63,7 @@ class InactiveUser(DomainError):
 
     def __init__(self) -> None:
         """Build the error with its message."""
-        super().__init__("Esta conta não está ativa. Procure o gestor da sua unidade.")
+        super().__init__("Esta conta não está ativa.")
 
 
 class InvalidRefresh(DomainError):
@@ -141,7 +145,7 @@ class UnprovisionedUsuario(DomainError):
 
     def __init__(self) -> None:
         """Build the error, pointing the caller at the gestor who can fix it."""
-        super().__init__("Seu acesso ainda não foi liberado. Procure o gestor da sua unidade.")
+        super().__init__("Seu acesso ainda não foi liberado.")
 
 
 class UnauthorizedPerfil(DomainError):
@@ -377,7 +381,8 @@ class AtaDuplicada(DomainError):
 
     def __init__(self) -> None:
         """Build the error with its message."""
-        super().__init__("Já existe uma ATA com este número. Confira o número ou abra a existente.")
+        message = "Já existe uma ATA com este número. Confira o número ou abra a existente."
+        super().__init__(message, fields={"number": message})
 
 
 class AtaNotFound(DomainError):
@@ -389,6 +394,17 @@ class AtaNotFound(DomainError):
     def __init__(self) -> None:
         """Build the error with its message."""
         super().__init__("ATA não encontrada.")
+
+
+class SectionNotFound(DomainError):
+    """The dashboard has no section by that name (SPEC-0012 AC-0012-12)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Seção do painel não encontrada.")
 
 
 class TransicaoInvalida(DomainError):
@@ -403,14 +419,14 @@ class TransicaoInvalida(DomainError):
 
 
 class AtaNaoEditavel(DomainError):
-    """A locked field of an ATA that is past `rascunho` (AC-0002-24)."""
+    """An edit of an ATA that is `encerrada` or `cancelada` (AC-0002-24)."""
 
     code = "ATA_NAO_EDITAVEL"
     http = 409
 
     def __init__(self) -> None:
-        """Build the error, pointing at the aditivo that is the way to change them."""
-        super().__init__("Depois de ativada, valores e prazos só mudam por aditivo.")
+        """Build the error."""
+        super().__init__("Uma ATA encerrada ou cancelada não pode ser editada.")
 
 
 class AtaNaoVigente(DomainError):
@@ -420,8 +436,8 @@ class AtaNaoVigente(DomainError):
     http = 409
 
     def __init__(self) -> None:
-        """Build the error, saying what to do first."""
-        super().__init__("A ATA precisa estar vigente. Ative ou retome a ATA antes.")
+        """Build the error."""
+        super().__init__("A ATA precisa estar vigente.")
 
 
 class AditivoAcimaDoLimite(DomainError):
@@ -444,3 +460,501 @@ class ProcessoSeiInvalido(DomainError):
     def __init__(self, expected: str) -> None:
         """Build the error stating the expected format."""
         super().__init__(f"Número de processo SEI inválido. Use o formato {expected}.")
+
+
+# ── SPEC-0003: insumos, grupos and the items of an ATA ──────────────────────
+
+
+class InvalidSku(DomainError):
+    """A SKU that does not match the configured pattern (AC-0003-02)."""
+
+    code = "INVALID_SKU"
+    http = 422
+
+    def __init__(self, example: str) -> None:
+        """Build the error showing the format and an example."""
+        hint = (
+            f"Use letras e números, com ao menos uma letra, sem espaços nem pontos, como {example}."
+        )
+        super().__init__(f"SKU inválido. {hint}", fields={"sku": hint})
+
+
+class InvalidDomsCode(DomainError):
+    """A DOMS code that is not digits only, such as `2888.0` (AC-0003-02)."""
+
+    code = "INVALID_DOMS_CODE"
+    http = 422
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        hint = "Use só números, como 26829."
+        super().__init__(f"Código DOMS inválido. {hint}", fields={"codigo_doms": hint})
+
+
+class InsumoDuplicado(DomainError):
+    """The SKU or the DOMS code belongs to another insumo (AC-0003-03).
+
+    Named only when the caller can see it: a scoped servidor learns that the code
+    is taken and nothing more (AC-0003-29).
+    """
+
+    code = "INSUMO_DUPLICADO"
+    http = 409
+
+    def __init__(self, existing: str | None) -> None:
+        """Build the error, naming the existing insumo when given."""
+        if existing:
+            super().__init__(f"Já existe um insumo com este código: {existing}. Use o existente.")
+        else:
+            super().__init__("Já existe um insumo com este código. Use o existente.")
+
+
+class InsumoNotFound(DomainError):
+    """No insumo has this id, or it is outside the servidor's grupos (AC-0003-12, -29)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Insumo não encontrado.")
+
+
+class GrupoNotFound(DomainError):
+    """No grupo has this id (AC-0003-13)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Grupo não encontrado.")
+
+
+class DuplicateGroup(DomainError):
+    """A sibling grupo has this name, ignoring case (AC-0003-09, -13)."""
+
+    code = "DUPLICATE_GROUP"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Já existe um grupo com este nome aqui.")
+
+
+class InvalidSubstitute(DomainError):
+    """The substitute is the insumo itself, or is not ativo (AC-0003-15)."""
+
+    code = "INVALID_SUBSTITUTE"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("O substituto precisa ser outro insumo, ativo.")
+
+
+class InsumoDescontinuado(DomainError):
+    """A discontinued insumo sent into a new item (AC-0003-17)."""
+
+    code = "INSUMO_DESCONTINUADO"
+    http = 409
+
+    def __init__(self, substitute_sku: str | None) -> None:
+        """Build the error, naming the substitute when there is one."""
+        message = "Este insumo foi descontinuado e não entra em itens novos."
+        if substitute_sku:
+            message += f" Use {substitute_sku}."
+        super().__init__(message)
+
+
+class ItemAtaDuplicado(DomainError):
+    """The insumo is already an item of this ATA (AC-0003-20)."""
+
+    code = "ITEM_ATA_DUPLICADO"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Este insumo já é um item desta ATA. Corrija o item existente.")
+
+
+class ItemAtaNotFound(DomainError):
+    """No item of this ATA has this id, or it was removed (AC-0003-24)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Item não encontrado.")
+
+
+class AditivoDeQuantidadeAcimaDoLimite(AditivoAcimaDoLimite):
+    """The aditivos de quantidade of an item pass 25% of its quantidade (AC-0003-28, RN15)."""
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        DomainError.__init__(
+            self, "O aditivo passa de 25% da quantidade do item. Reduza a quantidade."
+        )
+
+
+class InvalidFile(DomainError):
+    """The file cannot be read, is too large, or lacks a column (AC-0003-18)."""
+
+    code = "INVALID_FILE"
+    http = 422
+
+    def __init__(self, detail: str | None = None) -> None:
+        """Build the error, with what exactly is wrong when it is known."""
+        super().__init__(
+            "Não foi possível ler o arquivo. Use CSV em UTF-8, até 5 MB, com as colunas do modelo.",
+            fields={"file": detail} if detail else None,
+        )
+
+
+class ImportRejected(DomainError):
+    """At least one line of the file is invalid, so nothing was written (AC-0003-07)."""
+
+    code = "IMPORT_REJECTED"
+    http = 422
+
+    def __init__(self, rows: list[dict[str, object]]) -> None:
+        """Build the error carrying every invalid cell, not only the first."""
+        super().__init__(
+            "Nenhuma linha foi importada. Corrija as linhas indicadas e envie de novo.",
+            extra={"rows": rows},
+        )
+
+
+# ── SPEC-0004: notas de empenho ─────────────────────────────────────────────
+
+
+class NeNotFound(DomainError):
+    """No NE has this id."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("NE não encontrada.")
+
+
+class NeTransicaoInvalida(DomainError):
+    """A skipped, backward or terminal move of an NE (AC-0004-05, -10, -11, RN08)."""
+
+    code = "TRANSICAO_INVALIDA"
+    http = 409
+
+    def __init__(self, origem: str, destino: str) -> None:
+        """Build the error naming both stages."""
+        super().__init__(
+            f"Não é possível ir de {origem} para {destino}. Avance ou reverta uma etapa por vez."
+        )
+
+
+class SaldoInsuficiente(DomainError):
+    """The NE's total passes the ATA's saldo disponível (AC-0004-12, RN10)."""
+
+    code = "SALDO_INSUFICIENTE"
+    http = 409
+
+    def __init__(self, ata: str, disponivel: str, necessario: str) -> None:
+        """Build the error stating what is available and what is needed."""
+        super().__init__(
+            f"Saldo insuficiente na ATA {ata}. Disponível: {disponivel}. Necessário: {necessario}. "
+            "Ajuste o valor ou solicite aditivo."
+        )
+
+
+class QuantidadeInsuficiente(DomainError):
+    """An item asks for more than its ITEM_ATA has left (AC-0004-24, RN10)."""
+
+    code = "QUANTIDADE_INSUFICIENTE"
+    http = 409
+
+    def __init__(self, insumo: str, ata: str, disponivel: str, pedido: str) -> None:
+        """Build the error naming the insumo and both quantities."""
+        super().__init__(
+            f"Quantidade insuficiente de {insumo} na ATA {ata}. "
+            f"Disponível: {disponivel}. Necessário: {pedido}."
+        )
+
+
+class AtaNaoElegivel(DomainError):
+    """An NE opened against an ATA that cannot take one (AC-0004-17, RN11)."""
+
+    code = "ATA_NAO_ELEGIVEL"
+    http = 409
+
+    def __init__(self, ata: str, motivo: str) -> None:
+        """Build the error naming the reason."""
+        super().__init__(
+            f"A ATA {ata} está {motivo} e não pode receber novos empenhos. Escolha uma ATA vigente."
+        )
+
+
+class AtaComNePendente(DomainError):
+    """Closing an ATA with an NE in progress (AC-0004-25, RN13)."""
+
+    code = "ATA_COM_NE_PENDENTE"
+    http = 409
+
+    def __init__(self, ata: str, pendentes: list[str]) -> None:
+        """Build the error naming the blocking NEs."""
+        super().__init__(
+            f"A ATA {ata} tem NEs em andamento: {', '.join(pendentes)}. "
+            "Conclua ou cancele essas NEs antes de encerrá-la."
+        )
+
+
+class AtaComNeEmitida(AtaNaoEditavel):
+    """Editing the figures of an ATA that has an NE emitida (AC-0004-26)."""
+
+    def __init__(self) -> None:
+        """Build the error."""
+        DomainError.__init__(self, "Esta ATA já tem NE emitida. Altere os valores por um aditivo.")
+
+
+class ItemAtaComNe(DomainError):
+    """Editing or removing an item an NE references (AC-0004-27)."""
+
+    code = "ITEM_ATA_COM_NE"
+    http = 409
+
+    def __init__(self, insumo: str) -> None:
+        """Build the error naming the insumo."""
+        super().__init__(f"O item {insumo} já tem NE. Altere a quantidade por um aditivo.")
+
+
+class NeSemItens(DomainError):
+    """An NE left with no item (AC-0004-19, RN09)."""
+
+    code = "NE_SEM_ITENS"
+    http = 422
+
+    def __init__(self) -> None:
+        """Build the error."""
+        message = "A NE precisa de ao menos um insumo. Para encerrá-la, cancele a NE."
+        super().__init__(message, fields={"items": message})
+
+
+class ItemDuplicado(DomainError):
+    """The same ITEM_ATA twice in one NE (AC-0004-20)."""
+
+    code = "ITEM_DUPLICADO"
+    http = 422
+
+    def __init__(self, insumo: str, field: str | None = None) -> None:
+        """Build the error naming the insumo, on the line that repeats it."""
+        message = (
+            f"O insumo {insumo} aparece mais de uma vez. "
+            "Ajuste a quantidade em vez de repetir o item."
+        )
+        super().__init__(message, fields={field: message} if field else None)
+
+
+class ItemDeOutraAta(DomainError):
+    """An item that belongs to another ATA (AC-0004-21, I2)."""
+
+    code = "ITEM_DE_OUTRA_ATA"
+    http = 422
+
+    def __init__(self, insumo: str, ata: str, field: str | None = None) -> None:
+        """Build the error naming the insumo and its ATA, on the line that carries it."""
+        message = (
+            f"O insumo {insumo} pertence à ATA {ata}. "
+            "Todos os itens de uma NE devem ser da mesma ATA."
+        )
+        super().__init__(message, fields={field: message} if field else None)
+
+
+class NeItensCongelados(DomainError):
+    """Editing the itens from pré-empenho onward (AC-0004-22)."""
+
+    code = "NE_ITENS_CONGELADOS"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error."""
+        super().__init__(
+            "Os itens não podem ser alterados após o pré-empenho, pois o saldo já está reservado. "
+            "Cancele a NE e abra outra."
+        )
+
+
+class NeDuplicada(DomainError):
+    """The NE número is already registered (AC-0004-28)."""
+
+    code = "NE_DUPLICADA"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(f"A NE {numero} já está registrada. Confira o número.")
+
+
+class PreEmpenhoDuplicado(DomainError):
+    """The pré-empenho número is already on another NE (AC-0004-29)."""
+
+    code = "PRE_EMPENHO_DUPLICADO"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(
+            f"O pré-empenho {numero} já está registrado em outra NE. Confira o número."
+        )
+
+
+# ── SPEC-0005: notas fiscais ────────────────────────────────────────────────
+
+
+class NfNotFound(DomainError):
+    """No NF has this id."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("NF não encontrada.")
+
+
+class NfTransicaoInvalida(DomainError):
+    """A move the NF conference does not allow (AC-0005-08, -13)."""
+
+    code = "TRANSICAO_INVALIDA"
+    http = 409
+
+    def __init__(self, origem: str, destino: str) -> None:
+        """Build the error naming both statuses."""
+        super().__init__(f"Não é possível ir de {origem} para {destino}.")
+
+
+class NfItemDuplicado(DomainError):
+    """One NE line named twice in the same NF (AC-0005-12)."""
+
+    code = "ITEM_DUPLICADO"
+    http = 422
+
+    def __init__(self, insumo: str, field: str | None = None) -> None:
+        """Build the error naming the insumo, on the line that repeats it."""
+        message = f"O insumo {insumo} aparece mais de uma vez. Some as quantidades em uma linha."
+        super().__init__(message, fields={field: message} if field else None)
+
+
+class NeNaoEmitida(DomainError):
+    """An NF against an NE not yet issued (AC-0005-03, DB1)."""
+
+    code = "NE_NAO_EMITIDA"
+    http = 409
+
+    def __init__(self, etapa: str) -> None:
+        """Build the error naming the NE's stage."""
+        super().__init__(f"A NE está em {etapa}. Só uma NE emitida recebe notas fiscais.")
+
+
+class DataAnteriorAoEmpenho(DomainError):
+    """An NF dated before its NE, not confirmed (AC-0005-05)."""
+
+    code = "DATA_ANTERIOR_AO_EMPENHO"
+    http = 409
+
+    def __init__(self, data_nf: str, data_ne: str) -> None:
+        """Build the error naming both dates."""
+        super().__init__(
+            f"A NF é de {data_nf}, anterior à NE, emitida em {data_ne}. "
+            "Confirme a data para registrar."
+        )
+
+
+class FornecedorDivergente(DomainError):
+    """The NF's CNPJ is not the ATA's fornecedor (AC-0005-06)."""
+
+    code = "FORNECEDOR_DIVERGENTE"
+    http = 409
+
+    def __init__(self, cnpj_nf: str, fornecedor: str, cnpj_ata: str) -> None:
+        """Build the error naming both CNPJs."""
+        super().__init__(
+            f"O CNPJ da NF ({cnpj_nf}) não é o do fornecedor da ATA ({fornecedor}, {cnpj_ata})."
+        )
+
+
+class ValorAcimaDoEmpenho(DomainError):
+    """The NFs of an NE would bill past its value (AC-0005-07, RN12)."""
+
+    code = "VALOR_ACIMA_DO_EMPENHO"
+    http = 409
+
+    def __init__(self, total: str, valor_ne: str) -> None:
+        """Build the error naming both amounts."""
+        super().__init__(f"O valor das NFs ({total}) passaria do valor da NE ({valor_ne}).")
+
+
+class QuantidadeAcimaDoEmpenho(DomainError):
+    """The NFs would deliver more of a line than the NE commits (AC-0005-12)."""
+
+    code = "QUANTIDADE_ACIMA_DO_EMPENHO"
+    http = 409
+
+    def __init__(self, insumo: str, total: str, empenhado: str) -> None:
+        """Build the error naming the insumo and both quantities."""
+        super().__init__(f"{insumo}: as NFs somariam {total}, acima das {empenhado} da NE.")
+
+
+class NfDuplicada(DomainError):
+    """The número is already registered for this fornecedor (AC-0005-15)."""
+
+    code = "NF_DUPLICADA"
+    http = 409
+
+    def __init__(self, numero: str) -> None:
+        """Build the error naming the número."""
+        super().__init__(f"A NF {numero} deste fornecedor já está registrada. Confira o número.")
+
+
+class NfEmQuarentena(DomainError):
+    """Approving an NF still held in quarantine (AC-0005-13)."""
+
+    code = "NF_EM_QUARENTENA"
+    http = 409
+
+    def __init__(self) -> None:
+        """Build the error."""
+        super().__init__("A NF está em quarentena. Libere-a antes de aprovar.")
+
+
+class NfNaoEditavel(DomainError):
+    """Correcting an NF in or past the conference (AC-0005-14)."""
+
+    code = "NF_NAO_EDITAVEL"
+    http = 409
+
+    def __init__(self, status: str) -> None:
+        """Build the error naming the status."""
+        super().__init__(f"A NF está {status} e não pode ser corrigida.")
+
+
+class RelatorioNotFound(DomainError):
+    """No report has this name (SPEC-0009 §2.3)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Relatório não encontrado.")
+
+
+class NotificacaoNotFound(DomainError):
+    """No notice has this id (SPEC-0008 AC-0008-05)."""
+
+    code = "NOT_FOUND"
+    http = 404
+
+    def __init__(self) -> None:
+        """Build the error with its message."""
+        super().__init__("Aviso não encontrado.")

@@ -82,6 +82,15 @@ class Settings(BaseSettings):
     # because OQ-42 assumes the two are alike until the entity says otherwise.
     ata_alert_days: int = 90
 
+    # ── Insumos and imports (SPEC-0003) ─────────────────────────────────────
+    # Fits the two examples of the CAME sheet, `CLORDEG21` and `SER5D` (RF07).
+    # At least one letter: every SKU in the data has one, and it tells a SKU from a
+    # DOMS code at a glance (SPEC-0003 AC-0003-35).
+    sku_pattern: str = "^(?=.*[A-Z])[A-Z0-9]+$"
+    # Seven times the SKU sheet (1.425 rows) fits in either (AC-0003-18).
+    import_max_bytes: int = 5 * 1024 * 1024
+    import_max_lines: int = 10_000
+
     # ── Per-address lockout (AC-0001-03) ────────────────────────────────────
     max_login_attempts: int = 5
     # ── Per-source rate limiting (AC-0001-33, ADR-0012) ────────────────────
@@ -99,6 +108,7 @@ class Settings(BaseSettings):
         "/api/v1/auth/refresh": 60,
         "/api/v1/auth/logout": 60,
         "/api/v1/auth/me": 120,
+        "/api/v1/auth/mecanismos": 120,
         "/api/v1/auth/oidc/authorize": 30,
         "/api/v1/auth/oidc/callback": 30,
         "/api/v1/auth/redefinicoes/confirmar": 10,
@@ -127,6 +137,19 @@ class Settings(BaseSettings):
     # parameter on the frontend route, which then posts it in a request body:
     # a link has to be openable, but our API never takes it in a path.
     frontend_base_url: str = "http://localhost:3000"
+
+    # ── E-mail (SPEC-0008 AC-0008-07) ───────────────────────────────────────
+    # No host means no send: the digest is written to `mail_folder`, as it is
+    # in every environment but production. The entity's institutional SMTP is
+    # expected here (OQ-13); nothing reaches anyone until it is set.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_starttls: bool = True
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "sigi@localhost"
+    smtp_timeout_seconds: int = 30
+    mail_folder: str = "var/mail"
     invite_ttl_hours: int = 72
     # One hour against the invitation's 72: an invitation waits for somebody to
     # find the time, a reset is asked for by someone sitting at the screen.

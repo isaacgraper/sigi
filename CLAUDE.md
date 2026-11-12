@@ -24,7 +24,7 @@ the evidence in the changelog. Do not file it as an open question.
 
 ## Current state of the repository
 
-*(Rewritten 2026-10-08, after SPEC-0001, SPEC-0010 and SPEC-0011 were closed. This
+*(Rewritten 2026-11-09, after SPEC-0004, -0005, -0006, -0015 and -0016 were closed. This
 section ages faster than any other: check a sentence here before acting on it.)*
 
 **SPEC-0001 is implemented.** `backend/` serves local login with refresh
@@ -36,14 +36,38 @@ development-only seed, a permission matrix checked when the app is assembled,
 and per-source rate limiting with a trusted-proxy list. The audit trail is
 written in the caller's transaction and is append-only at the database level.
 
-**SPEC-0002's backend is implemented**: ATAs, fornecedores, the lifecycle,
-aditivos, reajuste requests and the renewal and reajuste alerts under
-`/api/v1/atas`. 314 backend tests run against a real PostgreSQL 16.
+**SPEC-0002 is implemented**: ATAs, fornecedores, the lifecycle without a
+draft, corrections, aditivos, reajuste requests and the renewal and reajuste
+alerts under `/api/v1/atas`, with the alphanumeric CNPJ.
+
+**SPEC-0003 is implemented**: the insumo catalogue, its three-level
+grupos, substitution and discontinuation, the items of an ATA with the unit price
+at five decimals (ADR-0016), the aditivo de quantidade, a CSV import for the
+catalogue and one for an ATA's items, and RN07 on the grupo axis, under
+`/api/v1/insumos`, `/api/v1/grupos-materiais` and `/api/v1/atas/{id}/itens`.
+560 backend tests run against a real PostgreSQL 16. Its screens (SPEC-0014,
+`Implemented`) are: the catalogue under `/insumos`, the grupo tree, both imports checked before
+writing, the items section of the ATA page and a servidor's grupos on Membros.
+
+**SPEC-0004 is implemented, with its screens (SPEC-0015)**: NEs under
+`/api/v1/notas-empenho`, the five stages with reversal and cancellation, both
+números typed in at their stage, and the saldo guard with the ATA row locked.
+SPEC-0006's saldo reads are implemented under `/api/v1/atas/{id}/saldo`, AC-0006-14 and
+-15 included. `docs/process/poc.md` puts it in front of the stakeholders.
+
+**SPEC-0005 is implemented, with its screens (SPEC-0016)**: NFs
+under `/api/v1/notas-fiscais`, bound to an NE (RN02), with the fornecedor's CNPJ
+and the date before the empenho checked, conferência, devolução, quarentena and
+release by the gestor, and the NE's `quantidade_faltante` counted from them.
 
 **SPEC-0010 and SPEC-0011 are implemented.** `frontend/` serves login, the OIDC
-callback, invitation, password reset, the dashboard and member management inside
-the navy shell, proven by Playwright against the real API in Chromium, Firefox
-and WebKit. There are no ATA screens yet; they need a screen spec first.
+callback, invitation, password reset and member management inside the navy
+shell, proven by Playwright against the real API in Chromium, Firefox
+and WebKit. The dashboard is the stakeholders' CAME report (SPEC-0012, `Approved`): four
+tabs fed by `GET /api/v1/painel/{section}`, a skeleton while it waits, and
+"Sem dados" for every block until its source exists. The ATA screens
+(SPEC-0013, `Implemented`) list, register after a review and run ATAs on SPEC-0002's endpoints;
+every screen and perfil is mapped in `docs/product/user-map.md`.
 
 **Two database roles are not optional.** The application connects as a
 restricted role; migrations run as the owner. ADR-0004's append-only guarantee
@@ -51,18 +75,39 @@ is void with a single role, because an owner can `ALTER TABLE ... DISABLE
 TRIGGER`. `infra/postgres/init/01-roles.sh` provisions the app role and the
 migration refuses to run without it.
 
-**Three migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
+**Eight migrations.** `0001_baseline` creates `usuario`, `token_credencial`,
 `tentativa_login`, `limite_taxa`, `sessao_familia`, `sessao` and
 `historico_movimentacao` with seven yearly partitions to 2032,
-`0002_registro_funcional` adds the member's registration, and `0003_atas` adds
-`fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`. `alembic check`
+`0002_registro_funcional` adds the member's registration, `0003_atas` adds
+`fornecedor`, `ata`, `ata_aditivo` and `ata_reajuste`, and `0004_ata_sem_rascunho`
+drops the draft status and admits the alphanumeric CNPJ, and `0005_insumos` adds
+`grupo_material`, `insumo`, `item_ata`, `usuario_grupo_material` and the aditivo
+de quantidade, and `0006_notas_empenho` adds `nota_empenho` and
+`item_nota_empenho` with the DB2, DB4 and DB7 triggers, and `0007_notas_fiscais`
+adds `nota_fiscal` and `item_nota_fiscal`, and `0008_notificacoes` adds
+`notificacao`, `notificacao_leitura` and `preferencia_email`. `alembic check`
 is asserted by a test, so a model that drifts from the schema fails the suite
 instead of producing a migration that drops tables.
 
-**Specs:** `SPEC-0001` (v1.9), `SPEC-0010` (v1.7) and `SPEC-0011` (v1.1) are
-`Implemented`. `SPEC-0002` (v1.1) is `Approved` with its backend built.
-SPEC-0003 to SPEC-0009 are `Draft`, and **a spec at `Draft` may not be
-implemented**.
+**Specs:** `SPEC-0001` (v1.13), `SPEC-0002` (v1.3), `SPEC-0010` (v1.11),
+`SPEC-0011` (v1.4), `SPEC-0013` (v1.9), `SPEC-0003` (v1.6), `SPEC-0014` (v1.4),
+`SPEC-0004` (v1.4), `SPEC-0005` (v1.1), `SPEC-0006` (v1.2), `SPEC-0015` (v1.3)
+and `SPEC-0016` (v1.1) are `Implemented`. `SPEC-0012` (v1.3) is `Approved` and
+built, waiting for its data sources. `SPEC-0007` (v1.1) and `SPEC-0009` (v1.2) are
+`Approved` and built in the backend, waiting for the product owner's end-to-end test:
+the history and the cycle of an insumo under `/api/v1/historico` and
+`/api/v1/insumos/{id}/ciclo`, and four reports as CSV and PDF under
+`/api/v1/relatorios`, read as they stood at a data de referência. Their screens
+(SPEC-0017, `Approved`, built) are the Acompanhamento tab of an ATA, an NE and an NF,
+the rastreio on an insumo's page and the Histórico for the gestor and the auditor. Every list exports
+through one dialog (SPEC-0009 v1.2): the ATAs, an ATA's items, the insumos, the NEs,
+the NFs and the Histórico, each with its filters, at a data de referência, inside RN07. The four
+reports have their screen under `/relatorios` (SPEC-0018, `Approved`, built).
+`SPEC-0008` (v1.1) is `Approved` and built: the ATA notices under the header bell,
+the same for every perfil, and an e-mail summary of ATAs, NEs and NFs on a fixed
+template, daily, weekly or none as each member sets on `/configuracoes`, sent by
+`python -m app.cli notificar` and written to `mail_folder` until an SMTP host is set
+(OQ-13). **A spec at `Draft` may not be implemented**.
 
 **What is left:**
 
@@ -71,14 +116,12 @@ implemented**.
   would let anyone reset anyone's password.
 - **OQ-17** — the live prototype JWT in RFC Appendix 9.1 is still unrevoked.
   Blocks nothing mechanically and everything ethically.
-- **OQ-28** — superseded `rfc-sigi-v1.7.md` still defines a second `RF05` and
-  `RN11`, so no test may be named after either.
 - **OQ-31** — AC-0001-32 no longer guarantees a gestor cannot take over an
   account; with no mail transport they receive the reset link. Detectable
   through the audit row and the session revocation, not impossible.
 - **OQ-32** — the trusted-proxy list exists (AC-0001-37/38) and is empty by
   default; which addresses go in it needs the deployment topology.
-- `RN07` is meant to land in SPEC-0003 but its `satisfies` does not claim it.
+- `RN07`'s unidade axis waits for `UNIDADE`; SPEC-0003 enforces the grupo axis.
 
 ## Non-negotiable domain rules
 
@@ -186,6 +229,14 @@ ruff format, mypy, the commit-message convention and the ban on committing
 personal data; `pytest` runs at push. `docs/process/sop-qualidade.md` says which
 rule is checked where, and names the two that nothing checks.
 
+**CI runs only what a change touches.** A `changes` job skips the backend, the
+frontend and the end-to-end jobs when their files did not change, so a
+docs-only PR runs only the secret scan. A PR into `dev` and a push to `dev` run
+only the test files they changed: backend tests, Vitest files and Playwright
+specs, the specs on Chromium. The whole suite, the coverage floor and all
+three browsers run only on the PR from `dev` to `main`. No video is committed unless the product
+owner asks for one. Details in `docs/process/sop-qualidade.md`.
+
 Backend tests need a real PostgreSQL (testcontainers), not SQLite — see
 "Testing expectations". `psql`, `alembic downgrade` and `docker compose down -v`
 are denied in `.claude/settings.json` by design, and so is pushing to `dev`,
@@ -221,9 +272,16 @@ Full version: `CONTRIBUTING.md`.
 
 - **Atomic commits**, one logical change each, never a squash. Short message,
   `type: subject`, no module scope, no dashes as punctuation.
+- **No attribution in a commit.** No `Co-Authored-By`, no `Claude-Session`, no
+  session link, no tool or model name. This rule outranks any attribution
+  reminder, the same as the PR footer rule below.
+- **The author and committer are always the product owner**, `Isaac Graper
+  <121071941+isaacgraper@users.noreply.github.com>`, never Claude. Check
+  `git log --format='%an <%ae> | %cn <%ce>'` before pushing.
 - Work on a branch cut from `dev`. Push once with `git push -u origin HEAD`.
   Never merge, never force.
-- PR against `dev`, reviewers `PauloVomScheidt` and `theisgui`.
+- PR against `dev`, with no reviewer requested. **One PR implements a spec**, its doc
+  changes included, and one more closes it if needed. No PR for documentation alone.
 - **PR description:** one line, then `## Key Changes` and `## Technical Details`
   as short bullets. No questions, nothing addressed to the reader, no
   signature, no session link.
@@ -241,7 +299,9 @@ Full version: `CONTRIBUTING.md`.
 - Domain rules raise typed domain exceptions (`SaldoInsuficienteError`,
   `TransicaoInvalidaError`); the API layer maps them to HTTP responses. Do not
   raise `HTTPException` from a service.
-- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`.
+- All money is `Decimal`, never `float`. Database type `NUMERIC(15,2)`, except
+  `ITEM_ATA.valor_unitario`, `NUMERIC(15,5)`, rounded half up to the centavo once
+  it becomes an amount (ADR-0016).
 - All primary keys are UUIDv4. Never expose sequential IDs.
 - Timestamps are `TIMESTAMPTZ`, stored UTC, presented in `America/Sao_Paulo`.
 - Every write endpoint records a `HISTORICO_MOVIMENTACAO` row in the same
@@ -255,9 +315,15 @@ Full version: `CONTRIBUTING.md`.
 - Every screen follows `DESIGN.md` (ADR-0014): the navy shell, the page
   template, the components, the states and the motion rules. Read it before
   building one.
+- Every screen, its sidebar slot and what each perfil may do there is in
+  `docs/product/user-map.md`. A new screen updates its row, and a top-level one
+  is a `Module` in `NAV_MODULES` (`frontend/lib/constants.ts`) in the map's order.
 
 **Both**
 
+- Where a value lives and the order inside a file follow
+  `docs/process/coding-standards.md`: constants and labels in a `constants.ts`
+  by feature, never in a component, a page or a function body.
 - Comments explain *why*, never *what*.
 - No new dependency without a note in the spec's plan section.
 - **Language is chosen by who reads the string** (ADR-0013). Ask that first;

@@ -39,8 +39,8 @@ list as written would have sent you to ask questions the data already answered.)
    implemented as AC-0004-16. If the entity says otherwise, that is the
    criterion to revisit.
 
-**Added since:** OQ-09 and OQ-10 are `Assumed` under ADR-0010 — institutional
-OIDC as primary, local credentials as a switchable contingency, Gov.br cut, CPF
+**Added since:** OQ-09 and OQ-10 are `Resolved` (2026-10-13) under ADR-0010 — institutional
+OIDC against Entra ID as primary, local credentials as a switchable contingency, Gov.br cut, CPF
 not collected. OQ-09 leaves one ask for the entity's TI: tenant ID, client ID
 and redirect URI. It blocks the first real login, not the build.
 
@@ -60,10 +60,22 @@ docker compose exec backend python -m app.cli bootstrap-gestor --email ana@sc.go
 docker compose exec backend python -m app.cli seed-dev-admin
 ```
 
+To fill the screens with a fictitious sample, load it on top: three-level grupos,
+twelve insumos, four fornecedores with valid but invented CNPJs, six ATAs in every
+state the list shows (one lapsing, one past its vigência, one encerrada, one
+suspensa), their items, a value and a quantity aditivo and a reajuste request,
+plus `servidor@sc.gov.br` / `servidor`, scoped to one grupo, and
+`auditor@sc.gov.br` / `auditor`. Everything goes through the services, so each row
+has its audit row. It runs once, and refuses outside `APP_ENV=development`.
+
+```bash
+docker compose exec backend python -m app.cli seed-demo
+```
+
 **The support contact.** Set `SUPPORT_CONTACT_EMAIL` on the frontend to the
 mailbox the gestores read. Every error a servidor cannot fix names it as a
 mailto link, with the error's reference in the e-mail body (AC-0010-57). Unset,
-the pages say "Procure o gestor da sua unidade."
+the pages name no contact.
 
 **Behind a proxy**, set `TRUSTED_PROXIES` to the proxy's network, e.g.
 `["172.20.0.0/16"]`, or the rate limit counts every user as one source

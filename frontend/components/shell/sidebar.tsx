@@ -4,8 +4,8 @@ import { PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { NavLinks } from "@/components/shell/nav-links";
-import type { Me } from "@/lib/me";
-import { SIDEBAR_COOKIE } from "@/lib/sidebar";
+import { SIDEBAR_COOKIE } from "@/lib/constants";
+import type { Me } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // A display preference, not a credential (C1). If the browser refuses it the

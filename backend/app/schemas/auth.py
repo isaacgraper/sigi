@@ -30,6 +30,13 @@ class SessionOutput(BaseModel):
     expires_at: datetime.datetime
 
 
+class MechanismsOutput(BaseModel):
+    """Which login mechanisms the API accepts, each the switch its route obeys."""
+
+    local: bool
+    oidc: bool
+
+
 class UserOutput(BaseModel):
     """The caller's identity, declared field by field so `senha_hash` cannot leak."""
 

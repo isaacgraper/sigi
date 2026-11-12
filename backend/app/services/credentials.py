@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
+from app.constants.auth import CREDENTIAL_INVITE, CREDENTIAL_TOKEN_BYTES
 from app.core.config import get_settings
 from app.core.secrets_hmac import digest_secret
 from app.models.credential_token import CredentialToken
@@ -31,13 +32,6 @@ from app.services.errors import (
     InviteExpired,
     WeakPassword,
 )
-
-INVITE = "convite"
-RESET = "redefinicao"
-
-# 256 bits from a CSPRNG. The grant is looked up by equality on an indexed
-# column, so its security rests entirely on being unguessable.
-TOKEN_BYTES = 32
 
 
 @dataclass(frozen=True)
@@ -69,10 +63,10 @@ def issue(
     violation instead of superseding the first.
     """
     cfg = get_settings()
-    hours = cfg.invite_ttl_hours if kind == INVITE else cfg.reset_ttl_hours
+    hours = cfg.invite_ttl_hours if kind == CREDENTIAL_INVITE else cfg.reset_ttl_hours
     repo.cancel_open(session, user_id=user_id, kind=kind, at=at)
 
-    value = secrets.token_urlsafe(TOKEN_BYTES)
+    value = secrets.token_urlsafe(CREDENTIAL_TOKEN_BYTES)
     row = repo.create(
         session,
         user_id=user_id,

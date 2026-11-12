@@ -2,7 +2,8 @@
 
 `python -m app.cli bootstrap-gestor --email ...` creates the first gestor
 (AC-0001-34); `seed-dev-admin` creates admin@sc.gov.br / admin, in development
-only (AC-0001-39). An HTTP route that could do this would be the most valuable
+only (AC-0001-39); `seed-demo` loads a fictitious sample on top of it, in
+development only too. An HTTP route that could do this would be the most valuable
 route in the system to attack, so the only way in is a shell on the server.
 """
 
@@ -15,8 +16,9 @@ import sys
 import uuid
 from collections.abc import Callable, Sequence
 
+from app.constants.members import DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD
 from app.core.db import session_factory
-from app.services import members
+from app.services import demo, mail, members, resumo
 from app.services.errors import DomainError
 
 
@@ -67,10 +69,50 @@ def seed_dev_admin() -> int:
             print(f"{exc.code}: {exc.message_text}", file=sys.stderr)
             return 1
     if user is None:
-        print(f"{members.DEV_ADMIN_EMAIL} already exists.")
+        print(f"{DEV_ADMIN_EMAIL} already exists.")
     else:
-        print(f"Gestor {members.DEV_ADMIN_EMAIL} created, password '{members.DEV_ADMIN_PASSWORD}'.")
+        print(f"Gestor {DEV_ADMIN_EMAIL} created, password '{DEV_ADMIN_PASSWORD}'.")
     return 0
+
+
+def seed_demo() -> int:
+    """Load the fictitious sample on a development install, once."""
+    with session_factory()() as session:
+        try:
+            report = demo.seed_demo(
+                session,
+                at=datetime.datetime.now(datetime.UTC),
+                correlation_id=uuid.uuid4(),
+            )
+            session.commit()
+        except DomainError as exc:
+            session.rollback()
+            print(f"{exc.code}: {exc.message_text}", file=sys.stderr)
+            return 1
+    if not report.loaded:
+        print("The demo sample is already loaded.")
+        return 0
+    counts = ", ".join(f"{value} {name}" for name, value in report.counts.items())
+    print(f"Demo sample loaded: {counts}.")
+    print(f"Sign in as {DEV_ADMIN_EMAIL} / {DEV_ADMIN_PASSWORD}, or as:")
+    for email in report.members:
+        print(f"  {email} / {email.split('@')[0]}")
+    return 0
+
+
+def notificar() -> int:
+    """Raise today's ATA notices and send the summaries due (SPEC-0008); run daily."""
+    with session_factory()() as session:
+        result = resumo.run(
+            session,
+            sender=mail.sender_for(),
+            at=datetime.datetime.now(datetime.UTC),
+            correlation_id=uuid.uuid4(),
+        )
+        session.commit()
+    print(f"{result.criadas} aviso(s) novo(s), {result.enviados} resumo(s) enviado(s).")
+    # A failed send is recorded and retried by the next run (AC-0008-10).
+    return 1 if result.falhas else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -85,9 +127,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="for an install that logs in only through OIDC",
     )
     commands.add_parser("seed-dev-admin", help="development only: admin@sc.gov.br / admin")
+    commands.add_parser("seed-demo", help="development only: a fictitious sample of data")
+    commands.add_parser("notificar", help="raise today's ATA notices and send the summaries due")
     args = parser.parse_args(argv)
     if args.command == "seed-dev-admin":
         return seed_dev_admin()
+    if args.command == "notificar":
+        return notificar()
+    if args.command == "seed-demo":
+        return seed_demo()
     return bootstrap_gestor(args.email, no_password=args.no_password)
 
 

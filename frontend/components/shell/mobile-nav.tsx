@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { NavLinks } from "@/components/shell/nav-links";
 import { Brand } from "@/components/shell/sidebar";
-import type { Me } from "@/lib/me";
+import type { Me } from "@/lib/types";
 
 /**
  * Below 1024 px the sidebar is a drawer (AC-0011-04 to -06). The dialog

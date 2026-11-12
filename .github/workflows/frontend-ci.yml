@@ -17,8 +17,61 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides what the rest has to test. A job with nothing to test is skipped,
+  # and GitHub counts a skipped job as passed, so a required check never hangs
+  # on a PR that only changes documentation.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.diff.outputs.frontend }}
+      app: ${{ steps.diff.outputs.app }}
+      full: ${{ steps.diff.outputs.full }}
+      unit: ${{ steps.diff.outputs.unit }}
+      specs: ${{ steps.diff.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # The one place everything runs: the pull request that takes dev to
+          # main. Any other PR, and every push to dev or main, runs what changed.
+          if [ "$EVENT" = "pull_request" ] && [ "$BASE_REF" = "main" ]; then echo "full=true"; else echo "full=false"; fi >> "$GITHUB_OUTPUT"
+          base="$PUSH_BEFORE"
+          [ "$EVENT" = "pull_request" ] && base="$PR_BASE"
+          # No usable base (a new branch, a force push): test everything.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            files="$(printf 'frontend/\nbackend/\n')"
+          else
+            files="$(git diff --name-only "$base" HEAD)"
+          fi
+          if echo "$files" | grep -qE '^frontend/'; then echo "frontend=true"; else echo "frontend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(frontend/|backend/|infra/)'; then echo "app=true"; else echo "app=false"; fi >> "$GITHUB_OUTPUT"
+          # What a change runs: the test files it touched and that still exist. A
+          # change to the shared setup, or no usable base, runs them all.
+          if echo "$files" | grep -qE '^frontend/(vitest\.config\.ts)?$'; then
+            unit="tests"
+          else
+            unit="$(echo "$files" | grep -E '^frontend/tests/[A-Za-z0-9_.-]+\.test\.tsx?$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "unit=$unit" >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^frontend/((e2e/helpers|playwright\.config)\.ts)?$'; then
+            specs="e2e"
+          else
+            specs="$(echo "$files" | grep -E '^frontend/e2e/[A-Za-z0-9_.-]+\.spec\.ts$' | sed 's#^frontend/##' | while read -r f; do [ -f "frontend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend lint, tests and build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,7 +94,14 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Unit tests of the files that changed (Vitest)
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.unit != ''
+        env:
+          UNIT: ${{ needs.changes.outputs.unit }}
+        run: npm run test -- $UNIT
+
       - name: Unit tests (Vitest)
+        if: needs.changes.outputs.full == 'true'
         run: npm run test
 
       - name: Production build
@@ -49,6 +109,12 @@ jobs:
 
   e2e:
     name: End to end (SPEC-0010)
+    # The API is half of what it tests, so on the PR from dev to main a backend
+    # change runs it too. Anything else runs only the spec files it changed.
+    needs: changes
+    if: >-
+      (needs.changes.outputs.full != 'true' && needs.changes.outputs.specs != '') ||
+      (needs.changes.outputs.full == 'true' && needs.changes.outputs.app == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -82,12 +148,13 @@ jobs:
       # The suite logs in dozens of times from one address; production ceilings
       # would throttle the harness, not the feature under test.
       RATE_LIMIT_CEILINGS: >-
-        {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
+        {"/api/v1/auth/login":10000,"/api/v1/auth/refresh":10000,"/api/v1/auth/logout":10000,"/api/v1/auth/me":10000,"/api/v1/auth/mecanismos":10000,"/api/v1/auth/oidc/authorize":10000,"/api/v1/auth/oidc/callback":10000,"/api/v1/auth/redefinicoes/confirmar":10000,"/api/v1/convites/ativar":10000}
       # The development seed (AC-0001-39): admin@sc.gov.br / admin. No
       # password literal lives in this file, and the gestor is the only one.
       APP_ENV: development
       PLAYWRIGHT_BASE_URL: http://localhost:3000
       PLAYWRIGHT_OIDC_ONLY_URL: http://localhost:3001
+      PLAYWRIGHT_NO_API_URL: http://localhost:3002
 
     steps:
       - uses: actions/checkout@v5
@@ -112,15 +179,20 @@ jobs:
       - name: Provision the application role
         run: sh infra/postgres/init/01-roles.sh
 
-      - name: Migrate, seed the development gestor, start the API
+      # The login page asks the API which mechanisms it accepts (AC-0010-05), so
+      # the OIDC-only frontend needs an API of its own configured that way.
+      - name: Migrate, seed the development gestor, start the APIs
         working-directory: backend
         run: |
           poetry sync --only main
           poetry run alembic upgrade head
           poetry run python -m app.cli seed-dev-admin
           nohup poetry run uvicorn app.main:app --port 8000 > ../api.log 2>&1 &
+          LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup poetry run uvicorn app.main:app --port 8001 > ../api-oidc.log 2>&1 &
 
-      - name: Build and start the frontend, local and OIDC-only
+      # Three frontends: the default one, an OIDC-only one, and one whose API
+      # answers nothing, for the fallback of AC-0010-62.
+      - name: Build and start the frontends, local, OIDC-only and without an API
         working-directory: frontend
         env:
           API_ORIGIN: http://localhost:8000
@@ -128,23 +200,32 @@ jobs:
           npm ci
           npm run build
           SUPPORT_CONTACT_EMAIL=suporte@sc.gov.br nohup npx next start --port 3000 > ../web.log 2>&1 &
-          LOCAL_LOGIN_ENABLED=false OIDC_ENABLED=true nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
-          for url in http://localhost:8000/health http://localhost:3000/login http://localhost:3001/login; do
+          API_ORIGIN=http://localhost:8001 nohup npx next start --port 3001 > ../web-oidc.log 2>&1 &
+          API_ORIGIN=http://localhost:9 nohup npx next start --port 3002 > ../web-noapi.log 2>&1 &
+          for url in http://localhost:8000/health http://localhost:8001/health http://localhost:3000/login http://localhost:3001/login http://localhost:3002/login; do
             for i in $(seq 1 60); do curl -sf -o /dev/null "$url" && break; sleep 1; done
             curl -sf -o /dev/null "$url" || { echo "not ready: $url"; exit 1; }
           done
 
+      # Chromium only, except on the PR from dev to main, which runs all three
+      # browsers once and is where RNF06 is proven. Three browsers on every
+      # push cost about 20 minutes a run for little extra signal.
       - name: Install browsers
         working-directory: frontend
-        run: npx playwright install --with-deps chromium firefox webkit
+        env:
+          BROWSERS: ${{ needs.changes.outputs.full == 'true' && 'chromium firefox webkit' || 'chromium' }}
+        run: npx playwright install --with-deps $BROWSERS
 
-      - name: Playwright on Chromium, Firefox and WebKit (RNF06)
+      - name: Playwright (changed specs on Chromium; everything on three browsers on the PR from dev to main, RNF06)
         working-directory: frontend
-        run: npm run test:e2e
+        env:
+          PROJECTS: ${{ needs.changes.outputs.full == 'true' && '' || '--project=chromium' }}
+          SPECS: ${{ needs.changes.outputs.full == 'true' && '' || needs.changes.outputs.specs }}
+        run: npm run test:e2e -- $PROJECTS $SPECS
 
       - name: Server logs
         if: failure()
-        run: tail -n 100 api.log web.log web-oidc.log
+        run: tail -n 100 api.log api-oidc.log web.log web-oidc.log web-noapi.log
 
       - uses: actions/upload-artifact@v4
         if: failure()

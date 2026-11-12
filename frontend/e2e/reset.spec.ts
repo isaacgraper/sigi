@@ -12,6 +12,9 @@ async function resetLink(): Promise<{ email: string; link: string }> {
 }
 
 async function submit(page: import("@playwright/test").Page, value: string) {
+  // The button is enabled once React has hydrated; a value typed before that is
+  // reset when it does, and the two fields then disagree (seen on WebKit).
+  await expect(page.getByRole("button", { name: "Redefinir senha" })).toBeEnabled();
   await page.getByLabel("Nova senha").fill(value);
   await page.getByLabel("Confirme a senha").fill(value);
   await page.getByRole("button", { name: "Redefinir senha" }).click();

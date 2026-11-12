@@ -9,12 +9,11 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorNotice } from "@/components/error-notice";
 import { InviteDialog } from "@/components/members/invite-dialog";
 import { MemberActions } from "@/components/members/member-actions";
-import { type MemberPage, STATUS_LABEL, STATUS_TONE } from "@/components/members/types";
 import { PageHeader } from "@/components/page-header";
 import { useSession } from "@/components/session-provider";
 import { TableSkeleton } from "@/components/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Status } from "@/components/ui/status";
 import {
   Table,
   TableBody,
@@ -23,12 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cached } from "@/lib/api-cache";
+import { PERFIL_LABEL } from "@/lib/constants";
 import { ApiError, unavailable } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { PERFIL_LABEL } from "@/lib/me";
+import { MEMBERS_PAGE_SIZE, STATUS_LABEL, STATUS_TONE } from "@/lib/members/constants";
+import type { MemberPage } from "@/lib/members/types";
 import { apiJson } from "@/lib/session";
-
-const SIZE = 20;
 
 function pageFrom(raw: string | null): number {
   const value = Number.parseInt(raw ?? "1", 10);
@@ -40,7 +40,8 @@ export function Members() {
   const router = useRouter();
   const page = pageFrom(useSearchParams().get("page"));
 
-  const [data, setData] = useState<MemberPage | null>(null);
+  const path = `/api/v1/usuarios?page=${page}&size=${MEMBERS_PAGE_SIZE}`;
+  const [data, setData] = useState<MemberPage | null>(() => cached<MemberPage>(path) ?? null);
   const [refusal, setRefusal] = useState<ApiError | null>(null);
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [version, setVersion] = useState(0);
@@ -52,7 +53,7 @@ export function Members() {
 
   useEffect(() => {
     let cancelled = false;
-    apiJson<MemberPage>(`/api/v1/usuarios?page=${page}&size=${SIZE}`)
+    apiJson<MemberPage>(path)
       .then((value) => {
         if (cancelled) return;
         setData(value);
@@ -65,7 +66,7 @@ export function Members() {
     return () => {
       cancelled = true;
     };
-  }, [page, version, handleSessionError]);
+  }, [path, version, handleSessionError]);
 
   const lastPage = data ? Math.max(1, Math.ceil(data.total / data.size)) : 1;
 
@@ -137,9 +138,9 @@ export function Members() {
                   <TableCell data-testid="cell-registration">{member.registration ?? "—"}</TableCell>
                   <TableCell>{PERFIL_LABEL[member.perfil]}</TableCell>
                   <TableCell>
-                    <Badge tone={STATUS_TONE[member.status]} data-testid="cell-status">
+                    <Status tone={STATUS_TONE[member.status]} data-testid="cell-status">
                       {STATUS_LABEL[member.status]}
-                    </Badge>
+                    </Status>
                   </TableCell>
                   <TableCell className="tabular-nums">{formatDate(member.created_at)}</TableCell>
                   {manages && (

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import type { Me } from "@/lib/me";
 import { isActive, navigationFor } from "@/lib/modules";
+import type { Me } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**

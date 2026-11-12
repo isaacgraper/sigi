@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime
 import decimal
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ from app.models.fornecedor import Fornecedor
 
 
 def fornecedor_by_cnpj(session: Session, cnpj: str) -> Fornecedor | None:
-    """Find a fornecedor by its 14 digits, or None."""
+    """Find a fornecedor by its 14 normalised characters, or None."""
     return session.scalars(select(Fornecedor).where(Fornecedor.cnpj == cnpj)).one_or_none()
 
 
@@ -91,6 +91,24 @@ def list_page(
     return rows, int(total)
 
 
+def by_ids(session: Session, ata_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Ata]:
+    """These ATAs, keyed by id."""
+    if not ata_ids:
+        return {}
+    return {ata.id: ata for ata in session.scalars(select(Ata).where(Ata.id.in_(list(ata_ids))))}
+
+
+def aditivos_of_atas(session: Session, ata_ids: Collection[uuid.UUID]) -> Sequence[AtaAditivo]:
+    """The aditivos of these ATAs, oldest first."""
+    if not ata_ids:
+        return []
+    return session.scalars(
+        select(AtaAditivo)
+        .where(AtaAditivo.ata_id.in_(list(ata_ids)))
+        .order_by(AtaAditivo.criado_em, AtaAditivo.id)
+    ).all()
+
+
 def aditivos_of(session: Session, ata_id: uuid.UUID) -> Sequence[AtaAditivo]:
     """The aditivos of an ATA, oldest first."""
     return session.scalars(
@@ -160,4 +178,47 @@ def reajuste_alert(session: Session, *, until: datetime.date) -> Sequence[Ata]:
         select(Ata)
         .where(Ata.status == "vigente", reajuste_date <= until, ~has_request)
         .order_by(reajuste_date, Ata.id)
+    ).all()
+
+
+def created_until(
+    session: Session, *, until: datetime.datetime, ata_id: uuid.UUID | None
+) -> Sequence[Ata]:
+    """The ATAs created by an instant, one of them or all, by número (SPEC-0009 §2.2)."""
+    query = select(Ata).where(Ata.criado_em <= until)
+    if ata_id is not None:
+        query = query.where(Ata.id == ata_id)
+    return session.scalars(query.order_by(Ata.number, Ata.id)).all()
+
+
+def aditivos_de_valor_until(
+    session: Session, *, until: datetime.datetime
+) -> dict[uuid.UUID, decimal.Decimal]:
+    """The aditivos of value recorded by an instant, summed per ATA (SPEC-0009 §2.2)."""
+    rows = session.execute(
+        select(AtaAditivo.ata_id, func.sum(AtaAditivo.valor_acrescimo))
+        .where(AtaAditivo.kind == "valor", AtaAditivo.criado_em <= until)
+        .group_by(AtaAditivo.ata_id)
+    ).all()
+    return {ata_id: decimal.Decimal(total) for ata_id, total in rows}
+
+
+def fornecedores_by_id(
+    session: Session, fornecedor_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, Fornecedor]:
+    """These fornecedores, keyed by id."""
+    if not fornecedor_ids:
+        return {}
+    return {
+        fornecedor.id: fornecedor
+        for fornecedor in session.scalars(
+            select(Fornecedor).where(Fornecedor.id.in_(list(fornecedor_ids)))
+        )
+    }
+
+
+def vigentes(session: Session) -> Sequence[Ata]:
+    """Every ATA whose status is vigente, by número (SPEC-0008 AC-0008-01)."""
+    return session.scalars(
+        select(Ata).where(Ata.status == "vigente").order_by(Ata.number, Ata.id)
     ).all()

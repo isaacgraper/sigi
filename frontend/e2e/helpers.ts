@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { type APIRequestContext, expect, type Page, request } from "@playwright/test";
 
 /**
@@ -52,7 +53,7 @@ export async function member(perfil: Perfil) {
 }
 
 /** Gestor-side action on a member, through the API. */
-export async function asGestor(method: "post", path: string, data?: Record<string, unknown>) {
+export async function asGestor(method: "get" | "post", path: string, data?: Record<string, unknown>) {
   const ctx = await api();
   const token = await tokenFor(ctx, GESTOR.email, GESTOR.password);
   const response = await ctx[method](path, { headers: { Authorization: `Bearer ${token}` }, data });
@@ -79,9 +80,101 @@ export async function signIn(page: Page, email: string, password: string) {
 }
 
 /**
- * Follow a sidebar entry. The dashboard's tiles link to the same modules
- * (AC-0011-13), so a link found by name alone is no longer unique.
+ * Follow a sidebar entry. The search stays inside the navigation, because a
+ * page's own content may name the same module.
  */
 export async function openFromSidebar(page: Page, name: string) {
   await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name }).click();
+}
+
+/** A date `days` from today, as the API reads it (`2026-10-13`). */
+export function isoDay(days: number): string {
+  // Today as the API counts it, in America/Sao_Paulo: from 21h there the UTC date
+  // is already tomorrow, and every "N days" would be off by one.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const date = new Date(`${today}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** A unique ATA number, so the suite can run again on the same database. */
+export function ataNumber(): string {
+  return `E2E-${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/** An ATA registered through the API by the seeded gestor, and moved on if asked. */
+export async function createAta(overrides: Record<string, unknown> = {}, moves: string[] = []) {
+  const created = await asGestor("post", "/api/v1/atas", {
+    number: ataNumber(),
+    subject: "Seringas descartáveis com dispositivo de segurança",
+    organ: "Secretaria de Estado da Saúde",
+    fornecedor: { cnpj: "11.222.333/0001-81", legal_name: "MedSul Distribuidora Ltda" },
+    vigencia_inicio: "2026-01-02",
+    vigencia_fim: "2026-12-01",
+    total_value: "1234567.89",
+    budget_date: "2026-02-10",
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const ata = created.body as { id: string; number: string };
+  for (const move of moves) {
+    const moved = await asGestor("post", `/api/v1/atas/${ata.id}/${move}`);
+    expect(moved.status, JSON.stringify(moved.body)).toBe(200);
+  }
+  return ata;
+}
+
+/** AC-0010-44: no serious or critical axe violation on what settled on screen. */
+export async function noSeriousViolations(page: Page) {
+  // Measure what settles on screen, not a frame of a fade: text halfway through
+  // an opacity transition reads as low contrast. Endless ones (a skeleton's
+  // pulse) are left alone, since they never finish.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
+  const results = await new AxeBuilder({ page }).analyze();
+  const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+}
+
+/** A unique code, so the catalogue suite runs again on the same database. */
+export function uniqueSku(): string {
+  return `E2E${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1e6).toString(36).toUpperCase()}`;
+}
+
+/** A grupo created through the API by the seeded gestor. */
+export async function createGrupo(name = `GRUPO ${uniqueSku()}`, parentId: string | null = null) {
+  const created = await asGestor("post", "/api/v1/grupos-materiais", { name, parent_id: parentId });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { id: string; name: string; level: number };
+}
+
+/** An insumo registered through the API by the seeded gestor. */
+export async function createInsumo(grupoId: string, overrides: Record<string, unknown> = {}) {
+  const created = await asGestor("post", "/api/v1/insumos", {
+    sku: uniqueSku(),
+    description: `CLOREXIDINA 2% 1 L ${uniqueSku()}`,
+    unit: "UN",
+    grupo_id: grupoId,
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { id: string; sku: string; description: string };
+}
+
+/** An item of an ATA, added through the API by the seeded gestor. */
+export async function addItem(ataId: string, insumoId: string, overrides: Record<string, unknown> = {}) {
+  const created = await asGestor("post", `/api/v1/atas/${ataId}/itens`, {
+    insumo_id: insumoId,
+    quantity: "100",
+    unit_price: "1.5",
+    ...overrides,
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  return created.body as { items: { id: string; insumo: { id: string; sku: string } }[] };
 }

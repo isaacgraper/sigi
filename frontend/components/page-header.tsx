@@ -9,7 +9,7 @@ export function PageHeader({
   action,
 }: {
   title: string;
-  description: string;
+  description?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
@@ -19,7 +19,7 @@ export function PageHeader({
     >
       <div className="min-w-0">
         <h1 className="text-2xl font-normal tracking-tight">{title}</h1>
-        <p className="text-sm font-light text-muted-foreground">{description}</p>
+        {description && <p className="text-sm font-light text-muted-foreground">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

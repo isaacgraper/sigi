@@ -9,15 +9,8 @@
  */
 import type { NextRequest } from "next/server";
 
-// Hop-by-hop headers, and the ones `fetch` recomputes after decoding the body.
-const DROPPED = new Set([
-  "connection",
-  "content-encoding",
-  "content-length",
-  "host",
-  "keep-alive",
-  "transfer-encoding",
-]);
+import { PROXY_DROPPED_HEADERS } from "@/lib/constants";
+
 
 async function forward(
   request: NextRequest,
@@ -30,7 +23,7 @@ async function forward(
 
   const headers = new Headers();
   request.headers.forEach((value, name) => {
-    if (!DROPPED.has(name)) headers.set(name, value);
+    if (!PROXY_DROPPED_HEADERS.has(name)) headers.set(name, value);
   });
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
@@ -46,7 +39,7 @@ async function forward(
 
   const responseHeaders = new Headers();
   upstream.headers.forEach((value, name) => {
-    if (!DROPPED.has(name) && name !== "set-cookie") responseHeaders.set(name, value);
+    if (!PROXY_DROPPED_HEADERS.has(name) && name !== "set-cookie") responseHeaders.set(name, value);
   });
   // Each Set-Cookie must survive as its own header; joining them breaks cookies
   // whose attributes contain commas (Expires).

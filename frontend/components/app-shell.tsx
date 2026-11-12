@@ -1,11 +1,12 @@
 "use client";
 
+import { Bell } from "@/components/shell/bell";
 import { Breadcrumb } from "@/components/shell/breadcrumb";
 import { Footer } from "@/components/shell/footer";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { Sidebar } from "@/components/shell/sidebar";
 import { UserMenu } from "@/components/shell/user-menu";
-import type { Me } from "@/lib/me";
+import type { Me } from "@/lib/types";
 
 /** The frame of every authenticated page (SPEC-0011 §4.1, DESIGN.md §3). */
 export function AppShell({
@@ -28,6 +29,7 @@ export function AppShell({
           <div className="min-w-0 flex-1">
             <Breadcrumb />
           </div>
+          <Bell />
           <UserMenu me={me} onLogout={onLogout} />
         </header>
         <Content>{children}</Content>

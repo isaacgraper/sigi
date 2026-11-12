@@ -2,7 +2,7 @@
 id: SPEC-0010
 title: Telas de acesso e gestão de membros
 status: Implemented
-version: 1.7
+version: 1.11
 owner: Isaac Kleimmann Graper
 satisfies: [RF01, RF02, RF18, RNF06, RNF14]
 depends_on: [SPEC-0001]
@@ -74,8 +74,9 @@ the page makes. "Shows the message" means the API's `error.message`, verbatim
 
 `/login` shows the institutional button when OIDC is enabled, and the local
 form (e-mail, password with show/hide) when local login is enabled. Which
-mechanisms are enabled is a frontend setting that mirrors the API's switches,
-because no API route reports them (OQ-33).
+mechanisms are enabled is asked of the API on every request to the page, at
+`GET /api/v1/auth/mecanismos` (SPEC-0001 AC-0001-47), so the page and the API
+cannot drift (OQ-33, resolved in v1.9).
 
 **AC-0010-01** — Local login lands on the dashboard
 ```gherkin
@@ -105,12 +106,12 @@ And   the submit button is disabled for the seconds in "Retry-After"
 ```gherkin
 Given a usuario whose status is not "ativo"
 When  a login is submitted and the API answers "USUARIO_INATIVO"
-Then  the page shows "Esta conta não está ativa. Procure o gestor da sua unidade."
+Then  the page shows "Esta conta não está ativa."
 ```
 
 **AC-0010-05** — A disabled local login is not offered
 ```gherkin
-Given local login disabled
+Given the API reports local login disabled and OIDC enabled
 When  /login is opened
 Then  there is no password field on the page
 And   the institutional button is the only way in
@@ -127,9 +128,16 @@ Then  the browser navigates to "/api/v1/auth/oidc/authorize"
 ```gherkin
 Given any configuration
 When  /login is opened
-Then  it shows "Esqueceu a senha? Procure o gestor da sua unidade."
-And   it contains no link to a signup or self-service reset page
+Then  it contains no link to a signup or self-service reset page
 And   opening "/signup" answers the not-found page
+```
+
+**AC-0010-62** — The page falls back when the API cannot say *(new in v1.9)*
+```gherkin
+Given GET /api/v1/auth/mecanismos fails or answers anything but 200
+When  /login is opened
+Then  the local form is shown and the institutional button is not
+And   the page shows the unavailable-service notice
 ```
 
 **AC-0010-08** — A submitting form cannot be submitted twice
@@ -638,7 +646,7 @@ Given a failure that only a gestor can resolve: no answer or a 5xx,
 When  its message is shown
 Then  "Fale com o gestor:" follows, with SUPPORT_CONTACT_EMAIL as a mailto link
 And   when the failure carried a correlation_id, the link's e-mail body holds it
-And   without SUPPORT_CONTACT_EMAIL it says "Procure o gestor da sua unidade."
+And   without SUPPORT_CONTACT_EMAIL nothing follows the message
 ```
 
 Validation errors and a wrong password are not in the list: the person can fix
@@ -668,11 +676,9 @@ displayed verbatim (C3). The strings the screens own:
 | Invitation link without token | `/invite` | "Link de convite incompleto. Peça um novo ao gestor." |
 | Reset link without token | `/reset-password` | "Link de redefinição incompleto. Peça um novo ao gestor." |
 | Reset confirmed | `/login` | "Senha redefinida. Entre com a nova senha." |
-| Forgotten password | `/login` | "Esqueceu a senha? Procure o gestor da sua unidade." |
 | Unknown address | any | "Página não encontrada" |
 | A page failed to render | any | "Algo deu errado" |
 | Contact, configured | after AC-0010-57's errors | "Fale com o gestor: {SUPPORT_CONTACT_EMAIL}" |
-| Contact, not configured | after AC-0010-57's errors | "Procure o gestor da sua unidade." |
 | Provider returned an error instead of a code | `/auth/callback` | "A entrada institucional foi cancelada ou não foi autorizada. Tente novamente." |
 
 Two API refusals these screens handle are missing from SPEC-0001 §5 (OQ-37):
@@ -737,9 +743,9 @@ Taken from `docs/product/design-reference.md` (the Lovable prototype), which is
 a style reference ranked below this spec:
 
 - **Colour.** The green `primary` marks brand, primary actions and completion
-  only; nothing "in progress" is green. Member status badges: `ativo` accent,
-  `pendente` slate, `bloqueado` amber, `desativado` muted. Status never relies on
-  colour alone; the badge text carries it.
+  only; nothing "in progress" is green. Member status is text (DESIGN.md §4):
+  `ativo` in the body colour, `pendente` and `desativado` muted, `bloqueado` with
+  an amber dot. Status never relies on colour alone; the word carries it.
 - **Components and layout.** The reference's component set, icons and toasts;
   the split-screen login with the brand panel; the shell with a collapsible
   sidebar and a header holding the user menu; confirmation dialogs; the
@@ -754,11 +760,9 @@ by `/plan` after approval.
 
 ## 10. Open questions
 
-- **OQ-33 — which login mechanisms are enabled.** No API route reports it, so
-  the frontend mirrors the API's two switches in its own configuration. If the
-  two drift, the login page offers a mechanism that answers 404, or hides one
-  that works. A public `GET /api/v1/auth/mecanismos` would remove the drift,
-  but that is a SPEC-0001 change.
+- **OQ-33 — which login mechanisms are enabled.** *Resolved (2026-11-06,
+  issue #85).* SPEC-0001 v1.11 serves `GET /api/v1/auth/mecanismos`
+  (AC-0001-47); the login page reads it and no longer mirrors the switches.
 - **OQ-34 — unblocking a member.** *Resolved (2026-10-02, stakeholder question
   10).* SPEC-0001 v1.7 specifies the route (AC-0001-44) and AC-0010-59 the
   control. The screens do not show it until the route is served.
@@ -825,7 +829,7 @@ every page makes at most two calls.
 | `components/ui/*` | shadcn/ui components, copied in |
 | `components/app-shell.tsx`, `components/user-menu.tsx` | Sidebar with "Painel" and "Membros", header with identity (C4) and "Sair" |
 | `app/page.tsx` | Redirects to `/dashboard` (AC-52) |
-| `app/login/page.tsx` | Server Component reading `LOCAL_LOGIN_ENABLED` and `OIDC_ENABLED` at runtime (OQ-33); renders the client login form |
+| `app/login/page.tsx` | Server Component asking `GET /api/v1/auth/mecanismos` on every request, falling back to local only with the unavailable notice (AC-0010-62); renders the client login form |
 | `app/auth/callback/page.tsx` | Calls the API callback with `code` and `state`, or shows the provider's error without calling it (AC-48) |
 | `app/(app)/layout.tsx` | Auth guard and shell for every authenticated page; restores the session on load (AC-11) |
 | `app/(app)/dashboard/page.tsx` | Identity from `/auth/me` (AC-28) |
@@ -846,7 +850,7 @@ AC, e.g. `AC-0010-12 renews an expired token once`.
 
 | AC | File |
 | --- | --- |
-| 01–08, 50, 51 | `e2e/login.spec.ts` |
+| 01–08, 50, 51, 62 | `e2e/login.spec.ts` |
 | 09, 10, 48 | `e2e/callback.spec.ts`, intercepting the API callback with `page.route`; the provider handshake is covered by the backend suite |
 | 11, 13, 14, 15, 47 | `e2e/session.spec.ts` |
 | 12, 17, 46 | `tests/session.test.ts` |
@@ -902,3 +906,7 @@ One commit per step, split into two PRs after step 5.
 | 1.5 | 2026-10-02 | AC-0010-59: unblocking a member, with a justification (OQ-34, stakeholder question 10). AC-0010-60: the invite dialog asks for the full name and the registration (OQ-35, question 11). The member table gains a Registro column (AC-0010-29, -31) and AC-0010-32 and -41 account for the unblock control. Implemented 2026-10-06; the e2e proof is `e2e/members.spec.ts`. |
 | 1.6 | 2026-10-07 | AC-0010-61: a pending member's row offers "Gerar novo convite", which shows a new link once and switches off the old one (SPEC-0001 AC-0001-46), by the product owner's request. AC-0010-41 states what a pending row offers. |
 | 1.7 | 2026-10-08 | Implemented, accepted by the product owner after testing the screens. Every criterion has a test in `frontend/e2e` or `frontend/tests`. No criterion changed. |
+| 1.8 | 2026-10-13 | §9: member status is text with an attention dot for `bloqueado`, not a badge, following DESIGN.md §4 as revised by the product owner. No behaviour change. |
+| 1.9 | 2026-11-03 | "Procure o gestor da sua unidade." removed from every screen, by the product owner's request: AC-0010-04 shows the shorter message, AC-0010-07 no longer shows a forgotten-password line, and AC-0010-57 shows no contact when SUPPORT_CONTACT_EMAIL is unset. |
+| 1.10 | 2026-11-04 | A refused password shows under its field, in red, instead of a notice below the form (AC-0010-20, -21). By the product owner's request. |
+| 1.11 | 2026-11-09 | §4.1: the login page asks the API which mechanisms are enabled (SPEC-0001 AC-0001-47) instead of mirroring them in its own configuration. AC-0010-05 restated against the API's answer; AC-0010-62 adds the fallback. OQ-33 resolved (issue #85). |

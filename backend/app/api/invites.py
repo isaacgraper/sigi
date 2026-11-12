@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy.orm import Session
 
 from app.api.auth import _set_cookie
 from app.core.authorization import Public
 from app.core.correlation import current as current_correlation_id
-from app.core.db import get_session
+from app.core.db import DbSession
 from app.core.throttling import enforce
 from app.schemas.auth import SessionOutput
 from app.schemas.invite import ActivationInput, ActivationOutput
@@ -20,15 +18,11 @@ from app.services import members, sessions
 
 router = APIRouter(prefix="/api/v1/convites", tags=["convites"], dependencies=[Depends(enforce)])
 
-DbSession = Annotated[Session, Depends(get_session)]
 
 # Open by definition: whoever holds the link has no account yet, which is the
 # entire point. Declared rather than omitted, because AC-0001-23 refuses a write
 # route with no access decision and "forgot" must not look like "decided".
-OPEN = [Depends(Public())]
-
-
-@router.post("/ativar", response_model=ActivationOutput, dependencies=OPEN)
+@router.post("/ativar", response_model=ActivationOutput, dependencies=[Depends(Public())])
 def activate(
     body: ActivationInput,
     request: Request,

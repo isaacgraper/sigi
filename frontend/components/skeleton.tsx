@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("animate-pulse rounded-md bg-muted", className)} />;
+  return <div aria-hidden className={cn("skeleton-pulse rounded-md bg-muted", className)} />;
 }
 
 /**
@@ -11,7 +11,7 @@ export function Skeleton({ className }: { className?: string }) {
  */
 export function PageSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div role="status" data-testid="page-skeleton" className="space-y-6">
+    <div role="status" data-testid="page-skeleton" className="reveal-late space-y-6">
       <span className="sr-only">Carregando...</span>
       <div className="space-y-2">
         <Skeleton className="h-8 w-48" />
@@ -24,7 +24,7 @@ export function PageSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div aria-hidden className="overflow-hidden rounded-lg border bg-card">
+    <div aria-hidden className="reveal-late overflow-hidden rounded-lg border bg-card">
       <div className="border-b bg-muted/60 px-4 py-3">
         <Skeleton className="h-4 w-40 bg-border" />
       </div>

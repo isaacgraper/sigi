@@ -6,10 +6,11 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { AppShell, Content } from "@/components/app-shell";
 import { ErrorNotice } from "@/components/error-notice";
 import { PageSkeleton } from "@/components/skeleton";
+import { SESSION_OVER_CODES } from "@/lib/constants";
 import { ApiError } from "@/lib/errors";
 import { setFlash } from "@/lib/flash";
-import type { Me } from "@/lib/me";
 import { apiJson, logout } from "@/lib/session";
+import type { Me } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface SessionContext {
@@ -25,10 +26,6 @@ export function useSession(): SessionContext {
   if (!value) throw new Error("useSession outside the authenticated layout");
   return value;
 }
-
-// Codes after which no retry can help: the refresh is spent, or the account
-// stopped being active mid-session (AC-0010-13, §5).
-const SESSION_OVER = new Set(["INVALID_REFRESH", "USUARIO_INATIVO"]);
 
 export function SessionProvider({
   sidebarCollapsed,
@@ -50,7 +47,7 @@ export function SessionProvider({
 
   const handleSessionError = useCallback(
     (error: unknown) => {
-      if (error instanceof ApiError && SESSION_OVER.has(error.code)) {
+      if (error instanceof ApiError && SESSION_OVER_CODES.has(error.code)) {
         setFlash(error.message);
         router.replace("/login");
         return true;

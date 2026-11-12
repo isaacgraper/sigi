@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.constants.members import LAST_GESTOR_LOCK_KEY
 from app.models.user import User
 
 
@@ -47,11 +48,6 @@ def create(
     return user
 
 
-# Arbitrary but fixed: an advisory lock key is just a number both sides agree
-# on. Named so that a second guard never picks the same one by accident.
-GESTOR_LOCK = 0x5163_0001
-
-
 def list_page(session: Session, *, page: int, size: int) -> Sequence[User]:
     """One page of members, newest first."""
     return session.scalars(
@@ -84,7 +80,7 @@ def lock_gestores(session: Session) -> None:
     A transaction-scoped advisory lock: released at commit or rollback, with no
     row to hold and no table to contend on.
     """
-    session.execute(text("SELECT pg_advisory_xact_lock(:chave)"), {"chave": GESTOR_LOCK})
+    session.execute(text("SELECT pg_advisory_xact_lock(:chave)"), {"chave": LAST_GESTOR_LOCK_KEY})
 
 
 def count_active_gestores(session: Session, *, excluding: uuid.UUID | None = None) -> int:
@@ -95,3 +91,19 @@ def count_active_gestores(session: Session, *, excluding: uuid.UUID | None = Non
     if excluding is not None:
         query = query.where(User.id != excluding)
     return int(session.scalar(query) or 0)
+
+
+def by_ids(session: Session, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, User]:
+    """These members, keyed by id."""
+    if not user_ids:
+        return {}
+    return {user.id: user for user in session.scalars(select(User).where(User.id.in_(user_ids)))}
+
+
+def active_with_email(session: Session) -> Sequence[User]:
+    """The active members who sign in with an e-mail, by name (SPEC-0008 AC-0008-06)."""
+    return session.scalars(
+        select(User)
+        .where(User.status == "ativo", User.email.is_not(None))
+        .order_by(User.nome, User.id)
+    ).all()

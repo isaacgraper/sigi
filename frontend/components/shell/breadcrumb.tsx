@@ -4,13 +4,14 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { DASHBOARD, moduleAt } from "@/lib/modules";
+import { NAV_DASHBOARD } from "@/lib/constants";
+import { moduleAt } from "@/lib/modules";
 
 /** Where the usuario is, from "Painel" to the current page (AC-0011-07). */
 export function Breadcrumb() {
   const pathname = usePathname();
   const here = moduleAt(pathname);
-  const trail = here && here !== DASHBOARD ? [DASHBOARD, here] : [DASHBOARD];
+  const trail = here && here !== NAV_DASHBOARD ? [NAV_DASHBOARD, here] : [NAV_DASHBOARD];
 
   return (
     <nav aria-label="Trilha de navegação" className="min-w-0">

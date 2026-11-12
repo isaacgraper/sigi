@@ -56,8 +56,9 @@ column and never hard-code a colour.
 Measured contrast (WCAG 2.1): foreground on background 15.8:1; white on primary
 12.3:1; white on sidebar 15.6:1; idle sidebar items 8.4:1; muted text 5.8:1;
 every status colour between 5.6:1 and 6.0:1 on white and at least 4.9:1 on
-its own 10 % badge tint (amber was darkened from `0.55 0.13 70` because it
-failed there at 4.4:1). Any new colour is checked
+a 10 % tint of itself (amber was darkened from `0.55 0.13 70` because it
+failed there at 4.4:1); a status now uses them only as a 6 px dot, which carries
+no text (§4). Any new colour is checked
 the same way before it is used, and the axe suite (AC-0010-44) guards the result.
 
 ### Type
@@ -72,7 +73,7 @@ the system stack, which drew a different face on every machine. Monospace for
 codes, links, Processo SEI, NE and NF numbers.
 
 Two weights only (product owner, 2026-09-28): **regular (400)** for titles and
-anything important (names, identities, labels, buttons, badges, the brand) and
+anything important (names, identities, labels, buttons, status words, the brand) and
 **light (300)** for the minor line under a title. No semibold or bold: hierarchy
 comes from size and colour.
 
@@ -82,7 +83,7 @@ comes from size and colour.
 | Section, card and dialog title | `text-base font-normal` (dialogs `text-lg`) |
 | Subtitle under a title, descriptions, secondary lines | `text-sm font-light text-muted-foreground` |
 | Body and table text | `text-sm` |
-| Table header, labels, buttons, badges | `font-normal` |
+| Table header, labels, buttons, status words | `font-normal` |
 | Caption, footer, the perfil under a name | `text-xs font-light text-muted-foreground` |
 | Figures in tables and stats | `tabular-nums` |
 | Codes and identifiers | `font-mono text-xs` |
@@ -163,17 +164,18 @@ tokens above. Prefer extending one of these to adding a new one.
 | Component | Rules |
 | --- | --- |
 | **Button** | Variants: `default` (navy), `outline`, `ghost`, `destructive`, `link`. One `default` button per view. Press feedback `scale(0.97)`. Label is a verb in pt-BR: "Convidar", "Salvar", not "OK". |
-| **Input, Select, Label** | Label above the field, always visible, never a placeholder in its place. Error text below the field in `text-danger`, linked with `aria-describedby`, field marked `aria-invalid`. |
+| **Input, Select, Label** | Label above the field, always visible, never a placeholder in its place. Error text below the field in `text-danger`, linked with `aria-describedby`, field marked `aria-invalid`, which turns its border and focus ring red. Every wrong field is marked in the same answer, never one at a time. |
 | **Form** | One column. Primary action at the end, right-aligned on desktop, full-width on mobile. A submitting form disables its button and changes the label ("Entrando...", "Enviando..."). |
 | **Table** | White card, `text-sm`, header row in muted text on a light tint, rows separated by hairlines, row hover tint. Scrolls sideways inside its own frame, never the page. Pagination below, state in the URL. Row actions behind a "⋯" menu labelled "Ações para <name>". |
-| **Badge** | Status only. Tint of the status colour at 10 %, text in the status colour, 1 px border at 30 %. Always a word. |
+| **Status** | Text, never a pill: no tinted background, no border, no rounded chip (the shadcn badge look reads as generated filler). The word in the body colour; a 6 px dot before it only when the state needs attention (`attention` amber, `danger` red); finished or inactive states in muted text with no dot. One thing has one status: a second fact joins it on the same line ("Vigente · a vencer") rather than a second chip beside it. Component: `components/ui/status.tsx`. |
 | **Card** | White, border, `shadow-sm`, `rounded-lg`. Title `text-base font-semibold`, optional muted description. |
 | **Module tile** | Dashboard entry point: card with a line icon in navy, the module name and one line of description; the whole tile is the link. Hover raises the border to navy, never scales. |
 | **Stat tile** | Number in `text-3xl font-semibold tabular-nums`, label above in muted text, optional change below. Only for figures the API provides. |
 | **Menu** | Opens from its trigger and is not modal: the page behind stays readable by assistive technology, and Escape, Tab or a click outside closes it. Row actions and the user menu use it. |
 | **Dialog** | Centred, `max-w-xl` for forms, `max-w-md` for confirmations. Destructive confirmations use `AlertDialog` and name the consequence ("não pode ser desfeita"). |
-| **Error notice** | Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
-| **Notice** | Success or information after an action, in a tinted box with `role="status"`. |
+| **Error notice** | Only for a refusal no field explains. Red-tinted box with the API's message, followed by the gestor contact when the servidor cannot fix it alone (AC-0010-57). |
+| **Notice** | Information a person needs before acting, in a tinted box with `role="status"`. Never success: a write's result is the confirmation (the new status, the new row, the page that opens), so no banner repeats it; assistive technology still hears it through a visually hidden `role="status"`. |
+| **Field help** | An "i" beside a label (`components/ui/info-tip.tsx`) that opens the field's explanation below the label by click, Enter or Space, and closes on Escape or a click elsewhere. Never "!", which reads as a warning, and never on hover alone, which a phone and a keyboard cannot reach. The text states what the API enforces, objectively. |
 | **Toast** | Sonner, top right, for confirmations that need no reading ("Convite criado"). Never for errors a person must act on: those stay on the page. |
 | **Icons** | `lucide-react`, 16 px in controls, 20 px in tiles and the sidebar, `aria-hidden` next to a label. |
 
@@ -220,15 +222,17 @@ here. None is licensed yet.
 
 | State | How it looks |
 | --- | --- |
-| **Loading a page** | A skeleton of the page's own layout (title bar, cards, table rows) in `bg-muted` blocks with a slow pulse, `role="status"` and "Carregando..." for screen readers. Never a blank page, never a centred spinner for a whole page. |
+| **Loading a page** | A skeleton of the page's own layout (title bar, cards, table rows) in `bg-muted` blocks with a slow pulse, `role="status"` and "Carregando..." for screen readers, shown only once the wait passes 300 ms (`.reveal-late`, `.skeleton-pulse`): a shorter wait shows nothing new rather than a flash. A page already read in this tab draws its last data at once and refreshes. Never a blank page, never a centred spinner for a whole page. |
 | **Loading an action** | The button disables and relabels; the rest of the page stays usable. |
 | **Empty** | Inside the table or card: the empty illustration, one sentence ("Nenhum membro encontrado."), and the action that fills it when the perfil has one. |
-| **Error** | The error notice, in place, without clearing what the person typed except passwords. |
+| **Error** | Each wrong field's message under it; the error notice, in place, only for what no field explains, without clearing what the person typed except passwords. |
 | **Not found** | The not-found status page (AC-0010-55). |
 | **Crash** | The error status page (AC-0010-56). |
 
-Pages are split by route, so each page's code loads when it is opened, and each
-authenticated route has a `loading.tsx` skeleton shown while its data arrives.
+Pages are split by route, so each page's code loads when it is opened. The
+authenticated routes have no `loading.tsx`: a navigation keeps the current page
+until the next can draw, and the page's own skeleton covers a slow answer
+(SPEC-0011 AC-0011-18).
 
 ---
 
@@ -265,4 +269,6 @@ crisp, fast, and only where it explains something.
 
 A change to a token, a component rule or the shell is a design decision: it goes
 in a pull request of its own, with before and after screenshots, and updates
-SPEC-0011 when it changes observable behaviour.
+SPEC-0011 when it changes observable behaviour. The screenshots are kept in
+`docs/design/changes/`, one folder per change. Patterns collected as candidates
+for a future change are noted in `docs/design/references.md`.

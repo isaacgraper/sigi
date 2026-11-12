@@ -293,10 +293,14 @@ item, so a per-item date may be needed later (OQ-42).
 
 ### INSUMO
 `id UUID PK`, `sku VARCHAR NOT NULL UNIQUE`, `codigo_doms VARCHAR NULL UNIQUE`,
-`descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NULL`,
+`descricao`, `unidade`, `grupo_id FK → GRUPO_MATERIAL NOT NULL`,
 `codigo_externo VARCHAR NULL`, `quantidade_referencia NUMERIC NULL`,
-`ativo BOOL`, `substituido_por_id FK → INSUMO NULL`,
-`descontinuado_em DATE NULL`.
+`substituido_por_id FK → INSUMO NULL`, `descontinuado_em DATE NULL`.
+
+***(2026-10-20)* No `ativo` column, and `grupo_id` is required** (SPEC-0003 v0.4).
+The situação, `ativo`, `descontinuado` or `substituido`, is derived from
+`descontinuado_em` and `substituido_por_id`; a flag beside them said the same thing
+twice. An insumo with no grupo would be invisible to every scoped servidor (RN07).
 
 **No `ata_id`.** RF03's "ATA vinculada" is realised through `ITEM_ATA` (SPEC-0003 §2).
 
@@ -329,22 +333,31 @@ Self-referencing, three levels: `Grupo mercadoria` → `SubGrupo Mercadoria` →
 
 ### ITEM_ATA
 `id UUID PK`, `ata_id FK`, `insumo_id FK`, `fornecedor_id FK → FORNECEDOR NULL`,
-`quantidade NUMERIC`, `valor_unitario NUMERIC(15,4)`, `UNIQUE(ata_id, insumo_id)`.
+`numero_item VARCHAR NULL`, `quantidade NUMERIC(15,3)`, `valor_unitario NUMERIC(15,5)`,
+`removido_em TIMESTAMPTZ NULL`, `UNIQUE(ata_id, insumo_id)` among the items not removed.
 
 ***(2026-10-06)* `fornecedor_id` overrides the ATA's** for the 29 of 456 ATAs
 with more than one fornecedor (OQ-11). `NULL` means the ATA's own fornecedor.
 
-Unit price uses four decimals: unit prices for consumables are frequently
-sub-centavo, and rounding at storage time compounds across thousands of units.
+Unit price uses five decimals *(2026-10-20, ADR-0016; was four, which still lost
+the measured `0,00599`)*: unit prices for consumables are frequently sub-centavo,
+and rounding at storage time compounds across thousands of units. The item's value
+is derived, rounded half up to the centavo once. `quantidade` is what was
+contracted; aditivos de quantidade sit in `ATA_ADITIVO` with `item_ata_id`, and
+`quantidade_contratada` is their sum with it (SPEC-0003 AC-0003-27). `Nº ITEM` is
+`numero_item`.
 
 ### NOTA_EMPENHO
-`id UUID PK`, `numero UNIQUE`, `processo_sei VARCHAR`, `data_emissao DATE`,
-`status ENUM(demanda, validacao_saldo, pre_empenho, envio_fornecedor,
-ne_emitida, cancelada)`, `ata_id FK`, `responsavel_id FK`, `criado_em`,
-`atualizado_em`, `versao INT`.
+`id UUID PK`, `numero VARCHAR(20) UNIQUE NULL`, `numero_pre_empenho VARCHAR(20)
+UNIQUE NULL`, `processo_sei VARCHAR(30)`, `data_emissao DATE NULL`, `status
+ENUM(demanda, validacao_saldo, pre_empenho, envio_fornecedor, ne_emitida,
+cancelada)`, `ata_id FK`, `responsavel_id FK`, `criado_em`, `atualizado_em`.
 
-`cancelada` is added (SPEC-0004 §4.1). `versao` supports optimistic locking for
-`CONFLITO_DE_VERSAO`.
+`cancelada` is added (SPEC-0004 §4.1). *(2026-10-27, migration `0006`)* Both
+números are issued outside SIGI and typed in at their stage: the nota de
+pré-empenho on entering `pre_empenho`, the NE at `ne_emitida` (AC-0004-28, -29);
+`CHECK`s require them from those stages on. `versao` is dropped with
+`CONFLITO_DE_VERSAO`: the row lock serialises writers.
 
 ***(2026-09-02)* The NE is a header, not a line.** `quantidade`, `valor`,
 `item_ata_id` and `insumo_id` are removed and live in `ITEM_NOTA_EMPENHO`.
@@ -360,9 +373,10 @@ exists on this table.
 one level down.
 
 ### ITEM_NOTA_EMPENHO *(new, 2026-09-02)*
-`id UUID PK`, `nota_empenho_id FK`, `item_ata_id FK`, `quantidade NUMERIC`,
-`valor_unitario NUMERIC(15,4)`, `valor NUMERIC(15,2)`,
-`UNIQUE(nota_empenho_id, item_ata_id)`.
+`id UUID PK`, `nota_empenho_id FK`, `item_ata_id FK`, `quantidade NUMERIC(15,3)`,
+`valor_unitario NUMERIC(15,5)`, `valor NUMERIC(15,2)` with `CHECK (valor =
+round(quantidade * valor_unitario, 2))` (ADR-0016), `UNIQUE(nota_empenho_id,
+item_ata_id)`.
 
 One row per insumo committed by the NE. **No status column** — the five-stage
 flow describes the administrative document, so there is no partially advanced
@@ -373,7 +387,7 @@ An NE with zero items cannot leave `demanda` (RN09).
 
 ### NOTA_FISCAL
 `id UUID PK`, `numero`, `data_emissao DATE`, `valor NUMERIC(15,2)`,
-`nota_empenho_id FK`, `fornecedor_id FK`, `servidor_id FK`,
+`nota_empenho_id FK`, `fornecedor_id FK`, `responsavel_id FK`,
 `status ENUM(aguardando, em_conferencia, aprovada, devolvida)`,
 `justificativa_devolucao TEXT NULL`,
 `UNIQUE(numero, fornecedor_id)`.
@@ -567,6 +581,7 @@ GRUPO_MATERIAL 1* GRUPO_MATERIAL     (3 levels)
 | DB11 | A session family belongs to exactly one usuario | Composite FK `SESSAO (familia, usuario_id) → SESSAO_FAMILIA` *(2026-09-10)* |
 | DB12 | Anonymisation is complete or refused | `CHECK` on `USUARIO` requiring `nome`, `email`, `registro_funcional`, `senha_hash` and `oidc_subject` all null once `anonimizado_em` is set *(2026-09-10)* |
 | DB13 | At least one `ativo` gestor always exists | Trigger on `USUARIO` update, counting with `ORDER BY id FOR UPDATE` so concurrent transactions take locks in a deterministic order; the service also takes `pg_advisory_xact_lock` so the API returns 409 `ULTIMO_GESTOR` instead of a deadlock *(2026-09-10)* |
+| DB14 | Every `ITEM_NOTA_FISCAL.item_nota_empenho_id` belongs to the parent `NOTA_FISCAL.nota_empenho_id` | Trigger, as DB2 *(2026-11-04, SPEC-0005)* |
 
 **On DB13.** It is a cross-row aggregate, so a `CHECK` cannot express it, and a
 trigger alone is not enough: two transactions each blocking a different one of

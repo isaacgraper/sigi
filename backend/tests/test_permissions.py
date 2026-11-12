@@ -24,8 +24,8 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
+from app.constants import WRITE_METHODS
 from app.core.authorization import (
-    WRITE_METHODS,
     Public,
     Requires,
     RouteWithoutDecision,
@@ -161,6 +161,7 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("POST", "/api/v1/auth/refresh"): None,
     ("POST", "/api/v1/auth/logout"): None,
     ("GET", "/api/v1/auth/me"): None,
+    ("GET", "/api/v1/auth/mecanismos"): None,
     ("POST", "/api/v1/auth/redefinicoes/confirmar"): None,
     ("GET", "/api/v1/auth/oidc/authorize"): None,
     ("GET", "/api/v1/auth/oidc/callback"): None,
@@ -179,18 +180,78 @@ MATRIX: dict[tuple[str, str], frozenset[str] | None] = {
     ("GET", "/api/v1/usuarios"): frozenset({"gestor", "auditor"}),
     # SPEC-0002 §3.7: every perfil reads ATAs and both alerts; only a gestor writes.
     ("GET", "/api/v1/atas"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/painel/{section}"): frozenset({"gestor", "servidor", "auditor"}),
     ("GET", "/api/v1/atas/alertas/renovacao"): frozenset({"gestor", "servidor", "auditor"}),
     ("GET", "/api/v1/atas/alertas/reajuste"): frozenset({"gestor", "servidor", "auditor"}),
     ("GET", "/api/v1/atas/{ata_id}"): frozenset({"gestor", "servidor", "auditor"}),
     ("POST", "/api/v1/atas"): frozenset({"gestor"}),
     ("PATCH", "/api/v1/atas/{ata_id}"): frozenset({"gestor"}),
-    ("POST", "/api/v1/atas/{ata_id}/ativar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/suspender"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/retomar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/encerrar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/cancelar"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/aditivos"): frozenset({"gestor"}),
     ("POST", "/api/v1/atas/{ata_id}/reajustes"): frozenset({"gestor"}),
+    # SPEC-0003 §3.9: every perfil reads the catalogue, the grupos and an ATA's
+    # items; a servidor and a gestor register and correct insumos; the rest is
+    # the gestor's.
+    ("GET", "/api/v1/insumos"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/insumos/{insumo_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/insumos"): frozenset({"gestor", "servidor"}),
+    ("PATCH", "/api/v1/insumos/{insumo_id}"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/insumos/importacao"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/alterar-sku"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/descontinuar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/substituir"): frozenset({"gestor"}),
+    ("POST", "/api/v1/insumos/{insumo_id}/reativar"): frozenset({"gestor"}),
+    ("GET", "/api/v1/grupos-materiais"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/grupos-materiais"): frozenset({"gestor"}),
+    ("PATCH", "/api/v1/grupos-materiais/{grupo_id}"): frozenset({"gestor"}),
+    ("GET", "/api/v1/atas/{ata_id}/itens"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens/importacao"): frozenset({"gestor"}),
+    ("PATCH", "/api/v1/atas/{ata_id}/itens/{item_id}"): frozenset({"gestor"}),
+    ("POST", "/api/v1/atas/{ata_id}/itens/{item_id}/remover"): frozenset({"gestor"}),
+    # SPEC-0004 §6 and SPEC-0006 §3.1: every perfil reads NEs and saldo; the gestor
+    # opens, edits the itens, reverses and cancels; the servidor also advances.
+    ("GET", "/api/v1/atas/{ata_id}/saldo"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/atas/{ata_id}/itens/saldo"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho/indicadores"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-empenho/{ne_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notas-empenho"): frozenset({"gestor"}),
+    ("PUT", "/api/v1/notas-empenho/{ne_id}/itens"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/avancar"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/reverter"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-empenho/{ne_id}/cancelar"): frozenset({"gestor"}),
+    ("GET", "/api/v1/notas-fiscais"): frozenset({"gestor", "servidor", "auditor"}),
+    ("GET", "/api/v1/notas-fiscais/{nf_id}"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notas-fiscais"): frozenset({"gestor", "servidor"}),
+    ("PUT", "/api/v1/notas-fiscais/{nf_id}"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/notas-fiscais/{nf_id}/enviar"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/notas-fiscais/{nf_id}/aprovar"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-fiscais/{nf_id}/devolver"): frozenset({"gestor"}),
+    ("POST", "/api/v1/notas-fiscais/{nf_id}/quarentena"): frozenset({"gestor", "servidor"}),
+    ("POST", "/api/v1/notas-fiscais/{nf_id}/liberar"): frozenset({"gestor"}),
+    ("GET", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
+    ("POST", "/api/v1/usuarios/{user_id}/grupos-materiais"): frozenset({"gestor"}),
+    # SPEC-0007 AC-0007-07 and AC-0007-09: the gestor and the auditor read the
+    # history; every perfil reads the cycle of an insumo.
+    ("GET", "/api/v1/historico"): frozenset({"gestor", "auditor"}),
+    ("GET", "/api/v1/insumos/{insumo_id}/ciclo"): frozenset({"gestor", "servidor", "auditor"}),
+    # SPEC-0009 AC-0009-05 and AC-0009-11: the gestor and the auditor export the
+    # reports and the Histórico; every perfil exports the lists it reads,
+    # so the route admits all three and the service refuses the rest.
+    ("GET", "/api/v1/relatorios/{relatorio}"): frozenset({"gestor", "servidor", "auditor"}),
+    # SPEC-0008 AC-0008-03, -05: every perfil reads the same notices and marks them read.
+    ("GET", "/api/v1/notificacoes"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notificacoes/lidas"): frozenset({"gestor", "servidor", "auditor"}),
+    ("POST", "/api/v1/notificacoes/{notificacao_id}/lida"): frozenset(
+        {"gestor", "servidor", "auditor"}
+    ),
+    # AC-0008-07: every perfil sets its own e-mail summary.
+    ("GET", "/api/v1/preferencias/email"): frozenset({"gestor", "servidor", "auditor"}),
+    ("PUT", "/api/v1/preferencias/email"): frozenset({"gestor", "servidor", "auditor"}),
 }
 
 
@@ -238,7 +299,14 @@ def _call(
 ) -> httpx2.Response:
     # A real id in the placeholder, and an empty body. A route that gets past
     # authorisation then fails validation with 422, and 422 means "authorised".
-    concrete = path.replace("{user_id}", str(uuid.uuid4())).replace("{ata_id}", str(uuid.uuid4()))
+    concrete = (
+        path.replace("{user_id}", str(uuid.uuid4()))
+        .replace("{ata_id}", str(uuid.uuid4()))
+        .replace("{insumo_id}", str(uuid.uuid4()))
+        .replace("{grupo_id}", str(uuid.uuid4()))
+        .replace("{item_id}", str(uuid.uuid4()))
+        .replace("{section}", "consumo")
+    )
     if method == "GET":
         return application.get(concrete, headers=headers)
     return application.request(method, concrete, json={}, headers=headers)

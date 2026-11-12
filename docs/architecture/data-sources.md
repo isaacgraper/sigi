@@ -303,9 +303,8 @@ Every one of these appears in the supplied files. An importer that assumes
 otherwise corrupts data silently.
 
 > **Numbering note.** Earlier drafts called strict import validation `RF30`.
-> That number belongs to `docs/rfc-sigi-v1.7.md`, which is **superseded** and
-> whose `RF04`–`RF30` range collides with `requirements/functional.md` (`RF05`
-> and `RN11` mean different things in each). No requirement number is cited here
+> That number belonged to `rfc-sigi-v1.7.md`, a superseded document deleted on
+> 2026-10-27 (OQ-28). No requirement number is cited here
 > until one is allocated from `functional.md`'s own sequence. See OQ-28.
 
 | Hazard | Observed | Consequence |
@@ -313,7 +312,7 @@ otherwise corrupts data silently.
 | Dates as Excel serials | `46213.70138888889`, `45447.0` | Parsed as a number, a date becomes a quantity |
 | Money as formatted text | `R$ 4.892,88000` | `.` thousands, `,` decimal, **5 decimal places** |
 | Money at 5 decimals | `valorUnitario` `0,00599` | `NUMERIC(15,2)` truncates to `0,01` — a 67% error |
-| Unit price at 4 decimals | `ITEM_ATA.valor_unitario NUMERIC(15,4)` | Correct for `4,582`, still lossy for `0,00599` |
+| Unit price at 4 decimals | `ITEM_ATA.valor_unitario NUMERIC(15,4)` | Correct for `4,582`, still lossy for `0,00599`. *(2026-10-20: now `NUMERIC(15,5)`, ADR-0016)* |
 | **Unit collision on the same concept** | `diasEstoque` = `119` (**days**, DOMS) vs. `TEMPO DE ESTOQUE` = `2,876` (**months**, CAME) | Same name, same meaning, 30× apart |
 | SEI in scientific notation | `1.9596093E7` | Loses leading zeros and formatting |
 | Codes typed as floats | `mercadoriaId` `2888.0`, `empenho` `1316.0` | `1316.0` is not a key that joins to `1316` |
@@ -351,6 +350,14 @@ Consequences, which are not optional:
 3. `docs/security/lgpd.md` currently maps no health data because the RFC assumed
    none. That assumption is contradicted by the export. See OQ-24.
 4. The workbooks must not be committed to this repository.
+
+*(2026-10-13)* The product owner brought `ENTRADAS NFS` into scope, patient
+name included (OQ-24). Points 1 and 2 hold until SPEC-0005 specifies the
+importer, with the safeguards `docs/security/lgpd.md` lists.
+
+*(2026-11-04)* Out again, by the product owner's decision (OQ-24, OQ-55).
+SPEC-0005 v1.0 registers the NF typed from the document, with no patient
+field, and nothing ingests this report. Points 1 to 4 stand.
 
 ---
 

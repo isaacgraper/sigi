@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import {
   DropdownMenu,
@@ -10,11 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { displayName, type Me, PERFIL_LABEL } from "@/lib/me";
+import { PERFIL_LABEL } from "@/lib/constants";
+import { SETTINGS_LABEL } from "@/lib/notificacoes/constants";
+import { displayName } from "@/lib/me";
+import type { Me } from "@/lib/types";
 
 /** Who is signed in, and the way out (AC-0011-08). */
 export function UserMenu({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const name = displayName(me);
+  const router = useRouter();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -39,6 +44,10 @@ export function UserMenu({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <span className="block font-light">{PERFIL_LABEL[me.perfil]}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => router.push("/configuracoes")}>
+          <Settings aria-hidden />
+          {SETTINGS_LABEL}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onLogout}>
           <LogOut aria-hidden />
           Sair
