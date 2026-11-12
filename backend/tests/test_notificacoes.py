@@ -1,8 +1,8 @@
-"""The ATA notices — SPEC-0008 v1.0.
+"""The ATA notices and the bell — SPEC-0008 v1.1, AC-0008-01 to -05.
 
-The daily check raises a notice once per ATA and reason, every perfil reads the
-same ones, and one digest a day goes to the e-mail each member signs in with.
-The database is shared by the suite, so each test looks at its own ATAs.
+The daily check raises a notice once per ATA and reason, and every perfil reads
+the same ones. The e-mail summary is `test_resumo.py`'s. The database is shared
+by the suite, so each test looks at its own ATAs.
 """
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ from __future__ import annotations
 import datetime
 import uuid
 from collections.abc import Callable
-from email.message import EmailMessage
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,11 +17,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import clock
-from app.core.config import Settings
 from app.models.audit_log import AuditLog
 from app.models.notificacao import Notificacao
 from app.models.user import User
-from app.services import mail
 from app.services import notificacoes as service
 from tests.catalogue import login, make_ata
 from tests.test_notas_empenho import open_ne, setup_ata, to_stage
@@ -31,21 +27,6 @@ from tests.test_notas_fiscais import error
 
 AVISOS = "/api/v1/notificacoes"
 ATAS = "/api/v1/atas"
-
-
-class Collected:
-    """A sender that keeps what it was given, or refuses everything."""
-
-    def __init__(self, refuse: bool = False) -> None:
-        """Start empty; `refuse` makes every send fail as an SMTP outage would."""
-        self.messages: list[EmailMessage] = []
-        self.refuse = refuse
-
-    def send(self, message: EmailMessage) -> None:
-        """Keep the message, or fail."""
-        if self.refuse:
-            raise ConnectionRefusedError("SMTP fora do ar")
-        self.messages.append(message)
 
 
 @pytest.fixture
@@ -262,133 +243,10 @@ def test_AC_0008_05_an_unknown_notice_is_not_found(
     assert error(response)["code"] == "NOT_FOUND"
 
 
-# ── AC-0008-06 to -09 — the digest ──────────────────────────────────────────
+# ── The history of the check ────────────────────────────────────────────────
 
 
-def digest(db_session: Session, sender: Collected) -> tuple[int, bool]:
-    """Send the digest and keep what it recorded."""
-    result = service.digest(db_session, sender=sender, at=clock.now(), correlation_id=uuid.uuid4())
-    db_session.commit()
-    return result
-
-
-def test_AC_0008_06_AC_0008_09_one_e_mail_per_member_at_their_own_address(
-    application: TestClient,
-    create_user: Callable[..., User],
-    gestor: dict[str, str],
-    db_session: Session,
-) -> None:
-    """Every active member receives one e-mail at the address they sign in with."""
-    ata = make_ata(application, gestor, vigencia_fim=day(30))
-    member = create_user(
-        perfil="auditor", email=f"aviso-{uuid.uuid4().hex[:8]}@sc.gov.br", name="Ana Avisada"
-    )
-    check(db_session)
-    sender = Collected()
-
-    sent, failed = digest(db_session, sender)
-
-    assert failed is False and sent == len(sender.messages) > 0
-    assert len({message["To"] for message in sender.messages}) == len(sender.messages)
-    theirs = next(message for message in sender.messages if message["To"] == member.email)
-    body = theirs.get_content()
-    assert "Olá, Ana Avisada." in body
-    assert f"ATA {ata['number']}" in body and f"/atas/{ata['id']}" in body
-    assert "Vai vencer" in body
-    others = {message["To"] for message in sender.messages} - {member.email}
-    assert not any(address in body for address in others)
-
-
-def test_AC_0008_06_a_day_with_nothing_new_sends_nothing(
-    application: TestClient, gestor: dict[str, str], db_session: Session
-) -> None:
-    """Once sent, a notice is not sent again."""
-    make_ata(application, gestor, vigencia_fim=day(30))
-    check(db_session)
-    digest(db_session, Collected())
-    sender = Collected()
-
-    sent, _ = digest(db_session, sender)
-
-    assert sent == 0 and sender.messages == []
-
-
-def test_AC_0008_06_a_blocked_member_is_not_written_to(
-    application: TestClient,
-    create_user: Callable[..., User],
-    gestor: dict[str, str],
-    db_session: Session,
-) -> None:
-    """Only the members who can sign in."""
-    blocked = create_user(email=f"bloq-{uuid.uuid4().hex[:8]}@sc.gov.br", status="bloqueado")
-    make_ata(application, gestor, vigencia_fim=day(30))
-    check(db_session)
-    sender = Collected()
-
-    digest(db_session, sender)
-
-    assert blocked.email not in {message["To"] for message in sender.messages}
-
-
-def test_AC_0008_07_outside_production_nothing_leaves_the_machine(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A host set outside production still writes to the folder, and opens no connection."""
-
-    def refuse(*_: object, **__: object) -> None:
-        raise AssertionError("an SMTP connection was opened")
-
-    monkeypatch.setattr(mail.smtplib, "SMTP", refuse)
-    settings = Settings(
-        app_env="development", smtp_host="smtp.exemplo.gov.br", mail_folder=str(tmp_path)
-    )
-    message = EmailMessage()
-    message["To"] = "pessoa@sc.gov.br"
-    message.set_content("teste")
-
-    sender = mail.sender_for(settings)
-    sender.send(message)
-
-    assert isinstance(sender, mail.FolderSender)
-    assert len(list(tmp_path.glob("*.eml"))) == 1
-
-
-def test_AC_0008_07_production_with_no_host_writes_to_the_folder(tmp_path: Path) -> None:
-    """No SMTP configured, no send."""
-    production = Settings(app_env="production", smtp_host=None, mail_folder=str(tmp_path))
-    with_host = Settings(app_env="production", smtp_host="smtp.exemplo.gov.br")
-
-    assert isinstance(mail.sender_for(production), mail.FolderSender)
-    assert isinstance(mail.sender_for(with_host), mail.SmtpSender)
-
-
-def test_AC_0008_08_a_failed_send_is_recorded_and_carried_tomorrow(
-    application: TestClient, gestor: dict[str, str], db_session: Session
-) -> None:
-    """The notices stay unsent, the failure is in the history, the next run sends them."""
-    ata = make_ata(application, gestor, vigencia_fim=day(30))
-    check(db_session)
-
-    sent, failed = digest(db_session, Collected(refuse=True))
-
-    assert failed is True and sent == 0
-    assert notices_of(db_session, ata["id"])[0].enviada_em is None
-    row = db_session.scalars(
-        select(AuditLog)
-        .where(AuditLog.acao == "notificacao.envio_falhou")
-        .order_by(AuditLog.ocorrido_em.desc())
-    ).first()
-    assert row is not None and row.dados_anteriores is not None
-    assert row.dados_anteriores["erro"] == "ConnectionRefusedError"
-
-    retried = Collected()
-    digest(db_session, retried)
-
-    assert any(f"ATA {ata['number']}" in message.get_content() for message in retried.messages)
-    assert notices_of(db_session, ata["id"])[0].enviada_em is not None
-
-
-def test_AC_0008_08_the_check_records_each_notice(
+def test_AC_0008_01_the_check_records_each_notice(
     application: TestClient, gestor: dict[str, str], db_session: Session
 ) -> None:
     """A notice raised writes its history row."""

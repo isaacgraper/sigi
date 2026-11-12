@@ -52,8 +52,8 @@ def test_AC_0008_01_an_unknown_reason_is_refused(
         insert(admin_connection, ata_id, motivo="qualquer")
 
 
-@pytest.mark.parametrize("table", ["notificacao", "notificacao_leitura"])
+@pytest.mark.parametrize("table", ["notificacao", "notificacao_leitura", "preferencia_email"])
 def test_the_application_role_cannot_delete(table: str, app_connection: psycopg.Connection) -> None:
-    """A notice and its reading are kept; the app role has no DELETE."""
+    """A notice, its reading and a choice are kept; the app role has no DELETE."""
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         app_connection.execute(f"DELETE FROM {table}")  # noqa: S608 - a fixed table name
