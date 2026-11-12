@@ -57,34 +57,6 @@ Depois de atualizar o código, rode `alembic upgrade head` de novo: o container
 não aplica migrations sozinho, e uma tabela que falta aparece nas telas como
 "Não foi possível concluir".
 
-## Servidor (VPS)
-
-A VPS de teste roda a `dev`. A montagem inicial está em
-[`docs/process/deploy-vps.md`](docs/process/deploy-vps.md). Os comandos abaixo
-mantêm o banco e o `.env.prod`.
-
-Atualizar a `dev`:
-
-```bash
-cd ~/sigi
-git checkout dev
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
-```
-
-Rodar a `main`, a versão lançada:
-
-```bash
-cd ~/sigi
-git checkout main
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
-```
-
-Para uma versão fixa, troque o `git checkout main` por `git checkout v1.0.0`.
-
 ## Desenvolvimento
 
 Pré-requisitos: Python 3.12, [Poetry](https://python-poetry.org) 2.x,

@@ -13,4 +13,20 @@ mail written to a folder (no SMTP yet, OQ-13).
 8. Daily notices and summaries: a host cron, once a day:
    `0 7 * * * cd /root/sigi && docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backend python -m app.cli notificar`
 
-Update: `git pull`, step 5, step 6. The VPS runs `dev` for testing; `git checkout main` (or a tag such as `v1.0.0`) runs a release with the same steps. The README has the commands. Back up the `postgres_data` volume before the client sees real data.
+## Update and release
+
+The VPS runs `dev` for testing. These commands keep the database and `.env.prod`.
+
+Update `dev`:
+
+```bash
+cd ~/sigi
+git checkout dev
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
+```
+
+Run `main`, the released version: the same commands with `git checkout main`. To pin a version, use `git checkout v1.0.0`.
+
+Back up the `postgres_data` volume before the client sees real data.
