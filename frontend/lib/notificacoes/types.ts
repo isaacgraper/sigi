@@ -20,3 +20,10 @@ export interface AvisoPage {
   size: number;
   nao_lidas: number;
 }
+
+export type Frequencia = "diario" | "semanal" | "nenhum";
+
+export interface PreferenciaEmail {
+  frequencia: Frequencia;
+  dia_semana: number;
+}
