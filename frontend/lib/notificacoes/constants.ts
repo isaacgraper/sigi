@@ -13,9 +13,9 @@ export const MARK_ALL = "Marcar todas como lidas";
 // ── Configurações: the e-mail summary (SPEC-0008 AC-0008-07) ───────────────
 
 export const FREQUENCIAS = [
-  { value: "diario", label: "Diário", hint: "Todo dia, com os dados do dia." },
-  { value: "semanal", label: "Semanal", hint: "Uma vez por semana, no dia escolhido." },
-  { value: "nenhum", label: "Nenhum", hint: "Sem e-mail; os avisos continuam no sino." },
+  { value: "diario", label: "Diário" },
+  { value: "semanal", label: "Semanal" },
+  { value: "nenhum", label: "Nenhum" },
 ] as const;
 
 // ISO weekdays: 1 is Monday, 7 is Sunday, as the API reads them.

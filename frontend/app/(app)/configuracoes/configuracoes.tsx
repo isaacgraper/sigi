@@ -66,10 +66,7 @@ function EmailForm({ initial, onSaved }: { initial: PreferenciaEmail; onSaved: (
                 checked={frequencia === option.value}
                 onChange={() => setFrequencia(option.value)}
               />
-              <span>
-                {option.label}
-                <span className="block text-xs font-light text-muted-foreground">{option.hint}</span>
-              </span>
+              <span>{option.label}</span>
             </label>
           ))}
         </div>
@@ -114,14 +111,10 @@ export function Configuracoes() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Configurações" description="O que vale só para você no SIGI." />
+      <PageHeader title="Configurações" />
       <Card className="max-w-2xl">
         <CardHeader className="pb-3">
           <CardTitle>Resumo por e-mail</CardTitle>
-          <p className="text-sm font-light text-muted-foreground">
-            Um e-mail com as ATAs que pedem atenção, as NEs por etapa e as NFs em conferência, devolvidas e em
-            quarentena, no e-mail com que você entra no SIGI.
-          </p>
         </CardHeader>
         <CardContent>
           {read.failure && !read.data && <ErrorNotice error={read.failure} />}
