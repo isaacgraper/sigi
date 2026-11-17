@@ -46,7 +46,7 @@ on an `Approved` spec is a merge blocker.
 | RF12 (screen) | SPEC-0018 v1.0 | AC-0018-01..05 | `frontend/e2e/relatorios.spec.ts` | Approved, built |
 | RF01, RF02, RF18 (screens) | SPEC-0010 v1.8 | AC-0010-01..42, AC-0010-46..52, AC-0010-59..61 | `frontend/e2e/*.spec.ts`, `frontend/tests/*.test.ts` | **Implemented** |
 | RNF06, RNF14 | SPEC-0010 v1.8 | AC-0010-43..45 | `frontend/e2e/responsive.spec.ts`, `frontend/e2e/accessibility.spec.ts` | **Implemented** |
-| RNF09 (deploy), OQ-60 | SPEC-0019 v0.1 | AC-0019-01..18 | — | Draft |
+| RNF09 (deploy), OQ-60 | SPEC-0019 v0.2 | AC-0019-01..18 | — | Draft |
 
 ## Unmapped
 

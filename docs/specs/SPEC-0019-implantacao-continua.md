@@ -2,7 +2,7 @@
 id: SPEC-0019
 title: Implantação contínua na VPS
 status: Draft
-version: 0.1
+version: 0.2
 owner: Isaac Kleimmann Graper
 satisfies: [RNF09]
 depends_on: []
@@ -59,8 +59,10 @@ The invariants it must not weaken:
   compose file. The application keeps connecting as the restricted role.
 - **The database volume survives.** No step removes `postgres_data`,
   `caddy_data` or `mail_data`.
-- **No secret enters the repository.** The VPS address, user and key live only
-  in the repository's secrets; `.env.prod` lives only on the VPS.
+- **No secret enters the repository.** The VPS address, user, checkout path and
+  key live only in the repository's secrets; `.env.prod` lives only on the VPS.
+- **`.env.prod` survives the checkout.** It is ignored by git, so taking the
+  checkout back to `main` never touches it.
 
 ## 4. Behaviour
 
@@ -124,27 +126,27 @@ Then  the run fails before connecting, naming the missing secret in its log
 Each step below runs only if the one before it succeeded, and any failure ends
 the run red.
 
-**AC-0019-08** — The checkout is the pushed commit
+**AC-0019-08** — The checkout is main
 ```gherkin
 Given the VPS checkout on main, with no local changes
 When  the run updates it
-Then  the checkout's HEAD is the commit that started the run
+Then  the checkout's HEAD is the tip of main on GitHub at the time of the run
 ```
 
-**AC-0019-09** — A checkout that diverged is not overwritten
+**AC-0019-09** — main retakes a checkout that diverged
 ```gherkin
 Given the VPS checkout has local commits or modified tracked files
 When  the run updates it
-Then  the update is refused without discarding them
-And   the stack is not rebuilt
-And   the run fails
+Then  the checkout's HEAD is the tip of main on GitHub at the time of the run
+And   no tracked file differs from that commit
+And   .env.prod is unchanged
 ```
 
 **AC-0019-10** — A VPS left on dev moves to main
 ```gherkin
-Given the VPS checkout on dev, with no local changes
+Given the VPS checkout on dev, left there by hand for a demo
 When  the run updates it
-Then  the checkout is on main at the commit that started the run
+Then  the checkout is on main, at the tip of main on GitHub at the time of the run
 ```
 
 **AC-0019-11** — The production stack is rebuilt
@@ -217,6 +219,12 @@ rebuild (`deploy-vps.md`, "To pin a version"). A migration is never reverted
 by the deploy: `alembic downgrade` is denied by design, and a release whose
 migration cannot be undone is a `MAJOR` (`branching-and-releases.md`).
 
+The deploy takes no dump before migrating (OQ-58), so the nearest restore point
+is the last RNF11 backup, not the moment before the deploy. A migration that
+reaches `main` is therefore additive: it adds tables, columns or constraints
+and does not drop or rewrite data. One that cannot be is released on its own,
+after a manual backup.
+
 ## 5. Errors and edge cases
 
 The deploy has no HTTP surface and no pt-BR copy. Its failures are a red run
@@ -226,7 +234,6 @@ with the reason in the log.
 | --- | --- | --- |
 | A secret is missing | Before connecting | AC-0019-07 |
 | The host key does not match | Connecting | AC-0019-06 |
-| The VPS checkout diverged | Updating the checkout | AC-0019-09 |
 | `.env.prod` missing or incomplete | Rebuilding | AC-0019-12 |
 | A migration fails | Migrating | AC-0019-14 |
 | The API does not answer in 60 s | Health check | AC-0019-16 |
@@ -241,7 +248,7 @@ deploy is who may merge into `main`, which branch protection already decides.
 | --- | --- |
 | Start a deploy | Anyone whose merge into `main` branch protection allows |
 | Set or rotate the deploy secrets | A repository administrator |
-| Log into the VPS as the deploy user | The holder of the deploy key: the workflow only |
+| Log into the VPS with the deploy key | The workflow only. The key is dedicated to it; the OS user it logs in as is the VPS's non-root admin user, not a separate account |
 
 ## 7. API surface
 
@@ -256,15 +263,18 @@ the audit record of a version.
 
 ## 9. Open questions
 
-- **OQ-57** — Does the VPS keep running `dev` for demos, or only `main` once
-  this is in place? Blocks nothing here; AC-0019-10 moves it to `main` on the
-  first release.
-- **OQ-58** — Must the deploy dump the database before migrating? Blocks
-  nothing here; RNF11 covers backups separately.
-- **OQ-59** — The checkout path and user on the VPS: `deploy-vps.md` says
-  `~/sigi` and its cron says `/root/sigi`. Blocks the plan, not the criteria.
-- **OQ-60** — No RF or RNF asks for automated deployment; RNF09 is the nearest.
-  The product owner's request of 2026-11-17 is the source.
+All resolved by the product owner on 2026-11-17.
+
+- **OQ-57** — The VPS runs `main`; a `dev` demo is a manual checkout, and the
+  next deploy takes the directory back to `main`, discarding local changes
+  (AC-0019-09, -10).
+- **OQ-58** — No dump before migrating; backups stay with RNF11. Migrations
+  reaching `main` are additive (§4.4).
+- **OQ-59** — The deploy logs in as the VPS's non-root admin user with a key
+  dedicated to the workflow; root login is disabled. The checkout path is a
+  secret.
+- **OQ-60** — RNF09 is the nearest requirement; the product owner's request of
+  2026-11-17 is the source.
 
 ## 10. Implementation plan
 
@@ -279,3 +289,4 @@ _Filled by `/plan`. Empty until the spec is Approved._
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-17 | Initial draft, on the product owner's request of 2026-11-17 to deploy the VPS on every merge into `main` |
+| 0.2 | 2026-11-17 | OQ-57..60 answered by the product owner. AC-0019-09 reversed: a diverged checkout is reset to `main`, not refused. AC-0019-08 and -10 deploy the tip of `main`. §4.4 requires additive migrations. §6 drops the separate deploy user |
