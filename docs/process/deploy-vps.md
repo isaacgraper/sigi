@@ -5,13 +5,13 @@ mail written to a folder (no SMTP yet, OQ-13).
 
 1. Plain http on the VPS IP, no domain. With a domain: put it in the Caddyfile instead of `:80`, set `SIGI_ORIGIN=https://domain` and `COOKIE_SECURE=true`.
 2. VPS (Ubuntu): `curl -fsSL https://get.docker.com | sh`; open ports 80 and 443 only (22 for SSH): `ufw allow 80/tcp && ufw allow 443/tcp`, and in the host panel's firewall if it has one.
-3. As the non-root admin user (root login disabled): `git clone https://github.com/isaacgraper/sigi ~/app && cd ~/app`, on `main`
+3. As the non-root admin user (root login disabled): `git clone https://github.com/isaacgraper/sigi ~/sigi && cd ~/sigi`, on `main`
 4. `scripts/gen-prod-env.sh 179.199.146.43`
 5. `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
 6. Migrations: `docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head`
 7. First gestor: `docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python -m app.cli bootstrap-gestor --email <email>`
 8. Daily notices and summaries: a host cron, once a day:
-   `0 7 * * * cd ~/app && docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backend python -m app.cli notificar`
+   `0 7 * * * cd ~/sigi && docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backend python -m app.cli notificar`
 
 ## Automatic deploy (SPEC-0019)
 
@@ -34,7 +34,7 @@ pruned. Nothing else deploys, and two deploys never overlap.
    | `VPS_USER` | the non-root admin user |
    | `VPS_SSH_KEY` | the private key from step 1 |
    | `VPS_FINGERPRINT` | the `SHA256:…` from step 3 |
-   | `VPS_PROJECT_PATH` | the checkout's absolute path, e.g. `/home/<user>/app` |
+   | `VPS_PROJECT_PATH` | the checkout's absolute path, e.g. `/home/<user>/sigi` |
 
 A red run is the alarm. A missing secret, a changed host key, a missing
 `.env.prod`, a failed migration or a silent `/health` each stop it, with the
@@ -53,7 +53,7 @@ data ships in a release of its own, after a manual backup.
 These commands keep the database and `.env.prod`.
 
 ```bash
-cd ~/app
+cd ~/sigi
 git fetch origin
 git checkout v1.0.0
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
