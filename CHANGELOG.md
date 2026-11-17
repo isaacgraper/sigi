@@ -11,6 +11,14 @@ entries are moved into a new dated version section — see
 
 ## [Unreleased]
 
+### Added
+
+- Automatic deploy to the VPS (SPEC-0019): every push to `main` resets the VPS checkout to
+  `main`, rebuilds the production stack, applies migrations as the owner role, checks
+  `/health` for 60 seconds and prunes dangling images. One deploy at a time, the host key
+  pinned, every credential a secret of the `production` environment. Setup in
+  `docs/process/deploy-vps.md`.
+
 ## [1.0.0] - 2026-11-12
 
 ### Added

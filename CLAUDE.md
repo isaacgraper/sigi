@@ -107,7 +107,8 @@ reports have their screen under `/relatorios` (SPEC-0018, `Approved`, built).
 the same for every perfil, and an e-mail summary of ATAs, NEs and NFs on a fixed
 template, daily, weekly or none as each member sets on `/configuracoes`, sent by
 `python -m app.cli notificar` and written to `mail_folder` until an SMTP host is set
-(OQ-13). **A spec at `Draft` may not be implemented**.
+(OQ-13). `SPEC-0019` (v1.0) is `Approved` and built, waiting for the first release deploy: every push to `main` deploys the VPS
+(`.github/workflows/deploy.yml`, `docs/process/deploy-vps.md`). **A spec at `Draft` may not be implemented**.
 
 **What is left:**
 

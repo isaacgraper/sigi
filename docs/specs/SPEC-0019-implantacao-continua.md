@@ -1,8 +1,8 @@
 ---
 id: SPEC-0019
 title: Implantação contínua na VPS
-status: Draft
-version: 0.2
+status: Approved
+version: 1.0
 owner: Isaac Kleimmann Graper
 satisfies: [RNF09]
 depends_on: []
@@ -278,11 +278,32 @@ All resolved by the product owner on 2026-11-17.
 
 ## 10. Implementation plan
 
-_Filled by `/plan`. Empty until the spec is Approved._
+*(2026-11-17, approved by the product owner on asking for the implementation.)*
 
-- Migration:
-- Modules:
-- Tests:
+- **Migration:** none.
+- **Modules:**
+  - `.github/workflows/deploy.yml`: one job in the `production` environment. A
+    first step fails on any empty secret (AC-0019-07); the second runs the
+    deploy over SSH with `appleboy/ssh-action` v1.2.0, pinned by commit because
+    it holds the key, with the host fingerprint (AC-0019-06). The remote script
+    is POSIX `sh` under `set -eu`, since the login shell is not known to be bash.
+  - `git fetch origin && git checkout -f main && git reset --hard origin/main`
+    (AC-0019-08..10). `-f` because a plain checkout refuses when a demo left
+    modified tracked files. No `git clean`: `.env.prod` is untracked.
+  - The health check runs `python` inside the backend container against
+    `localhost:8000/health`: the backend has no published port in the
+    production stack and Caddy proxies only the frontend.
+  - `.github/workflows/backend-ci.yml`: a change to the deploy workflow runs
+    its contract test.
+  - `docs/process/deploy-vps.md`: the setup, the secrets, the demo and rollback
+    procedures, and the checkout path corrected (OQ-59).
+- **Dependencies:** `appleboy/ssh-action`, a GitHub Action, not a package.
+  No Python or npm dependency.
+- **Tests:** `backend/tests/test_deploy_workflow.py` reads the workflow as text
+  and asserts each AC it can: the trigger, permissions, concurrency, secrets,
+  the pin, the fingerprint, and the order and form of every remote step. That
+  the steps work on the VPS (AC-0019-08..18) is proven by the first deploy of a
+  release, not by CI.
 
 ## 11. Changelog
 
@@ -290,3 +311,4 @@ _Filled by `/plan`. Empty until the spec is Approved._
 | --- | --- | --- |
 | 0.1 | 2026-11-17 | Initial draft, on the product owner's request of 2026-11-17 to deploy the VPS on every merge into `main` |
 | 0.2 | 2026-11-17 | OQ-57..60 answered by the product owner. AC-0019-09 reversed: a diverged checkout is reset to `main`, not refused. AC-0019-08 and -10 deploy the tip of `main`. §4.4 requires additive migrations. §6 drops the separate deploy user |
+| 1.0 | 2026-11-17 | Approved by the product owner and built: §10 filled. Stays `Approved` until the first release deploy proves AC-0019-08..18 on the VPS |
