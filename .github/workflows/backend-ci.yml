@@ -52,13 +52,17 @@ jobs:
           else
             files="$(git diff --name-only "$base" HEAD)"
           fi
-          if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
+          if echo "$files" | grep -qE '^(backend/|scripts/|infra/|\.pre-commit-config\.yaml$|\.github/workflows/deploy\.yml$)'; then echo "backend=true"; else echo "backend=false"; fi >> "$GITHUB_OUTPUT"
           # What a change runs: the test files it touched and that still exist. A
           # change to the shared fixtures, or no usable base, runs them all.
           if echo "$files" | grep -qE '^backend/(tests/(conftest|catalogue|__init__)\.py)?$'; then
             tests="tests"
           else
             tests="$(echo "$files" | grep -E '^backend/tests/test_[A-Za-z0-9_]+\.py$' | sed 's#^backend/##' | while read -r f; do [ -f "backend/$f" ] && printf '%s ' "$f"; done)"
+          fi
+          # The deploy workflow's contract is a backend test (SPEC-0019).
+          if [ "$tests" != "tests" ] && echo "$files" | grep -qE '^\.github/workflows/deploy\.yml$'; then
+            case " $tests " in *" tests/test_deploy_workflow.py "*) ;; *) tests="${tests}tests/test_deploy_workflow.py " ;; esac
           fi
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
 
